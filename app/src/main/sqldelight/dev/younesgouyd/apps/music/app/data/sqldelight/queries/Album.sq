@@ -1,0 +1,31 @@
+getAll:
+SELECT * FROM album;
+
+get:
+SELECT * FROM album WHERE id = :id;
+
+add:
+INSERT INTO album (name, image, release_date, creation_datetime, update_datetime)
+VALUES (:name, :image, :release_date, :creation_datetime, :update_datetime)
+RETURNING id;
+
+updateName:
+UPDATE album
+SET name = :name,
+    update_datetime = :update_datetime
+WHERE id = :id;
+
+updateImage:
+UPDATE album
+SET image = :image,
+    update_datetime = :update_datetime
+WHERE id = :id;
+
+updateReleaseDate:
+UPDATE album
+SET release_date = :release_date,
+    update_datetime = :update_datetime
+WHERE id = :id;
+
+delete:
+DELETE FROM album WHERE id = :id;

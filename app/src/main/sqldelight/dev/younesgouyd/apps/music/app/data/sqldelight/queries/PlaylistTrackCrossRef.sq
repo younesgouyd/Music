@@ -1,0 +1,8 @@
+add:
+INSERT INTO playlist_track_cross_ref (playlist_id, track_id, creation_datetime, update_datetime)
+VALUES (:playlist_id, :track_id, :creation_datetime, :update_datetime);
+
+delete:
+DELETE FROM playlist_track_cross_ref
+WHERE playlist_id = :playlist_id
+AND track_id = :track_id;

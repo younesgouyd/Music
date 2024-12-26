@@ -1,18 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.0.21"
-}
-
-group = "dev.younesgouyd"
-version = "1.0-SNAPSHOT"
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    testImplementation(kotlin("test"))
-}
-
-tasks.test {
-    useJUnitPlatform()
+    alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.compose.compiler) apply false
+    alias(libs.plugins.compose.jetbrains) apply false
 }

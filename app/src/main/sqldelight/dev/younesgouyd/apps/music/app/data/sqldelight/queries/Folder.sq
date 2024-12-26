@@ -1,0 +1,23 @@
+getAll:
+SELECT * FROM folder;
+
+get:
+SELECT * FROM folder WHERE id = :id;
+
+selectSubfolders:
+SELECT * FROM folder
+WHERE parent_folder_id = :parentFolderId;
+
+add:
+INSERT INTO folder (name, parent_folder_id, creation_datetime, update_datetime)
+VALUES (:name, :parentFolderId, :creation_datetime, :update_datetime)
+RETURNING id;
+
+updateName:
+UPDATE folder
+SET name = :name,
+    update_datetime = :update_datetime
+WHERE id = :id;
+
+delete:
+DELETE FROM folder WHERE id = :id;
