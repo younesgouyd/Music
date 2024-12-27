@@ -27,9 +27,9 @@ class Main(
     )
 
     private val settingsHost: Settings by lazy { Settings(repoStore) }
-    private val musicLibraryHost: Component by lazy { MusicLibrary(repoStore.folderRepo, repoStore.playlistRepo, repoStore.trackRepo, repoStore.artistRepo, repoStore.albumRepo) }
+    private val libraryHost: Component by lazy { Library(repoStore.folderRepo, repoStore.playlistRepo, repoStore.trackRepo, repoStore.artistRepo, repoStore.albumRepo) }
 
-    private val currentMainComponent: MutableStateFlow<Component> = MutableStateFlow(musicLibraryHost)
+    private val currentMainComponent: MutableStateFlow<Component> = MutableStateFlow(libraryHost)
     private val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.MusicLibrary)
 
     @Composable
@@ -56,7 +56,7 @@ class Main(
 
     override fun clear() {
         settingsHost.clear()
-        musicLibraryHost.clear()
+        libraryHost.clear()
         coroutineScope.cancel()
     }
 
@@ -66,7 +66,7 @@ class Main(
             selectedNavigationDrawerItem.update { NavigationDrawerItems.Settings }
         }
         fun showMusicLibrary() {
-            currentMainComponent.update { musicLibraryHost }
+            currentMainComponent.update { libraryHost }
             selectedNavigationDrawerItem.update { NavigationDrawerItems.MusicLibrary }
         }
     }
