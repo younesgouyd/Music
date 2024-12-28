@@ -29,3 +29,11 @@ SELECT a.*
 FROM artist a
 JOIN artist_track_cross_ref cr ON cr.artist_id = a.id
 WHERE cr.track_id = :track_id;
+
+getAlbumArtists:
+SELECT a.*
+FROM artist a
+JOIN artist_track_cross_ref atcr ON atcr.artist_id = a.id
+JOIN track t ON t.id = atcr.track_id
+JOIN album ab ON ab.id = t.album_id
+WHERE ab.id = :album_id;

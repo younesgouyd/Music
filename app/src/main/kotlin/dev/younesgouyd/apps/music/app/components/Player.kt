@@ -11,8 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.app.Component
+import dev.younesgouyd.apps.music.app.components.util.MediaController
 import dev.younesgouyd.apps.music.app.components.util.widgets.Image
-import dev.younesgouyd.apps.music.app.components.util.widgets.MediaController
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.time.Duration
@@ -61,7 +61,6 @@ class Player(
                 onPlayClick = { state.onPlayClick(emptyList()) },
                 onPauseClick = state.onPauseClick,
                 onNextClick = state.onNextClick,
-                onCompleted = state.onCompleted,
                 onRepeatClick = state.onRepeatClick
             )
         }
@@ -78,13 +77,12 @@ class Player(
             onPlayClick: () -> Unit,
             onPauseClick: () -> Unit,
             onNextClick: () -> Unit,
-            onCompleted: () -> Unit,
-            onRepeatClick: (MediaController.MediaControllerState.Available.PlaybackState.RepeatState) -> Unit
+            onRepeatClick: () -> Unit
         ) {
             val duration: Duration = playbackState.duration
             val animateableElapsedTime = remember { animateableOf(0.milliseconds) }
 
-            Main(
+            _Main(
                 modifier = modifier,
                 enabled = enabled,
                 playbackState = playbackState.copy(elapsedTime = animateableElapsedTime.value),
@@ -107,7 +105,6 @@ class Player(
                         targetValue = duration,
                         animationSpec = linearAnimation(duration)
                     )
-                    onCompleted()
                 }
             }
 
@@ -117,7 +114,6 @@ class Player(
                         targetValue = duration,
                         animationSpec = linearAnimation(duration - animateableElapsedTime.value)
                     )
-                    onCompleted()
                 } else {
                     animateableElapsedTime.stop()
                 }
@@ -130,13 +126,12 @@ class Player(
                         targetValue = duration,
                         animationSpec = linearAnimation(duration - playbackState.elapsedTime)
                     )
-                    onCompleted()
                 }
             }
         }
 
         @Composable
-        private fun Main(
+        private fun _Main(
             modifier: Modifier = Modifier,
             enabled: StateFlow<Boolean>,
             playbackState: MediaController.MediaControllerState.Available.PlaybackState,
@@ -147,7 +142,7 @@ class Player(
             onPlayClick: () -> Unit,
             onPauseClick: () -> Unit,
             onNextClick: () -> Unit,
-            onRepeatClick: (MediaController.MediaControllerState.Available.PlaybackState.RepeatState) -> Unit
+            onRepeatClick: () -> Unit
         ) {
             val enabled by enabled.collectAsState()
             val duration: Duration = playbackState.duration
@@ -252,29 +247,18 @@ class Player(
                                 enabled = enabled,
                                 onClick = onNextClick
                             )
-                            when (playbackState.repeatState) {
-                                MediaController.MediaControllerState.Available.PlaybackState.RepeatState.Off -> {
-                                    IconButton(
-                                        enabled = enabled,
-                                        onClick = { onRepeatClick(MediaController.MediaControllerState.Available.PlaybackState.RepeatState.List) },
-                                        content = { Icon(Icons.Default.Repeat, null) }
-                                    )
+                            IconButton(
+                                enabled = enabled,
+                                onClick = onRepeatClick,
+                                content = {
+                                    when (playbackState.repeatState) {
+                                        MediaController.MediaControllerState.Available.PlaybackState.RepeatState.Off -> Icon(Icons.Default.Repeat, null)
+                                        MediaController.MediaControllerState.Available.PlaybackState.RepeatState.Track -> Icon(Icons.Default.RepeatOneOn, null)
+                                        MediaController.MediaControllerState.Available.PlaybackState.RepeatState.List -> Icon(Icons.Default.RepeatOn, null)
+                                    }
+
                                 }
-                                MediaController.MediaControllerState.Available.PlaybackState.RepeatState.List -> {
-                                    IconButton(
-                                        enabled = enabled,
-                                        onClick = { onRepeatClick(MediaController.MediaControllerState.Available.PlaybackState.RepeatState.Track) },
-                                        content = { Icon(Icons.Default.RepeatOn, null) }
-                                    )
-                                }
-                                MediaController.MediaControllerState.Available.PlaybackState.RepeatState.Track -> {
-                                    IconButton(
-                                        enabled = enabled,
-                                        onClick = { onRepeatClick(MediaController.MediaControllerState.Available.PlaybackState.RepeatState.Off) },
-                                        content = { Icon(Icons.Default.RepeatOneOn, null) }
-                                    )
-                                }
-                            }
+                            )
                             Slider(
                                 modifier = Modifier.fillMaxWidth(),
                                 enabled = enabled,

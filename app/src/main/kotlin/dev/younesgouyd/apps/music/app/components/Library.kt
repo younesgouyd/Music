@@ -34,10 +34,13 @@ class Library(
     private val folderRepo: FolderRepo,
     private val playlistRepo: PlaylistRepo,
     private val trackRepo: TrackRepo,
+    private val showPlaylist: (id: Long) -> Unit,
+    private val playTrack: (id: Long) -> Unit,
+    private val addTrackToQueue: (id: Long) -> Unit,
     artistRepo: ArtistRepo,
-    albumRepo: AlbumRepo,
+    albumRepo: AlbumRepo
 ) : Component() {
-    override val title: String = "Music Library"
+    override val title: String = "Library"
     private val currentFolder: MutableStateFlow<Folder?> = MutableStateFlow(null)
     private val path: StateFlow<Set<Folder>>
     private val folders: StateFlow<List<Folder>>
@@ -47,22 +50,6 @@ class Library(
     private val loadingFolders: MutableStateFlow<Boolean>
     private val loadingPlaylists: MutableStateFlow<Boolean>
     private val loadingTracks: MutableStateFlow<Boolean>
-
-    private val mediaController = MediaController(
-        coroutineScope = coroutineScope,
-        trackRepo = trackRepo,
-        artistRepo = artistRepo,
-        albumRepo = albumRepo,
-        playlistRepo = playlistRepo,
-        onAlbumClick = { TODO() },
-        onArtistClick = { TODO() }
-    )
-    private val player = Player(
-        mediaController = mediaController,
-        showAlbumDetails = { TODO() },
-        showArtistDetails = { TODO() }
-    )
-    private val queue = Queue(mediaController)
 
     init {
         loadingFolders = MutableStateFlow(true)
@@ -129,30 +116,28 @@ class Library(
     @Composable
     override fun show(modifier: Modifier) {
         Ui.Main(
+            modifier = modifier,
             path = path,
             loadingItems = loadingItems,
             currentFolder = currentFolder.asStateFlow(),
             folders = folders,
             playlists = playlists,
             tracks = tracks,
-            player = player,
-            queue = queue,
             onNewFolder = ::addFolder,
             onNewTrack = ::addTrack,
             onFolderClick = ::openFolder,
-            onPlaylistClick = { TODO() },
-            onTrackClick = { coroutineScope.launch { mediaController.play(listOf(MediaController.QueueItemParameter.Track(it))) } },
+            onPlaylistClick = showPlaylist,
+            onTrackClick = playTrack,
             onRenameFolder = ::renameFolder,
             onRenamePlaylist = ::renamePlaylist,
             onDeleteFolder = ::deleteFolder,
             onDeletePlaylist = ::deletePlaylist,
             onDeleteTrack = ::deleteTrack,
-            onAddTrackToQueue = ::addTrackToQueue
+            onAddTrackToQueue = addTrackToQueue
         )
     }
 
     override fun clear() {
-        mediaController.release()
         coroutineScope.cancel()
     }
 
@@ -208,34 +193,27 @@ class Library(
         }
     }
 
-    private fun addTrackToQueue(id: Long) {
-        coroutineScope.launch {
-            mediaController.addToQueue(MediaController.QueueItemParameter.Track(id))
-        }
-    }
-
     private object Ui {
         @Composable
         fun Main(
+            modifier: Modifier = Modifier,
             path: StateFlow<Set<Folder>>,
             loadingItems: StateFlow<Boolean>,
             currentFolder: StateFlow<Folder?>,
             folders: StateFlow<List<Folder>>,
             playlists: StateFlow<List<Playlist>>,
             tracks: StateFlow<List<Track>>,
-            player: Component,
-            queue: Component,
             onNewFolder: (name: String) -> Unit,
             onNewTrack: (name: String, audioUrl: String?, videoUrl: String?) -> Unit,
             onFolderClick: (Folder?) -> Unit,
             onPlaylistClick: (id: Long) -> Unit,
-            onTrackClick: (Long) -> Unit,
+            onTrackClick: (id: Long) -> Unit,
             onRenameFolder: (Long, name: String) -> Unit,
             onRenamePlaylist: (id: Long, name: String) -> Unit,
-            onDeleteFolder: (Long) -> Unit,
+            onDeleteFolder: (id: Long) -> Unit,
             onDeletePlaylist: (id: Long) -> Unit,
-            onDeleteTrack: (Long) -> Unit,
-            onAddTrackToQueue: (Long) -> Unit
+            onDeleteTrack: (id: Long) -> Unit,
+            onAddTrackToQueue: (id: Long) -> Unit
         ) {
             val path by path.collectAsState()
             val loadingItems by loadingItems.collectAsState()
@@ -245,7 +223,7 @@ class Library(
             val lazyGridState = rememberLazyGridState()
 
             Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = modifier,
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
@@ -321,9 +299,7 @@ class Library(
                             }
                         }
                     }
-                    queue.show(Modifier.weight(.3f))
                 }
-                player.show(Modifier.weight(.2f))
             }
         }
 

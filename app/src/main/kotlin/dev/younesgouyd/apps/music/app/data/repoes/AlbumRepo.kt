@@ -67,4 +67,10 @@ class AlbumRepo(private val queries: AlbumQueries) {
             queries.delete(id)
         }
     }
+
+    fun getArtistAlbums(artistId: Long): Flow<List<Album>> {
+        return queries.getArtistAlbums(artistId)
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+    }
 }

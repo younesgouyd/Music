@@ -16,8 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.app.Component
+import dev.younesgouyd.apps.music.app.components.util.MediaController
 import dev.younesgouyd.apps.music.app.components.util.widgets.Image
-import dev.younesgouyd.apps.music.app.components.util.widgets.MediaController
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
 

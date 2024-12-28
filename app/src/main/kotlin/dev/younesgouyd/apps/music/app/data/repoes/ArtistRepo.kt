@@ -66,4 +66,10 @@ class ArtistRepo(private val queries: ArtistQueries) {
             queries.getTrackArtists(trackId).executeAsList()
         }
     }
+
+    suspend fun getAlbumArtistsStatic(albumId: Long): List<Artist> {
+        return withContext(Dispatchers.IO) {
+            queries.getAlbumArtists(albumId).executeAsList()
+        }
+    }
 }

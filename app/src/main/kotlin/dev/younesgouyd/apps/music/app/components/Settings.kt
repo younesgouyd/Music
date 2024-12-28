@@ -27,7 +27,7 @@ class Settings(
     init {
         coroutineScope.launch {
             state.update {
-                SettingsState.State(
+                SettingsState.Loaded(
                     darkTheme = repoStore.settingsRepo.getDarkThemeFlow().stateIn(
                         scope = coroutineScope,
                         started = SharingStarted.WhileSubscribed(),
@@ -45,7 +45,7 @@ class Settings(
     override fun show(modifier: Modifier) {
         val state by state.collectAsState()
 
-        Ui.Main(state)
+        Ui.Main(modifier = modifier, state = state)
     }
 
     override fun clear() {
@@ -55,7 +55,7 @@ class Settings(
     private sealed class SettingsState {
         data object Loading : SettingsState()
 
-        data class State(
+        data class Loaded(
             val darkTheme: StateFlow<DarkThemeOptions?>,
             val onDarkThemeChange: (DarkThemeOptions) -> Unit
         ) : SettingsState()
@@ -63,27 +63,27 @@ class Settings(
 
     private object Ui {
         @Composable
-        fun Main(state: SettingsState) {
+        fun Main(modifier: Modifier, state: SettingsState) {
             when (state) {
-                is SettingsState.Loading -> Text("Loading...")
-                is SettingsState.State -> Settings(state)
+                is SettingsState.Loading -> Text(modifier = modifier, text = "Loading...")
+                is SettingsState.Loaded -> Settings(modifier = modifier, loaded = state)
             }
         }
 
         @Composable
-        private fun Settings(state: SettingsState.State) {
+        private fun Settings(modifier: Modifier, loaded: SettingsState.Loaded) {
             val scrollState = rememberScrollState()
-            val darkTheme by state.darkTheme.collectAsState()
+            val darkTheme by loaded.darkTheme.collectAsState()
 
             Column(
-                modifier = Modifier.fillMaxWidth().verticalScroll(scrollState),
+                modifier = modifier.fillMaxWidth().verticalScroll(scrollState),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 DarkTheme(
                     modifier = Modifier.fillMaxWidth(),
                     selectedOption = darkTheme,
-                    onDarkThemeChange = state.onDarkThemeChange
+                    onDarkThemeChange = loaded.onDarkThemeChange
                 )
             }
         }

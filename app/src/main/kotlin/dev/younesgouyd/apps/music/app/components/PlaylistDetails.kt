@@ -49,9 +49,9 @@ class PlaylistDetails(
     init {
         coroutineScope.launch {
             state.update {
-                PlaylistDetailsState.State(
+                PlaylistDetailsState.Loaded(
                     playlist = playlistRepo.get(id).mapLatest { dbPlaylist ->
-                        PlaylistDetailsState.State.Playlist(
+                        PlaylistDetailsState.Loaded.Playlist(
                             id = dbPlaylist.id,
                             name = dbPlaylist.name,
                             image = dbPlaylist.image
@@ -59,18 +59,18 @@ class PlaylistDetails(
                     }.stateIn(coroutineScope),
                     tracks = trackRepo.getPlaylistTracks(id).mapLatest {
                         it.map { dbTrack ->
-                            PlaylistDetailsState.State.Track(
+                            PlaylistDetailsState.Loaded.Track(
                                 id = dbTrack.id,
                                 name = dbTrack.name,
                                 artists = artistRepo.getTrackArtistsStatic(dbTrack.id).map { dbArtist ->
-                                    PlaylistDetailsState.State.Track.Artist(
+                                    PlaylistDetailsState.Loaded.Track.Artist(
                                         id = dbArtist.id,
                                         name = dbArtist.name
                                     )
                                 },
                                 album = dbTrack.album_id?.let {
                                     albumRepo.getStatic(it).let { dbAlbum ->
-                                        PlaylistDetailsState.State.Track.Album(
+                                        PlaylistDetailsState.Loaded.Track.Album(
                                             id = dbAlbum.id,
                                             name = dbAlbum.name,
                                             image = dbAlbum.image
@@ -94,7 +94,7 @@ class PlaylistDetails(
     override fun show(modifier: Modifier) {
         val state by state.collectAsState()
 
-        Ui.Main(state)
+        Ui.Main(modifier = modifier, state = state)
     }
 
     override fun clear() {
@@ -104,7 +104,7 @@ class PlaylistDetails(
     private sealed class PlaylistDetailsState {
         data object Loading : PlaylistDetailsState()
 
-        data class State(
+        data class Loaded(
             val playlist: StateFlow<Playlist>,
             val tracks: StateFlow<List<Track>>,
             val onPlayClick: () -> Unit,
@@ -141,30 +141,32 @@ class PlaylistDetails(
 
     private object Ui {
         @Composable
-        fun Main(state: PlaylistDetailsState) {
+        fun Main(modifier: Modifier, state: PlaylistDetailsState) {
             when (state) {
-                is PlaylistDetailsState.Loading -> Text("Loading...")
-                is PlaylistDetailsState.State -> Main(state)
+                is PlaylistDetailsState.Loading -> Text(modifier = modifier, text = "Loading...")
+                is PlaylistDetailsState.Loaded -> Main(modifier = modifier, loaded = state)
             }
         }
 
         @Composable
-        private fun Main(state: PlaylistDetailsState.State) {
+        private fun Main(modifier: Modifier, loaded: PlaylistDetailsState.Loaded) {
             Main(
-                playlist = state.playlist,
-                tracks = state.tracks,
-                onPlayClick = state.onPlayClick,
-                onTrackClick = state.onTrackClick,
-                onArtistClick = state.onArtistClick,
-                onAlbumClick = state.onAlbumClick
+                modifier = modifier,
+                playlist = loaded.playlist,
+                tracks = loaded.tracks,
+                onPlayClick = loaded.onPlayClick,
+                onTrackClick = loaded.onTrackClick,
+                onArtistClick = loaded.onArtistClick,
+                onAlbumClick = loaded.onAlbumClick
             )
         }
 
         @OptIn(ExperimentalFoundationApi::class)
         @Composable
         private fun Main(
-            playlist: StateFlow<PlaylistDetailsState.State.Playlist>,
-            tracks: StateFlow<List<PlaylistDetailsState.State.Track>>,
+            modifier: Modifier,
+            playlist: StateFlow<PlaylistDetailsState.Loaded.Playlist>,
+            tracks: StateFlow<List<PlaylistDetailsState.Loaded.Track>>,
             onPlayClick: () -> Unit,
             onTrackClick: (id: Long) -> Unit,
             onArtistClick: (id: Long) -> Unit,
@@ -175,7 +177,7 @@ class PlaylistDetails(
             val lazyColumnState = rememberLazyListState()
 
             Scaffold(
-                modifier = Modifier.fillMaxSize(),
+                modifier = modifier.fillMaxSize(),
                 content = {
                     Box(modifier = Modifier.fillMaxSize().padding(it)) {
                         VerticalScrollbar(lazyColumnState)
@@ -218,7 +220,7 @@ class PlaylistDetails(
         @Composable
         private fun PlaylistInfo(
             modifier: Modifier,
-            playlist: PlaylistDetailsState.State.Playlist,
+            playlist: PlaylistDetailsState.Loaded.Playlist,
             onPlayClick: () -> Unit
         ) {
             Row(
@@ -319,7 +321,7 @@ class PlaylistDetails(
         @Composable
         private fun TrackItem(
             modifier: Modifier = Modifier,
-            track: PlaylistDetailsState.State.Track,
+            track: PlaylistDetailsState.Loaded.Track,
             onTrackClick: (id: Long) -> Unit,
             onArtistClick: (id: Long) -> Unit,
             onAlbumClick: (id: Long) -> Unit
