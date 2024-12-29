@@ -103,6 +103,12 @@ class TrackRepo(private val queries: TrackQueries) {
             .mapToList(Dispatchers.IO)
     }
 
+    suspend fun getAlbumTracksStatic(albumId: Long): List<Track> {
+        return withContext(Dispatchers.IO) {
+            queries.getAlbumTracks(albumId).executeAsList()
+        }
+    }
+
     fun getArtistTracks(artistId: Long): Flow<List<Track>> {
         return queries.getArtistTracks(artistId)
             .asFlow()

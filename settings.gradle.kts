@@ -29,6 +29,7 @@ dependencyResolutionManagement {
                 val sqldelight = version("sqldelight", "2.0.2")
                 val json = version("json", "20240303")
                 val vlcj = version("vlcj", "4.8.3")
+                val mp3agic = version("mp3agic", "0.9.1")
             }
 
             plugin("kotlin.jvm", "org.jetbrains.kotlin.jvm").versionRef(versions.kotlin)
@@ -43,6 +44,7 @@ dependencyResolutionManagement {
             library("sqldelight.coroutines", "app.cash.sqldelight", "coroutines-extensions").versionRef(versions.sqldelight)
             library("json", "org.json", "json").versionRef(versions.json)
             library("vlcj", "uk.co.caprica", "vlcj").versionRef(versions.vlcj)
+            library("mp3agic", "com.mpatric", "mp3agic").versionRef(versions.mp3agic)
         }
     }
 }

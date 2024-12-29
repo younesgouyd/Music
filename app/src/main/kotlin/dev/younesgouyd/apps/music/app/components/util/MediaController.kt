@@ -563,7 +563,7 @@ class MediaController(
                     name = dbAlbum.name,
                     image = dbAlbum.image,
                     releaseDate = dbAlbum.release_date,
-                    items = trackRepo.getArtistTracksStatic(dbAlbum.id).map { dbTrack ->
+                    items = trackRepo.getAlbumTracksStatic(dbAlbum.id).map { dbTrack ->
                         MediaControllerState.Available.PlaybackState.QueueItem.Track(
                             id = dbTrack.id,
                             name = dbTrack.name,

@@ -147,10 +147,10 @@ class Player(
             val enabled by enabled.collectAsState()
             val duration: Duration = playbackState.duration
 
-            Card(
-                modifier = modifier.fillMaxWidth().padding(8.dp),
-                elevation = CardDefaults.elevatedCardElevation(),
-                colors = CardDefaults.elevatedCardColors()
+            Surface(
+                modifier = modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                shape = MaterialTheme.shapes.medium
             ) {
                 Row(
                     modifier = Modifier.padding(end = 8.dp),

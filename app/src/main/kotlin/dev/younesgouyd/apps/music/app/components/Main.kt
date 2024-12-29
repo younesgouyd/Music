@@ -8,6 +8,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.app.Component
 import dev.younesgouyd.apps.music.app.DarkThemeOptions
 import dev.younesgouyd.apps.music.app.components.util.MediaController
@@ -48,8 +49,8 @@ class Main(
     private val artistsHost: Component by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.ArtistList) }
     private val albumsHost: Component by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.AlbumList) }
 
-    private val currentMainComponent: MutableStateFlow<Component> = MutableStateFlow(libraryHost)
-    private val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Library)
+    private val currentMainComponent: MutableStateFlow<Component> = MutableStateFlow(albumsHost)
+    private val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Albums)
 
     @Composable
     override fun show(modifier: Modifier) {
@@ -163,11 +164,11 @@ class Main(
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         currentMainComponent.show(Modifier.weight(.7f))
-                                        queue.show(Modifier.weight(.3f))
+                                        queue.show(Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp).weight(.3f))
                                     }
                                 }
                             )
-                            player.show(Modifier.weight(.2f))
+                            player.show(Modifier.padding(8.dp).weight(.2f))
                         }
                     }
                 }

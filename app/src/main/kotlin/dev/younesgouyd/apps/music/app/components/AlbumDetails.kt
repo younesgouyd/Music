@@ -53,11 +53,11 @@ class AlbumDetails(
             state.update {
                 AlbumDetailsState.Loaded(
                     album = albumRepo.get(id).mapLatest { dbAlbum ->
-                        AlbumDetailsState.Loaded.Album(
+                        Album(
                             id = dbAlbum.id,
                             name = dbAlbum.name,
                             artists = artistRepo.getAlbumArtistsStatic(dbAlbum.id).map { dbArtist ->
-                                AlbumDetailsState.Loaded.Album.Artist(
+                                Album.Artist(
                                     id = dbArtist.id,
                                     name = dbArtist.name
                                 )
@@ -68,11 +68,11 @@ class AlbumDetails(
                     }.stateIn(coroutineScope),
                     tracks = trackRepo.getAlbumTracks(id).mapLatest { list ->
                         list.map { dbTrack ->
-                            AlbumDetailsState.Loaded.Album.Track(
+                            Album.Track(
                                 id = dbTrack.id,
                                 name = dbTrack.name,
                                 artists = artistRepo.getTrackArtistsStatic(dbTrack.id).map { dbArtist ->
-                                    AlbumDetailsState.Loaded.Album.Track.Artist(
+                                    Album.Track.Artist(
                                         id = dbArtist.id,
                                         name = dbArtist.name
                                     )
