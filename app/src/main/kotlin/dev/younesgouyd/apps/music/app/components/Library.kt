@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.mpatric.mp3agic.Mp3File
 import dev.younesgouyd.apps.music.app.Component
 import dev.younesgouyd.apps.music.app.components.util.widgets.*
 import dev.younesgouyd.apps.music.app.data.repoes.*
@@ -29,16 +30,19 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.awt.FileDialog
 import java.awt.Frame
+import java.io.File
+import javax.swing.JFileChooser
 
 class Library(
     private val folderRepo: FolderRepo,
     private val playlistRepo: PlaylistRepo,
     private val trackRepo: TrackRepo,
+    private val albumRepo: AlbumRepo,
+    private val artistRepo: ArtistRepo,
+    private val artistTrackCrossRefRepo: ArtistTrackCrossRefRepo,
     private val showPlaylist: (id: Long) -> Unit,
     private val playTrack: (id: Long) -> Unit,
     private val addTrackToQueue: (id: Long) -> Unit,
-    artistRepo: ArtistRepo,
-    albumRepo: AlbumRepo
 ) : Component() {
     override val title: String = "Library"
     private val currentFolder: MutableStateFlow<Folder?> = MutableStateFlow(null)
@@ -123,6 +127,7 @@ class Library(
             folders = folders,
             playlists = playlists,
             tracks = tracks,
+            onImportFolder = ::importFolder,
             onNewFolder = ::addFolder,
             onNewTrack = ::addTrack,
             onFolderClick = ::openFolder,
@@ -158,7 +163,9 @@ class Library(
                 folderId = currentFolder.value!!.id,
                 albumId = null,
                 audioUrl = audioUrl,
-                videoUrl = videoUrl
+                videoUrl = videoUrl,
+                lyrics = null,
+                albumTrackNumber = null
             )
         }
     }
@@ -193,6 +200,78 @@ class Library(
         }
     }
 
+    private fun importFolder(path: String) {
+        suspend fun recur(folder: File, parent: Long?) {
+            val parent: Long = folderRepo.add(folder.name, parent)
+            for (file in folder.listFiles()!!) {
+                if (file.isDirectory) {
+                    recur(file, parent)
+                } else if (file.extension.lowercase() == "mp3") {
+                    val mp3file = Mp3File(file)
+                    var title: String? = null
+                    var albumTrackNumber: Long? = null
+                    var artist: String? = null
+                    var album: String? = null
+                    var lyrics: String? = null
+                    var year: String? = null
+                    var albumImage: ByteArray? = null
+                    if (mp3file.hasId3v2Tag()) {
+                        val id3 = mp3file.id3v2Tag
+                        val albumImageData = id3.albumImage
+                        title = id3.title
+                        albumTrackNumber = id3.track.toLongOrNull()
+                        artist = id3.artist
+                        album = id3.album
+                        year = id3.year
+                        lyrics = id3.lyrics
+                        albumImage = albumImageData
+                    } else if (mp3file.hasId3v1Tag()) {
+                        val id3 = mp3file.id3v1Tag
+                        title = id3.title
+                        albumTrackNumber = id3.track.toLongOrNull()
+                        artist = id3.artist
+                        album = id3.album
+                        year = id3.year
+                    }
+                    var artistId: Long? = null
+                    var albumId: Long? = null
+                    if (artist != null) {
+                        val artists = artistRepo.getByName(artist)
+                        if (artists.isEmpty()) {
+                            artistId = artistRepo.add(name = artist, image = null)
+                        } else if (artists.size == 1) {
+                            artistId = artists.first().id
+                        }
+                    }
+                    if (album != null) {
+                        val albums = albumRepo.getByName(album)
+                        if (albums.isEmpty()) {
+                            albumId = albumRepo.add(name = album, image = albumImage, releaseDate = year)
+                        } else if (albums.size == 1) {
+                            albumId = albums.first().id
+                        }
+                    }
+                    val trackId = trackRepo.add(
+                        name = title ?: file.name,
+                        folderId = parent,
+                        albumId = albumId,
+                        audioUrl = file.toURI().toString(),
+                        videoUrl = null,
+                        lyrics = lyrics,
+                        albumTrackNumber = albumTrackNumber
+                    )
+                    if (artistId != null) {
+                        artistTrackCrossRefRepo.add(artistId, trackId)
+                    }
+                }
+            }
+        }
+        coroutineScope.launch {
+            val main = File(path)
+            if (main.isDirectory) recur(main, null)
+        }
+    }
+
     private object Ui {
         @Composable
         fun Main(
@@ -203,6 +282,7 @@ class Library(
             folders: StateFlow<List<Folder>>,
             playlists: StateFlow<List<Playlist>>,
             tracks: StateFlow<List<Track>>,
+            onImportFolder: (path: String) -> Unit,
             onNewFolder: (name: String) -> Unit,
             onNewTrack: (name: String, audioUrl: String?, videoUrl: String?) -> Unit,
             onFolderClick: (Folder?) -> Unit,
@@ -245,6 +325,7 @@ class Library(
                                 currentFolder = currentFolder,
                                 path = path,
                                 onFolderClick = onFolderClick,
+                                onImportFolder = onImportFolder,
                                 onNewFolder = onNewFolder,
                                 onNewTrack = onNewTrack
                             )
@@ -309,6 +390,7 @@ class Library(
             currentFolder: StateFlow<Folder?>,
             path: Set<Folder>,
             onFolderClick: (Folder?) -> Unit,
+            onImportFolder: (path: String) -> Unit,
             onNewFolder: (name: String) -> Unit,
             onNewTrack: (name: String, audioUrl: String?, videoUrl: String?) -> Unit
         ) {
@@ -384,6 +466,26 @@ class Library(
                         horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        IconButton(
+                            onClick = {
+                                fun getFolderPathFromSystemFolderPicker(): String? {
+                                    val chooser = JFileChooser().apply {
+                                        fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+                                        dialogTitle = "Choose a folder"
+                                    }
+                                    val result = chooser.showOpenDialog(null)
+                                    return if (result == JFileChooser.APPROVE_OPTION) {
+                                        chooser.selectedFile.absolutePath
+                                    } else {
+                                        null // User canceled the selection
+                                    }
+                                }
+                                getFolderPathFromSystemFolderPicker()?.let {
+                                    onImportFolder(it)
+                                }
+                            },
+                            content = { Icon(Icons.Default.ImportExport, null) }
+                        )
                         IconButton(
                             onClick = { newFolderFormVisible = true },
                             content = { Icon(Icons.Default.CreateNewFolder, null) }

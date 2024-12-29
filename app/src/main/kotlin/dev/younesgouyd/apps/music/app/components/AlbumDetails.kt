@@ -226,7 +226,7 @@ class AlbumDetails(
             ) {
                 Image(
                     modifier = Modifier.fillMaxHeight(),
-                    url = null,
+                    data = album.image,
                     contentScale = ContentScale.FillHeight
                 )
                 Column(

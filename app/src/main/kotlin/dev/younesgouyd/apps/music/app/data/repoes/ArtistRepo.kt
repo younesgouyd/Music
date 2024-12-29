@@ -72,4 +72,10 @@ class ArtistRepo(private val queries: ArtistQueries) {
             queries.getAlbumArtists(albumId).executeAsList()
         }
     }
+
+    suspend fun getByName(name: String): List<Artist> {
+        return withContext(Dispatchers.IO) {
+            queries.getByName(name).executeAsList()
+        }
+    }
 }

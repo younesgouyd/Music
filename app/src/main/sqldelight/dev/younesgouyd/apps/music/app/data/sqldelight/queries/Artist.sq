@@ -37,3 +37,6 @@ JOIN artist_track_cross_ref atcr ON atcr.artist_id = a.id
 JOIN track t ON t.id = atcr.track_id
 JOIN album ab ON ab.id = t.album_id
 WHERE ab.id = :album_id;
+
+getByName:
+SELECT * FROM artist WHERE name = :name;

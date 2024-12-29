@@ -73,4 +73,10 @@ class AlbumRepo(private val queries: AlbumQueries) {
             .asFlow()
             .mapToList(Dispatchers.IO)
     }
+
+    suspend fun getByName(name: String): List<Album> {
+        return withContext(Dispatchers.IO) {
+            queries.getByName(name).executeAsList()
+        }
+    }
 }

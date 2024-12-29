@@ -25,6 +25,7 @@ dependencies {
     implementation(libs.sqldelight.coroutines)
     implementation(libs.json)
     implementation(libs.vlcj)
+    implementation("com.mpatric:mp3agic:0.9.1")
 }
 
 sqldelight {

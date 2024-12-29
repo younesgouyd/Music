@@ -22,6 +22,8 @@ CREATE TABLE track (
     album_id INTEGER REFERENCES album(id) ON UPDATE CASCADE ON DELETE SET NULL,
     audio_url TEXT,
     video_url TEXT,
+    lyrics TEXT,
+    album_track_number INTEGER,
     creation_datetime INTEGER NOT NULL,
     update_datetime INTEGER NOT NULL,
     CHECK (

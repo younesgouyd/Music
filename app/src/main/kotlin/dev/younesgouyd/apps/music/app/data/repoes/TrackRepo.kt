@@ -30,7 +30,7 @@ class TrackRepo(private val queries: TrackQueries) {
         }
     }
 
-    suspend fun add(name: String, folderId: Long, albumId: Long?, audioUrl: String?, videoUrl: String?): Long {
+    suspend fun add(name: String, folderId: Long, albumId: Long?, audioUrl: String?, videoUrl: String?, lyrics: String?, albumTrackNumber: Long?): Long {
         require(name.isNotEmpty())
         return withContext(Dispatchers.IO) {
             val currentTime = Instant.now().toEpochMilli()
@@ -40,6 +40,8 @@ class TrackRepo(private val queries: TrackQueries) {
                 album_id = albumId,
                 audio_url = audioUrl,
                 video_url = videoUrl,
+                lyrics = lyrics,
+                album_track_number = albumTrackNumber,
                 creation_datetime = currentTime,
                 update_datetime = currentTime
             ).executeAsOne()
@@ -74,6 +76,18 @@ class TrackRepo(private val queries: TrackQueries) {
     suspend fun updateVideoUrl(id: Long, videoUrl: String?) {
         withContext(Dispatchers.IO) {
             queries.updateVideoUrl(videoUrl, Instant.now().toEpochMilli(), id)
+        }
+    }
+
+    suspend fun updateLyrics(id: Long, lyrics: String?) {
+        withContext(Dispatchers.IO) {
+            queries.updateLyrics(lyrics, Instant.now().toEpochMilli(), id)
+        }
+    }
+
+    suspend fun updateAlbumTrackNumber(id: Long, albumTrackNumber: Long?) {
+        withContext(Dispatchers.IO) {
+            queries.updateAlbumTrackNumber(albumTrackNumber, Instant.now().toEpochMilli(), id)
         }
     }
 

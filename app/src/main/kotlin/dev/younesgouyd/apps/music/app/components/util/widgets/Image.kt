@@ -14,10 +14,48 @@ import androidx.compose.ui.res.loadImageBitmap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.ByteArrayInputStream
 import java.net.URI
 import java.time.Instant
 
 typealias ImageUrl = String
+
+
+@Composable
+fun Image(
+    modifier: Modifier = Modifier,
+    data: ByteArray?,
+    contentScale: ContentScale = ContentScale.Fit,
+    alignment: Alignment = Alignment.Center
+) {
+    var loading by remember { mutableStateOf(true) }
+    var image by remember { mutableStateOf<ImageBitmap?>(null) }
+
+    if (data == null) {
+        BrokenImage(modifier)
+    } else {
+        LaunchedEffect(data) {
+            loading = true
+            image = loadImageBitmap(ByteArrayInputStream(data))
+            loading = false
+        }
+
+        when (loading) {
+            true -> LoadingImage(modifier)
+            false -> {
+                image?.let {
+                    androidx.compose.foundation.Image(
+                        modifier = modifier,
+                        bitmap = it,
+                        contentDescription = null,
+                        contentScale = contentScale,
+                        alignment = alignment
+                    )
+                } ?: BrokenImage(modifier)
+            }
+        }
+    }
+}
 
 @Composable
 fun Image(

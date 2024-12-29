@@ -154,11 +154,12 @@ class NavigationHost(
                         folderRepo = repoStore.folderRepo,
                         playlistRepo = repoStore.playlistRepo,
                         trackRepo = repoStore.trackRepo,
+                        albumRepo = repoStore.albumRepo,
+                        artistRepo = repoStore.artistRepo,
+                        artistTrackCrossRefRepo = repoStore.artistTrackCrossRefRepo,
+                        addTrackToQueue = { mediaController.addToQueue(MediaController.QueueItemParameter.Track(it)) },
                         showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },
                         playTrack = { mediaController.play(listOf(MediaController.QueueItemParameter.Track(it))) },
-                        addTrackToQueue = { mediaController.addToQueue(MediaController.QueueItemParameter.Track(it)) },
-                        artistRepo = repoStore.artistRepo,
-                        albumRepo = repoStore.albumRepo
                     )
                     is Destination.AlbumDetails -> AlbumDetails(
                         id = destination.albumId,

@@ -181,7 +181,7 @@ class AlbumList(
                 ) {
                     Image(
                         modifier = Modifier.aspectRatio(1f),
-                        url = null,
+                        data = album.image,
                         contentScale = ContentScale.FillWidth,
                         alignment = Alignment.TopCenter
                     )
@@ -207,7 +207,7 @@ class AlbumList(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        items(items = album.artists, key = { it.id }) { artist ->
+                        items(items = album.artists) { artist ->
                             TextButton(
                                 onClick = { onArtistClick(artist.id) },
                                 content = {
