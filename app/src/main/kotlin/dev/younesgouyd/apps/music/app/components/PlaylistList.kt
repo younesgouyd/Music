@@ -155,7 +155,7 @@ class PlaylistList(
                 ) {
                     Image(
                         modifier = Modifier.aspectRatio(1f),
-                        url = null,
+                        data = playlist.image,
                         contentScale = ContentScale.FillWidth,
                         alignment = Alignment.TopCenter
                     )

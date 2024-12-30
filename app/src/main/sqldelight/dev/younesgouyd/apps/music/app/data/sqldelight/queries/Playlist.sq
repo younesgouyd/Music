@@ -36,7 +36,7 @@ FROM playlist
 WHERE folder_id = :folder_id;
 
 getTrackPlaylists:
-SELECT p.*
+SELECT DISTINCT p.*
 FROM playlist p
 JOIN playlist_track_cross_ref cr ON cr.playlist_id = p.id
 WHERE cr.track_id = :track_id;

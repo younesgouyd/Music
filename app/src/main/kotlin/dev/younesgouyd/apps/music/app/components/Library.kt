@@ -25,7 +25,6 @@ import dev.younesgouyd.apps.music.app.components.util.widgets.*
 import dev.younesgouyd.apps.music.app.data.repoes.*
 import dev.younesgouyd.apps.music.app.data.sqldelight.migrations.Folder
 import dev.younesgouyd.apps.music.app.data.sqldelight.migrations.Playlist
-import dev.younesgouyd.apps.music.app.data.sqldelight.migrations.Track
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.awt.FileDialog
@@ -42,6 +41,7 @@ class Library(
     private val artistTrackCrossRefRepo: ArtistTrackCrossRefRepo,
     private val showPlaylist: (id: Long) -> Unit,
     private val playTrack: (id: Long) -> Unit,
+    private val showArtistDetails: (id: Long) -> Unit,
     private val addTrackToQueue: (id: Long) -> Unit,
 ) : Component() {
     override val title: String = "Library"
@@ -49,7 +49,7 @@ class Library(
     private val path: StateFlow<Set<Folder>>
     private val folders: StateFlow<List<Folder>>
     private val playlists: StateFlow<List<Playlist>>
-    private val tracks: StateFlow<List<Track>>
+    private val tracks: StateFlow<List<State.Track>>
     private val loadingItems: StateFlow<Boolean>
     private val loadingFolders: MutableStateFlow<Boolean>
     private val loadingPlaylists: MutableStateFlow<Boolean>
@@ -108,7 +108,31 @@ class Library(
                 loadingTracks.value = true
                 if (it != null) {
                     trackRepo.getFolderTracks(it.id).collect { tracks ->
-                        emit(tracks)
+                        emit(
+                            tracks.map { dbTrack ->
+                                State.Track(
+                                    id = dbTrack.id,
+                                    name = dbTrack.name,
+                                    audioUrl = dbTrack.audio_url,
+                                    videoUrl = dbTrack.video_url,
+                                    artists = artistRepo.getTrackArtistsStatic(dbTrack.id).map { dbArtist ->
+                                        State.Track.Artist(
+                                            id = dbArtist.id,
+                                            name = dbArtist.name
+                                        )
+                                    },
+                                    album = dbTrack.album_id?.let {
+                                        albumRepo.getStatic(it).let { dbAlbum ->
+                                            State.Track.Album(
+                                                id = dbAlbum.id,
+                                                name = dbAlbum.name,
+                                                image = dbAlbum.image
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                        )
                         loadingTracks.value = false
                     }
                 }
@@ -133,6 +157,7 @@ class Library(
             onFolderClick = ::openFolder,
             onPlaylistClick = showPlaylist,
             onTrackClick = playTrack,
+            onArtistClick = showArtistDetails,
             onRenameFolder = ::renameFolder,
             onRenamePlaylist = ::renamePlaylist,
             onDeleteFolder = ::deleteFolder,
@@ -219,7 +244,7 @@ class Library(
                         val id3 = mp3file.id3v2Tag
                         val albumImageData = id3.albumImage
                         title = id3.title
-                        albumTrackNumber = id3.track.toLongOrNull()
+                        albumTrackNumber = id3.track?.toLongOrNull()
                         artist = id3.artist
                         album = id3.album
                         year = id3.year
@@ -228,14 +253,14 @@ class Library(
                     } else if (mp3file.hasId3v1Tag()) {
                         val id3 = mp3file.id3v1Tag
                         title = id3.title
-                        albumTrackNumber = id3.track.toLongOrNull()
+                        albumTrackNumber = id3.track?.toLongOrNull()
                         artist = id3.artist
                         album = id3.album
                         year = id3.year
                     }
                     var artistId: Long? = null
                     var albumId: Long? = null
-                    if (artist != null) {
+                    if (!artist.isNullOrEmpty()) {
                         val artists = artistRepo.getByName(artist)
                         if (artists.isEmpty()) {
                             artistId = artistRepo.add(name = artist, image = null)
@@ -243,7 +268,7 @@ class Library(
                             artistId = artists.first().id
                         }
                     }
-                    if (album != null) {
+                    if (!album.isNullOrEmpty()) {
                         val albums = albumRepo.getByName(album)
                         if (albums.isEmpty()) {
                             albumId = albumRepo.add(name = album, image = albumImage, releaseDate = year)
@@ -252,7 +277,7 @@ class Library(
                         }
                     }
                     val trackId = trackRepo.add(
-                        name = title ?: file.name,
+                        name = if (!title.isNullOrEmpty()) title else file.name,
                         folderId = parent,
                         albumId = albumId,
                         audioUrl = file.toURI().toString(),
@@ -272,6 +297,28 @@ class Library(
         }
     }
 
+    private object State {
+        data class Track(
+            val id: Long,
+            val name: String,
+            val audioUrl: String?,
+            val videoUrl: String?,
+            val artists: List<Artist>,
+            val album: Album?
+        ) {
+            data class Artist(
+                val id: Long,
+                val name: String
+            )
+
+            data class Album(
+                val id: Long,
+                val name: String,
+                val image: ByteArray?
+            )
+        }
+    }
+
     private object Ui {
         @Composable
         fun Main(
@@ -281,13 +328,14 @@ class Library(
             currentFolder: StateFlow<Folder?>,
             folders: StateFlow<List<Folder>>,
             playlists: StateFlow<List<Playlist>>,
-            tracks: StateFlow<List<Track>>,
+            tracks: StateFlow<List<State.Track>>,
             onImportFolder: (path: String) -> Unit,
             onNewFolder: (name: String) -> Unit,
             onNewTrack: (name: String, audioUrl: String?, videoUrl: String?) -> Unit,
             onFolderClick: (Folder?) -> Unit,
             onPlaylistClick: (id: Long) -> Unit,
             onTrackClick: (id: Long) -> Unit,
+            onArtistClick: (id: Long) -> Unit,
             onRenameFolder: (Long, name: String) -> Unit,
             onRenamePlaylist: (id: Long, name: String) -> Unit,
             onDeleteFolder: (id: Long) -> Unit,
@@ -359,6 +407,7 @@ class Library(
                                         TrackItem(
                                             track = it,
                                             onClick = { onTrackClick(it.id) },
+                                            onArtistClick = onArtistClick,
                                             onDeleteClick = { onDeleteTrack(it.id) },
                                             onAddToQueueClick = { onAddTrackToQueue(it.id) }
                                         )
@@ -675,8 +724,9 @@ class Library(
         @Composable
         private fun TrackItem(
             modifier: Modifier = Modifier,
-            track: Track,
+            track: State.Track,
             onClick: () -> Unit,
+            onArtistClick: (id: Long) -> Unit,
             onDeleteClick: () -> Unit,
             onAddToQueueClick: () -> Unit
         ) {
@@ -689,7 +739,7 @@ class Library(
                 ) {
                     Image(
                         modifier = Modifier.aspectRatio(1f),
-                        url = null,
+                        data = track.album?.image, // TODO
                         contentScale = ContentScale.FillWidth,
                         alignment = Alignment.TopCenter
                     )
@@ -702,6 +752,41 @@ class Library(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "By: ",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        LazyRow(
+                            modifier = Modifier.weight(1f),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            items(track.artists) { artist ->
+                                TextButton(
+                                    content = {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.Person, null)
+                                            Text(
+                                                text = artist.name,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    },
+                                    onClick = { onArtistClick(artist.id) }
+                                )
+                            }
+                        }
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(space = 8.dp, alignment = Alignment.End),

@@ -151,7 +151,7 @@ class ArtistList(
                 ) {
                     Image(
                         modifier = Modifier.aspectRatio(1f),
-                        url = null,
+                        data = artist.image,
                         contentScale = ContentScale.FillWidth,
                         alignment = Alignment.TopCenter
                     )

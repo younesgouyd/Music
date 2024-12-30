@@ -11,7 +11,10 @@ import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Audiotrack
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -138,9 +141,11 @@ class Queue(
             enabled: Boolean,
             onClick: () -> Unit
         ) {
-            Card(
+            Surface(
                 modifier = modifier,
                 enabled = enabled,
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surface,
                 onClick = onClick
             ) {
                 Row(
@@ -209,7 +214,7 @@ class Queue(
                     }
                     if (expanded) {
                         item.items.forEachIndexed { index, track ->
-                            TrackSubItem(
+                            TrackItem(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                                 item = track,
                                 enabled = enabled,
@@ -268,7 +273,7 @@ class Queue(
                     }
                     if (expanded) {
                         item.items.forEachIndexed { index, track ->
-                            TrackSubItem(
+                            TrackItem(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                                 item = track,
                                 enabled = enabled,
@@ -276,39 +281,6 @@ class Queue(
                             )
                         }
                     }
-                }
-            }
-        }
-
-        @Composable
-        private fun TrackSubItem(
-            modifier: Modifier = Modifier,
-            item: MediaController.MediaControllerState.Available.PlaybackState.QueueItem.Track,
-            enabled: Boolean,
-            onClick: () -> Unit
-        ) {
-            Surface(
-                modifier = modifier,
-                enabled = enabled,
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surface,
-                onClick = onClick
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Audiotrack, null)
-                    Image(
-                        modifier = Modifier.size(80.dp),
-                        data = item.album?.image
-                    )
-                    Text(
-                        modifier = Modifier.weight(1f),
-                        text = if (item.artists.isEmpty()) item.name else "${item.name} - ${item.artists.first().name}",
-                        style = MaterialTheme.typography.titleMedium
-                    )
                 }
             }
         }

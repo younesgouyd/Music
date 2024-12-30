@@ -230,7 +230,7 @@ class PlaylistDetails(
             ) {
                 Image(
                     modifier = Modifier.fillMaxHeight(),
-                    url = null, // TODO
+                    data = playlist.image,
                     contentScale = ContentScale.FillHeight
                 )
                 Column(
@@ -339,7 +339,7 @@ class PlaylistDetails(
                     ) {
                         Image(
                             modifier = Modifier.fillMaxHeight(),
-                            url = null, // TODO
+                            data = track.album?.image,
                             contentScale = ContentScale.FillHeight
                         )
                         Column(

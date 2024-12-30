@@ -33,21 +33,17 @@ class Main(
         artistRepo = repoStore.artistRepo,
         albumRepo = repoStore.albumRepo,
         playlistRepo = repoStore.playlistRepo,
-        onAlbumClick = { TODO() },
-        onArtistClick = { TODO() }
+        onAlbumClick = mainComponentController::showAlbums,
+        onArtistClick = mainComponentController::showArtists
     )
-    private val player = Player(
-        mediaController = mediaController,
-        showAlbumDetails = { TODO() },
-        showArtistDetails = { TODO() }
-    )
+    private val player = Player(mediaController)
     private val queue = Queue(mediaController)
 
     private val settingsHost: Settings by lazy { Settings(repoStore) }
-    private val libraryHost: Component by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.Library) }
-    private val playlistsHost: Component by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.PlaylistList) }
-    private val artistsHost: Component by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.ArtistList) }
-    private val albumsHost: Component by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.AlbumList) }
+    private val libraryHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.Library) }
+    private val playlistsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.PlaylistList) }
+    private val artistsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.ArtistList) }
+    private val albumsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.AlbumList) }
 
     private val currentMainComponent: MutableStateFlow<Component> = MutableStateFlow(albumsHost)
     private val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Albums)
@@ -68,9 +64,9 @@ class Main(
                 when (it) {
                     NavigationDrawerItems.Settings -> mainComponentController.showSettings()
                     NavigationDrawerItems.Library -> mainComponentController.showLibrary()
-                    NavigationDrawerItems.Playlists -> mainComponentController.showPlaylists()
-                    NavigationDrawerItems.Albums -> mainComponentController.showAlbums()
-                    NavigationDrawerItems.Artists -> mainComponentController.showArtists()
+                    NavigationDrawerItems.Playlists -> mainComponentController.showPlaylists(null)
+                    NavigationDrawerItems.Albums -> mainComponentController.showAlbums(null)
+                    NavigationDrawerItems.Artists -> mainComponentController.showArtists(null)
                 }
             }
         )
@@ -94,19 +90,22 @@ class Main(
             selectedNavigationDrawerItem.update { NavigationDrawerItems.Library }
         }
 
-        fun showPlaylists() {
+        fun showPlaylists(id: Long?) {
             currentMainComponent.update { playlistsHost }
             selectedNavigationDrawerItem.update { NavigationDrawerItems.Playlists }
+            if (id != null) { artistsHost.navigateTo(NavigationHost.Destination.PlaylistDetails(id)) }
         }
 
-        fun showAlbums() {
+        fun showAlbums(id: Long?) {
             currentMainComponent.update { albumsHost }
             selectedNavigationDrawerItem.update { NavigationDrawerItems.Albums }
+            if (id != null) { artistsHost.navigateTo(NavigationHost.Destination.AlbumDetails(id)) }
         }
 
-        fun showArtists() {
+        fun showArtists(id: Long?) {
             currentMainComponent.update { artistsHost }
             selectedNavigationDrawerItem.update { NavigationDrawerItems.Artists }
+            if (id != null) { artistsHost.navigateTo(NavigationHost.Destination.ArtistDetails(id)) }
         }
     }
 

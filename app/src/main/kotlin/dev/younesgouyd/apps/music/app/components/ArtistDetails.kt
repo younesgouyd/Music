@@ -215,7 +215,7 @@ class ArtistDetails(
             ) {
                 Image(
                     modifier = Modifier.fillMaxHeight(),
-                    url = null,
+                    data = artist.image,
                     contentScale = ContentScale.FillHeight
                 )
                 Column(
@@ -251,7 +251,7 @@ class ArtistDetails(
                 ) {
                     Image(
                         modifier = Modifier.aspectRatio(1f),
-                        url = null,
+                        data = album.image,
                         contentScale = ContentScale.FillWidth,
                         alignment = Alignment.TopCenter
                     )
@@ -277,7 +277,7 @@ class ArtistDetails(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        items(items = album.artists, key = { it.id }) { artist ->
+                        items(items = album.artists) { artist ->
                             TextButton(
                                 onClick = { onArtistClick(artist.id) },
                                 content = {

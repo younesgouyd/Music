@@ -19,9 +19,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 class Player(
-    private val mediaController: MediaController,
-    private val showAlbumDetails: (Long) -> Unit,
-    private val showArtistDetails: (Long) -> Unit
+    private val mediaController: MediaController
 ) : Component() {
     override val title: String = ""
     private val state: StateFlow<MediaController.MediaControllerState>
@@ -159,7 +157,7 @@ class Player(
                 ) {
                     Image(
                         modifier = Modifier.size(170.dp),
-                        url = null // todo
+                        data = playbackState.currentTrack.album?.image
                     )
                     Column(
                         horizontalAlignment = Alignment.Start,
@@ -186,11 +184,7 @@ class Player(
                                     )
                                 }
                             },
-                            onClick = {
-                                playbackState.currentTrack.album?.let {
-                                    onAlbumClick(it.id)
-                                }
-                            }
+                            onClick = { playbackState.currentTrack.album?.let { onAlbumClick(it.id) } }
                         )
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),

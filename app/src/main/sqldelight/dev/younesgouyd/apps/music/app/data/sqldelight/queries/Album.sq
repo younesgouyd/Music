@@ -31,7 +31,7 @@ delete:
 DELETE FROM album WHERE id = :id;
 
 getArtistAlbums:
-SELECT a.*
+SELECT DISTINCT a.*
 FROM album a
 JOIN track t ON t.album_id = a.id
 JOIN artist_track_cross_ref atcr ON atcr.track_id = t.id

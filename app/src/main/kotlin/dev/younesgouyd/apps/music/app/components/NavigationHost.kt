@@ -63,6 +63,10 @@ class NavigationHost(
         coroutineScope.cancel()
     }
 
+    fun navigateTo(destination: Destination) {
+        navController.navigateTo(destination)
+    }
+
     sealed class Destination {
         data object Library : Destination()
 
@@ -160,6 +164,7 @@ class NavigationHost(
                         addTrackToQueue = { mediaController.addToQueue(MediaController.QueueItemParameter.Track(it)) },
                         showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },
                         playTrack = { mediaController.play(listOf(MediaController.QueueItemParameter.Track(it))) },
+                        showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
                     )
                     is Destination.AlbumDetails -> AlbumDetails(
                         id = destination.albumId,
