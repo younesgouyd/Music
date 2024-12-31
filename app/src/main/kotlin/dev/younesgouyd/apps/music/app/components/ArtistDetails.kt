@@ -145,8 +145,6 @@ class ArtistDetails(
             )
         }
 
-        private const val CARD_WIDTH_DP = 250
-
         @Composable
         private fun Main(
             modifier: Modifier,
@@ -170,7 +168,7 @@ class ArtistDetails(
                             state = lazyGridState,
                             horizontalArrangement = Arrangement.spacedBy(18.dp),
                             verticalArrangement = Arrangement.spacedBy(18.dp),
-                            columns = GridCells.Adaptive(CARD_WIDTH_DP.dp)
+                            columns = GridCells.Adaptive(200.dp)
                         ) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 ArtistInfo(

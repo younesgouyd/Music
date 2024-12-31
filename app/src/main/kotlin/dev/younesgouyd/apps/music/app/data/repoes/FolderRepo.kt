@@ -24,9 +24,15 @@ class FolderRepo(private val queries: FolderQueries) {
     }
 
     fun getSubfolders(id: Long?): Flow<List<Folder>> {
-        return queries.selectSubfolders(id)
+        return queries.getSubfolders(id)
             .asFlow()
             .mapToList(Dispatchers.IO)
+    }
+
+    suspend fun getSubfoldersStatic(id: Long): List<Folder> {
+        return withContext(Dispatchers.IO) {
+            queries.getSubfolders(id).executeAsList()
+        }
     }
 
     suspend fun add(name: String, parentFolderId: Long?): Long {

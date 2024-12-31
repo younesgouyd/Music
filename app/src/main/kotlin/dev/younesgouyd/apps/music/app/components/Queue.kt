@@ -1,6 +1,5 @@
 package dev.younesgouyd.apps.music.app.components
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -56,7 +55,6 @@ class Queue(
             }
         }
 
-        @OptIn(ExperimentalFoundationApi::class)
         @Composable
         private fun Main(
             modifier: Modifier = Modifier,
@@ -69,64 +67,73 @@ class Queue(
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 shape = MaterialTheme.shapes.medium
             ) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    stickyHeader {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.AutoMirrored.Default.QueueMusic, null)
-                            Text(
-                                text = "Queue",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.AutoMirrored.Default.QueueMusic, null)
+                        Text(
+                            text = "Queue",
+                            style = MaterialTheme.typography.titleMedium
+                        )
                     }
-                    itemsIndexed(
-                        items = mediaControllerState.playbackState.queue
-                    ) { index: Int, queueItem: MediaController.MediaControllerState.Available.PlaybackState.QueueItem ->
-                        when (queueItem) {
-                            is MediaController.MediaControllerState.Available.PlaybackState.QueueItem.Track -> {
-                                TrackItem(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    item = queueItem,
-                                    enabled = enabled,
-                                    onClick = { mediaControllerState.onPlayQueueItem(index) }
-                                )
-                            }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(12.dp)
+                    ) {
+                        itemsIndexed(
+                            items = mediaControllerState.playbackState.queue
+                        ) { index: Int, queueItem: MediaController.MediaControllerState.Available.PlaybackState.QueueItem ->
+                            when (queueItem) {
+                                is MediaController.MediaControllerState.Available.PlaybackState.QueueItem.Track -> {
+                                    TrackItem(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        item = queueItem,
+                                        isPlaying = mediaControllerState.playbackState.queueItemIndex == index,
+                                        enabled = enabled,
+                                        onClick = { mediaControllerState.onPlayQueueItem(index) }
+                                    )
+                                }
 
-                            is MediaController.MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> {
-                                PlaylistItem(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    item = queueItem,
-                                    enabled = enabled,
-                                    onTrackClick = { trackIndex ->
-                                        mediaControllerState.onPlayQueueSubItem(
-                                            index,
-                                            trackIndex
-                                        )
-                                    }
-                                )
-                            }
+                                is MediaController.MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> {
+                                    PlaylistItem(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        item = queueItem,
+                                        enabled = enabled,
+                                        isPlaying = mediaControllerState.playbackState.queueItemIndex == index,
+                                        playingItem = if (mediaControllerState.playbackState.queueItemIndex == index) { mediaControllerState.playbackState.queueSubItemIndex } else { null },
+                                        onTrackClick = { trackIndex ->
+                                            mediaControllerState.onPlayQueueSubItem(
+                                                index,
+                                                trackIndex
+                                            )
+                                        }
+                                    )
+                                }
 
-                            is MediaController.MediaControllerState.Available.PlaybackState.QueueItem.Album -> {
-                                AlbumItem(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    item = queueItem,
-                                    enabled = enabled,
-                                    onTrackClick = { trackIndex ->
-                                        mediaControllerState.onPlayQueueSubItem(
-                                            index,
-                                            trackIndex
-                                        )
-                                    }
-                                )
+                                is MediaController.MediaControllerState.Available.PlaybackState.QueueItem.Album -> {
+                                    AlbumItem(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        item = queueItem,
+                                        enabled = enabled,
+                                        isPlaying = mediaControllerState.playbackState.queueItemIndex == index,
+                                        playingItem = if (mediaControllerState.playbackState.queueItemIndex == index) { mediaControllerState.playbackState.queueSubItemIndex } else { null },
+                                        onTrackClick = { trackIndex ->
+                                            mediaControllerState.onPlayQueueSubItem(
+                                                index,
+                                                trackIndex
+                                            )
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -138,6 +145,7 @@ class Queue(
         private fun TrackItem(
             modifier: Modifier = Modifier,
             item: MediaController.MediaControllerState.Available.PlaybackState.QueueItem.Track,
+            isPlaying: Boolean,
             enabled: Boolean,
             onClick: () -> Unit
         ) {
@@ -145,7 +153,7 @@ class Queue(
                 modifier = modifier,
                 enabled = enabled,
                 shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surface,
+                color = if (isPlaying) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
                 onClick = onClick
             ) {
                 Row(
@@ -153,6 +161,7 @@ class Queue(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Box(Modifier)
                     Icon(Icons.Default.Audiotrack, null)
                     Image(
                         modifier = Modifier.size(80.dp),
@@ -171,6 +180,8 @@ class Queue(
         private fun AlbumItem(
             modifier: Modifier = Modifier,
             item: MediaController.MediaControllerState.Available.PlaybackState.QueueItem.Album,
+            isPlaying: Boolean,
+            playingItem: Int?,
             enabled: Boolean,
             onTrackClick: (index: Int) -> Unit
         ) {
@@ -179,7 +190,7 @@ class Queue(
             Surface(
                 modifier = modifier,
                 shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surface
+                color = if (isPlaying) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -188,9 +199,10 @@ class Queue(
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Box(Modifier)
                         Icon(Icons.Default.Album, null)
                         Image(
                             modifier = Modifier.size(80.dp),
@@ -213,13 +225,32 @@ class Queue(
                         }
                     }
                     if (expanded) {
-                        item.items.forEachIndexed { index, track ->
-                            TrackItem(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                                item = track,
-                                enabled = enabled,
-                                onClick = { onTrackClick(index) }
-                            )
+                        item.items.forEachIndexed { index, item ->
+                            Box(
+                                modifier = Modifier
+                            ) {
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth().height(80.dp).padding(horizontal = 12.dp, vertical = 8.dp),
+                                    enabled = enabled,
+                                    shape = MaterialTheme.shapes.large,
+                                    color = if (isPlaying && playingItem == index) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+                                    onClick = { onTrackClick(index) }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(Modifier)
+                                        Icon(Icons.Default.Audiotrack, null)
+                                        Text(
+                                            modifier = Modifier.weight(1f),
+                                            text = if (item.artists.isEmpty()) item.name else "${item.name} - ${item.artists.first().name}",
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -230,6 +261,8 @@ class Queue(
         private fun PlaylistItem(
             modifier: Modifier = Modifier,
             item: MediaController.MediaControllerState.Available.PlaybackState.QueueItem.Playlist,
+            isPlaying: Boolean,
+            playingItem: Int?,
             enabled: Boolean,
             onTrackClick: (index: Int) -> Unit
         ) {
@@ -238,7 +271,7 @@ class Queue(
             Surface(
                 modifier = modifier,
                 shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surface
+                color = if (isPlaying) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -247,9 +280,10 @@ class Queue(
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Box(Modifier)
                         Icon(Icons.AutoMirrored.Default.QueueMusic, null)
                         Image(
                             modifier = Modifier.size(80.dp),
@@ -276,6 +310,7 @@ class Queue(
                             TrackItem(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                                 item = track,
+                                isPlaying = isPlaying && playingItem == index,
                                 enabled = enabled,
                                 onClick = { onTrackClick(index) }
                             )

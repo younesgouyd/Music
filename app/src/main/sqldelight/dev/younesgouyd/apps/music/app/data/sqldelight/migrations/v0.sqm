@@ -1,16 +1,17 @@
-CREATE TABLE album (
-    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    image BLOB,
-    release_date TEXT,
-    creation_datetime INTEGER NOT NULL,
-    update_datetime INTEGER NOT NULL
-);
-
 CREATE TABLE folder (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     parent_folder_id INTEGER REFERENCES folder(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    creation_datetime INTEGER NOT NULL,
+    update_datetime INTEGER NOT NULL
+);
+
+CREATE TABLE album (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    image BLOB,
+    folder_id INTEGER REFERENCES folder(id) ON UPDATE CASCADE ON DELETE SET NULL,
+    release_date TEXT,
     creation_datetime INTEGER NOT NULL,
     update_datetime INTEGER NOT NULL
 );

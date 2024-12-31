@@ -8,10 +8,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -43,6 +40,7 @@ class AlbumDetails(
     private val trackRepo: TrackRepo,
     private val showArtistDetails: (Long) -> Unit,
     play: () -> Unit,
+    addToQueueClick: () -> Unit,
     playTrack: (Long) -> Unit
 ) : Component() {
     override val title: String = "Album"
@@ -82,6 +80,7 @@ class AlbumDetails(
                     }.stateIn(coroutineScope),
                     onArtistClick = showArtistDetails,
                     onPlayClick = play,
+                    onAddToQueueClick = addToQueueClick,
                     onTrackClick = playTrack
                 )
             }
@@ -107,6 +106,7 @@ class AlbumDetails(
             val tracks: StateFlow<List<Album.Track>>,
             val onArtistClick: (Long) -> Unit,
             val onPlayClick: () -> Unit,
+            val onAddToQueueClick: () -> Unit,
             val onTrackClick: (Long) -> Unit
         ) : AlbumDetailsState() {
             data class Album(
@@ -153,6 +153,7 @@ class AlbumDetails(
                 tracks = loaded.tracks,
                 onArtistClick = loaded.onArtistClick,
                 onPlayClick = loaded.onPlayClick,
+                onAddToQueueClick = loaded.onAddToQueueClick,
                 onTrackClick = loaded.onTrackClick
             )
         }
@@ -165,6 +166,7 @@ class AlbumDetails(
             tracks: StateFlow<List<Album.Track>>,
             onArtistClick: (Long) -> Unit,
             onPlayClick: () -> Unit,
+            onAddToQueueClick: () -> Unit,
             onTrackClick: (Long) -> Unit,
         ) {
             val album by album.collectAsState()
@@ -188,6 +190,7 @@ class AlbumDetails(
                                     album = album,
                                     onArtistClick = onArtistClick,
                                     onPlayClick = onPlayClick,
+                                    onAddToQueueClick = onAddToQueueClick
                                 )
                             }
                             item {
@@ -217,7 +220,8 @@ class AlbumDetails(
             modifier: Modifier,
             album: Album,
             onArtistClick: (Long) -> Unit,
-            onPlayClick: () -> Unit
+            onPlayClick: () -> Unit,
+            onAddToQueueClick: () -> Unit
         ) {
             Row(
                 modifier = modifier,
@@ -287,6 +291,18 @@ class AlbumDetails(
                                 }
                             },
                             onClick = onPlayClick
+                        )
+                        OutlinedButton(
+                            content = {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.AddToQueue, null)
+                                    Text(text = "Add to queue", style = MaterialTheme.typography.labelMedium)
+                                }
+                            },
+                            onClick = onAddToQueueClick
                         )
                     }
                 }

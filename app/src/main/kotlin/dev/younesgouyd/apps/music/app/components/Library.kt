@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.mpatric.mp3agic.Mp3File
 import dev.younesgouyd.apps.music.app.Component
+import dev.younesgouyd.apps.music.app.components.util.MediaController
 import dev.younesgouyd.apps.music.app.components.util.widgets.*
 import dev.younesgouyd.apps.music.app.data.repoes.*
 import dev.younesgouyd.apps.music.app.data.sqldelight.migrations.Folder
@@ -43,6 +44,7 @@ class Library(
     private val playTrack: (id: Long) -> Unit,
     private val showArtistDetails: (id: Long) -> Unit,
     private val addTrackToQueue: (id: Long) -> Unit,
+    private val playQueue: (List<MediaController.QueueItemParameter>) -> Unit
 ) : Component() {
     override val title: String = "Library"
     private val currentFolder: MutableStateFlow<Folder?> = MutableStateFlow(null)
@@ -54,13 +56,15 @@ class Library(
     private val loadingFolders: MutableStateFlow<Boolean>
     private val loadingPlaylists: MutableStateFlow<Boolean>
     private val loadingTracks: MutableStateFlow<Boolean>
+    private val importingFolder: MutableStateFlow<Boolean>
 
     init {
         loadingFolders = MutableStateFlow(true)
         loadingPlaylists = MutableStateFlow(true)
         loadingTracks = MutableStateFlow(true)
-        loadingItems = combine(loadingFolders, loadingPlaylists, loadingTracks) { loading1, loading2, loading3 ->
-            loading1 || loading2 || loading3
+        importingFolder = MutableStateFlow(false)
+        loadingItems = combine(loadingFolders, loadingPlaylists, loadingTracks, importingFolder) { loading1, loading2, loading3, loading4 ->
+            loading1 || loading2 || loading3 || loading4
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = true)
 
         path = flow {
@@ -155,6 +159,7 @@ class Library(
             onNewFolder = ::addFolder,
             onNewTrack = ::addTrack,
             onFolderClick = ::openFolder,
+            onPlayFolder = ::playFolder,
             onPlaylistClick = showPlaylist,
             onTrackClick = playTrack,
             onArtistClick = showArtistDetails,
@@ -195,6 +200,19 @@ class Library(
         }
     }
 
+    private fun playFolder(folderId: Long) {
+        suspend fun getFolderItems(_folderId: Long): List<MediaController.QueueItemParameter> {
+            val tracks = trackRepo.getFolderTracksStatic(_folderId).map { dbTrack -> MediaController.QueueItemParameter.Track(dbTrack.id) }
+            val playlists = playlistRepo.getFolderPlaylistsStatic(_folderId).map { dbPlaylist -> MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
+            val albums = albumRepo.getFolderAlbumsStatic(_folderId).map { dbAlbum -> MediaController.QueueItemParameter.Album(dbAlbum.id) }
+            return tracks + playlists + albums + folderRepo.getSubfoldersStatic(_folderId).flatMap { getFolderItems(it.id) }
+        }
+        coroutineScope.launch {
+            val queue = getFolderItems(folderId)
+            playQueue(queue)
+        }
+    }
+
     private fun renameFolder(id: Long, name: String) {
         coroutineScope.launch {
             folderRepo.updateName(id = id, name = name)
@@ -226,11 +244,11 @@ class Library(
     }
 
     private fun importFolder(path: String) {
-        suspend fun recur(folder: File, parent: Long?) {
+        suspend fun importFolder(folder: File, parent: Long?) {
             val parent: Long = folderRepo.add(folder.name, parent)
             for (file in folder.listFiles()!!) {
                 if (file.isDirectory) {
-                    recur(file, parent)
+                    importFolder(file, parent)
                 } else if (file.extension.lowercase() == "mp3") {
                     val mp3file = Mp3File(file)
                     var title: String? = null
@@ -293,7 +311,9 @@ class Library(
         }
         coroutineScope.launch {
             val main = File(path)
-            if (main.isDirectory) recur(main, null)
+            importingFolder.value = true
+            importFolder(main, null)
+            importingFolder.value = false
         }
     }
 
@@ -333,6 +353,7 @@ class Library(
             onNewFolder: (name: String) -> Unit,
             onNewTrack: (name: String, audioUrl: String?, videoUrl: String?) -> Unit,
             onFolderClick: (Folder?) -> Unit,
+            onPlayFolder: (id: Long) -> Unit,
             onPlaylistClick: (id: Long) -> Unit,
             onTrackClick: (id: Long) -> Unit,
             onArtistClick: (id: Long) -> Unit,
@@ -391,6 +412,7 @@ class Library(
                                         FolderItem(
                                             folder = folder,
                                             onClick = { onFolderClick(folder) },
+                                            onPlay = { onPlayFolder(folder.id) },
                                             onRename = { onRenameFolder(folder.id, it) },
                                             onDeleteClick = { onDeleteFolder(folder.id) }
                                         )
@@ -582,6 +604,7 @@ class Library(
             modifier: Modifier = Modifier,
             folder: Folder,
             onClick: () -> Unit,
+            onPlay: () -> Unit,
             onRename: (name: String) -> Unit,
             onDeleteClick: () -> Unit
         ) {
@@ -614,7 +637,7 @@ class Library(
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(space = 8.dp, alignment = Alignment.End),
+                        horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
@@ -624,6 +647,10 @@ class Library(
                         IconButton(
                             onClick = { deleteConfirmationDialogVisible = true },
                             content = { Icon(Icons.Default.Delete, null) }
+                        )
+                        IconButton(
+                            onClick = onPlay,
+                            content = { Icon(Icons.Default.PlayCircle, null) }
                         )
                     }
                 }
@@ -686,7 +713,7 @@ class Library(
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(space = 8.dp, alignment = Alignment.End),
+                        horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
@@ -789,7 +816,7 @@ class Library(
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(space = 8.dp, alignment = Alignment.End),
+                        horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(

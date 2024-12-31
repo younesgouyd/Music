@@ -74,6 +74,12 @@ class AlbumRepo(private val queries: AlbumQueries) {
             .mapToList(Dispatchers.IO)
     }
 
+    suspend fun getFolderAlbumsStatic(folderId: Long): List<Album> {
+        return withContext(Dispatchers.IO) {
+            queries.getFolderAlbums(folderId).executeAsList()
+        }
+    }
+
     suspend fun getByName(name: String): List<Album> {
         return withContext(Dispatchers.IO) {
             queries.getByName(name).executeAsList()

@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddToQueue
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.*
@@ -36,7 +37,8 @@ class AlbumList(
     artistRepo: ArtistRepo,
     showAlbumDetails: (Long) -> Unit,
     showArtistDetails: (Long) -> Unit,
-    playAlbum: (Long) -> Unit
+    playAlbum: (Long) -> Unit,
+    addAlbumToQueue: (Long) -> Unit
 ) : Component() {
     override val title: String = "Albums"
     private val state: MutableStateFlow<AlbumListState> = MutableStateFlow(AlbumListState.Loading)
@@ -63,7 +65,8 @@ class AlbumList(
                     }.stateIn(coroutineScope),
                     onAlbumClick = showAlbumDetails,
                     onArtistClick = showArtistDetails,
-                    onPlayAlbumClick = playAlbum
+                    onPlayAlbumClick = playAlbum,
+                    onAddAlbumToQueueClick = addAlbumToQueue
                 )
             }
         }
@@ -87,7 +90,8 @@ class AlbumList(
             val albums: StateFlow<List<AlbumListItem>>,
             val onAlbumClick: (Long) -> Unit,
             val onArtistClick: (Long) -> Unit,
-            val onPlayAlbumClick: (Long) -> Unit
+            val onPlayAlbumClick: (Long) -> Unit,
+            val onAddAlbumToQueueClick: (Long) -> Unit
         ) : AlbumListState() {
             data class AlbumListItem(
                 val id: Long,
@@ -120,7 +124,8 @@ class AlbumList(
                 albums = loaded.albums,
                 onAlbumClick = loaded.onAlbumClick,
                 onArtistClick = loaded.onArtistClick,
-                onPlayAlbumClick = loaded.onPlayAlbumClick
+                onPlayAlbumClick = loaded.onPlayAlbumClick,
+                onAddAlbumToQueueClick = loaded.onAddAlbumToQueueClick
             )
         }
 
@@ -130,7 +135,8 @@ class AlbumList(
             albums: StateFlow<List<AlbumListState.Loaded.AlbumListItem>>,
             onAlbumClick: (Long) -> Unit,
             onArtistClick: (Long) -> Unit,
-            onPlayAlbumClick: (Long) -> Unit
+            onPlayAlbumClick: (Long) -> Unit,
+            onAddAlbumToQueueClick: (Long) -> Unit
         ) {
             val items by albums.collectAsState()
             val lazyGridState = rememberLazyGridState()
@@ -146,14 +152,15 @@ class AlbumList(
                             contentPadding = PaddingValues(18.dp),
                             horizontalArrangement = Arrangement.spacedBy(18.dp),
                             verticalArrangement = Arrangement.spacedBy(18.dp),
-                            columns = GridCells.Adaptive(250.dp)
+                            columns = GridCells.Adaptive(200.dp)
                         ) {
-                            items(items = items, key = { it.id }) { item ->
+                            items(items = items, key = { it.id }) { album ->
                                 AlbumItem(
-                                    album = item,
-                                    onClick = onAlbumClick,
+                                    album = album,
+                                    onClick = { onAlbumClick(album.id) },
                                     onArtistClick = onArtistClick,
-                                    onPlayClick = onPlayAlbumClick
+                                    onPlayClick = { onPlayAlbumClick(album.id) },
+                                    onAddToQueueClick = { onAddAlbumToQueueClick(album.id) }
                                 )
                             }
                         }
@@ -167,13 +174,14 @@ class AlbumList(
         private fun AlbumItem(
             modifier: Modifier = Modifier,
             album: AlbumListState.Loaded.AlbumListItem,
-            onClick: (Long) -> Unit,
+            onClick: () -> Unit,
             onArtistClick: (Long) -> Unit,
-            onPlayClick: (Long) -> Unit
+            onPlayClick: () -> Unit,
+            onAddToQueueClick: () -> Unit
         ) {
             Item(
                 modifier = modifier,
-                onClick = { onClick(album.id) },
+                onClick = onClick,
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -228,8 +236,12 @@ class AlbumList(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
+                            content = { Icon(Icons.Default.AddToQueue, null) },
+                            onClick = onAddToQueueClick
+                        )
+                        IconButton(
                             content = { Icon(Icons.Default.PlayCircle, null) },
-                            onClick = { onPlayClick(album.id) }
+                            onClick = onPlayClick
                         )
                     }
                 }

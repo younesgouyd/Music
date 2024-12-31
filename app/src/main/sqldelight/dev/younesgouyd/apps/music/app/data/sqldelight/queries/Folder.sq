@@ -4,7 +4,7 @@ SELECT * FROM folder;
 get:
 SELECT * FROM folder WHERE id = :id;
 
-selectSubfolders:
+getSubfolders:
 SELECT * FROM folder
 WHERE parent_folder_id = :parentFolderId;
 

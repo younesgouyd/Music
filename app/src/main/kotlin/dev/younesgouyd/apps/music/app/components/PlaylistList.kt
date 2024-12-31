@@ -122,7 +122,7 @@ class PlaylistList(
                             contentPadding = PaddingValues(18.dp),
                             horizontalArrangement = Arrangement.spacedBy(18.dp),
                             verticalArrangement = Arrangement.spacedBy(18.dp),
-                            columns = GridCells.Adaptive(250.dp)
+                            columns = GridCells.Adaptive(200.dp)
                         ) {
                             items(items = items, key = { it.id }) { playlist ->
                                 PlaylistItem(

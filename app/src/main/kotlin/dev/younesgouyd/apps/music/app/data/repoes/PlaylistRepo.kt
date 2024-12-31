@@ -74,6 +74,12 @@ class PlaylistRepo(private val queries: PlaylistQueries) {
             .mapToList(Dispatchers.IO)
     }
 
+    suspend fun getFolderPlaylistsStatic(folderId: Long): List<Playlist> {
+        return withContext(Dispatchers.IO) {
+            queries.getFolderPlaylists(folderId).executeAsList()
+        }
+    }
+
     fun getTrackPlaylists(trackId: Long): Flow<List<Playlist>> {
         return queries.getTrackPlaylists(trackId)
             .asFlow()

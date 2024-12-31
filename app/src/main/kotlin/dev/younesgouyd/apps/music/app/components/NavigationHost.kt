@@ -164,7 +164,8 @@ class NavigationHost(
                         addTrackToQueue = { mediaController.addToQueue(MediaController.QueueItemParameter.Track(it)) },
                         showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },
                         playTrack = { mediaController.play(listOf(MediaController.QueueItemParameter.Track(it))) },
-                        showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
+                        showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
+                        playQueue = mediaController::play
                     )
                     is Destination.AlbumDetails -> AlbumDetails(
                         id = destination.albumId,
@@ -173,6 +174,7 @@ class NavigationHost(
                         trackRepo = repoStore.trackRepo,
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
                         play = { mediaController.play(listOf(MediaController.QueueItemParameter.Album(destination.albumId))) },
+                        addToQueueClick = { mediaController.addToQueue(MediaController.QueueItemParameter.Album(destination.albumId)) },
                         playTrack = { mediaController.play(listOf(MediaController.QueueItemParameter.Track(it))) }
                     )
                     is Destination.AlbumList -> AlbumList(
@@ -180,7 +182,8 @@ class NavigationHost(
                         artistRepo = repoStore.artistRepo,
                         showAlbumDetails = { navigateTo(Destination.AlbumDetails(it)) },
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
-                        playAlbum = { mediaController.play(listOf(MediaController.QueueItemParameter.Album(it))) }
+                        playAlbum = { mediaController.play(listOf(MediaController.QueueItemParameter.Album(it))) },
+                        addAlbumToQueue = { mediaController.addToQueue(MediaController.QueueItemParameter.Album(it)) }
                     )
                     is Destination.ArtistDetails -> ArtistDetails(
                         id = destination.artistId,

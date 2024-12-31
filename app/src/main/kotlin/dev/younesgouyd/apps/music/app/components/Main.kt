@@ -45,8 +45,8 @@ class Main(
     private val artistsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.ArtistList) }
     private val albumsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.AlbumList) }
 
-    private val currentMainComponent: MutableStateFlow<Component> = MutableStateFlow(albumsHost)
-    private val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Albums)
+    private val currentMainComponent: MutableStateFlow<Component> = MutableStateFlow(libraryHost)
+    private val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Library)
 
     @Composable
     override fun show(modifier: Modifier) {
@@ -139,34 +139,33 @@ class Main(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.SpaceBetween
                         ) {
-                            DismissibleNavigationDrawer(
-                                modifier = Modifier.fillMaxWidth().weight(weight = .8f),
-                                drawerContent = {
-                                    DismissibleDrawerSheet {
-                                        Column(
-                                            modifier = Modifier.fillMaxWidth().weight(1f),
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.Top
-                                        ) {
-                                            NavigationDrawerItems.entries.forEach {
-                                                NavigationDrawerItem(
-                                                    label = { Text(it.label) },
-                                                    selected = it == selectedNavigationDrawerItem,
-                                                    onClick = { onNavigationDrawerItemClick(it) }
-                                                )
-                                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth().weight(weight = .8f)
+                            ) {
+                                PermanentDrawerSheet(
+                                    modifier = Modifier.weight(.15f)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth().padding(),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Top
+                                    ) {
+                                        NavigationDrawerItems.entries.forEach {
+                                            NavigationDrawerItem(
+                                                label = { Text(it.label) },
+                                                selected = it == selectedNavigationDrawerItem,
+                                                onClick = { onNavigationDrawerItemClick(it) }
+                                            )
                                         }
                                     }
-                                },
-                                content = {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        currentMainComponent.show(Modifier.weight(.7f))
-                                        queue.show(Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp).weight(.3f))
-                                    }
                                 }
-                            )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().weight(.85f)
+                                ) {
+                                    currentMainComponent.show(Modifier.weight(.7f))
+                                    queue.show(Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp).weight(.3f))
+                                }
+                            }
                             player.show(Modifier.padding(8.dp).weight(.2f))
                         }
                     }
