@@ -93,13 +93,13 @@ class Main(
         fun showPlaylists(id: Long?) {
             currentMainComponent.update { playlistsHost }
             selectedNavigationDrawerItem.update { NavigationDrawerItems.Playlists }
-            if (id != null) { artistsHost.navigateTo(NavigationHost.Destination.PlaylistDetails(id)) }
+            if (id != null) { playlistsHost.navigateTo(NavigationHost.Destination.PlaylistDetails(id)) }
         }
 
         fun showAlbums(id: Long?) {
             currentMainComponent.update { albumsHost }
             selectedNavigationDrawerItem.update { NavigationDrawerItems.Albums }
-            if (id != null) { artistsHost.navigateTo(NavigationHost.Destination.AlbumDetails(id)) }
+            if (id != null) { albumsHost.navigateTo(NavigationHost.Destination.AlbumDetails(id)) }
         }
 
         fun showArtists(id: Long?) {
