@@ -2,11 +2,14 @@ package dev.younesgouyd.apps.music.app.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -22,12 +25,17 @@ import androidx.compose.ui.window.Dialog
 import com.mpatric.mp3agic.Mp3File
 import dev.younesgouyd.apps.music.app.Component
 import dev.younesgouyd.apps.music.app.components.util.MediaController
-import dev.younesgouyd.apps.music.app.components.util.widgets.*
+import dev.younesgouyd.apps.music.app.components.util.widgets.Image
+import dev.younesgouyd.apps.music.app.components.util.widgets.Item
+import dev.younesgouyd.apps.music.app.components.util.widgets.ScrollToTopFloatingActionButton
+import dev.younesgouyd.apps.music.app.components.util.widgets.VerticalScrollbar
 import dev.younesgouyd.apps.music.app.data.repoes.*
+import dev.younesgouyd.apps.music.app.data.sqldelight.migrations.Album
 import dev.younesgouyd.apps.music.app.data.sqldelight.migrations.Folder
 import dev.younesgouyd.apps.music.app.data.sqldelight.migrations.Playlist
-import kotlinx.coroutines.*
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import java.awt.FileDialog
 import java.awt.Frame
 import java.io.File
@@ -40,7 +48,9 @@ class Library(
     private val albumRepo: AlbumRepo,
     private val artistRepo: ArtistRepo,
     private val artistTrackCrossRefRepo: ArtistTrackCrossRefRepo,
+    private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     private val showPlaylist: (id: Long) -> Unit,
+    private val showAlbum: (id: Long) -> Unit,
     private val playTrack: (id: Long) -> Unit,
     private val showArtistDetails: (id: Long) -> Unit,
     private val addTrackToQueue: (id: Long) -> Unit,
@@ -51,20 +61,25 @@ class Library(
     private val path: StateFlow<Set<Folder>>
     private val folders: StateFlow<List<Folder>>
     private val playlists: StateFlow<List<Playlist>>
-    private val tracks: StateFlow<List<State.Track>>
+    private val albums: StateFlow<List<Models.Album>>
+    private val tracks: StateFlow<List<Models.Track>>
     private val loadingItems: StateFlow<Boolean>
     private val loadingFolders: MutableStateFlow<Boolean>
     private val loadingPlaylists: MutableStateFlow<Boolean>
+    private val loadingAlbums: MutableStateFlow<Boolean>
     private val loadingTracks: MutableStateFlow<Boolean>
     private val importingFolder: MutableStateFlow<Boolean>
+    private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
 
     init {
         loadingFolders = MutableStateFlow(true)
         loadingPlaylists = MutableStateFlow(true)
+        loadingAlbums = MutableStateFlow(true)
         loadingTracks = MutableStateFlow(true)
         importingFolder = MutableStateFlow(false)
-        loadingItems = combine(loadingFolders, loadingPlaylists, loadingTracks, importingFolder) { loading1, loading2, loading3, loading4 ->
-            loading1 || loading2 || loading3 || loading4
+        loadingItems = combine(loadingFolders, loadingPlaylists, loadingAlbums, loadingTracks, importingFolder) { loading1, loading2, loading3, loading4, loading5 ->
+            loading1 || loading2 || loading3 || loading4 || loading5
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = true)
 
         path = flow {
@@ -92,42 +107,66 @@ class Library(
             }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
 
-        playlists = currentFolder.flatMapLatest {
+        playlists = currentFolder.flatMapLatest { currentFolder ->
             flow {
                 emit(emptyList())
                 loadingPlaylists.value = true
-                if (it != null) {
-                    playlistRepo.getFolderPlaylists(it.id).collect { playlist ->
-                        emit(playlist)
-                        loadingPlaylists.value = false
-                    }
+                playlistRepo.getFolderPlaylists(currentFolder?.id).collect { playlist ->
+                    emit(playlist)
+                    loadingPlaylists.value = false
                 }
                 loadingPlaylists.value = false
             }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
 
-        tracks = currentFolder.flatMapLatest {
+        albums = currentFolder.flatMapLatest { currentFolder ->
+            flow {
+                emit(emptyList())
+                loadingAlbums.value = true
+                albumRepo.getFolderAlbums(currentFolder?.id).collect { dbAlbums ->
+                    emit(
+                        dbAlbums.map { dbAlbum ->
+                            Models.Album(
+                                id = dbAlbum.id,
+                                name = dbAlbum.name,
+                                image = dbAlbum.image,
+                                artists = artistRepo.getAlbumArtistsStatic(dbAlbum.id).map { dbArtist ->
+                                    Models.Album.Artist(
+                                        id = dbArtist.id,
+                                        name = dbArtist.name
+                                    )
+                                }
+                            )
+                        }
+                    )
+                    loadingAlbums.value = false
+                }
+                loadingAlbums.value = false
+            }
+        }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
+
+        tracks = currentFolder.flatMapLatest { currentFolder ->
             flow {
                 emit(emptyList())
                 loadingTracks.value = true
-                if (it != null) {
-                    trackRepo.getFolderTracks(it.id).collect { tracks ->
+                if (currentFolder != null) {
+                    trackRepo.getFolderTracks(currentFolder.id).collect { tracks ->
                         emit(
                             tracks.map { dbTrack ->
-                                State.Track(
+                                Models.Track(
                                     id = dbTrack.id,
                                     name = dbTrack.name,
                                     audioUrl = dbTrack.audio_url,
                                     videoUrl = dbTrack.video_url,
                                     artists = artistRepo.getTrackArtistsStatic(dbTrack.id).map { dbArtist ->
-                                        State.Track.Artist(
+                                        Models.Track.Artist(
                                             id = dbArtist.id,
                                             name = dbArtist.name
                                         )
                                     },
                                     album = dbTrack.album_id?.let {
-                                        albumRepo.getStatic(it).let { dbAlbum ->
-                                            State.Track.Album(
+                                        albumRepo.getStatic(it)!!.let { dbAlbum ->
+                                            Models.Track.Album(
                                                 id = dbAlbum.id,
                                                 name = dbAlbum.name,
                                                 image = dbAlbum.image
@@ -154,21 +193,31 @@ class Library(
             currentFolder = currentFolder.asStateFlow(),
             folders = folders,
             playlists = playlists,
+            albums = albums,
             tracks = tracks,
+            addToPlaylistDialogVisible = addToPlaylistDialogVisible,
+            addToPlaylist = addToPlaylist,
             onImportFolder = ::importFolder,
             onNewFolder = ::addFolder,
             onNewTrack = ::addTrack,
             onFolderClick = ::openFolder,
+            onAddFolderToPlaylistClick = ::showAddFolderToPlaylistDialog,
             onPlayFolder = ::playFolder,
             onPlaylistClick = showPlaylist,
+            onAddPlaylistToPlaylistClick = ::showAddPlaylistToPlaylistDialog,
+            onAlbumClick = showAlbum,
+            onAddAlbumToPlaylistClick = ::showAddAlbumToPlaylistDialog,
+            onDeleteAlbum = ::deleteAlbum,
             onTrackClick = playTrack,
+            onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
             onArtistClick = showArtistDetails,
             onRenameFolder = ::renameFolder,
             onRenamePlaylist = ::renamePlaylist,
             onDeleteFolder = ::deleteFolder,
             onDeletePlaylist = ::deletePlaylist,
             onDeleteTrack = ::deleteTrack,
-            onAddTrackToQueue = addTrackToQueue
+            onAddTrackToQueue = addTrackToQueue,
+            onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
         )
     }
 
@@ -237,6 +286,12 @@ class Library(
         }
     }
 
+    private fun deleteAlbum(id: Long) {
+        coroutineScope.launch {
+            albumRepo.delete(id)
+        }
+    }
+
     private fun deleteTrack(id: Long) {
         coroutineScope.launch {
             trackRepo.delete(id)
@@ -289,7 +344,7 @@ class Library(
                     if (!album.isNullOrEmpty()) {
                         val albums = albumRepo.getByName(album)
                         if (albums.isEmpty()) {
-                            albumId = albumRepo.add(name = album, image = albumImage, releaseDate = year)
+                            albumId = albumRepo.add(name = album, image = albumImage, folderId = currentFolder.value?.id, releaseDate = year)
                         } else if (albums.size == 1) {
                             albumId = albums.first().id
                         }
@@ -317,7 +372,87 @@ class Library(
         }
     }
 
-    private object State {
+    private fun showAddTrackToPlaylistDialog(trackId: Long) {
+        addToPlaylist.update {
+            AddToPlaylist(
+                itemToAdd = AddToPlaylist.Item.Track(trackId),
+                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                trackRepo = trackRepo,
+                albumRepo = albumRepo,
+                folderRepo = folderRepo,
+                dismiss = ::dismissAddToPlaylistDialog,
+                playlistRepo = playlistRepo
+            )
+        }
+        addToPlaylistDialogVisible.update { true }
+    }
+
+    private fun showAddAlbumToPlaylistDialog(albumId: Long) {
+        addToPlaylist.update {
+            AddToPlaylist(
+                itemToAdd = AddToPlaylist.Item.Album(albumId),
+                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                trackRepo = trackRepo,
+                albumRepo = albumRepo,
+                folderRepo = folderRepo,
+                dismiss = ::dismissAddToPlaylistDialog,
+                playlistRepo = playlistRepo
+            )
+        }
+        addToPlaylistDialogVisible.update { true }
+    }
+
+    private fun showAddPlaylistToPlaylistDialog(playlistId: Long) {
+        addToPlaylist.update {
+            AddToPlaylist(
+                itemToAdd = AddToPlaylist.Item.Playlist(playlistId),
+                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                trackRepo = trackRepo,
+                albumRepo = albumRepo,
+                folderRepo = folderRepo,
+                dismiss = ::dismissAddToPlaylistDialog,
+                playlistRepo = playlistRepo
+            )
+        }
+        addToPlaylistDialogVisible.update { true }
+    }
+
+    private fun showAddFolderToPlaylistDialog(folderId: Long) {
+        addToPlaylist.update {
+            AddToPlaylist(
+                itemToAdd = AddToPlaylist.Item.Folder(folderId),
+                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                trackRepo = trackRepo,
+                albumRepo = albumRepo,
+                folderRepo = folderRepo,
+                dismiss = ::dismissAddToPlaylistDialog,
+                playlistRepo = playlistRepo
+            )
+        }
+        addToPlaylistDialogVisible.update { true }
+    }
+
+    private fun dismissAddToPlaylistDialog() {
+        if (addToPlaylist.value?.adding?.value == true) {
+            return
+        }
+        addToPlaylistDialogVisible.update { false }
+        addToPlaylist.update { it?.clear(); null }
+    }
+
+    private object Models {
+        data class Album(
+            val id: Long,
+            val name: String,
+            val image: ByteArray?,
+            val artists: List<Artist>
+        ) {
+            data class Artist(
+                val id: Long,
+                val name: String
+            )
+        }
+
         data class Track(
             val id: Long,
             val name: String,
@@ -348,28 +483,41 @@ class Library(
             currentFolder: StateFlow<Folder?>,
             folders: StateFlow<List<Folder>>,
             playlists: StateFlow<List<Playlist>>,
-            tracks: StateFlow<List<State.Track>>,
+            albums: StateFlow<List<Models.Album>>,
+            tracks: StateFlow<List<Models.Track>>,
             onImportFolder: (path: String) -> Unit,
             onNewFolder: (name: String) -> Unit,
+            addToPlaylistDialogVisible: StateFlow<Boolean>,
+            addToPlaylist: StateFlow<AddToPlaylist?>,
             onNewTrack: (name: String, audioUrl: String?, videoUrl: String?) -> Unit,
             onFolderClick: (Folder?) -> Unit,
+            onAddFolderToPlaylistClick: (id: Long) -> Unit,
             onPlayFolder: (id: Long) -> Unit,
             onPlaylistClick: (id: Long) -> Unit,
+            onAddPlaylistToPlaylistClick: (id: Long) -> Unit,
+            onAlbumClick: (id: Long) -> Unit,
+            onAddAlbumToPlaylistClick: (id: Long) -> Unit,
+            onDeleteAlbum: (id: Long) -> Unit,
             onTrackClick: (id: Long) -> Unit,
+            onAddTrackToPlaylistClick: (id: Long) -> Unit,
             onArtistClick: (id: Long) -> Unit,
             onRenameFolder: (Long, name: String) -> Unit,
             onRenamePlaylist: (id: Long, name: String) -> Unit,
             onDeleteFolder: (id: Long) -> Unit,
             onDeletePlaylist: (id: Long) -> Unit,
             onDeleteTrack: (id: Long) -> Unit,
-            onAddTrackToQueue: (id: Long) -> Unit
+            onAddTrackToQueue: (id: Long) -> Unit,
+            onDismissAddToPlaylistDialog: () -> Unit
         ) {
             val path by path.collectAsState()
             val loadingItems by loadingItems.collectAsState()
             val folders by folders.collectAsState()
             val playlists by playlists.collectAsState()
+            val albums by albums.collectAsState()
             val tracks by tracks.collectAsState()
             val lazyGridState = rememberLazyGridState()
+            val addToPlaylistDialogVisible by addToPlaylistDialogVisible.collectAsState()
+            val addToPlaylist by addToPlaylist.collectAsState()
 
             Column(
                 modifier = modifier,
@@ -408,30 +556,42 @@ class Library(
                                     verticalArrangement = Arrangement.spacedBy(18.dp),
                                     columns = GridCells.Adaptive(200.dp)
                                 ) {
-                                    items(items = folders, key = { it.id }) { folder ->
+                                    items(folders) { folder ->
                                         FolderItem(
                                             folder = folder,
                                             onClick = { onFolderClick(folder) },
+                                            onAddToPlaylistClick = { onAddFolderToPlaylistClick(folder.id) },
                                             onPlay = { onPlayFolder(folder.id) },
                                             onRename = { onRenameFolder(folder.id, it) },
                                             onDeleteClick = { onDeleteFolder(folder.id) }
                                         )
                                     }
-                                    items(items = playlists, key = { it.id }) { playlist ->
+                                    items(playlists) { playlist ->
                                         PlaylistItem(
                                             playlist = playlist,
                                             onClick = { onPlaylistClick(playlist.id) },
+                                            onAddToPlaylistClick = { onAddPlaylistToPlaylistClick(playlist.id) },
                                             onRename = { onRenamePlaylist(playlist.id, it) },
                                             onDeleteClick = { onDeletePlaylist(playlist.id) }
                                         )
                                     }
-                                    items(items = tracks, key = { it.id }) {
-                                        TrackItem(
-                                            track = it,
-                                            onClick = { onTrackClick(it.id) },
+                                    items(albums) { album ->
+                                        AlbumItem(
+                                            album = album,
+                                            onClick = { onAlbumClick(album.id) },
                                             onArtistClick = onArtistClick,
-                                            onDeleteClick = { onDeleteTrack(it.id) },
-                                            onAddToQueueClick = { onAddTrackToQueue(it.id) }
+                                            onAddToPlaylistClick = { onAddAlbumToPlaylistClick(album.id) },
+                                            onDeleteClick = { onDeleteAlbum(album.id) }
+                                        )
+                                    }
+                                    items(tracks) { track ->
+                                        TrackItem(
+                                            track = track,
+                                            onClick = { onTrackClick(track.id) },
+                                            onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
+                                            onArtistClick = onArtistClick,
+                                            onDeleteClick = { onDeleteTrack(track.id) },
+                                            onAddToQueueClick = { onAddTrackToQueue(track.id) }
                                         )
                                     }
                                     if (loadingItems) {
@@ -451,6 +611,12 @@ class Library(
                             }
                         }
                     }
+                }
+            }
+
+            if (addToPlaylistDialogVisible) {
+                Dialog(onDismissRequest = onDismissAddToPlaylistDialog) {
+                    addToPlaylist!!.show(Modifier)
                 }
             }
         }
@@ -604,6 +770,7 @@ class Library(
             modifier: Modifier = Modifier,
             folder: Folder,
             onClick: () -> Unit,
+            onAddToPlaylistClick: () -> Unit,
             onPlay: () -> Unit,
             onRename: (name: String) -> Unit,
             onDeleteClick: () -> Unit
@@ -640,6 +807,10 @@ class Library(
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        IconButton(
+                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, null) },
+                            onClick = onAddToPlaylistClick
+                        )
                         IconButton(
                             onClick = { editFormDialogVisible = true },
                             content = { Icon(Icons.Default.Edit, null) }
@@ -681,6 +852,7 @@ class Library(
             modifier: Modifier = Modifier,
             playlist: Playlist,
             onClick: () -> Unit,
+            onAddToPlaylistClick: () -> Unit,
             onRename: (name: String) -> Unit,
             onDeleteClick: () -> Unit
         ) {
@@ -697,10 +869,9 @@ class Library(
                 ) {
                     Image(
                         modifier = Modifier.aspectRatio(1f),
-                        imageVector = Icons.Default.Folder,
+                        data = playlist.image,
                         contentScale = ContentScale.FillWidth,
-                        alignment = Alignment.TopCenter,
-                        contentDescription = null
+                        alignment = Alignment.TopCenter
                     )
                     Text(
                         modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -716,6 +887,10 @@ class Library(
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        IconButton(
+                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, null) },
+                            onClick = onAddToPlaylistClick
+                        )
                         IconButton(
                             onClick = { editFormDialogVisible = true },
                             content = { Icon(Icons.Default.Edit, null) }
@@ -749,10 +924,106 @@ class Library(
         }
 
         @Composable
+        private fun AlbumItem(
+            modifier: Modifier = Modifier,
+            album: Models.Album,
+            onClick: () -> Unit,
+            onArtistClick: (id: Long) -> Unit,
+            onAddToPlaylistClick: () -> Unit,
+            onDeleteClick: () -> Unit
+        ) {
+            var deleteConfirmationDialogVisible by remember { mutableStateOf(false) }
+
+            Item(
+                modifier = modifier,
+                onClick = onClick
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Image(
+                        modifier = Modifier.aspectRatio(1f),
+                        data = album.image,
+                        contentScale = ContentScale.FillWidth,
+                        alignment = Alignment.TopCenter
+                    )
+                    Text(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        text = album.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.Center,
+                        minLines = 2,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "By: ",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        LazyRow(
+                            modifier = Modifier.weight(1f),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            items(album.artists) { artist ->
+                                TextButton(
+                                    content = {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.Person, null)
+                                            Text(
+                                                text = artist.name,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    },
+                                    onClick = { onArtistClick(artist.id) }
+                                )
+                            }
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, null) },
+                            onClick = onAddToPlaylistClick
+                        )
+                        IconButton(
+                            onClick = { deleteConfirmationDialogVisible = true },
+                            content = { Icon(Icons.Default.Delete, null) }
+                        )
+                    }
+                }
+            }
+
+            if (deleteConfirmationDialogVisible) {
+                DeleteConfirmationDialog(
+                    message = "Delete album \"${album.name}\"?",
+                    onDismissRequest = { deleteConfirmationDialogVisible = false },
+                    onYesClick = onDeleteClick
+                )
+            }
+        }
+
+        @Composable
         private fun TrackItem(
             modifier: Modifier = Modifier,
-            track: State.Track,
+            track: Models.Track,
             onClick: () -> Unit,
+            onAddToPlaylistClick: () -> Unit,
             onArtistClick: (id: Long) -> Unit,
             onDeleteClick: () -> Unit,
             onAddToQueueClick: () -> Unit
@@ -766,7 +1037,7 @@ class Library(
                 ) {
                     Image(
                         modifier = Modifier.aspectRatio(1f),
-                        data = track.album?.image, // TODO
+                        data = track.album?.image,
                         contentScale = ContentScale.FillWidth,
                         alignment = Alignment.TopCenter
                     )
@@ -819,6 +1090,10 @@ class Library(
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        IconButton(
+                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, null) },
+                            onClick = onAddToPlaylistClick
+                        )
                         IconButton(
                             onClick = { deleteConfirmationDialogVisible = true },
                             content = { Icon(Icons.Default.Delete, null) }

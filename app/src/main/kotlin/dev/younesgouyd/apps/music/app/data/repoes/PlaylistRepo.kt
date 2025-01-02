@@ -23,13 +23,13 @@ class PlaylistRepo(private val queries: PlaylistQueries) {
             .mapToOne(Dispatchers.IO)
     }
 
-    suspend fun getStatic(id: Long): Playlist {
+    suspend fun getStatic(id: Long): Playlist? {
         return withContext(Dispatchers.IO) {
-            queries.get(id).executeAsOne()
+            queries.get(id).executeAsOneOrNull()
         }
     }
 
-    suspend fun add(name: String, folderId: Long, image: ByteArray?): Long {
+    suspend fun add(name: String, folderId: Long?, image: ByteArray?): Long {
         require(name.isNotEmpty())
         return withContext(Dispatchers.IO) {
             val currentTime = Instant.now().toEpochMilli()
@@ -68,13 +68,13 @@ class PlaylistRepo(private val queries: PlaylistQueries) {
         }
     }
 
-    fun getFolderPlaylists(folderId: Long): Flow<List<Playlist>> {
+    fun getFolderPlaylists(folderId: Long?): Flow<List<Playlist>> {
         return queries.getFolderPlaylists(folderId)
             .asFlow()
             .mapToList(Dispatchers.IO)
     }
 
-    suspend fun getFolderPlaylistsStatic(folderId: Long): List<Playlist> {
+    suspend fun getFolderPlaylistsStatic(folderId: Long?): List<Playlist> {
         return withContext(Dispatchers.IO) {
             queries.getFolderPlaylists(folderId).executeAsList()
         }

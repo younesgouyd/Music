@@ -23,6 +23,12 @@ class FolderRepo(private val queries: FolderQueries) {
             .mapToOne(Dispatchers.IO)
     }
 
+    suspend fun getStatic(id: Long): Folder? {
+        return withContext(Dispatchers.IO) {
+            queries.get(id).executeAsOneOrNull()
+        }
+    }
+
     fun getSubfolders(id: Long?): Flow<List<Folder>> {
         return queries.getSubfolders(id)
             .asFlow()

@@ -6,3 +6,9 @@ delete:
 DELETE FROM playlist_track_cross_ref
 WHERE playlist_id = :playlist_id
 AND track_id = :track_id;
+
+get:
+SELECT *
+FROM playlist_track_cross_ref
+WHERE playlist_id = :playlist_id
+AND track_id = :track_id;

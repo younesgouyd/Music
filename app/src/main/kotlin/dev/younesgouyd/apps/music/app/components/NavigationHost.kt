@@ -161,10 +161,12 @@ class NavigationHost(
                         albumRepo = repoStore.albumRepo,
                         artistRepo = repoStore.artistRepo,
                         artistTrackCrossRefRepo = repoStore.artistTrackCrossRefRepo,
-                        addTrackToQueue = { mediaController.addToQueue(MediaController.QueueItemParameter.Track(it)) },
+                        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
                         showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },
+                        showAlbum = { navigateTo(Destination.AlbumDetails(it)) },
                         playTrack = { mediaController.play(listOf(MediaController.QueueItemParameter.Track(it))) },
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
+                        addTrackToQueue = { mediaController.addToQueue(MediaController.QueueItemParameter.Track(it)) },
                         playQueue = mediaController::play
                     )
                     is Destination.AlbumDetails -> AlbumDetails(
@@ -172,14 +174,21 @@ class NavigationHost(
                         albumRepo = repoStore.albumRepo,
                         artistRepo = repoStore.artistRepo,
                         trackRepo = repoStore.trackRepo,
+                        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
+                        playlistRepo = repoStore.playlistRepo,
+                        folderRepo = repoStore.folderRepo,
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
                         play = { mediaController.play(listOf(MediaController.QueueItemParameter.Album(destination.albumId))) },
-                        addToQueueClick = { mediaController.addToQueue(MediaController.QueueItemParameter.Album(destination.albumId)) },
+                        addToQueue = { mediaController.addToQueue(MediaController.QueueItemParameter.Album(destination.albumId)) },
                         playTrack = { mediaController.play(listOf(MediaController.QueueItemParameter.Track(it))) }
                     )
                     is Destination.AlbumList -> AlbumList(
                         albumRepo = repoStore.albumRepo,
                         artistRepo = repoStore.artistRepo,
+                        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
+                        trackRepo = repoStore.trackRepo,
+                        playlistRepo = repoStore.playlistRepo,
+                        folderRepo = repoStore.folderRepo,
                         showAlbumDetails = { navigateTo(Destination.AlbumDetails(it)) },
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
                         playAlbum = { mediaController.play(listOf(MediaController.QueueItemParameter.Album(it))) },
@@ -189,6 +198,10 @@ class NavigationHost(
                         id = destination.artistId,
                         artistRepo = repoStore.artistRepo,
                         albumRepo = repoStore.albumRepo,
+                        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
+                        trackRepo = repoStore.trackRepo,
+                        folderRepo = repoStore.folderRepo,
+                        playlistRepo = repoStore.playlistRepo,
                         showAlbumDetails = { navigateTo(Destination.AlbumDetails(it)) },
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
                         playAlbum = { mediaController.play(listOf(MediaController.QueueItemParameter.Album(it))) }
@@ -203,13 +216,20 @@ class NavigationHost(
                         playlistRepo = repoStore.playlistRepo,
                         artistRepo = repoStore.artistRepo,
                         albumRepo = repoStore.albumRepo,
+                        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
+                        folderRepo = repoStore.folderRepo,
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
                         showAlbumDetails = { navigateTo(Destination.AlbumDetails(it)) },
                         play = { mediaController.play(listOf(MediaController.QueueItemParameter.Playlist(destination.playlistId))) },
+                        addToQueue = { mediaController.addToQueue(MediaController.QueueItemParameter.Playlist(destination.playlistId)) },
                         playTrack = { mediaController.play(listOf(MediaController.QueueItemParameter.Track(it))) }
                     )
                     is Destination.PlaylistList -> PlaylistList(
                         playlistRepo = repoStore.playlistRepo,
+                        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
+                        trackRepo = repoStore.trackRepo,
+                        folderRepo = repoStore.folderRepo,
+                        albumRepo = repoStore.albumRepo,
                         showPlaylistDetails = { navigateTo(Destination.PlaylistDetails(it)) },
                         playPlaylist = { mediaController.play(listOf(MediaController.QueueItemParameter.Playlist(it))) }
                     )

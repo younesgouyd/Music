@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.*
@@ -17,13 +18,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.app.Component
 import dev.younesgouyd.apps.music.app.components.util.widgets.Image
 import dev.younesgouyd.apps.music.app.components.util.widgets.Item
 import dev.younesgouyd.apps.music.app.components.util.widgets.ScrollToTopFloatingActionButton
 import dev.younesgouyd.apps.music.app.components.util.widgets.VerticalScrollbar
-import dev.younesgouyd.apps.music.app.data.repoes.AlbumRepo
-import dev.younesgouyd.apps.music.app.data.repoes.ArtistRepo
+import dev.younesgouyd.apps.music.app.data.repoes.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -34,12 +35,18 @@ class ArtistDetails(
     private val id: Long,
     private val artistRepo: ArtistRepo,
     private val albumRepo: AlbumRepo,
+    private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
+    private val trackRepo: TrackRepo,
+    private val folderRepo: FolderRepo,
+    private val playlistRepo: PlaylistRepo,
     private val showAlbumDetails: (Long) -> Unit,
     private val showArtistDetails: (Long) -> Unit,
     playAlbum: (Long) -> Unit
 ) : Component() {
     override val title: String = "Artist"
     private val state: MutableStateFlow<ArtistDetailsState> = MutableStateFlow(ArtistDetailsState.Loading)
+    private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
 
     init {
         coroutineScope.launch {
@@ -67,10 +74,14 @@ class ArtistDetails(
                                 }
                             )
                         }
-                    }.stateIn(coroutineScope),
+                    }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), emptyList()),
+                    addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
+                    addToPlaylist = addToPlaylist.asStateFlow(),
                     onAlbumClick = showAlbumDetails,
                     onArtistClick = showArtistDetails,
-                    onPlayAlbumClick = playAlbum
+                    onPlayAlbumClick = playAlbum,
+                    onAddAlbumToPlaylistClick = ::showAddAlbumToPlaylistDialog,
+                    onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
                 )
             }
         }
@@ -87,15 +98,42 @@ class ArtistDetails(
         coroutineScope.cancel()
     }
 
+    private fun showAddAlbumToPlaylistDialog(albumId: Long) {
+        addToPlaylist.update {
+            AddToPlaylist(
+                itemToAdd = AddToPlaylist.Item.Album(albumId),
+                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                trackRepo = trackRepo,
+                albumRepo = albumRepo,
+                folderRepo = folderRepo,
+                dismiss = ::dismissAddToPlaylistDialog,
+                playlistRepo = playlistRepo
+            )
+        }
+        addToPlaylistDialogVisible.update { true }
+    }
+
+    private fun dismissAddToPlaylistDialog() {
+        if (addToPlaylist.value?.adding?.value == true) {
+            return
+        }
+        addToPlaylistDialogVisible.update { false }
+        addToPlaylist.update { it?.clear(); null }
+    }
+
     private sealed class ArtistDetailsState {
         data object Loading : ArtistDetailsState()
 
         data class Loaded(
             val artist: StateFlow<Artist>,
             val albums: StateFlow<List<Artist.Album>>,
+            val addToPlaylistDialogVisible: StateFlow<Boolean>,
+            val addToPlaylist: StateFlow<Component?>,
             val onAlbumClick: (Long) -> Unit,
             val onArtistClick: (Long) -> Unit,
-            val onPlayAlbumClick: (Long) -> Unit
+            val onPlayAlbumClick: (Long) -> Unit,
+            val onAddAlbumToPlaylistClick: (id: Long) -> Unit,
+            val onDismissAddToPlaylistDialog: () -> Unit
         ) : ArtistDetailsState() {
             data class Artist(
                 val id: Long,
@@ -129,20 +167,30 @@ class ArtistDetails(
         fun Main(modifier: Modifier, state: ArtistDetailsState) {
             when (state) {
                 is ArtistDetailsState.Loading -> Text(modifier = modifier, text = "Loading...")
-                is ArtistDetailsState.Loaded -> Main(modifier = modifier, loaded = state)
+                is ArtistDetailsState.Loaded -> Main(modifier = modifier, state = state)
             }
         }
 
         @Composable
-        private fun Main(modifier: Modifier, loaded: ArtistDetailsState.Loaded) {
+        private fun Main(modifier: Modifier, state: ArtistDetailsState.Loaded) {
+            val addToPlaylistDialogVisible by state.addToPlaylistDialogVisible.collectAsState()
+            val addToPlaylist by state.addToPlaylist.collectAsState()
+
             Main(
                 modifier = modifier,
-                artist = loaded.artist,
-                albums = loaded.albums,
-                onAlbumClick = loaded.onAlbumClick,
-                onArtistClick = loaded.onArtistClick,
-                onPlayAlbumClick = loaded.onPlayAlbumClick,
+                artist = state.artist,
+                albums = state.albums,
+                onAlbumClick = state.onAlbumClick,
+                onArtistClick = state.onArtistClick,
+                onAddAlbumToPlaylistClick = state.onAddAlbumToPlaylistClick,
+                onPlayAlbumClick = state.onPlayAlbumClick,
             )
+
+            if (addToPlaylistDialogVisible) {
+                Dialog(onDismissRequest = state.onDismissAddToPlaylistDialog) {
+                    addToPlaylist!!.show(Modifier)
+                }
+            }
         }
 
         @Composable
@@ -152,6 +200,7 @@ class ArtistDetails(
             albums: StateFlow<List<ArtistDetailsState.Loaded.Artist.Album>>,
             onAlbumClick: (Long) -> Unit,
             onArtistClick: (Long) -> Unit,
+            onAddAlbumToPlaylistClick: (id: Long) -> Unit,
             onPlayAlbumClick: (Long) -> Unit
         ) {
             val artist by artist.collectAsState()
@@ -186,12 +235,13 @@ class ArtistDetails(
                             items(
                                 items = albumItems,
                                 key = { it.id }
-                            ) { item ->
+                            ) { album ->
                                 AlbumItem(
-                                    album = item,
-                                    onClick = onAlbumClick,
+                                    album = album,
+                                    onClick = { onAlbumClick(album.id) },
                                     onArtistClick = onArtistClick,
-                                    onPlayClick = onPlayAlbumClick
+                                    onAddToPlaylistClick = { onAddAlbumToPlaylistClick(album.id) },
+                                    onPlayClick = { onPlayAlbumClick(album.id) }
                                 )
                             }
                         }
@@ -235,13 +285,14 @@ class ArtistDetails(
         private fun AlbumItem(
             modifier: Modifier = Modifier,
             album: ArtistDetailsState.Loaded.Artist.Album,
-            onClick: (Long) -> Unit,
+            onClick: () -> Unit,
             onArtistClick: (Long) -> Unit,
-            onPlayClick: (Long) -> Unit
+            onAddToPlaylistClick: () -> Unit,
+            onPlayClick: () -> Unit
         ) {
             Item (
                 modifier = modifier,
-                onClick = { onClick(album.id) },
+                onClick = onClick,
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -296,8 +347,12 @@ class ArtistDetails(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
+                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, null) },
+                            onClick = onAddToPlaylistClick
+                        )
+                        IconButton(
                             content = { Icon(Icons.Default.PlayCircle, null) },
-                            onClick = { onPlayClick(album.id) }
+                            onClick = onPlayClick
                         )
                     }
                 }

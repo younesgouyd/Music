@@ -44,7 +44,7 @@ CREATE TABLE artist (
 CREATE TABLE playlist (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    folder_id INTEGER NOT NULL REFERENCES folder(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    folder_id INTEGER REFERENCES folder(id) ON UPDATE CASCADE ON DELETE CASCADE,
     image BLOB,
     creation_datetime INTEGER NOT NULL,
     update_datetime INTEGER NOT NULL
@@ -60,8 +60,9 @@ CREATE TABLE artist_track_cross_ref (
 
 CREATE TABLE playlist_track_cross_ref (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    playlist_id INTEGER NOT NULL NOT NULL REFERENCES playlist(id) ON UPDATE CASCADE ON DELETE CASCADE,
-    track_id INTEGER NOT NULL NOT NULL REFERENCES track(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    playlist_id INTEGER NOT NULL REFERENCES playlist(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    track_id INTEGER NOT NULL REFERENCES track(id) ON UPDATE CASCADE ON DELETE CASCADE,
     creation_datetime INTEGER NOT NULL,
-    update_datetime INTEGER NOT NULL
+    update_datetime INTEGER NOT NULL,
+    UNIQUE (playlist_id, track_id)
 );

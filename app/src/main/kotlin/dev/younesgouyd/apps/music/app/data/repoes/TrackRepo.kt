@@ -24,9 +24,9 @@ class TrackRepo(private val queries: TrackQueries) {
             .mapToOne(Dispatchers.IO)
     }
 
-    suspend fun getStatic(id: Long): Track {
+    suspend fun getStatic(id: Long): Track? {
         return withContext(Dispatchers.IO) {
-            queries.get(id).executeAsOne()
+            queries.get(id).executeAsOneOrNull()
         }
     }
 

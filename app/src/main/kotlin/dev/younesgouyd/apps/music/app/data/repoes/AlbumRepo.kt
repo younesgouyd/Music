@@ -23,19 +23,20 @@ class AlbumRepo(private val queries: AlbumQueries) {
             .mapToOne(Dispatchers.IO)
     }
 
-    suspend fun getStatic(id: Long): Album {
+    suspend fun getStatic(id: Long): Album? {
         return withContext(Dispatchers.IO) {
-            queries.get(id).executeAsOne()
+            queries.get(id).executeAsOneOrNull()
         }
     }
 
-    suspend fun add(name: String, image: ByteArray?, releaseDate: String?): Long {
+    suspend fun add(name: String, image: ByteArray?, folderId: Long?, releaseDate: String?): Long {
         require(name.isNotEmpty())
         return withContext(Dispatchers.IO) {
             val currentTime = Instant.now().toEpochMilli()
             queries.add(
                 name = name,
                 image = image,
+                folder_id = folderId,
                 release_date = releaseDate,
                 creation_datetime = currentTime,
                 update_datetime = currentTime
@@ -70,6 +71,12 @@ class AlbumRepo(private val queries: AlbumQueries) {
 
     fun getArtistAlbums(artistId: Long): Flow<List<Album>> {
         return queries.getArtistAlbums(artistId)
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+    }
+
+    fun getFolderAlbums(folderId: Long?): Flow<List<Album>> {
+        return queries.getFolderAlbums(folderId)
             .asFlow()
             .mapToList(Dispatchers.IO)
     }

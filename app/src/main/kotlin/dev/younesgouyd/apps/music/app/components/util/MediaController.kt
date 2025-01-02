@@ -1,9 +1,8 @@
 package dev.younesgouyd.apps.music.app.components.util
 
-import dev.younesgouyd.apps.music.app.data.repoes.AlbumRepo
-import dev.younesgouyd.apps.music.app.data.repoes.ArtistRepo
-import dev.younesgouyd.apps.music.app.data.repoes.PlaylistRepo
-import dev.younesgouyd.apps.music.app.data.repoes.TrackRepo
+import dev.younesgouyd.apps.music.app.Component
+import dev.younesgouyd.apps.music.app.components.AddToPlaylist
+import dev.younesgouyd.apps.music.app.data.repoes.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +25,8 @@ class MediaController(
     private val artistRepo: ArtistRepo,
     private val albumRepo: AlbumRepo,
     private val playlistRepo: PlaylistRepo,
+    private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
+    private val folderRepo: FolderRepo,
     private val onAlbumClick: (Long) -> Unit,
     private val onArtistClick: (Long) -> Unit
 ) {
@@ -33,6 +34,8 @@ class MediaController(
     private val _state: MutableStateFlow<MediaControllerState> = MutableStateFlow(MediaControllerState.Unavailable)
     private val enabled: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val vlcPlayer = AudioPlayerComponent().mediaPlayer()
+    private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
 
     val state: StateFlow<MediaControllerState> get() = _state.asStateFlow()
 
@@ -84,6 +87,8 @@ class MediaController(
                                     elapsedTime = Duration.ZERO,
                                     audioOrVideoState = MediaControllerState.Available.PlaybackState.AudioOrVideoState.Audio
                                 ),
+                                addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
+                                addToPlaylist = addToPlaylist.asStateFlow(),
                                 onAlbumClick = onAlbumClick,
                                 onArtistClick = onArtistClick,
                                 onValueChange = ::seek,
@@ -93,7 +98,9 @@ class MediaController(
                                 onNextClick = ::next,
                                 onRepeatClick = ::repeat, // TODO
                                 onPlayQueueItem = ::playQueueItem,
-                                onPlayQueueSubItem = ::playTrackInQueue
+                                onPlayQueueSubItem = ::playTrackInQueue,
+                                onAddToPlaylistClick = ::showAddToPlaylistDialog,
+                                onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
                             )
                         }
                         is MediaControllerState.Available -> {
@@ -402,6 +409,8 @@ class MediaController(
                                     elapsedTime = Duration.ZERO,
                                     audioOrVideoState = MediaControllerState.Available.PlaybackState.AudioOrVideoState.Audio
                                 ),
+                                addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
+                                addToPlaylist = addToPlaylist.asStateFlow(),
                                 onAlbumClick = onAlbumClick,
                                 onArtistClick = onArtistClick,
                                 onValueChange = ::seek,
@@ -411,7 +420,9 @@ class MediaController(
                                 onNextClick = ::next,
                                 onRepeatClick = ::repeat, // TODO
                                 onPlayQueueItem = ::playQueueItem,
-                                onPlayQueueSubItem = ::playTrackInQueue
+                                onPlayQueueSubItem = ::playTrackInQueue,
+                                onAddToPlaylistClick = ::showAddToPlaylistDialog,
+                                onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
                             )
                         }
                         is MediaControllerState.Available -> {
@@ -521,7 +532,7 @@ class MediaController(
 
     private suspend fun QueueItemParameter.toModel(): MediaControllerState.Available.PlaybackState.QueueItem {
         return when (this) {
-            is QueueItemParameter.Track -> trackRepo.getStatic(this.id).let { dbTrack ->
+            is QueueItemParameter.Track -> trackRepo.getStatic(this.id)!!.let { dbTrack ->
                 MediaControllerState.Available.PlaybackState.QueueItem.Track(
                     id = dbTrack.id,
                     name = dbTrack.name,
@@ -534,7 +545,7 @@ class MediaController(
                             )
                         },
                     album = dbTrack.album_id?.let {
-                        albumRepo.getStatic(it).let { dbAlbum ->
+                        albumRepo.getStatic(it)!!.let { dbAlbum ->
                             MediaControllerState.Available.PlaybackState.QueueItem.Track.Album(
                                 id = dbAlbum.id,
                                 name = dbAlbum.name,
@@ -557,7 +568,7 @@ class MediaController(
                     }
                 )
             }
-            is QueueItemParameter.Album -> albumRepo.getStatic(this.id).let { dbAlbum ->
+            is QueueItemParameter.Album -> albumRepo.getStatic(this.id)!!.let { dbAlbum ->
                 MediaControllerState.Available.PlaybackState.QueueItem.Album(
                     id = dbAlbum.id,
                     name = dbAlbum.name,
@@ -596,7 +607,7 @@ class MediaController(
                     }
                 )
             }
-            is QueueItemParameter.Playlist -> playlistRepo.getStatic(this.id).let { dbPlaylist ->
+            is QueueItemParameter.Playlist -> playlistRepo.getStatic(this.id)!!.let { dbPlaylist ->
                 MediaControllerState.Available.PlaybackState.QueueItem.Playlist(
                     id = dbPlaylist.id,
                     name = dbPlaylist.name,
@@ -613,7 +624,7 @@ class MediaController(
                                 )
                             },
                             album = dbTrack.album_id?.let {
-                                albumRepo.getStatic(it).let { dbAlbum ->
+                                albumRepo.getStatic(it)!!.let { dbAlbum ->
                                     MediaControllerState.Available.PlaybackState.QueueItem.Track.Album(
                                         id = dbAlbum.id,
                                         name = dbAlbum.name,
@@ -662,6 +673,29 @@ class MediaController(
         vlcPlayer.release()
     }
 
+    private fun showAddToPlaylistDialog(trackId: Long) {
+        addToPlaylist.update {
+            AddToPlaylist(
+                itemToAdd = AddToPlaylist.Item.Track(trackId),
+                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                trackRepo = trackRepo,
+                albumRepo = albumRepo,
+                folderRepo = folderRepo,
+                dismiss = ::dismissAddToPlaylistDialog,
+                playlistRepo = playlistRepo
+            )
+        }
+        addToPlaylistDialogVisible.update { true }
+    }
+
+    private fun dismissAddToPlaylistDialog() {
+        if (addToPlaylist.value?.adding?.value == true) {
+            return
+        }
+        addToPlaylistDialogVisible.update { false }
+        addToPlaylist.update { it?.clear(); null }
+    }
+
     sealed class QueueItemParameter {
         abstract val id: Long
 
@@ -686,6 +720,8 @@ class MediaController(
         data class Available(
             val enabled: StateFlow<Boolean>,
             val playbackState: PlaybackState,
+            val addToPlaylistDialogVisible: StateFlow<Boolean>,
+            val addToPlaylist: StateFlow<Component?>,
             val onAlbumClick: (Long) -> Unit,
             val onArtistClick: (Long) -> Unit,
             val onValueChange: (Duration) -> Unit,
@@ -695,7 +731,9 @@ class MediaController(
             val onNextClick: () -> Unit,
             val onRepeatClick: () -> Unit,
             val onPlayQueueItem: (queueItemIndex: Int) -> Unit,
-            val onPlayQueueSubItem: (queueItemIndex: Int, trackIndex: Int) ->Unit
+            val onPlayQueueSubItem: (queueItemIndex: Int, trackIndex: Int) ->Unit,
+            val onAddToPlaylistClick: (trackId: Long) -> Unit,
+            val onDismissAddToPlaylistDialog: () -> Unit
         ) : MediaControllerState() {
             data class PlaybackState(
                 val queue: List<QueueItem>,

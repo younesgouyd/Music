@@ -1,5 +1,6 @@
 package dev.younesgouyd.apps.music.app.data.repoes
 
+import dev.younesgouyd.apps.music.app.data.sqldelight.migrations.Playlist_track_cross_ref
 import dev.younesgouyd.apps.music.app.data.sqldelight.queries.PlaylistTrackCrossRefQueries
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,6 +22,12 @@ class PlaylistTrackCrossRefRepo(private val queries: PlaylistTrackCrossRefQuerie
     suspend fun delete(playlistId: Long, trackId: Long) {
         withContext(Dispatchers.IO) {
             queries.delete(playlistId, trackId)
+        }
+    }
+
+    suspend fun getStatic(playlistId: Long, trackId: Long): Playlist_track_cross_ref? {
+        return withContext(Dispatchers.IO) {
+            queries.get(playlistId, trackId).executeAsOneOrNull()
         }
     }
 }

@@ -3,6 +3,7 @@ package dev.younesgouyd.apps.music.app.components
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -10,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.app.Component
 import dev.younesgouyd.apps.music.app.components.util.MediaController
 import dev.younesgouyd.apps.music.app.components.util.widgets.Image
@@ -48,6 +50,9 @@ class Player(
 
         @Composable
         private fun Main(modifier: Modifier = Modifier, state: MediaController.MediaControllerState.Available) {
+            val addToPlaylistDialogVisible by state.addToPlaylistDialogVisible.collectAsState()
+            val addToPlaylist by state.addToPlaylist.collectAsState()
+
             Main(
                 modifier =  modifier,
                 enabled = state.enabled,
@@ -55,12 +60,19 @@ class Player(
                 onAlbumClick = state.onAlbumClick,
                 onArtistClick = state.onArtistClick,
                 onValueChange = state.onValueChange,
+                onAddToPlaylistClick = { state.onAddToPlaylistClick(state.playbackState.currentTrack.id) } ,
                 onPreviousClick = state.onPreviousClick,
                 onPlayClick = { state.onPlayClick(emptyList()) },
                 onPauseClick = state.onPauseClick,
                 onNextClick = state.onNextClick,
                 onRepeatClick = state.onRepeatClick
             )
+
+            if (addToPlaylistDialogVisible) {
+                Dialog(onDismissRequest = state.onDismissAddToPlaylistDialog) {
+                    addToPlaylist!!.show(Modifier)
+                }
+            }
         }
 
         @Composable
@@ -71,6 +83,7 @@ class Player(
             onAlbumClick: (Long) -> Unit,
             onArtistClick: (Long) -> Unit,
             onValueChange: (Duration) -> Unit,
+            onAddToPlaylistClick: () -> Unit,
             onPreviousClick: () -> Unit,
             onPlayClick: () -> Unit,
             onPauseClick: () -> Unit,
@@ -87,6 +100,7 @@ class Player(
                 onAlbumClick = onAlbumClick,
                 onArtistClick = onArtistClick,
                 onValueChange = onValueChange,
+                onAddToPlaylistClick = onAddToPlaylistClick,
                 onPreviousClick = onPreviousClick,
                 onPlayClick = onPlayClick,
                 onPauseClick = onPauseClick,
@@ -136,6 +150,7 @@ class Player(
             onAlbumClick: (Long) -> Unit,
             onArtistClick: (Long) -> Unit,
             onValueChange: (Duration) -> Unit,
+            onAddToPlaylistClick: () -> Unit,
             onPreviousClick: () -> Unit,
             onPlayClick: () -> Unit,
             onPauseClick: () -> Unit,
@@ -215,50 +230,78 @@ class Player(
                             horizontalArrangement = Arrangement.spacedBy(space = 8.dp, alignment = Alignment.Start),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "${playbackState.elapsedTime.formatted()}/${duration.formatted()}",
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                            IconButton(
-                                content = { Icon(Icons.Default.SkipPrevious, null) },
-                                enabled = enabled,
-                                onClick = onPreviousClick
-                            )
-                            when (playbackState.isPlaying) {
-                                true -> IconButton(
-                                    content = { Icon(Icons.Default.PauseCircle, null) },
-                                    enabled = enabled,
-                                    onClick = onPauseClick
-                                )
-                                false -> IconButton(
-                                    content = { Icon(Icons.Default.PlayCircle, null) },
-                                    enabled = enabled,
-                                    onClick = onPlayClick
-                                )
-                            }
-                            IconButton(
-                                content = { Icon(Icons.Default.SkipNext, null) },
-                                enabled = enabled,
-                                onClick = onNextClick
-                            )
-                            IconButton(
-                                enabled = enabled,
-                                onClick = onRepeatClick,
-                                content = {
-                                    when (playbackState.repeatState) {
-                                        MediaController.MediaControllerState.Available.PlaybackState.RepeatState.Off -> Icon(Icons.Default.Repeat, null)
-                                        MediaController.MediaControllerState.Available.PlaybackState.RepeatState.Track -> Icon(Icons.Default.RepeatOneOn, null)
-                                        MediaController.MediaControllerState.Available.PlaybackState.RepeatState.List -> Icon(Icons.Default.RepeatOn, null)
-                                    }
-
+                            Surface(
+                                shape = MaterialTheme.shapes.large,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(
+                                        content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, null) },
+                                        onClick = onAddToPlaylistClick
+                                    )
+                                    IconButton(
+                                        content = { Icon(Icons.Default.Folder, null) },
+                                        onClick = { /* TODO: onAddToFolderClick */ }
+                                    )
                                 }
-                            )
+                            }
+                            Surface(
+                                shape = MaterialTheme.shapes.large,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(
+                                        content = { Icon(Icons.Default.SkipPrevious, null) },
+                                        enabled = enabled,
+                                        onClick = onPreviousClick
+                                    )
+                                    when (playbackState.isPlaying) {
+                                        true -> IconButton(
+                                            content = { Icon(Icons.Default.PauseCircle, null) },
+                                            enabled = enabled,
+                                            onClick = onPauseClick
+                                        )
+                                        false -> IconButton(
+                                            content = { Icon(Icons.Default.PlayCircle, null) },
+                                            enabled = enabled,
+                                            onClick = onPlayClick
+                                        )
+                                    }
+                                    IconButton(
+                                        content = { Icon(Icons.Default.SkipNext, null) },
+                                        enabled = enabled,
+                                        onClick = onNextClick
+                                    )
+                                    IconButton(
+                                        enabled = enabled,
+                                        onClick = onRepeatClick,
+                                        content = {
+                                            when (playbackState.repeatState) {
+                                                MediaController.MediaControllerState.Available.PlaybackState.RepeatState.Off -> Icon(Icons.Default.Repeat, null)
+                                                MediaController.MediaControllerState.Available.PlaybackState.RepeatState.Track -> Icon(Icons.Default.RepeatOneOn, null)
+                                                MediaController.MediaControllerState.Available.PlaybackState.RepeatState.List -> Icon(Icons.Default.RepeatOn, null)
+                                            }
+
+                                        }
+                                    )
+                                }
+                            }
                             Slider(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.weight(1f),
                                 enabled = enabled,
                                 value = playbackState.elapsedTime.inWholeMilliseconds.toFloat(),
                                 valueRange = 0f..duration.inWholeMilliseconds.toFloat(),
                                 onValueChange = { onValueChange(it.toLong().milliseconds) }
+                            )
+                            Text(
+                                text = "${playbackState.elapsedTime.formatted()}/${duration.formatted()}",
+                                style = MaterialTheme.typography.labelMedium
                             )
                         }
                     }

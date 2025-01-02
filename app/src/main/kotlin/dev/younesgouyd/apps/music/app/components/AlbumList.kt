@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.AddToQueue
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayCircle
@@ -21,20 +22,24 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.app.Component
 import dev.younesgouyd.apps.music.app.components.util.widgets.Image
 import dev.younesgouyd.apps.music.app.components.util.widgets.Item
 import dev.younesgouyd.apps.music.app.components.util.widgets.ScrollToTopFloatingActionButton
 import dev.younesgouyd.apps.music.app.components.util.widgets.VerticalScrollbar
-import dev.younesgouyd.apps.music.app.data.repoes.AlbumRepo
-import dev.younesgouyd.apps.music.app.data.repoes.ArtistRepo
+import dev.younesgouyd.apps.music.app.data.repoes.*
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class AlbumList(
-    albumRepo: AlbumRepo,
-    artistRepo: ArtistRepo,
+    private val albumRepo: AlbumRepo,
+    private val artistRepo: ArtistRepo,
+    private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
+    private val trackRepo: TrackRepo,
+    private val playlistRepo: PlaylistRepo,
+    private val folderRepo: FolderRepo,
     showAlbumDetails: (Long) -> Unit,
     showArtistDetails: (Long) -> Unit,
     playAlbum: (Long) -> Unit,
@@ -42,6 +47,8 @@ class AlbumList(
 ) : Component() {
     override val title: String = "Albums"
     private val state: MutableStateFlow<AlbumListState> = MutableStateFlow(AlbumListState.Loading)
+    private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
 
     init {
         coroutineScope.launch {
@@ -62,11 +69,15 @@ class AlbumList(
                                 }
                             )
                         }
-                    }.stateIn(coroutineScope),
+                    }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), emptyList()),
+                    addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
+                    addToPlaylist = addToPlaylist.asStateFlow(),
                     onAlbumClick = showAlbumDetails,
                     onArtistClick = showArtistDetails,
                     onPlayAlbumClick = playAlbum,
-                    onAddAlbumToQueueClick = addAlbumToQueue
+                    onAddAlbumToQueueClick = addAlbumToQueue,
+                    onAddToPlaylistClick = ::showAddToPlaylistDialog,
+                    onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
                 )
             }
         }
@@ -83,15 +94,42 @@ class AlbumList(
         coroutineScope.cancel()
     }
 
+    private fun showAddToPlaylistDialog(albumId: Long) {
+        addToPlaylist.update {
+            AddToPlaylist(
+                itemToAdd = AddToPlaylist.Item.Album(albumId),
+                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                trackRepo = trackRepo,
+                albumRepo = albumRepo,
+                folderRepo = folderRepo,
+                dismiss = ::dismissAddToPlaylistDialog,
+                playlistRepo = playlistRepo
+            )
+        }
+        addToPlaylistDialogVisible.update { true }
+    }
+
+    private fun dismissAddToPlaylistDialog() {
+        if (addToPlaylist.value?.adding?.value == true) {
+            return
+        }
+        addToPlaylistDialogVisible.update { false }
+        addToPlaylist.update { it?.clear(); null }
+    }
+
     private sealed class AlbumListState {
         data object Loading : AlbumListState()
 
         data class Loaded(
             val albums: StateFlow<List<AlbumListItem>>,
+            val addToPlaylistDialogVisible: StateFlow<Boolean>,
+            val addToPlaylist: StateFlow<Component?>,
             val onAlbumClick: (Long) -> Unit,
             val onArtistClick: (Long) -> Unit,
             val onPlayAlbumClick: (Long) -> Unit,
-            val onAddAlbumToQueueClick: (Long) -> Unit
+            val onAddAlbumToQueueClick: (Long) -> Unit,
+            val onAddToPlaylistClick: (id: Long) -> Unit,
+            val onDismissAddToPlaylistDialog: () -> Unit
         ) : AlbumListState() {
             data class AlbumListItem(
                 val id: Long,
@@ -113,20 +151,30 @@ class AlbumList(
         fun Main(modifier: Modifier, state: AlbumListState) {
             when (state) {
                 is AlbumListState.Loading -> Text(modifier = modifier, text = "Loading...")
-                is AlbumListState.Loaded -> Main(modifier = modifier, loaded = state)
+                is AlbumListState.Loaded -> Main(modifier = modifier, state = state)
             }
         }
 
         @Composable
-        private fun Main(modifier: Modifier, loaded: AlbumListState.Loaded) {
+        private fun Main(modifier: Modifier, state: AlbumListState.Loaded) {
+            val addToPlaylistDialogVisible by state.addToPlaylistDialogVisible.collectAsState()
+            val addToPlaylist by state.addToPlaylist.collectAsState()
+
             Main(
                 modifier = modifier,
-                albums = loaded.albums,
-                onAlbumClick = loaded.onAlbumClick,
-                onArtistClick = loaded.onArtistClick,
-                onPlayAlbumClick = loaded.onPlayAlbumClick,
-                onAddAlbumToQueueClick = loaded.onAddAlbumToQueueClick
+                albums = state.albums,
+                onAlbumClick = state.onAlbumClick,
+                onArtistClick = state.onArtistClick,
+                onPlayAlbumClick = state.onPlayAlbumClick,
+                onAddToPlaylistClick = state.onAddToPlaylistClick,
+                onAddAlbumToQueueClick = state.onAddAlbumToQueueClick
             )
+
+            if (addToPlaylistDialogVisible) {
+                Dialog(onDismissRequest = state.onDismissAddToPlaylistDialog) {
+                    addToPlaylist!!.show(Modifier)
+                }
+            }
         }
 
         @Composable
@@ -136,6 +184,7 @@ class AlbumList(
             onAlbumClick: (Long) -> Unit,
             onArtistClick: (Long) -> Unit,
             onPlayAlbumClick: (Long) -> Unit,
+            onAddToPlaylistClick: (id: Long) -> Unit,
             onAddAlbumToQueueClick: (Long) -> Unit
         ) {
             val items by albums.collectAsState()
@@ -160,6 +209,7 @@ class AlbumList(
                                     onClick = { onAlbumClick(album.id) },
                                     onArtistClick = onArtistClick,
                                     onPlayClick = { onPlayAlbumClick(album.id) },
+                                    onAddToPlaylistClick = { onAddToPlaylistClick(album.id) },
                                     onAddToQueueClick = { onAddAlbumToQueueClick(album.id) }
                                 )
                             }
@@ -177,6 +227,7 @@ class AlbumList(
             onClick: () -> Unit,
             onArtistClick: (Long) -> Unit,
             onPlayClick: () -> Unit,
+            onAddToPlaylistClick: () -> Unit,
             onAddToQueueClick: () -> Unit
         ) {
             Item(
@@ -235,6 +286,10 @@ class AlbumList(
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        IconButton(
+                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, null) },
+                            onClick = onAddToPlaylistClick
+                        )
                         IconButton(
                             content = { Icon(Icons.Default.AddToQueue, null) },
                             onClick = onAddToQueueClick

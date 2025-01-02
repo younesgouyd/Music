@@ -33,6 +33,8 @@ class Main(
         artistRepo = repoStore.artistRepo,
         albumRepo = repoStore.albumRepo,
         playlistRepo = repoStore.playlistRepo,
+        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
+        folderRepo = repoStore.folderRepo,
         onAlbumClick = mainComponentController::showAlbums,
         onArtistClick = mainComponentController::showArtists
     )
