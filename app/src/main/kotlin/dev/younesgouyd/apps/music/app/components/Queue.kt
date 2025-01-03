@@ -73,7 +73,7 @@ class Queue(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -153,7 +153,7 @@ class Queue(
                 modifier = modifier,
                 enabled = enabled,
                 shape = MaterialTheme.shapes.large,
-                color = if (isPlaying) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+                color = if (isPlaying) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                 onClick = onClick
             ) {
                 Row(
@@ -185,12 +185,20 @@ class Queue(
             enabled: Boolean,
             onTrackClick: (index: Int) -> Unit
         ) {
-            var expanded by remember { mutableStateOf(false) }
+            var isExpanded by remember { mutableStateOf(false) }
 
             Surface(
                 modifier = modifier,
                 shape = MaterialTheme.shapes.large,
-                color = if (isPlaying) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface
+                color = if (isPlaying) {
+                    if (isExpanded) {
+                        MaterialTheme.colorScheme.surfaceContainerHighest
+                    } else {
+                        MaterialTheme.colorScheme.primaryContainer
+                    }
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                }
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -198,7 +206,7 @@ class Queue(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
+                        modifier = Modifier.fillMaxWidth().clickable { isExpanded = !isExpanded },
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -218,40 +226,45 @@ class Queue(
                                 text = item.name,
                                 style = MaterialTheme.typography.titleMedium
                             )
-                            when (expanded) {
+                            when (isExpanded) {
                                 true -> Icon(Icons.Default.ArrowDropUp, null)
                                 false -> Icon(Icons.Default.ArrowDropDown, null)
                             }
                         }
                     }
-                    if (expanded) {
-                        item.items.forEachIndexed { index, item ->
-                            Box(
-                                modifier = Modifier
-                            ) {
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth().height(80.dp).padding(horizontal = 12.dp, vertical = 8.dp),
-                                    enabled = enabled,
-                                    shape = MaterialTheme.shapes.large,
-                                    color = if (isPlaying && playingItem == index) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
-                                    onClick = { onTrackClick(index) }
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(Modifier)
-                                        Icon(Icons.Default.Audiotrack, null)
-                                        Text(
-                                            modifier = Modifier.weight(1f),
-                                            text = if (item.artists.isEmpty()) item.name else "${item.name} - ${item.artists.first().name}",
-                                            style = MaterialTheme.typography.titleMedium
-                                        )
+                    if (isExpanded) {
+                        item.items.forEachIndexed { index, track ->
+                            Surface(
+                                modifier = Modifier.fillMaxWidth().height(80.dp).padding(horizontal = 12.dp),
+                                enabled = enabled,
+                                shape = MaterialTheme.shapes.large,
+                                color = if (isPlaying) {
+                                    if (playingItem == index) {
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.secondaryContainer
                                     }
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainerHighest
+                                },
+                                onClick = { onTrackClick(index) }
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(Modifier)
+                                    Icon(Icons.Default.Audiotrack, null)
+                                    Text(
+                                        modifier = Modifier.weight(1f),
+                                        text = if (track.artists.isEmpty()) track.name else "${track.name} - ${track.artists.first().name}",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
                                 }
                             }
                         }
+                        Box(Modifier)
                     }
                 }
             }
@@ -266,12 +279,20 @@ class Queue(
             enabled: Boolean,
             onTrackClick: (index: Int) -> Unit
         ) {
-            var expanded by remember { mutableStateOf(false) }
+            var isExpanded by remember { mutableStateOf(false) }
 
             Surface(
                 modifier = modifier,
                 shape = MaterialTheme.shapes.large,
-                color = if (isPlaying) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
+                color = if (isPlaying) {
+                    if (isExpanded) {
+                        MaterialTheme.colorScheme.surfaceContainerHighest
+                    } else {
+                        MaterialTheme.colorScheme.primaryContainer
+                    }
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                }
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -279,7 +300,7 @@ class Queue(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
+                        modifier = Modifier.fillMaxWidth().clickable { isExpanded = !isExpanded },
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -299,22 +320,45 @@ class Queue(
                                 text = item.name,
                                 style = MaterialTheme.typography.titleMedium
                             )
-                            when (expanded) {
+                            when (isExpanded) {
                                 true -> Icon(Icons.Default.ArrowDropUp, null)
                                 false -> Icon(Icons.Default.ArrowDropDown, null)
                             }
                         }
                     }
-                    if (expanded) {
+                    if (isExpanded) {
                         item.items.forEachIndexed { index, track ->
-                            TrackItem(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                                item = track,
-                                isPlaying = isPlaying && playingItem == index,
+                            Surface(
+                                modifier = Modifier.fillMaxWidth().height(80.dp).padding(horizontal = 12.dp),
                                 enabled = enabled,
+                                shape = MaterialTheme.shapes.large,
+                                color = if (isPlaying) {
+                                    if (playingItem == index) {
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.secondaryContainer
+                                    }
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainerHighest
+                                },
                                 onClick = { onTrackClick(index) }
-                            )
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(Modifier)
+                                    Icon(Icons.Default.Audiotrack, null)
+                                    Text(
+                                        modifier = Modifier.weight(1f),
+                                        text = if (track.artists.isEmpty()) item.name else "${item.name} - ${track.artists.first().name}",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                }
+                            }
                         }
+                        Box(Modifier)
                     }
                 }
             }
