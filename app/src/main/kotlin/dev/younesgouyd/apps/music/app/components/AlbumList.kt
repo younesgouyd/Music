@@ -9,13 +9,9 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.AddToQueue
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -24,10 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.app.Component
-import dev.younesgouyd.apps.music.app.components.util.widgets.Image
-import dev.younesgouyd.apps.music.app.components.util.widgets.Item
-import dev.younesgouyd.apps.music.app.components.util.widgets.ScrollToTopFloatingActionButton
-import dev.younesgouyd.apps.music.app.components.util.widgets.VerticalScrollbar
+import dev.younesgouyd.apps.music.app.components.util.widgets.*
 import dev.younesgouyd.apps.music.app.data.repoes.*
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -230,6 +223,8 @@ class AlbumList(
             onAddToPlaylistClick: () -> Unit,
             onAddToQueueClick: () -> Unit
         ) {
+            var showContextMenu by remember { mutableStateOf(false) }
+
             Item(
                 modifier = modifier,
                 onClick = onClick,
@@ -283,21 +278,40 @@ class AlbumList(
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(
-                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, null) },
-                            onClick = onAddToPlaylistClick
-                        )
-                        IconButton(
-                            content = { Icon(Icons.Default.AddToQueue, null) },
-                            onClick = onAddToQueueClick
-                        )
                         IconButton(
                             content = { Icon(Icons.Default.PlayCircle, null) },
                             onClick = onPlayClick
                         )
+                        IconButton(
+                            content = { Icon(Icons.Default.MoreVert, null) },
+                            onClick = { showContextMenu = true }
+                        )
+                    }
+
+                    if (showContextMenu) {
+                        ItemContextMenu(
+                            item = Item(name = album.name, image = album.image),
+                            onDismiss = { showContextMenu = false }
+                        ) {
+                            Option(
+                                label = "Add to playlist",
+                                icon = Icons.AutoMirrored.Default.PlaylistAdd,
+                                onClick = onAddToPlaylistClick,
+                            )
+                            Option(
+                                label = "Add to queue",
+                                icon = Icons.Default.AddToQueue,
+                                onClick = onAddToQueueClick,
+                            )
+                            Option(
+                                label = "Play next",
+                                icon = Icons.Default.QueuePlayNext,
+                                onClick = { TODO() },
+                            )
+                        }
                     }
                 }
             }

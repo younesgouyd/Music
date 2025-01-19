@@ -3,19 +3,12 @@ package dev.younesgouyd.apps.music.app.components
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.AddToQueue
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -25,9 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.app.Component
 import dev.younesgouyd.apps.music.app.components.AlbumDetails.AlbumDetailsState.Loaded.Album
-import dev.younesgouyd.apps.music.app.components.util.widgets.Image
-import dev.younesgouyd.apps.music.app.components.util.widgets.ScrollToTopFloatingActionButton
-import dev.younesgouyd.apps.music.app.components.util.widgets.VerticalScrollbar
+import dev.younesgouyd.apps.music.app.components.util.widgets.*
 import dev.younesgouyd.apps.music.app.data.repoes.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -273,6 +264,7 @@ class AlbumDetails(
                                 TrackItem(
                                     modifier = Modifier.fillMaxWidth().height(80.dp),
                                     track = track,
+                                    albumImage = album.image,
                                     onClick = { onTrackClick(track.id) },
                                     onArtistClick = onArtistClick,
                                     onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) }
@@ -425,15 +417,18 @@ class AlbumDetails(
         }
 
         @Composable
-        private fun TrackItem(
+        private fun LazyItemScope.TrackItem(
             modifier: Modifier = Modifier,
             track: Album.Track,
+            albumImage: ByteArray?,
             onClick: () -> Unit,
             onArtistClick: (Long) -> Unit,
             onAddToPlaylistClick: () -> Unit
         ) {
+            var showContextMenu by remember { mutableStateOf(false) }
+
             Row(
-                modifier = modifier.clickable { onClick() },
+                modifier = modifier.clickable(onClick = onClick),
                 horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -478,16 +473,37 @@ class AlbumDetails(
                 Spacer(Modifier.width(8.dp))
 
                 // actions
-                Box(modifier = Modifier.fillMaxSize().weight(ACTIONS_WEIGHT), contentAlignment = Alignment.Center) {
-                    Row {
-                        IconButton(
-                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, null) },
-                            onClick = onAddToPlaylistClick
-                        )
-                    }
+                Box(modifier = Modifier.fillMaxSize().weight(ACTIONS_WEIGHT), contentAlignment = Alignment.CenterEnd) {
+                    IconButton(
+                        content = { Icon(Icons.Default.MoreVert, null) },
+                        onClick = { showContextMenu = true }
+                    )
                 }
             }
             HorizontalDivider()
+
+            if (showContextMenu) {
+                ItemContextMenu(
+                    item = Item(name = track.name, image = albumImage),
+                    onDismiss = { showContextMenu = false }
+                ) {
+                    Option(
+                        label = "Add to playlist",
+                        icon = Icons.AutoMirrored.Default.PlaylistAdd,
+                        onClick = onAddToPlaylistClick,
+                    )
+                    Option(
+                        label = "Add to queue",
+                        icon = Icons.Default.AddToQueue,
+                        onClick = { TODO() },
+                    )
+                    Option(
+                        label = "Play next",
+                        icon = Icons.Default.QueuePlayNext,
+                        onClick = { TODO() },
+                    )
+                }
+            }
         }
     }
 }

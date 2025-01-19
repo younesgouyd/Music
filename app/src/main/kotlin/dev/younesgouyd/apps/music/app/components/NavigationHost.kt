@@ -231,7 +231,8 @@ class NavigationHost(
                         folderRepo = repoStore.folderRepo,
                         albumRepo = repoStore.albumRepo,
                         showPlaylistDetails = { navigateTo(Destination.PlaylistDetails(it)) },
-                        playPlaylist = { mediaController.play(listOf(MediaController.QueueItemParameter.Playlist(it))) }
+                        playPlaylist = { mediaController.play(listOf(MediaController.QueueItemParameter.Playlist(it))) },
+                        addPlaylistToQueue = { mediaController.addToQueue(MediaController.QueueItemParameter.Playlist(it)) }
                     )
                 }
             }

@@ -25,12 +25,8 @@ import androidx.compose.ui.window.Dialog
 import com.mpatric.mp3agic.Mp3File
 import dev.younesgouyd.apps.music.app.Component
 import dev.younesgouyd.apps.music.app.components.util.MediaController
-import dev.younesgouyd.apps.music.app.components.util.widgets.Image
-import dev.younesgouyd.apps.music.app.components.util.widgets.Item
-import dev.younesgouyd.apps.music.app.components.util.widgets.ScrollToTopFloatingActionButton
-import dev.younesgouyd.apps.music.app.components.util.widgets.VerticalScrollbar
+import dev.younesgouyd.apps.music.app.components.util.widgets.*
 import dev.younesgouyd.apps.music.app.data.repoes.*
-import dev.younesgouyd.apps.music.app.data.sqldelight.migrations.Album
 import dev.younesgouyd.apps.music.app.data.sqldelight.migrations.Folder
 import dev.younesgouyd.apps.music.app.data.sqldelight.migrations.Playlist
 import kotlinx.coroutines.cancel
@@ -207,7 +203,6 @@ class Library(
             onAddPlaylistToPlaylistClick = ::showAddPlaylistToPlaylistDialog,
             onAlbumClick = showAlbum,
             onAddAlbumToPlaylistClick = ::showAddAlbumToPlaylistDialog,
-            onDeleteAlbum = ::deleteAlbum,
             onTrackClick = playTrack,
             onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
             onArtistClick = showArtistDetails,
@@ -283,12 +278,6 @@ class Library(
     private fun deletePlaylist(id: Long) {
         coroutineScope.launch {
             playlistRepo.delete(id)
-        }
-    }
-
-    private fun deleteAlbum(id: Long) {
-        coroutineScope.launch {
-            albumRepo.delete(id)
         }
     }
 
@@ -497,7 +486,6 @@ class Library(
             onAddPlaylistToPlaylistClick: (id: Long) -> Unit,
             onAlbumClick: (id: Long) -> Unit,
             onAddAlbumToPlaylistClick: (id: Long) -> Unit,
-            onDeleteAlbum: (id: Long) -> Unit,
             onTrackClick: (id: Long) -> Unit,
             onAddTrackToPlaylistClick: (id: Long) -> Unit,
             onArtistClick: (id: Long) -> Unit,
@@ -561,8 +549,8 @@ class Library(
                                             folder = folder,
                                             onClick = { onFolderClick(folder) },
                                             onAddToPlaylistClick = { onAddFolderToPlaylistClick(folder.id) },
-                                            onPlay = { onPlayFolder(folder.id) },
-                                            onRename = { onRenameFolder(folder.id, it) },
+                                            onPlayClick = { onPlayFolder(folder.id) },
+                                            onRenameClick = { onRenameFolder(folder.id, it) },
                                             onDeleteClick = { onDeleteFolder(folder.id) }
                                         )
                                     }
@@ -571,7 +559,7 @@ class Library(
                                             playlist = playlist,
                                             onClick = { onPlaylistClick(playlist.id) },
                                             onAddToPlaylistClick = { onAddPlaylistToPlaylistClick(playlist.id) },
-                                            onRename = { onRenamePlaylist(playlist.id, it) },
+                                            onRenameClick = { onRenamePlaylist(playlist.id, it) },
                                             onDeleteClick = { onDeletePlaylist(playlist.id) }
                                         )
                                     }
@@ -580,8 +568,7 @@ class Library(
                                             album = album,
                                             onClick = { onAlbumClick(album.id) },
                                             onArtistClick = onArtistClick,
-                                            onAddToPlaylistClick = { onAddAlbumToPlaylistClick(album.id) },
-                                            onDeleteClick = { onDeleteAlbum(album.id) }
+                                            onAddToPlaylistClick = { onAddAlbumToPlaylistClick(album.id) }
                                         )
                                     }
                                     items(tracks) { track ->
@@ -738,26 +725,22 @@ class Library(
             }
 
             if (newFolderFormVisible) {
-                val dismiss = { newFolderFormVisible = false }
-                Dialog(onDismissRequest = dismiss) {
-                    FolderForm(
-                        title = "New folder",
-                        onDone = { onNewFolder(it); dismiss() }
-                    )
-                }
+                FolderForm(
+                    title = "New folder",
+                    onDone = { onNewFolder(it); newFolderFormVisible = false },
+                    onDismiss = { newFolderFormVisible = false }
+                )
             }
 
             if (newTrackFormVisible) {
-                val dismiss = { newTrackFormVisible = false }
-                Dialog(onDismissRequest = dismiss) {
-                    TrackForm(
-                        title = "New Track",
-                        onDone = { name: String, audioUrl: String?, videoUrl: String? ->
-                            onNewTrack(name, audioUrl, videoUrl)
-                            dismiss()
-                        }
-                    )
-                }
+                TrackForm(
+                    title = "New Track",
+                    onDone = { name: String, audioUrl: String?, videoUrl: String? ->
+                        onNewTrack(name, audioUrl, videoUrl)
+                        newTrackFormVisible = false
+                    },
+                    onDismiss = { newTrackFormVisible = false }
+                )
             }
 
             LaunchedEffect(path) {
@@ -771,12 +754,13 @@ class Library(
             folder: Folder,
             onClick: () -> Unit,
             onAddToPlaylistClick: () -> Unit,
-            onPlay: () -> Unit,
-            onRename: (name: String) -> Unit,
+            onPlayClick: () -> Unit,
+            onRenameClick: (name: String) -> Unit,
             onDeleteClick: () -> Unit
         ) {
-            var deleteConfirmationDialogVisible by remember { mutableStateOf(false) }
-            var editFormDialogVisible by remember { mutableStateOf(false) }
+            var showContextMenu by remember { mutableStateOf(false) }
+            var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
+            var showEditFormDialog by remember { mutableStateOf(false) }
 
             Item(
                 modifier = modifier,
@@ -804,45 +788,75 @@ class Library(
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
-                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, null) },
-                            onClick = onAddToPlaylistClick
+                            content = { Icon(Icons.Default.PlayCircle, null) },
+                            onClick = onPlayClick
                         )
                         IconButton(
-                            onClick = { editFormDialogVisible = true },
-                            content = { Icon(Icons.Default.Edit, null) }
-                        )
-                        IconButton(
-                            onClick = { deleteConfirmationDialogVisible = true },
-                            content = { Icon(Icons.Default.Delete, null) }
-                        )
-                        IconButton(
-                            onClick = onPlay,
-                            content = { Icon(Icons.Default.PlayCircle, null) }
+                            content = { Icon(Icons.Default.MoreVert, null) },
+                            onClick = { showContextMenu = true }
                         )
                     }
                 }
             }
 
-            if (editFormDialogVisible) {
-                val dismiss = { editFormDialogVisible = false }
-                Dialog(onDismissRequest = dismiss) {
-                    FolderForm(
-                        title = "Rename folder",
+            if (showContextMenu) {
+                ItemContextMenu(
+                    item = Item(
                         name = folder.name,
-                        onDone = { onRename(it); dismiss() }
+                        image = null // TODO
+                    ),
+                    onDismiss = { showContextMenu = false }
+                ) {
+                    Option(
+                        label = "Delete",
+                        icon = Icons.Default.Delete,
+                        onClick = { showDeleteConfirmationDialog = true },
+                    )
+                    Option(
+                        label = "Rename",
+                        icon = Icons.Default.Edit,
+                        onClick = { showEditFormDialog = true },
+                    )
+                    Option(
+                        label = "Add to playlist",
+                        icon = Icons.AutoMirrored.Default.PlaylistAdd,
+                        onClick = onAddToPlaylistClick,
+                    )
+                    Option(
+                        label = "Add to queue",
+                        icon = Icons.Default.AddToQueue,
+                        onClick = { TODO() },
+                    )
+                    Option(
+                        label = "Play next",
+                        icon = Icons.Default.QueuePlayNext,
+                        onClick = { TODO() },
                     )
                 }
             }
 
-            if (deleteConfirmationDialogVisible) {
+            if (showEditFormDialog) {
+                FolderForm(
+                    title = "Rename folder: ${folder.name}",
+                    name = folder.name,
+                    onDone = { onRenameClick(it); showEditFormDialog = false },
+                    onDismiss = { showEditFormDialog = false }
+                )
+            }
+
+            if (showDeleteConfirmationDialog) {
                 DeleteConfirmationDialog(
-                    message = "Delete \"${folder.name}\"?",
-                    onDismissRequest = { deleteConfirmationDialogVisible = false },
-                    onYesClick = onDeleteClick
+                    message = "Delete folder \"${folder.name}\" and all of its contents?",
+                    onDismissRequest = { showDeleteConfirmationDialog = false },
+                    onYesClick = {
+                        showDeleteConfirmationDialog = false
+                        showContextMenu = false
+                        onDeleteClick()
+                    }
                 )
             }
         }
@@ -853,11 +867,12 @@ class Library(
             playlist: Playlist,
             onClick: () -> Unit,
             onAddToPlaylistClick: () -> Unit,
-            onRename: (name: String) -> Unit,
+            onRenameClick: (name: String) -> Unit,
             onDeleteClick: () -> Unit
         ) {
-            var deleteConfirmationDialogVisible by remember { mutableStateOf(false) }
-            var editFormDialogVisible by remember { mutableStateOf(false) }
+            var showContextMenu by remember { mutableStateOf(false) }
+            var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
+            var showEditFormDialog by remember { mutableStateOf(false) }
 
             Item(
                 modifier = modifier,
@@ -884,41 +899,72 @@ class Library(
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
-                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, null) },
-                            onClick = onAddToPlaylistClick
+                            content = { Icon(Icons.Default.PlayCircle, null) },
+                            onClick = { TODO() }
                         )
                         IconButton(
-                            onClick = { editFormDialogVisible = true },
-                            content = { Icon(Icons.Default.Edit, null) }
-                        )
-                        IconButton(
-                            onClick = { deleteConfirmationDialogVisible = true },
-                            content = { Icon(Icons.Default.Delete, null) }
+                            content = { Icon(Icons.Default.MoreVert, null) },
+                            onClick = { showContextMenu = true }
                         )
                     }
                 }
             }
 
-            if (editFormDialogVisible) {
-                val dismiss = { editFormDialogVisible = false }
-                Dialog(onDismissRequest = dismiss) {
-                    PlaylistForm(
-                        title = "Rename playlist",
-                        name = playlist.name,
-                        onDone = { onRename(it); dismiss() }
+            if (showContextMenu) {
+                ItemContextMenu(
+                    item = Item(name = playlist.name, image = playlist.image),
+                    onDismiss = { showContextMenu = false }
+                ) {
+                    Option(
+                        label = "Delete",
+                        icon = Icons.Default.Delete,
+                        onClick = { showDeleteConfirmationDialog = true },
+                    )
+                    Option(
+                        label = "Rename",
+                        icon = Icons.Default.Edit,
+                        onClick = { showEditFormDialog = true },
+                    )
+                    Option(
+                        label = "Add to playlist",
+                        icon = Icons.AutoMirrored.Default.PlaylistAdd,
+                        onClick = onAddToPlaylistClick,
+                    )
+                    Option(
+                        label = "Add to queue",
+                        icon = Icons.Default.AddToQueue,
+                        onClick = { TODO() },
+                    )
+                    Option(
+                        label = "Play next",
+                        icon = Icons.Default.QueuePlayNext,
+                        onClick = { TODO() },
                     )
                 }
             }
 
-            if (deleteConfirmationDialogVisible) {
+            if (showEditFormDialog) {
+                PlaylistForm(
+                    title = "Rename playlist: ${playlist.name}",
+                    name = playlist.name,
+                    onDone = { onRenameClick(it); showEditFormDialog = false },
+                    onDismiss = { showEditFormDialog = false }
+                )
+            }
+
+            if (showDeleteConfirmationDialog) {
                 DeleteConfirmationDialog(
                     message = "Delete playlist \"${playlist.name}\"?",
-                    onDismissRequest = { deleteConfirmationDialogVisible = false },
-                    onYesClick = onDeleteClick
+                    onDismissRequest = { showDeleteConfirmationDialog = false },
+                    onYesClick = {
+                        showDeleteConfirmationDialog = false
+                        showContextMenu = false
+                        onDeleteClick()
+                    }
                 )
             }
         }
@@ -929,10 +975,9 @@ class Library(
             album: Models.Album,
             onClick: () -> Unit,
             onArtistClick: (id: Long) -> Unit,
-            onAddToPlaylistClick: () -> Unit,
-            onDeleteClick: () -> Unit
+            onAddToPlaylistClick: () -> Unit
         ) {
-            var deleteConfirmationDialogVisible by remember { mutableStateOf(false) }
+            var showContextMenu by remember { mutableStateOf(false) }
 
             Item(
                 modifier = modifier,
@@ -949,7 +994,7 @@ class Library(
                         alignment = Alignment.TopCenter
                     )
                     Text(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(8.dp),
                         text = album.name,
                         style = MaterialTheme.typography.titleMedium,
                         textAlign = TextAlign.Center,
@@ -958,10 +1003,11 @@ class Library(
                         overflow = TextOverflow.Ellipsis
                     )
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Spacer(Modifier.width(4.dp))
                         Text(
                             text = "By: ",
                             style = MaterialTheme.typography.titleMedium
@@ -994,27 +1040,47 @@ class Library(
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
-                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, null) },
-                            onClick = onAddToPlaylistClick
+                            content = { Icon(Icons.Default.PlayCircle, null) },
+                            onClick = { TODO() }
                         )
                         IconButton(
-                            onClick = { deleteConfirmationDialogVisible = true },
-                            content = { Icon(Icons.Default.Delete, null) }
+                            content = { Icon(Icons.Default.MoreVert, null) },
+                            onClick = { showContextMenu = true }
                         )
                     }
                 }
             }
 
-            if (deleteConfirmationDialogVisible) {
-                DeleteConfirmationDialog(
-                    message = "Delete album \"${album.name}\"?",
-                    onDismissRequest = { deleteConfirmationDialogVisible = false },
-                    onYesClick = onDeleteClick
-                )
+            if (showContextMenu) {
+                ItemContextMenu(
+                    item = Item(name = album.name, image = album.image),
+                    onDismiss = { showContextMenu = false }
+                ) {
+                    Option(
+                        label = "Rename",
+                        icon = Icons.Default.Edit,
+                        onClick = { TODO() },
+                    )
+                    Option(
+                        label = "Add to playlist",
+                        icon = Icons.AutoMirrored.Default.PlaylistAdd,
+                        onClick = onAddToPlaylistClick,
+                    )
+                    Option(
+                        label = "Add to queue",
+                        icon = Icons.Default.AddToQueue,
+                        onClick = { TODO() },
+                    )
+                    Option(
+                        label = "Play next",
+                        icon = Icons.Default.QueuePlayNext,
+                        onClick = { TODO() },
+                    )
+                }
             }
         }
 
@@ -1028,7 +1094,8 @@ class Library(
             onDeleteClick: () -> Unit,
             onAddToQueueClick: () -> Unit
         ) {
-            var deleteConfirmationDialogVisible by remember { mutableStateOf(false) }
+            var showContextMenu by remember { mutableStateOf(false) }
+            var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
 
             Item(modifier = modifier, onClick = onClick) {
                 Column(
@@ -1051,7 +1118,7 @@ class Library(
                         overflow = TextOverflow.Ellipsis
                     )
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -1087,30 +1154,63 @@ class Library(
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
-                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, null) },
-                            onClick = onAddToPlaylistClick
+                            content = { Icon(Icons.Default.PlayCircle, null) },
+                            onClick = { TODO() }
                         )
                         IconButton(
-                            onClick = { deleteConfirmationDialogVisible = true },
-                            content = { Icon(Icons.Default.Delete, null) }
-                        )
-                        IconButton(
-                            onClick = onAddToQueueClick,
-                            content = { Icon(Icons.Default.AddToQueue, null) }
+                            content = { Icon(Icons.Default.MoreVert, null) },
+                            onClick = { showContextMenu = true }
                         )
                     }
                 }
             }
 
-            if (deleteConfirmationDialogVisible) {
+            if (showContextMenu) {
+                ItemContextMenu(
+                    item = Item(name = track.name, image = track.album?.image),
+                    onDismiss = { showContextMenu = false }
+                ) {
+                    Option(
+                        label = "Delete",
+                        icon = Icons.Default.Delete,
+                        onClick = { showDeleteConfirmationDialog = true },
+                    )
+                    Option(
+                        label = "Rename",
+                        icon = Icons.Default.Edit,
+                        onClick = { TODO() },
+                    )
+                    Option(
+                        label = "Add to playlist",
+                        icon = Icons.AutoMirrored.Default.PlaylistAdd,
+                        onClick = onAddToPlaylistClick,
+                    )
+                    Option(
+                        label = "Add to queue",
+                        icon = Icons.Default.AddToQueue,
+                        onClick = onAddToQueueClick,
+                    )
+                    Option(
+                        label = "Play next",
+                        icon = Icons.Default.QueuePlayNext,
+                        onClick = { TODO() },
+                    )
+                }
+            }
+
+            if (showDeleteConfirmationDialog) {
                 DeleteConfirmationDialog(
-                    message = "Delete \"${track.name}\"?",
-                    onDismissRequest = { deleteConfirmationDialogVisible = false },
-                    onYesClick = onDeleteClick
+                    message = "Delete track \"${track.name}\"?",
+                    onDismissRequest = { showDeleteConfirmationDialog = false },
+                    onYesClick = {
+                        showDeleteConfirmationDialog = false
+                        showContextMenu = false
+                        onDeleteClick()
+                    }
                 )
             }
         }
@@ -1119,40 +1219,43 @@ class Library(
         private fun FolderForm(
             title: String,
             name: String = "",
-            onDone: (name: String) -> Unit
+            onDone: (name: String) -> Unit,
+            onDismiss: () -> Unit
         ) {
             var name by remember { mutableStateOf(name) }
 
-            Surface(
-                modifier = Modifier.width(500.dp),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.background
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+            Dialog(onDismissRequest = onDismiss) {
+                Surface(
+                    modifier = Modifier.width(500.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.background
                 ) {
-                    Text(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                        text = title,
-                        style = MaterialTheme.typography.headlineMedium,
-                        textAlign = TextAlign.Center
-                    )
-                    OutlinedTextField(
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Name") },
-                        value = name,
-                        onValueChange = { name = it },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { onDone(name) }),
-                    )
-                    Button(
-                        content = { Text("Done") },
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = { onDone(name) }
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                            text = title,
+                            style = MaterialTheme.typography.headlineMedium,
+                            textAlign = TextAlign.Center
+                        )
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Name") },
+                            value = name,
+                            onValueChange = { name = it },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { onDone(name) }),
+                        )
+                        Button(
+                            content = { Text("Done") },
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { onDone(name) }
+                        )
+                    }
                 }
             }
         }
@@ -1161,40 +1264,43 @@ class Library(
         private fun PlaylistForm(
             title: String,
             name: String = "",
-            onDone: (name: String) -> Unit
+            onDone: (name: String) -> Unit,
+            onDismiss: () -> Unit
         ) {
             var name by remember { mutableStateOf(name) }
 
-            Surface(
-                modifier = Modifier.width(500.dp),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.background
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+            Dialog(onDismissRequest = onDismiss) {
+                Surface(
+                    modifier = Modifier.width(500.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.background
                 ) {
-                    Text(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                        text = title,
-                        style = MaterialTheme.typography.headlineMedium,
-                        textAlign = TextAlign.Center
-                    )
-                    OutlinedTextField(
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Name") },
-                        value = name,
-                        onValueChange = { name = it },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { onDone(name) }),
-                    )
-                    Button(
-                        content = { Text("Done") },
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = { onDone(name) }
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                            text = title,
+                            style = MaterialTheme.typography.headlineMedium,
+                            textAlign = TextAlign.Center
+                        )
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Name") },
+                            value = name,
+                            onValueChange = { name = it },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { onDone(name) }),
+                        )
+                        Button(
+                            content = { Text("Done") },
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { onDone(name) }
+                        )
+                    }
                 }
             }
         }
@@ -1203,7 +1309,8 @@ class Library(
         private fun TrackForm(
             title: String,
             name: String = "",
-            onDone: (name: String, audioUrl: String?, videoUrl: String?) -> Unit
+            onDone: (name: String, audioUrl: String?, videoUrl: String?) -> Unit,
+            onDismiss: () -> Unit
         ) {
             var name by remember { mutableStateOf(name) }
             var audioUrl: String? by remember { mutableStateOf(null) }
@@ -1215,76 +1322,10 @@ class Library(
                 return fileDialog.file?.let { fileDialog.directory + it }
             }
 
-            Surface(
-                modifier = Modifier.width(500.dp),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.background
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                        text = title,
-                        style = MaterialTheme.typography.headlineMedium,
-                        textAlign = TextAlign.Center
-                    )
-                    OutlinedTextField(
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Name") },
-                        value = name,
-                        onValueChange = { name = it },
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Audio File Path") },
-                        value = audioUrl ?: "",
-                        readOnly = true,
-                        onValueChange = {},
-                        singleLine = true,
-                        trailingIcon = {
-                            IconButton(
-                                content = { Icon(Icons.Default.AudioFile, null) },
-                                onClick = { audioUrl = getFilePathFromSystemFilePicker() }
-                            )
-                        }
-                    )
-                    OutlinedTextField(
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Video File Path") },
-                        value = videoUrl ?: "",
-                        readOnly = true,
-                        onValueChange = {},
-                        singleLine = true,
-                        trailingIcon = {
-                            IconButton(
-                                content = { Icon(Icons.Default.VideoFile, null) },
-                                onClick = { videoUrl = getFilePathFromSystemFilePicker() }
-                            )
-                        }
-                    )
-                    Button(
-                        content = { Text("Done") },
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = { onDone(name, audioUrl, videoUrl) }
-                    )
-                }
-            }
-        }
-
-        @Composable
-        private fun DeleteConfirmationDialog(
-            message: String,
-            onDismissRequest: () -> Unit,
-            onYesClick: () -> Unit
-        ) {
-            Dialog(onDismissRequest = onDismissRequest) {
+            Dialog(onDismissRequest = onDismiss) {
                 Surface(
                     modifier = Modifier.width(500.dp),
-                    shape = MaterialTheme.shapes.large,
+                    shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.background
                 ) {
                     Column(
@@ -1293,23 +1334,51 @@ class Library(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = message,
-                            style = MaterialTheme.typography.bodyMedium
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                            text = title,
+                            style = MaterialTheme.typography.headlineMedium,
+                            textAlign = TextAlign.Center
                         )
-                        Row(
+                        OutlinedTextField(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(space = 12.dp, alignment = Alignment.End),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Button(
-                                content = { Text("Yes") },
-                                onClick = onYesClick
-                            )
-                            Button(
-                                content = { Text("No") },
-                                onClick = onDismissRequest
-                            )
-                        }
+                            label = { Text("Name") },
+                            value = name,
+                            onValueChange = { name = it },
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Audio File Path") },
+                            value = audioUrl ?: "",
+                            readOnly = true,
+                            onValueChange = {},
+                            singleLine = true,
+                            trailingIcon = {
+                                IconButton(
+                                    content = { Icon(Icons.Default.AudioFile, null) },
+                                    onClick = { audioUrl = getFilePathFromSystemFilePicker() }
+                                )
+                            }
+                        )
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Video File Path") },
+                            value = videoUrl ?: "",
+                            readOnly = true,
+                            onValueChange = {},
+                            singleLine = true,
+                            trailingIcon = {
+                                IconButton(
+                                    content = { Icon(Icons.Default.VideoFile, null) },
+                                    onClick = { videoUrl = getFilePathFromSystemFilePicker() }
+                                )
+                            }
+                        )
+                        Button(
+                            content = { Text("Done") },
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { onDone(name, audioUrl, videoUrl) }
+                        )
                     }
                 }
             }

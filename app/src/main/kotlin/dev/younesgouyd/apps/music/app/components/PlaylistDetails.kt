@@ -11,9 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -22,9 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.app.Component
-import dev.younesgouyd.apps.music.app.components.util.widgets.Image
-import dev.younesgouyd.apps.music.app.components.util.widgets.ScrollToTopFloatingActionButton
-import dev.younesgouyd.apps.music.app.components.util.widgets.VerticalScrollbar
+import dev.younesgouyd.apps.music.app.components.util.widgets.*
 import dev.younesgouyd.apps.music.app.data.repoes.*
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -425,6 +421,8 @@ class PlaylistDetails(
             onAlbumClick: (id: Long) -> Unit,
             onAddToPlaylistClick: () -> Unit
         ) {
+            var showContextMenu by remember { mutableStateOf(false) }
+
             Row(
                 modifier = modifier.clickable { onTrackClick() },
                 horizontalArrangement = Arrangement.Start,
@@ -519,20 +517,42 @@ class PlaylistDetails(
                 Spacer(Modifier.width(8.dp))
 
                 // actions
-                Box(modifier = Modifier.fillMaxSize().weight(ACTIONS_WEIGHT), contentAlignment = Alignment.Center) {
-                    Row {
-                        IconButton(
-                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, null) },
-                            onClick = onAddToPlaylistClick
-                        )
-                        IconButton(
-                            content = { Icon(Icons.Default.Folder, null) },
-                            onClick = { /* TODO: addToFolderDialogVisible */ }
-                        )
-                    }
+                Box(modifier = Modifier.fillMaxSize().weight(ACTIONS_WEIGHT), contentAlignment = Alignment.CenterEnd) {
+                    IconButton(
+                        content = { Icon(Icons.Default.MoreVert, null) },
+                        onClick = { showContextMenu = true }
+                    )
                 }
             }
             HorizontalDivider()
+
+            if (showContextMenu) {
+                ItemContextMenu(
+                    item = Item(name = track.name, image = track.album?.image),
+                    onDismiss = { showContextMenu = false }
+                ) {
+                    Option(
+                        label = "Remove from playlist",
+                        icon = Icons.Default.Remove,
+                        onClick = { TODO() },
+                    )
+                    Option(
+                        label = "Add to playlist",
+                        icon = Icons.AutoMirrored.Default.PlaylistAdd,
+                        onClick = onAddToPlaylistClick,
+                    )
+                    Option(
+                        label = "Add to queue",
+                        icon = Icons.Default.AddToQueue,
+                        onClick = { TODO() },
+                    )
+                    Option(
+                        label = "Play next",
+                        icon = Icons.Default.QueuePlayNext,
+                        onClick = { TODO() },
+                    )
+                }
+            }
         }
     }
 }

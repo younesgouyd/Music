@@ -5,26 +5,23 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.app.Component
-import dev.younesgouyd.apps.music.app.components.util.widgets.Image
-import dev.younesgouyd.apps.music.app.components.util.widgets.Item
-import dev.younesgouyd.apps.music.app.components.util.widgets.ScrollToTopFloatingActionButton
-import dev.younesgouyd.apps.music.app.components.util.widgets.VerticalScrollbar
+import dev.younesgouyd.apps.music.app.components.util.widgets.*
 import dev.younesgouyd.apps.music.app.data.repoes.*
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -36,8 +33,9 @@ class PlaylistList(
     private val trackRepo: TrackRepo,
     private val folderRepo: FolderRepo,
     private val albumRepo: AlbumRepo,
-    showPlaylistDetails: (Long) -> Unit,
-    playPlaylist: (Long) -> Unit
+    showPlaylistDetails: (id: Long) -> Unit,
+    playPlaylist: (id: Long) -> Unit,
+    addPlaylistToQueue: (id: Long) -> Unit
 ) : Component() {
     override val title: String = "Playlists"
     private val state: MutableStateFlow<PlaylistListState> = MutableStateFlow(PlaylistListState.Loading)
@@ -59,11 +57,13 @@ class PlaylistList(
                     }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList()),
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
-                    onPlaylistClick = showPlaylistDetails,
-                    onPlayPlaylistClick = playPlaylist,
-                    onAddToPlaylistClick = ::showAddToPlaylistDialog,
+                    onPlaylist = showPlaylistDetails,
+                    onPlayPlaylist = playPlaylist,
+                    onAddToPlaylist = ::showAddToPlaylistDialog,
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
-                    onDeletePlaylist = ::deletePlaylist
+                    onDeletePlaylist = ::deletePlaylist,
+                    onRenamePlaylist = ::renamePlaylist,
+                    onAddPlaylistToQueue = addPlaylistToQueue
                 )
             }
         }
@@ -83,6 +83,12 @@ class PlaylistList(
     private fun deletePlaylist(id: Long) {
         coroutineScope.launch {
             playlistRepo.delete(id)
+        }
+    }
+
+    private fun renamePlaylist(newName: String, id: Long) {
+        coroutineScope.launch {
+            playlistRepo.updateName(id = id, name = newName)
         }
     }
 
@@ -116,11 +122,13 @@ class PlaylistList(
             val playlists: StateFlow<List<PlaylistListItem>>,
             val addToPlaylistDialogVisible: StateFlow<Boolean>,
             val addToPlaylist: StateFlow<Component?>,
-            val onPlaylistClick: (Long) -> Unit,
-            val onPlayPlaylistClick: (Long) -> Unit,
-            val onAddToPlaylistClick: (id: Long) -> Unit,
+            val onPlaylist: (Long) -> Unit,
+            val onPlayPlaylist: (Long) -> Unit,
+            val onAddToPlaylist: (id: Long) -> Unit,
             val onDismissAddToPlaylistDialog: () -> Unit,
-            val onDeletePlaylist: (id: Long) -> Unit
+            val onDeletePlaylist: (id: Long) -> Unit,
+            val onRenamePlaylist: (newName: String, id: Long) -> Unit,
+            val onAddPlaylistToQueue: (id: Long) -> Unit
         ) : PlaylistListState() {
             data class PlaylistListItem(
                 val id: Long,
@@ -147,10 +155,12 @@ class PlaylistList(
             Main(
                 modifier = modifier,
                 playlists = state.playlists,
-                onPlaylistClick = state.onPlaylistClick,
-                onPlayPlaylistClick = state.onPlayPlaylistClick,
-                onAddToPlaylistClick = state.onAddToPlaylistClick,
-                onDeletePlaylistClick = state.onDeletePlaylist
+                onPlaylist = state.onPlaylist,
+                onPlayPlaylist = state.onPlayPlaylist,
+                onAddToPlaylist = state.onAddToPlaylist,
+                onDeletePlaylist = state.onDeletePlaylist,
+                onRenamePlaylist = state.onRenamePlaylist,
+                onAddPlaylistToQueue = state.onAddPlaylistToQueue
             )
 
             if (addToPlaylistDialogVisible) {
@@ -164,10 +174,12 @@ class PlaylistList(
         private fun Main(
             modifier: Modifier,
             playlists: StateFlow<List<PlaylistListState.Loaded.PlaylistListItem>>,
-            onPlaylistClick: (Long) -> Unit,
-            onPlayPlaylistClick: (Long) -> Unit,
-            onAddToPlaylistClick: (id: Long) -> Unit,
-            onDeletePlaylistClick: (id: Long) -> Unit
+            onPlaylist: (Long) -> Unit,
+            onPlayPlaylist: (Long) -> Unit,
+            onAddToPlaylist: (id: Long) -> Unit,
+            onDeletePlaylist: (id: Long) -> Unit,
+            onRenamePlaylist: (newName: String, id: Long) -> Unit,
+            onAddPlaylistToQueue: (id: Long) -> Unit
         ) {
             val items by playlists.collectAsState()
             val lazyGridState = rememberLazyGridState()
@@ -188,10 +200,12 @@ class PlaylistList(
                             items(items = items, key = { it.id }) { playlist ->
                                 PlaylistItem(
                                     playlist = playlist,
-                                    onClick = { onPlaylistClick(playlist.id) },
-                                    onPlayClick = { onPlayPlaylistClick(playlist.id) },
-                                    onAddToPlaylistClick = { onAddToPlaylistClick(playlist.id) },
-                                    onDeleteClick = { onDeletePlaylistClick(playlist.id) }
+                                    onClick = { onPlaylist(playlist.id) },
+                                    onPlayClick = { onPlayPlaylist(playlist.id) },
+                                    onAddToPlaylistClick = { onAddToPlaylist(playlist.id) },
+                                    onDeleteClick = { onDeletePlaylist(playlist.id) },
+                                    onRenameClick = { newName -> onRenamePlaylist(newName, playlist.id) },
+                                    onAddToQueueClick = { onAddPlaylistToQueue(playlist.id) }
                                 )
                             }
                         }
@@ -208,8 +222,14 @@ class PlaylistList(
             onClick: () -> Unit,
             onPlayClick: () -> Unit,
             onAddToPlaylistClick: () -> Unit,
-            onDeleteClick: () -> Unit
+            onDeleteClick: () -> Unit,
+            onRenameClick: (newName: String) -> Unit,
+            onAddToQueueClick: () -> Unit
         ) {
+            var showContextMenu by remember { mutableStateOf(false) }
+            var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
+            var showEditFormDialog by remember { mutableStateOf(false) }
+
             Item (
                 modifier = modifier,
                 onClick = onClick
@@ -235,20 +255,115 @@ class PlaylistList(
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
-                            content = { Icon(Icons.Default.Delete, null) },
-                            onClick = onDeleteClick
-                        )
-                        IconButton(
-                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, null) },
-                            onClick = onAddToPlaylistClick
-                        )
-                        IconButton(
                             content = { Icon(Icons.Default.PlayCircle, null) },
                             onClick = onPlayClick
+                        )
+                        IconButton(
+                            content = { Icon(Icons.Default.MoreVert, null) },
+                            onClick = { showContextMenu = true }
+                        )
+                    }
+                }
+            }
+
+            if (showContextMenu) {
+                ItemContextMenu(
+                    item = Item(name = playlist.name, image = playlist.image),
+                    onDismiss = { showContextMenu = false }
+                ) {
+                    Option(
+                        label = "Delete",
+                        icon = Icons.Default.Delete,
+                        onClick = { showDeleteConfirmationDialog = true },
+                    )
+                    Option(
+                        label = "Rename",
+                        icon = Icons.Default.Edit,
+                        onClick = { showEditFormDialog = true },
+                    )
+                    Option(
+                        label = "Add to playlist",
+                        icon = Icons.AutoMirrored.Default.PlaylistAdd,
+                        onClick = onAddToPlaylistClick,
+                    )
+                    Option(
+                        label = "Add to queue",
+                        icon = Icons.Default.AddToQueue,
+                        onClick = onAddToQueueClick,
+                    )
+                    Option(
+                        label = "Play next",
+                        icon = Icons.Default.QueuePlayNext,
+                        onClick = { TODO() },
+                    )
+                }
+            }
+
+            if (showEditFormDialog) {
+                PlaylistForm(
+                    title = "Rename playlist",
+                    name = playlist.name,
+                    onDone = { onRenameClick(it); showEditFormDialog = false },
+                    onDismiss = { showEditFormDialog = false }
+                )
+            }
+
+            if (showDeleteConfirmationDialog) {
+                DeleteConfirmationDialog(
+                    message = "Delete playlist \"${playlist.name}\"?",
+                    onDismissRequest = { showDeleteConfirmationDialog = false },
+                    onYesClick = {
+                        showDeleteConfirmationDialog = false
+                        showContextMenu = false
+                        onDeleteClick()
+                    }
+                )
+            }
+        }
+
+        @Composable
+        private fun PlaylistForm(
+            title: String,
+            name: String = "",
+            onDone: (name: String) -> Unit,
+            onDismiss: () -> Unit
+        ) {
+            var name by remember { mutableStateOf(name) }
+
+            Dialog(onDismissRequest = onDismiss) {
+                Surface(
+                    modifier = Modifier.width(500.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                            text = title,
+                            style = MaterialTheme.typography.headlineMedium,
+                            textAlign = TextAlign.Center
+                        )
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Name") },
+                            value = name,
+                            onValueChange = { name = it },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { onDone(name) }),
+                        )
+                        Button(
+                            content = { Text("Done") },
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { onDone(name) }
                         )
                     }
                 }
