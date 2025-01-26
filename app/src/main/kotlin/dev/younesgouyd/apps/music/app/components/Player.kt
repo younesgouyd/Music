@@ -1,12 +1,13 @@
 package dev.younesgouyd.apps.music.app.components
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -17,7 +18,6 @@ import dev.younesgouyd.apps.music.app.components.util.MediaController
 import dev.younesgouyd.apps.music.app.components.util.widgets.Image
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 class Player(
@@ -82,74 +82,7 @@ class Player(
             playbackState: MediaController.MediaControllerState.Available.PlaybackState,
             onAlbumClick: (Long) -> Unit,
             onArtistClick: (Long) -> Unit,
-            onValueChange: (Duration) -> Unit,
-            onAddToPlaylistClick: () -> Unit,
-            onPreviousClick: () -> Unit,
-            onPlayClick: () -> Unit,
-            onPauseClick: () -> Unit,
-            onNextClick: () -> Unit,
-            onRepeatClick: () -> Unit
-        ) {
-            val duration: Duration = playbackState.duration
-            val animateableElapsedTime = remember { animateableOf(0.milliseconds) }
-
-            _Main(
-                modifier = modifier,
-                enabled = enabled,
-                playbackState = playbackState.copy(elapsedTime = animateableElapsedTime.value),
-                onAlbumClick = onAlbumClick,
-                onArtistClick = onArtistClick,
-                onValueChange = onValueChange,
-                onAddToPlaylistClick = onAddToPlaylistClick,
-                onPreviousClick = onPreviousClick,
-                onPlayClick = onPlayClick,
-                onPauseClick = onPauseClick,
-                onNextClick = onNextClick,
-                onRepeatClick = onRepeatClick
-            )
-
-            LaunchedEffect(duration) {
-                animateableElapsedTime.stop()
-                animateableElapsedTime.snapTo(0.milliseconds)
-                animateableElapsedTime.updateBounds(lowerBound = 0.milliseconds, upperBound = duration)
-                if (playbackState.isPlaying) {
-                    animateableElapsedTime.animateTo(
-                        targetValue = duration,
-                        animationSpec = linearAnimation(duration)
-                    )
-                }
-            }
-
-            LaunchedEffect(playbackState.isPlaying) {
-                if (playbackState.isPlaying) {
-                    animateableElapsedTime.animateTo(
-                        targetValue = duration,
-                        animationSpec = linearAnimation(duration - animateableElapsedTime.value)
-                    )
-                } else {
-                    animateableElapsedTime.stop()
-                }
-            }
-
-            LaunchedEffect(playbackState.elapsedTime, playbackState.isPlaying) {
-                animateableElapsedTime.snapTo(playbackState.elapsedTime)
-                if (playbackState.isPlaying) {
-                    animateableElapsedTime.animateTo(
-                        targetValue = duration,
-                        animationSpec = linearAnimation(duration - playbackState.elapsedTime)
-                    )
-                }
-            }
-        }
-
-        @Composable
-        private fun _Main(
-            modifier: Modifier = Modifier,
-            enabled: StateFlow<Boolean>,
-            playbackState: MediaController.MediaControllerState.Available.PlaybackState,
-            onAlbumClick: (Long) -> Unit,
-            onArtistClick: (Long) -> Unit,
-            onValueChange: (Duration) -> Unit,
+            onValueChange: (Long) -> Unit,
             onAddToPlaylistClick: () -> Unit,
             onPreviousClick: () -> Unit,
             onPlayClick: () -> Unit,
@@ -158,7 +91,8 @@ class Player(
             onRepeatClick: () -> Unit
         ) {
             val enabled by enabled.collectAsState()
-            val duration: Duration = playbackState.duration
+            val duration: Long = playbackState.duration
+            val elapsedTime by playbackState.elapsedTime.collectAsState()
 
             Surface(
                 modifier = modifier.fillMaxWidth(),
@@ -295,12 +229,12 @@ class Player(
                             Slider(
                                 modifier = Modifier.weight(1f),
                                 enabled = enabled,
-                                value = playbackState.elapsedTime.inWholeMilliseconds.toFloat(),
-                                valueRange = 0f..duration.inWholeMilliseconds.toFloat(),
-                                onValueChange = { onValueChange(it.toLong().milliseconds) }
+                                value = elapsedTime.toFloat(),
+                                valueRange = 0f..duration.toFloat(),
+                                onValueChange = { onValueChange(it.toLong()) }
                             )
                             Text(
-                                text = "${playbackState.elapsedTime.formatted()}/${duration.formatted()}",
+                                text = "${durationMillisFormatted(elapsedTime)}/${durationMillisFormatted(duration)}",
                                 style = MaterialTheme.typography.labelMedium
                             )
                         }
@@ -309,31 +243,12 @@ class Player(
             }
         }
 
-        private fun animateableOf(
-            initialValue: Duration
-        ): Animatable<Duration, AnimationVector1D> {
-            return Animatable(
-                initialValue = initialValue,
-                typeConverter = TwoWayConverter(
-                    convertToVector = { AnimationVector1D(it.inWholeMilliseconds.toFloat()) },
-                    convertFromVector = { it.value.toLong().milliseconds }
-                )
-            )
-        }
-
-        private fun linearAnimation(duration: Duration): TweenSpec<Duration> {
-            return tween(
-                durationMillis = duration.inWholeMilliseconds.toInt(),
-                easing = LinearEasing
-            )
-        }
-
-        fun Duration?.formatted(): String {
-            return this?.let {
-                it.toComponents { minutes, seconds, _ ->
+        fun durationMillisFormatted(time: Long): String {
+            return time.let {
+                it.milliseconds.toComponents { minutes, seconds, _ ->
                     minutes.toString().padStart(2, '0') + ":" + seconds.toString().padStart(2, '0')
                 }
-            } ?: ""
+            }
         }
     }
 }

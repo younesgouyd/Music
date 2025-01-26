@@ -28,7 +28,6 @@ class Main(
     )
 
     private val mediaController = MediaController(
-        coroutineScope = coroutineScope,
         trackRepo = repoStore.trackRepo,
         artistRepo = repoStore.artistRepo,
         albumRepo = repoStore.albumRepo,

@@ -3,24 +3,15 @@ package dev.younesgouyd.apps.music.app.components.util
 import dev.younesgouyd.apps.music.app.Component
 import dev.younesgouyd.apps.music.app.components.AddToPlaylist
 import dev.younesgouyd.apps.music.app.data.repoes.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.player.component.AudioPlayerComponent
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 class MediaController(
-    private val coroutineScope: CoroutineScope,
     private val trackRepo: TrackRepo,
     private val artistRepo: ArtistRepo,
     private val albumRepo: AlbumRepo,
@@ -30,17 +21,25 @@ class MediaController(
     private val onAlbumClick: (Long) -> Unit,
     private val onArtistClick: (Long) -> Unit
 ) {
+    private val coroutineScope = CoroutineScope(SupervisorJob())
     private val mutex = Mutex()
     private val _state: MutableStateFlow<MediaControllerState> = MutableStateFlow(MediaControllerState.Unavailable)
     private val enabled: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val vlcPlayer = AudioPlayerComponent().mediaPlayer()
     private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
+    private val elapsedTime: StateFlow<Long>
 
     val state: StateFlow<MediaControllerState> get() = _state.asStateFlow()
 
     init {
         NativeDiscovery().discover()
+        elapsedTime = flow {
+            while (true) {
+                emit(vlcPlayer.status().time().let { if (it != -1L) it else 0 })
+                delay(100)
+            }
+        }.distinctUntilChanged().stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = 0)
     }
 
     fun play(queue: List<QueueItemParameter>) {
@@ -56,7 +55,7 @@ class MediaController(
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
                             if (currentState.playbackState.isPlaying) { vlcPlayer.controls().pause() }
-                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = false, elapsedTime = Duration.ZERO))
+                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = false))
                         }
                     }
                 }
@@ -83,8 +82,8 @@ class MediaController(
                                     queueSubItemIndex = 0,
                                     isPlaying = true,
                                     repeatState = MediaControllerState.Available.PlaybackState.RepeatState.Off,
-                                    duration = vlcPlayer.media().info().duration().milliseconds,
-                                    elapsedTime = Duration.ZERO,
+                                    duration = vlcPlayer.media().info().duration(),
+                                    elapsedTime = elapsedTime,
                                     audioOrVideoState = MediaControllerState.Available.PlaybackState.AudioOrVideoState.Audio
                                 ),
                                 addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
@@ -125,7 +124,7 @@ class MediaController(
                                         queueItemIndex = 0,
                                         queueSubItemIndex = 0,
                                         isPlaying = true,
-                                        duration = vlcPlayer.media().info().duration().milliseconds
+                                        duration = vlcPlayer.media().info().duration()
                                     )
                                 )
                             }
@@ -156,20 +155,11 @@ class MediaController(
         }
     }
 
-    fun seek(position: Duration) {
+    fun seek(position: Long) {
         coroutineScope.launch {
             mutex.withLock {
                 enabled.update { false }
-                _state.update { currentState ->
-                    when (currentState) {
-                        is MediaControllerState.Unavailable -> TODO()
-                        is MediaControllerState.Loading -> TODO()
-                        is MediaControllerState.Available -> {
-                            vlcPlayer.controls().setTime(position.inWholeMilliseconds)
-                            currentState.copy(playbackState = currentState.playbackState.copy(elapsedTime = position))
-                        }
-                    }
-                }
+                vlcPlayer.controls().setTime(position)
                 enabled.update { true }
             }
         }
@@ -179,13 +169,14 @@ class MediaController(
         coroutineScope.launch {
             mutex.withLock {
                 enabled.update { false }
+                var wasPlaying = false
                 _state.update { currentState ->
                     when (currentState) {
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
-                            if (currentState.playbackState.isPlaying) { vlcPlayer.controls().stop() }
-                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = false, elapsedTime = Duration.ZERO))
+                            if (currentState.playbackState.isPlaying) { wasPlaying = true; vlcPlayer.controls().stop() }
+                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = false))
                         }
                     }
                 }
@@ -233,14 +224,18 @@ class MediaController(
                                 }
                             }
                             if (newTrack.audio?.url != null) {
-                                vlcPlayer.media().start(newTrack.audio.url)
+                                if (wasPlaying) {
+                                    vlcPlayer.media().start(newTrack.audio.url)
+                                } else {
+                                    vlcPlayer.media().startPaused(newTrack.audio.url)
+                                }
                             }
                             currentState.copy(
                                 playbackState = currentState.playbackState.copy(
                                     queueItemIndex = newIndex,
                                     queueSubItemIndex = newSubIndex,
-                                    isPlaying = true,
-                                    duration = vlcPlayer.media().info().duration().milliseconds
+                                    isPlaying = wasPlaying,
+                                    duration = vlcPlayer.media().info().duration()
                                 )
                             )
                         }
@@ -255,13 +250,14 @@ class MediaController(
         coroutineScope.launch {
             mutex.withLock {
                 enabled.update { false }
+                var wasPlaying = false
                 _state.update { currentState ->
                     when (currentState) {
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
-                            if (currentState.playbackState.isPlaying) { vlcPlayer.controls().stop() }
-                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = false, elapsedTime = Duration.ZERO))
+                            if (currentState.playbackState.isPlaying) { wasPlaying = true; vlcPlayer.controls().stop() }
+                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = false))
                         }
                     }
                 }
@@ -327,14 +323,18 @@ class MediaController(
                                 }
                             }
                             if (newTrack.audio?.url != null) {
-                                vlcPlayer.media().start(newTrack.audio.url)
+                                if (wasPlaying) {
+                                    vlcPlayer.media().start(newTrack.audio.url)
+                                } else {
+                                    vlcPlayer.media().startPaused(newTrack.audio.url)
+                                }
                             }
                             currentState.copy(
                                 playbackState = currentState.playbackState.copy(
                                     queueItemIndex = newIndex,
                                     queueSubItemIndex = newSubIndex,
-                                    isPlaying = true,
-                                    duration = vlcPlayer.media().info().duration().milliseconds
+                                    isPlaying = wasPlaying,
+                                    duration = vlcPlayer.media().info().duration()
                                 )
                             )
                         }
@@ -405,8 +405,8 @@ class MediaController(
                                     queueSubItemIndex = 0,
                                     isPlaying = false,
                                     repeatState = MediaControllerState.Available.PlaybackState.RepeatState.Off,
-                                    duration = vlcPlayer.media().info().duration().milliseconds,
-                                    elapsedTime = Duration.ZERO,
+                                    duration = vlcPlayer.media().info().duration(),
+                                    elapsedTime = elapsedTime,
                                     audioOrVideoState = MediaControllerState.Available.PlaybackState.AudioOrVideoState.Audio
                                 ),
                                 addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
@@ -449,7 +449,7 @@ class MediaController(
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
                             if (currentState.playbackState.isPlaying) { vlcPlayer.controls().stop() }
-                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = false, elapsedTime = Duration.ZERO))
+                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = false))
                         }
                     }
                 }
@@ -473,8 +473,7 @@ class MediaController(
                                     queueItemIndex = queueItemIndex,
                                     queueSubItemIndex = 0,
                                     isPlaying = true,
-                                    duration = vlcPlayer.media().info().duration().milliseconds,
-                                    elapsedTime = Duration.ZERO
+                                    duration = vlcPlayer.media().info().duration()
                                 )
                             )
                         }
@@ -495,7 +494,7 @@ class MediaController(
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
                             if (currentState.playbackState.isPlaying) { vlcPlayer.controls().stop() }
-                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = false, elapsedTime = Duration.ZERO))
+                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = false))
                         }
                     }
                 }
@@ -518,8 +517,7 @@ class MediaController(
                                 playbackState = currentState.playbackState.copy(
                                     queueItemIndex = queueItemIndex,
                                     queueSubItemIndex = trackIndex,
-                                    duration = vlcPlayer.media().info().duration().milliseconds,
-                                    elapsedTime = Duration.ZERO
+                                    duration = vlcPlayer.media().info().duration()
                                 )
                             )
                         }
@@ -652,13 +650,13 @@ class MediaController(
         }
     }
 
-    private suspend fun getDuration(mediaPath: String): Duration {
+    private suspend fun getDuration(mediaPath: String): Long {
         return withContext(Dispatchers.IO) {
             val factory = MediaPlayerFactory()
             val media = factory.media().newMedia(mediaPath)
             try {
                 if (media.parsing().parse()) {
-                    media.info().duration().milliseconds
+                    media.info().duration()
                 } else {
                     TODO()
                 }
@@ -670,6 +668,7 @@ class MediaController(
     }
 
     fun release() {
+        coroutineScope.cancel()
         vlcPlayer.release()
     }
 
@@ -724,7 +723,7 @@ class MediaController(
             val addToPlaylist: StateFlow<Component?>,
             val onAlbumClick: (Long) -> Unit,
             val onArtistClick: (Long) -> Unit,
-            val onValueChange: (Duration) -> Unit,
+            val onValueChange: (Long) -> Unit,
             val onPreviousClick: () -> Unit,
             val onPlayClick: (queue: List<QueueItemParameter>) -> Unit,
             val onPauseClick: () -> Unit,
@@ -741,8 +740,8 @@ class MediaController(
                 val queueSubItemIndex: Int,
                 val isPlaying: Boolean,
                 val repeatState: RepeatState,
-                val duration: Duration,
-                val elapsedTime: Duration,
+                val duration: Long,
+                val elapsedTime: StateFlow<Long>,
                 val audioOrVideoState: AudioOrVideoState
             ) {
                 val currentTrack get() = when (val it = queue[queueItemIndex]) {
@@ -779,12 +778,12 @@ class MediaController(
 
                         data class Audio(
                             val url: String,
-                            val duration: Duration
+                            val duration: Long
                         )
 
                         data class Video(
                             val url: String,
-                            val duration: Duration
+                            val duration: Long
                         )
                     }
 
