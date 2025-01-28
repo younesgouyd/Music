@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.app.Component
+import dev.younesgouyd.apps.music.app.components.util.MediaController
 import dev.younesgouyd.apps.music.app.components.util.widgets.*
 import dev.younesgouyd.apps.music.app.data.repoes.*
 import kotlinx.coroutines.cancel
@@ -33,10 +34,9 @@ class AlbumList(
     private val trackRepo: TrackRepo,
     private val playlistRepo: PlaylistRepo,
     private val folderRepo: FolderRepo,
+    private val mediaController: MediaController,
     showAlbumDetails: (Long) -> Unit,
-    showArtistDetails: (Long) -> Unit,
-    playAlbum: (Long) -> Unit,
-    addAlbumToQueue: (Long) -> Unit
+    showArtistDetails: (Long) -> Unit
 ) : Component() {
     override val title: String = "Albums"
     private val state: MutableStateFlow<AlbumListState> = MutableStateFlow(AlbumListState.Loading)
@@ -67,8 +67,8 @@ class AlbumList(
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     onAlbumClick = showAlbumDetails,
                     onArtistClick = showArtistDetails,
-                    onPlayAlbumClick = playAlbum,
-                    onAddAlbumToQueueClick = addAlbumToQueue,
+                    onPlayAlbumClick = ::playAlbum,
+                    onAddAlbumToQueueClick = ::addAlbumToQueue,
                     onAddToPlaylistClick = ::showAddToPlaylistDialog,
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
                 )
@@ -85,6 +85,14 @@ class AlbumList(
 
     override fun clear() {
         coroutineScope.cancel()
+    }
+
+    private fun playAlbum(id: Long) {
+        mediaController.playQueue(listOf(MediaController.QueueItemParameter.Album(id)))
+    }
+
+    private fun addAlbumToQueue(id: Long) {
+        mediaController.addToQueue(MediaController.QueueItemParameter.Album(id))
     }
 
     private fun showAddToPlaylistDialog(albumId: Long) {

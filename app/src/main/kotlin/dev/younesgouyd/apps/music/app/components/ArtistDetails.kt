@@ -17,6 +17,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.app.Component
+import dev.younesgouyd.apps.music.app.components.util.MediaController
 import dev.younesgouyd.apps.music.app.components.util.widgets.*
 import dev.younesgouyd.apps.music.app.data.repoes.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -33,9 +34,9 @@ class ArtistDetails(
     private val trackRepo: TrackRepo,
     private val folderRepo: FolderRepo,
     private val playlistRepo: PlaylistRepo,
+    private val mediaController: MediaController,
     private val showAlbumDetails: (Long) -> Unit,
-    private val showArtistDetails: (Long) -> Unit,
-    playAlbum: (Long) -> Unit
+    private val showArtistDetails: (Long) -> Unit
 ) : Component() {
     override val title: String = "Artist"
     private val state: MutableStateFlow<ArtistDetailsState> = MutableStateFlow(ArtistDetailsState.Loading)
@@ -73,7 +74,7 @@ class ArtistDetails(
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     onAlbumClick = showAlbumDetails,
                     onArtistClick = showArtistDetails,
-                    onPlayAlbumClick = playAlbum,
+                    onPlayAlbumClick = ::playAlbum,
                     onAddAlbumToPlaylistClick = ::showAddAlbumToPlaylistDialog,
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
                 )
@@ -90,6 +91,10 @@ class ArtistDetails(
 
     override fun clear() {
         coroutineScope.cancel()
+    }
+
+    private fun playAlbum(id: Long) {
+        mediaController.playQueue(listOf(MediaController.QueueItemParameter.Album(id)))
     }
 
     private fun showAddAlbumToPlaylistDialog(albumId: Long) {

@@ -62,7 +62,7 @@ class Player(
                 onValueChange = state.onValueChange,
                 onAddToPlaylistClick = { state.onAddToPlaylistClick(state.playbackState.currentTrack.id) } ,
                 onPreviousClick = state.onPreviousClick,
-                onPlayClick = { state.onPlayClick(emptyList()) },
+                onPlayClick = state.onPlayClick,
                 onPauseClick = state.onPauseClick,
                 onNextClick = state.onNextClick,
                 onRepeatClick = state.onRepeatClick

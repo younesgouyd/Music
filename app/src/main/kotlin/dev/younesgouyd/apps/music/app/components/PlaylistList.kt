@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.app.Component
+import dev.younesgouyd.apps.music.app.components.util.MediaController
 import dev.younesgouyd.apps.music.app.components.util.widgets.*
 import dev.younesgouyd.apps.music.app.data.repoes.*
 import kotlinx.coroutines.cancel
@@ -33,9 +34,8 @@ class PlaylistList(
     private val trackRepo: TrackRepo,
     private val folderRepo: FolderRepo,
     private val albumRepo: AlbumRepo,
-    showPlaylistDetails: (id: Long) -> Unit,
-    playPlaylist: (id: Long) -> Unit,
-    addPlaylistToQueue: (id: Long) -> Unit
+    private val mediaController: MediaController,
+    showPlaylistDetails: (id: Long) -> Unit
 ) : Component() {
     override val title: String = "Playlists"
     private val state: MutableStateFlow<PlaylistListState> = MutableStateFlow(PlaylistListState.Loading)
@@ -58,12 +58,12 @@ class PlaylistList(
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     onPlaylist = showPlaylistDetails,
-                    onPlayPlaylist = playPlaylist,
+                    onPlayPlaylist = ::playPlaylist,
                     onAddToPlaylist = ::showAddToPlaylistDialog,
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
                     onDeletePlaylist = ::deletePlaylist,
                     onRenamePlaylist = ::renamePlaylist,
-                    onAddPlaylistToQueue = addPlaylistToQueue
+                    onAddPlaylistToQueue = ::addPlaylistToQueue
                 )
             }
         }
@@ -78,6 +78,14 @@ class PlaylistList(
 
     override fun clear() {
         coroutineScope.cancel()
+    }
+
+    private fun playPlaylist(id: Long) {
+        mediaController.playQueue(listOf(MediaController.QueueItemParameter.Playlist(id)))
+    }
+
+    private fun addPlaylistToQueue(id: Long) {
+        mediaController.addToQueue(MediaController.QueueItemParameter.Playlist(id))
     }
 
     private fun deletePlaylist(id: Long) {

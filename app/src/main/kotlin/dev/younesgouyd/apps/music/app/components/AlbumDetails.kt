@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.app.Component
 import dev.younesgouyd.apps.music.app.components.AlbumDetails.AlbumDetailsState.Loaded.Album
+import dev.younesgouyd.apps.music.app.components.util.MediaController
 import dev.younesgouyd.apps.music.app.components.util.widgets.*
 import dev.younesgouyd.apps.music.app.data.repoes.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -34,10 +35,8 @@ class AlbumDetails(
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     private val playlistRepo: PlaylistRepo,
     private val folderRepo: FolderRepo,
-    private val showArtistDetails: (Long) -> Unit,
-    play: () -> Unit,
-    addToQueue: () -> Unit,
-    playTrack: (Long) -> Unit
+    private val mediaController: MediaController,
+    private val showArtistDetails: (Long) -> Unit
 ) : Component() {
     override val title: String = "Album"
     private val state: MutableStateFlow<AlbumDetailsState> = MutableStateFlow(AlbumDetailsState.Loading)
@@ -79,9 +78,9 @@ class AlbumDetails(
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     onArtistClick = showArtistDetails,
-                    onPlayClick = play,
-                    onAddToQueueClick = addToQueue,
-                    onTrackClick = playTrack,
+                    onPlayClick = ::play,
+                    onAddToQueueClick = ::addToQueue,
+                    onTrackClick = ::playTrack,
                     onAddToPlaylistClick = ::showAddToPlaylistDialog,
                     onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
@@ -99,6 +98,26 @@ class AlbumDetails(
 
     override fun clear() {
         coroutineScope.cancel()
+    }
+
+    private fun play() {
+        mediaController.playQueue(listOf(MediaController.QueueItemParameter.Album(id)))
+    }
+
+    private fun addToQueue() {
+        mediaController.addToQueue(MediaController.QueueItemParameter.Album(id))
+    }
+
+    private fun playTrack(id: Long) {
+        coroutineScope.launch {
+            val tracks = trackRepo.getAlbumTracksStatic(this@AlbumDetails.id)
+            val index = tracks.indexOfFirst { it.id == id }
+            mediaController.playQueue(
+                queue = listOf(MediaController.QueueItemParameter.Album(this@AlbumDetails.id)),
+                queueItemIndex = 0,
+                queueSubItemIndex = index
+            )
+        }
     }
 
     private fun showAddToPlaylistDialog() {
@@ -147,10 +166,10 @@ class AlbumDetails(
             val tracks: StateFlow<List<Album.Track>>,
             val addToPlaylistDialogVisible: StateFlow<Boolean>,
             val addToPlaylist: StateFlow<Component?>,
-            val onArtistClick: (Long) -> Unit,
+            val onArtistClick: (id: Long) -> Unit,
             val onPlayClick: () -> Unit,
             val onAddToQueueClick: () -> Unit,
-            val onTrackClick: (Long) -> Unit,
+            val onTrackClick: (id: Long) -> Unit,
             val onAddToPlaylistClick: () -> Unit,
             val onAddTrackToPlaylistClick: (id: Long) -> Unit,
             val onDismissAddToPlaylistDialog: () -> Unit

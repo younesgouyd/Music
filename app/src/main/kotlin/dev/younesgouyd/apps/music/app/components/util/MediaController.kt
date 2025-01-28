@@ -42,16 +42,14 @@ class MediaController(
         }.distinctUntilChanged().stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = 0)
     }
 
-    fun play(queue: List<QueueItemParameter>) {
+    fun playQueue(queue: List<QueueItemParameter>, queueItemIndex: Int = 0, queueSubItemIndex: Int = 0) {
+        require(queue.isNotEmpty())
         coroutineScope.launch {
             mutex.withLock {
                 enabled.update { false }
                 _state.update { currentState ->
                     when (currentState) {
-                        is MediaControllerState.Unavailable -> {
-                            if (queue.isEmpty()) { TODO() }
-                            MediaControllerState.Loading
-                        }
+                        is MediaControllerState.Unavailable -> MediaControllerState.Loading
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
                             if (currentState.playbackState.isPlaying) { vlcPlayer.controls().pause() }
@@ -64,11 +62,12 @@ class MediaController(
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> {
                             val newQueue = queue.map { it.toModel() }
-                            newQueue.first().let { firstQueueItem ->
+                            require(newQueue.isNotEmpty())
+                            newQueue[queueItemIndex].let { firstQueueItem ->
                                 val currentTrack = when (firstQueueItem) {
                                     is MediaControllerState.Available.PlaybackState.QueueItem.Track -> firstQueueItem
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> firstQueueItem.items.first()
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Album -> firstQueueItem.items.first()
+                                    is MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> firstQueueItem.items[queueSubItemIndex] // TODO: handle invalid subIndex
+                                    is MediaControllerState.Available.PlaybackState.QueueItem.Album -> firstQueueItem.items[queueSubItemIndex] // TODO: handle invalid subIndex
                                 }
                                 if (currentTrack.audio?.url != null) {
                                     vlcPlayer.media().start(currentTrack.audio.url)
@@ -78,8 +77,8 @@ class MediaController(
                                 enabled = enabled.asStateFlow(),
                                 playbackState = MediaControllerState.Available.PlaybackState(
                                     queue = newQueue,
-                                    queueItemIndex = 0,
-                                    queueSubItemIndex = 0,
+                                    queueItemIndex = queueItemIndex,
+                                    queueSubItemIndex = queueSubItemIndex,
                                     isPlaying = true,
                                     repeatState = MediaControllerState.Available.PlaybackState.RepeatState.Off,
                                     duration = vlcPlayer.media().info().duration(),
@@ -92,6 +91,7 @@ class MediaController(
                                 onArtistClick = onArtistClick,
                                 onValueChange = ::seek,
                                 onPreviousClick = ::previous,
+                                onPlayQueueClick = ::playQueue,
                                 onPlayClick = ::play,
                                 onPauseClick = ::pause,
                                 onNextClick = ::next,
@@ -108,26 +108,49 @@ class MediaController(
                                 currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = true))
                             } else {
                                 val newQueue = queue.map { it.toModel() }
-                                newQueue.first().let { firstQueueItem ->
-                                    val currentTrack = when (firstQueueItem) {
-                                        is MediaControllerState.Available.PlaybackState.QueueItem.Track -> firstQueueItem
-                                        is MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> firstQueueItem.items.first()
-                                        is MediaControllerState.Available.PlaybackState.QueueItem.Album -> firstQueueItem.items.first()
-                                    }
-                                    if (currentTrack.audio?.url != null) {
-                                        vlcPlayer.media().start(currentTrack.audio.url)
+                                val index = queueItemIndex ?: 0
+                                val subIndex = queueSubItemIndex ?: 0
+                                if (newQueue.isNotEmpty()) {
+                                    newQueue[index].let { firstQueueItem ->
+                                        val currentTrack = when (firstQueueItem) {
+                                            is MediaControllerState.Available.PlaybackState.QueueItem.Track -> firstQueueItem
+                                            is MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> firstQueueItem.items[subIndex] // TODO: handle invalid subIndex
+                                            is MediaControllerState.Available.PlaybackState.QueueItem.Album -> firstQueueItem.items[subIndex] // TODO: handle invalid subIndex
+                                        }
+                                        if (currentTrack.audio?.url != null) {
+                                            vlcPlayer.media().start(currentTrack.audio.url)
+                                        }
                                     }
                                 }
                                 currentState.copy(
                                     playbackState = currentState.playbackState.copy(
                                         queue = newQueue,
-                                        queueItemIndex = 0,
-                                        queueSubItemIndex = 0,
+                                        queueItemIndex = index,
+                                        queueSubItemIndex = subIndex,
                                         isPlaying = true,
                                         duration = vlcPlayer.media().info().duration()
                                     )
                                 )
                             }
+                        }
+                    }
+                }
+                enabled.update { true }
+            }
+        }
+    }
+    
+    fun play() {
+        coroutineScope.launch {
+            mutex.withLock {
+                enabled.update { false }
+                _state.update { currentState ->
+                    when (currentState) {
+                        is MediaControllerState.Unavailable -> TODO()
+                        is MediaControllerState.Loading -> TODO()
+                        is MediaControllerState.Available -> {
+                            if (!currentState.playbackState.isPlaying) { vlcPlayer.controls().pause() }
+                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = true))
                         }
                     }
                 }
@@ -415,6 +438,7 @@ class MediaController(
                                 onArtistClick = onArtistClick,
                                 onValueChange = ::seek,
                                 onPreviousClick = ::previous,
+                                onPlayQueueClick = ::playQueue,
                                 onPlayClick = ::play,
                                 onPauseClick = ::pause,
                                 onNextClick = ::next,
@@ -725,7 +749,8 @@ class MediaController(
             val onArtistClick: (Long) -> Unit,
             val onValueChange: (Long) -> Unit,
             val onPreviousClick: () -> Unit,
-            val onPlayClick: (queue: List<QueueItemParameter>) -> Unit,
+            val onPlayQueueClick: (queue: List<QueueItemParameter>, queueItemIndex: Int, queueSubItemIndex: Int) -> Unit,
+            val onPlayClick: () -> Unit,
             val onPauseClick: () -> Unit,
             val onNextClick: () -> Unit,
             val onRepeatClick: () -> Unit,

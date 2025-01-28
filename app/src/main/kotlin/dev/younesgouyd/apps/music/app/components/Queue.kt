@@ -169,7 +169,7 @@ class Queue(
                     )
                     Text(
                         modifier = Modifier.weight(1f),
-                        text = if (item.artists.isEmpty()) item.name else "${item.name} - ${item.artists.first().name}",
+                        text = if (item.artists.isEmpty()) item.name else "${item.artists.first().name} - ${item.name}",
                         style = MaterialTheme.typography.titleMedium
                     )
                 }
@@ -258,7 +258,7 @@ class Queue(
                                     Icon(Icons.Default.Audiotrack, null)
                                     Text(
                                         modifier = Modifier.weight(1f),
-                                        text = if (track.artists.isEmpty()) track.name else "${track.name} - ${track.artists.first().name}",
+                                        text = if (track.artists.isEmpty()) track.name else "${track.artists.first().name} - ${track.name}",
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                 }
@@ -352,7 +352,7 @@ class Queue(
                                     Icon(Icons.Default.Audiotrack, null)
                                     Text(
                                         modifier = Modifier.weight(1f),
-                                        text = if (track.artists.isEmpty()) item.name else "${item.name} - ${track.artists.first().name}",
+                                        text = if (track.artists.isEmpty()) track.name else "${track.artists.first().name} - ${track.name}",
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                 }

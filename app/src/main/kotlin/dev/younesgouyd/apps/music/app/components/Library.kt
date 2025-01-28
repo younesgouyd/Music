@@ -45,12 +45,10 @@ class Library(
     private val artistRepo: ArtistRepo,
     private val artistTrackCrossRefRepo: ArtistTrackCrossRefRepo,
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
+    private val mediaController: MediaController,
     private val showPlaylist: (id: Long) -> Unit,
     private val showAlbum: (id: Long) -> Unit,
-    private val playTrack: (id: Long) -> Unit,
-    private val showArtistDetails: (id: Long) -> Unit,
-    private val addTrackToQueue: (id: Long) -> Unit,
-    private val playQueue: (List<MediaController.QueueItemParameter>) -> Unit
+    private val showArtistDetails: (id: Long) -> Unit
 ) : Component() {
     override val title: String = "Library"
     private val currentFolder: MutableStateFlow<Folder?> = MutableStateFlow(null)
@@ -200,18 +198,20 @@ class Library(
             onAddFolderToPlaylistClick = ::showAddFolderToPlaylistDialog,
             onPlayFolder = ::playFolder,
             onPlaylistClick = showPlaylist,
+            onPlayPlaylistClick = ::playPlaylist,
             onAddPlaylistToPlaylistClick = ::showAddPlaylistToPlaylistDialog,
             onAlbumClick = showAlbum,
             onAddAlbumToPlaylistClick = ::showAddAlbumToPlaylistDialog,
-            onTrackClick = playTrack,
+            onTrackClick = ::playTrack,
             onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
             onArtistClick = showArtistDetails,
+            onPlayAlbumClick = ::playAlbum,
             onRenameFolder = ::renameFolder,
             onRenamePlaylist = ::renamePlaylist,
             onDeleteFolder = ::deleteFolder,
             onDeletePlaylist = ::deletePlaylist,
             onDeleteTrack = ::deleteTrack,
-            onAddTrackToQueue = addTrackToQueue,
+            onAddTrackToQueue = ::addTrackToQueue,
             onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
         )
     }
@@ -253,8 +253,24 @@ class Library(
         }
         coroutineScope.launch {
             val queue = getFolderItems(folderId)
-            playQueue(queue)
+            mediaController.playQueue(queue)
         }
+    }
+
+    private fun playPlaylist(id: Long) {
+        mediaController.playQueue(listOf(MediaController.QueueItemParameter.Playlist(id)))
+    }
+
+    private fun playAlbum(id: Long) {
+        mediaController.playQueue(listOf(MediaController.QueueItemParameter.Album(id)))
+    }
+
+    private fun playTrack(id: Long) {
+        mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(id)))
+    }
+
+    private fun addTrackToQueue(id: Long) {
+        mediaController.addToQueue(MediaController.QueueItemParameter.Track(id))
     }
 
     private fun renameFolder(id: Long, name: String) {
@@ -483,12 +499,14 @@ class Library(
             onAddFolderToPlaylistClick: (id: Long) -> Unit,
             onPlayFolder: (id: Long) -> Unit,
             onPlaylistClick: (id: Long) -> Unit,
+            onPlayPlaylistClick: (id: Long) -> Unit,
             onAddPlaylistToPlaylistClick: (id: Long) -> Unit,
             onAlbumClick: (id: Long) -> Unit,
             onAddAlbumToPlaylistClick: (id: Long) -> Unit,
             onTrackClick: (id: Long) -> Unit,
             onAddTrackToPlaylistClick: (id: Long) -> Unit,
             onArtistClick: (id: Long) -> Unit,
+            onPlayAlbumClick: (id: Long) -> Unit,
             onRenameFolder: (Long, name: String) -> Unit,
             onRenamePlaylist: (id: Long, name: String) -> Unit,
             onDeleteFolder: (id: Long) -> Unit,
@@ -558,6 +576,7 @@ class Library(
                                         PlaylistItem(
                                             playlist = playlist,
                                             onClick = { onPlaylistClick(playlist.id) },
+                                            onPlayClick = { onPlayPlaylistClick(playlist.id) },
                                             onAddToPlaylistClick = { onAddPlaylistToPlaylistClick(playlist.id) },
                                             onRenameClick = { onRenamePlaylist(playlist.id, it) },
                                             onDeleteClick = { onDeletePlaylist(playlist.id) }
@@ -568,6 +587,7 @@ class Library(
                                             album = album,
                                             onClick = { onAlbumClick(album.id) },
                                             onArtistClick = onArtistClick,
+                                            onPlayClick = { onPlayAlbumClick(album.id) },
                                             onAddToPlaylistClick = { onAddAlbumToPlaylistClick(album.id) }
                                         )
                                     }
@@ -866,6 +886,7 @@ class Library(
             modifier: Modifier = Modifier,
             playlist: Playlist,
             onClick: () -> Unit,
+            onPlayClick: () -> Unit,
             onAddToPlaylistClick: () -> Unit,
             onRenameClick: (name: String) -> Unit,
             onDeleteClick: () -> Unit
@@ -904,7 +925,7 @@ class Library(
                     ) {
                         IconButton(
                             content = { Icon(Icons.Default.PlayCircle, null) },
-                            onClick = { TODO() }
+                            onClick = onPlayClick
                         )
                         IconButton(
                             content = { Icon(Icons.Default.MoreVert, null) },
@@ -975,6 +996,7 @@ class Library(
             album: Models.Album,
             onClick: () -> Unit,
             onArtistClick: (id: Long) -> Unit,
+            onPlayClick: () -> Unit,
             onAddToPlaylistClick: () -> Unit
         ) {
             var showContextMenu by remember { mutableStateOf(false) }
@@ -1045,7 +1067,7 @@ class Library(
                     ) {
                         IconButton(
                             content = { Icon(Icons.Default.PlayCircle, null) },
-                            onClick = { TODO() }
+                            onClick = onPlayClick
                         )
                         IconButton(
                             content = { Icon(Icons.Default.MoreVert, null) },
