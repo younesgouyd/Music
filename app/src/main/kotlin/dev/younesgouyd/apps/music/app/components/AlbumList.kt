@@ -92,7 +92,7 @@ class AlbumList(
     }
 
     private fun addAlbumToQueue(id: Long) {
-        mediaController.addToQueue(MediaController.QueueItemParameter.Album(id))
+        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Album(id)))
     }
 
     private fun showAddToPlaylistDialog(albumId: Long) {
@@ -312,7 +312,7 @@ class AlbumList(
                             Option(
                                 label = "Add to queue",
                                 icon = Icons.Default.AddToQueue,
-                                onClick = onAddToQueueClick,
+                                onClick = { onAddToQueueClick(); showContextMenu = false }
                             )
                             Option(
                                 label = "Play next",

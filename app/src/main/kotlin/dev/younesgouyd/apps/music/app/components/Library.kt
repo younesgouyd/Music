@@ -196,12 +196,15 @@ class Library(
             onNewTrack = ::addTrack,
             onFolderClick = ::openFolder,
             onAddFolderToPlaylistClick = ::showAddFolderToPlaylistDialog,
+            onAddFolderToQueueClick = ::addFolderToQueue,
             onPlayFolder = ::playFolder,
             onPlaylistClick = showPlaylist,
             onPlayPlaylistClick = ::playPlaylist,
             onAddPlaylistToPlaylistClick = ::showAddPlaylistToPlaylistDialog,
+            onAddPlaylistToQueueClick = ::addPlaylistToQueue,
             onAlbumClick = showAlbum,
             onAddAlbumToPlaylistClick = ::showAddAlbumToPlaylistDialog,
+            onAddAlbumToQueueClick = ::addAlbumToQueue,
             onTrackClick = ::playTrack,
             onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
             onArtistClick = showArtistDetails,
@@ -212,7 +215,9 @@ class Library(
             onDeletePlaylist = ::deletePlaylist,
             onDeleteTrack = ::deleteTrack,
             onAddTrackToQueue = ::addTrackToQueue,
-            onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
+            onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
+            onRenameAlbum = ::renameAlbum,
+            onRenameTrack = ::renameTrack
         )
     }
 
@@ -270,7 +275,7 @@ class Library(
     }
 
     private fun addTrackToQueue(id: Long) {
-        mediaController.addToQueue(MediaController.QueueItemParameter.Track(id))
+        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(id)))
     }
 
     private fun renameFolder(id: Long, name: String) {
@@ -282,6 +287,18 @@ class Library(
     private fun renamePlaylist(id: Long, name: String) {
         coroutineScope.launch {
             playlistRepo.updateName(id = id, name = name)
+        }
+    }
+
+    private fun renameAlbum(id: Long, name: String) {
+        coroutineScope.launch {
+            albumRepo.updateName(id = id, name = name)
+        }
+    }
+
+    private fun renameTrack(id: Long, name: String) {
+        coroutineScope.launch {
+            trackRepo.updateName(id = id, name = name)
         }
     }
 
@@ -407,6 +424,10 @@ class Library(
         addToPlaylistDialogVisible.update { true }
     }
 
+    private fun addAlbumToQueue(id: Long) {
+        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Album(id)))
+    }
+
     private fun showAddPlaylistToPlaylistDialog(playlistId: Long) {
         addToPlaylist.update {
             AddToPlaylist(
@@ -422,6 +443,10 @@ class Library(
         addToPlaylistDialogVisible.update { true }
     }
 
+    private fun addPlaylistToQueue(id: Long) {
+        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Playlist(id)))
+    }
+
     private fun showAddFolderToPlaylistDialog(folderId: Long) {
         addToPlaylist.update {
             AddToPlaylist(
@@ -435,6 +460,19 @@ class Library(
             )
         }
         addToPlaylistDialogVisible.update { true }
+    }
+
+    private fun addFolderToQueue(id: Long) {
+        suspend fun getFolderItems(_id: Long): List<MediaController.QueueItemParameter> {
+            val tracks = trackRepo.getFolderTracksStatic(_id).map { dbTrack -> MediaController.QueueItemParameter.Track(dbTrack.id) }
+            val playlists = playlistRepo.getFolderPlaylistsStatic(_id).map { dbPlaylist -> MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
+            val albums = albumRepo.getFolderAlbumsStatic(_id).map { dbAlbum -> MediaController.QueueItemParameter.Album(dbAlbum.id) }
+            return tracks + playlists + albums + folderRepo.getSubfoldersStatic(_id).flatMap { getFolderItems(it.id) }
+        }
+        coroutineScope.launch {
+            val queue = getFolderItems(id)
+            mediaController.addToQueue(queue)
+        }
     }
 
     private fun dismissAddToPlaylistDialog() {
@@ -497,12 +535,15 @@ class Library(
             onNewTrack: (name: String, audioUrl: String?, videoUrl: String?) -> Unit,
             onFolderClick: (Folder?) -> Unit,
             onAddFolderToPlaylistClick: (id: Long) -> Unit,
+            onAddFolderToQueueClick: (id: Long) -> Unit,
             onPlayFolder: (id: Long) -> Unit,
             onPlaylistClick: (id: Long) -> Unit,
             onPlayPlaylistClick: (id: Long) -> Unit,
             onAddPlaylistToPlaylistClick: (id: Long) -> Unit,
+            onAddPlaylistToQueueClick: (id: Long) -> Unit,
             onAlbumClick: (id: Long) -> Unit,
             onAddAlbumToPlaylistClick: (id: Long) -> Unit,
+            onAddAlbumToQueueClick: (id: Long) -> Unit,
             onTrackClick: (id: Long) -> Unit,
             onAddTrackToPlaylistClick: (id: Long) -> Unit,
             onArtistClick: (id: Long) -> Unit,
@@ -513,7 +554,9 @@ class Library(
             onDeletePlaylist: (id: Long) -> Unit,
             onDeleteTrack: (id: Long) -> Unit,
             onAddTrackToQueue: (id: Long) -> Unit,
-            onDismissAddToPlaylistDialog: () -> Unit
+            onDismissAddToPlaylistDialog: () -> Unit,
+            onRenameAlbum: (id: Long, name: String) -> Unit,
+            onRenameTrack: (id: Long, name: String) -> Unit
         ) {
             val path by path.collectAsState()
             val loadingItems by loadingItems.collectAsState()
@@ -567,6 +610,7 @@ class Library(
                                             folder = folder,
                                             onClick = { onFolderClick(folder) },
                                             onAddToPlaylistClick = { onAddFolderToPlaylistClick(folder.id) },
+                                            onAddToQueueClick = { onAddFolderToQueueClick(folder.id) },
                                             onPlayClick = { onPlayFolder(folder.id) },
                                             onRenameClick = { onRenameFolder(folder.id, it) },
                                             onDeleteClick = { onDeleteFolder(folder.id) }
@@ -578,6 +622,7 @@ class Library(
                                             onClick = { onPlaylistClick(playlist.id) },
                                             onPlayClick = { onPlayPlaylistClick(playlist.id) },
                                             onAddToPlaylistClick = { onAddPlaylistToPlaylistClick(playlist.id) },
+                                            onAddToQueueClick = { onAddPlaylistToQueueClick(playlist.id) },
                                             onRenameClick = { onRenamePlaylist(playlist.id, it) },
                                             onDeleteClick = { onDeletePlaylist(playlist.id) }
                                         )
@@ -588,7 +633,9 @@ class Library(
                                             onClick = { onAlbumClick(album.id) },
                                             onArtistClick = onArtistClick,
                                             onPlayClick = { onPlayAlbumClick(album.id) },
-                                            onAddToPlaylistClick = { onAddAlbumToPlaylistClick(album.id) }
+                                            onAddToPlaylistClick = { onAddAlbumToPlaylistClick(album.id) },
+                                            onAddToQueueClick = { onAddAlbumToQueueClick(album.id) },
+                                            onRenameClick = { onRenameAlbum(album.id, it) }
                                         )
                                     }
                                     items(tracks) { track ->
@@ -598,7 +645,8 @@ class Library(
                                             onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
                                             onArtistClick = onArtistClick,
                                             onDeleteClick = { onDeleteTrack(track.id) },
-                                            onAddToQueueClick = { onAddTrackToQueue(track.id) }
+                                            onAddToQueueClick = { onAddTrackToQueue(track.id) },
+                                            onRenameClick = { onRenameTrack(track.id, it) }
                                         )
                                     }
                                     if (loadingItems) {
@@ -745,7 +793,7 @@ class Library(
             }
 
             if (newFolderFormVisible) {
-                FolderForm(
+                RenameDialog(
                     title = "New folder",
                     onDone = { onNewFolder(it); newFolderFormVisible = false },
                     onDismiss = { newFolderFormVisible = false }
@@ -774,6 +822,7 @@ class Library(
             folder: Folder,
             onClick: () -> Unit,
             onAddToPlaylistClick: () -> Unit,
+            onAddToQueueClick: () -> Unit,
             onPlayClick: () -> Unit,
             onRenameClick: (name: String) -> Unit,
             onDeleteClick: () -> Unit
@@ -849,7 +898,7 @@ class Library(
                     Option(
                         label = "Add to queue",
                         icon = Icons.Default.AddToQueue,
-                        onClick = { TODO() },
+                        onClick = { onAddToQueueClick(); showContextMenu = false }
                     )
                     Option(
                         label = "Play next",
@@ -860,10 +909,14 @@ class Library(
             }
 
             if (showEditFormDialog) {
-                FolderForm(
+                RenameDialog(
                     title = "Rename folder: ${folder.name}",
                     name = folder.name,
-                    onDone = { onRenameClick(it); showEditFormDialog = false },
+                    onDone = {
+                        onRenameClick(it)
+                        showEditFormDialog = false
+                        showContextMenu = false
+                    },
                     onDismiss = { showEditFormDialog = false }
                 )
             }
@@ -888,6 +941,7 @@ class Library(
             onClick: () -> Unit,
             onPlayClick: () -> Unit,
             onAddToPlaylistClick: () -> Unit,
+            onAddToQueueClick: () -> Unit,
             onRenameClick: (name: String) -> Unit,
             onDeleteClick: () -> Unit
         ) {
@@ -958,7 +1012,7 @@ class Library(
                     Option(
                         label = "Add to queue",
                         icon = Icons.Default.AddToQueue,
-                        onClick = { TODO() },
+                        onClick = { onAddToQueueClick(); showContextMenu = false }
                     )
                     Option(
                         label = "Play next",
@@ -969,10 +1023,14 @@ class Library(
             }
 
             if (showEditFormDialog) {
-                PlaylistForm(
+                RenameDialog(
                     title = "Rename playlist: ${playlist.name}",
                     name = playlist.name,
-                    onDone = { onRenameClick(it); showEditFormDialog = false },
+                    onDone = {
+                        onRenameClick(it)
+                        showEditFormDialog = false
+                        showContextMenu = false
+                    },
                     onDismiss = { showEditFormDialog = false }
                 )
             }
@@ -997,9 +1055,12 @@ class Library(
             onClick: () -> Unit,
             onArtistClick: (id: Long) -> Unit,
             onPlayClick: () -> Unit,
-            onAddToPlaylistClick: () -> Unit
+            onAddToPlaylistClick: () -> Unit,
+            onAddToQueueClick: () -> Unit,
+            onRenameClick: (name: String) -> Unit
         ) {
             var showContextMenu by remember { mutableStateOf(false) }
+            var showEditFormDialog by remember { mutableStateOf(false) }
 
             Item(
                 modifier = modifier,
@@ -1085,7 +1146,7 @@ class Library(
                     Option(
                         label = "Rename",
                         icon = Icons.Default.Edit,
-                        onClick = { TODO() },
+                        onClick = { showEditFormDialog = true },
                     )
                     Option(
                         label = "Add to playlist",
@@ -1095,7 +1156,7 @@ class Library(
                     Option(
                         label = "Add to queue",
                         icon = Icons.Default.AddToQueue,
-                        onClick = { TODO() },
+                        onClick = { onAddToQueueClick(); showContextMenu = false }
                     )
                     Option(
                         label = "Play next",
@@ -1103,6 +1164,19 @@ class Library(
                         onClick = { TODO() },
                     )
                 }
+            }
+
+            if (showEditFormDialog) {
+                RenameDialog(
+                    title = "Rename album: ${album.name}",
+                    name = album.name,
+                    onDone = {
+                        onRenameClick(it)
+                        showEditFormDialog = false
+                        showContextMenu = false
+                    },
+                    onDismiss = { showEditFormDialog = false }
+                )
             }
         }
 
@@ -1114,10 +1188,12 @@ class Library(
             onAddToPlaylistClick: () -> Unit,
             onArtistClick: (id: Long) -> Unit,
             onDeleteClick: () -> Unit,
-            onAddToQueueClick: () -> Unit
+            onAddToQueueClick: () -> Unit,
+            onRenameClick: (name: String) -> Unit
         ) {
             var showContextMenu by remember { mutableStateOf(false) }
             var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
+            var showEditFormDialog by remember { mutableStateOf(false) }
 
             Item(modifier = modifier, onClick = onClick) {
                 Column(
@@ -1181,7 +1257,7 @@ class Library(
                     ) {
                         IconButton(
                             content = { Icon(Icons.Default.PlayCircle, null) },
-                            onClick = { TODO() }
+                            onClick = onClick
                         )
                         IconButton(
                             content = { Icon(Icons.Default.MoreVert, null) },
@@ -1204,7 +1280,7 @@ class Library(
                     Option(
                         label = "Rename",
                         icon = Icons.Default.Edit,
-                        onClick = { TODO() },
+                        onClick = { showEditFormDialog = true },
                     )
                     Option(
                         label = "Add to playlist",
@@ -1214,7 +1290,7 @@ class Library(
                     Option(
                         label = "Add to queue",
                         icon = Icons.Default.AddToQueue,
-                        onClick = onAddToQueueClick,
+                        onClick = { onAddToQueueClick(); showContextMenu = false }
                     )
                     Option(
                         label = "Play next",
@@ -1235,55 +1311,19 @@ class Library(
                     }
                 )
             }
-        }
 
-        @Composable
-        private fun FolderForm(
-            title: String,
-            name: String = "",
-            onDone: (name: String) -> Unit,
-            onDismiss: () -> Unit
-        ) {
-            var name by remember { mutableStateOf(name) }
-
-            Dialog(onDismissRequest = onDismiss) {
-                Surface(
-                    modifier = Modifier.width(500.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                            text = title,
-                            style = MaterialTheme.typography.headlineMedium,
-                            textAlign = TextAlign.Center
-                        )
-                        OutlinedTextField(
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Name") },
-                            value = name,
-                            onValueChange = { name = it },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = { onDone(name) }),
-                        )
-                        Button(
-                            content = { Text("Done") },
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = { onDone(name) }
-                        )
-                    }
-                }
+            if (showEditFormDialog) {
+                RenameDialog(
+                    title = "Rename track: ${track.name}",
+                    name = track.name,
+                    onDone = { onRenameClick(it); showEditFormDialog = false },
+                    onDismiss = { showEditFormDialog = false }
+                )
             }
         }
 
         @Composable
-        private fun PlaylistForm(
+        private fun RenameDialog(
             title: String,
             name: String = "",
             onDone: (name: String) -> Unit,

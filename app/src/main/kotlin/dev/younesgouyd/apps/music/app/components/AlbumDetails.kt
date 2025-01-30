@@ -3,7 +3,10 @@ package dev.younesgouyd.apps.music.app.components
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
@@ -83,6 +86,7 @@ class AlbumDetails(
                     onTrackClick = ::playTrack,
                     onAddToPlaylistClick = ::showAddToPlaylistDialog,
                     onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
+                    onAddTrackToQueue = ::addTrackToQueue,
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
                 )
             }
@@ -105,7 +109,7 @@ class AlbumDetails(
     }
 
     private fun addToQueue() {
-        mediaController.addToQueue(MediaController.QueueItemParameter.Album(id))
+        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Album(id)))
     }
 
     private fun playTrack(id: Long) {
@@ -133,6 +137,10 @@ class AlbumDetails(
             )
         }
         addToPlaylistDialogVisible.update { true }
+    }
+
+    private fun addTrackToQueue(id: Long) {
+        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(id)))
     }
 
     private fun showAddTrackToPlaylistDialog(trackId: Long) {
@@ -172,6 +180,7 @@ class AlbumDetails(
             val onTrackClick: (id: Long) -> Unit,
             val onAddToPlaylistClick: () -> Unit,
             val onAddTrackToPlaylistClick: (id: Long) -> Unit,
+            val onAddTrackToQueue: (id: Long) -> Unit,
             val onDismissAddToPlaylistDialog: () -> Unit
         ) : AlbumDetailsState() {
             data class Album(
@@ -224,7 +233,8 @@ class AlbumDetails(
                 onAddToQueueClick = state.onAddToQueueClick,
                 onAddToPlaylistClick = state.onAddToPlaylistClick,
                 onTrackClick = state.onTrackClick,
-                onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick
+                onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick,
+                onAddTrackToQueue = state.onAddTrackToQueue
             )
 
             if (addToPlaylistDialogVisible) {
@@ -245,7 +255,8 @@ class AlbumDetails(
             onAddToQueueClick: () -> Unit,
             onAddToPlaylistClick: () -> Unit,
             onTrackClick: (Long) -> Unit,
-            onAddTrackToPlaylistClick: (id: Long) -> Unit
+            onAddTrackToPlaylistClick: (id: Long) -> Unit,
+            onAddTrackToQueue: (id: Long) -> Unit
         ) {
             val album by album.collectAsState()
             val items by tracks.collectAsState()
@@ -286,7 +297,8 @@ class AlbumDetails(
                                     albumImage = album.image,
                                     onClick = { onTrackClick(track.id) },
                                     onArtistClick = onArtistClick,
-                                    onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) }
+                                    onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
+                                    onAddToQueue = { onAddTrackToQueue(track.id) }
                                 )
                             }
                         }
@@ -436,13 +448,14 @@ class AlbumDetails(
         }
 
         @Composable
-        private fun LazyItemScope.TrackItem(
+        private fun TrackItem(
             modifier: Modifier = Modifier,
             track: Album.Track,
             albumImage: ByteArray?,
             onClick: () -> Unit,
             onArtistClick: (Long) -> Unit,
-            onAddToPlaylistClick: () -> Unit
+            onAddToPlaylistClick: () -> Unit,
+            onAddToQueue: () -> Unit
         ) {
             var showContextMenu by remember { mutableStateOf(false) }
 
@@ -514,7 +527,7 @@ class AlbumDetails(
                     Option(
                         label = "Add to queue",
                         icon = Icons.Default.AddToQueue,
-                        onClick = { TODO() },
+                        onClick = onAddToQueue,
                     )
                     Option(
                         label = "Play next",

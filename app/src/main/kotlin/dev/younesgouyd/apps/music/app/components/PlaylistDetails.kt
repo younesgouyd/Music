@@ -89,7 +89,9 @@ class PlaylistDetails(
                     onAlbumClick = showAlbumDetails,
                     onAddToPlaylistClick = ::showAddToPlaylistDialog,
                     onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
-                    onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
+                    onRemoveTrackFromPlaylistClick = ::removeTrackFromPlaylist,
+                    onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
+                    onAddTrackToQueueClick = ::addTrackToQueue
                 )
             }
         }
@@ -111,7 +113,7 @@ class PlaylistDetails(
     }
 
     private fun addToQueue() {
-        mediaController.addToQueue(MediaController.QueueItemParameter.Playlist(id))
+        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Playlist(id)))
     }
 
     private fun playTrack(id: Long) {
@@ -156,12 +158,22 @@ class PlaylistDetails(
         addToPlaylistDialogVisible.update { true }
     }
 
+    private fun removeTrackFromPlaylist(trackId: Long) {
+        coroutineScope.launch {
+            playlistTrackCrossRefRepo.delete(playlistId = id, trackId = trackId)
+        }
+    }
+
     private fun dismissAddToPlaylistDialog() {
         if (addToPlaylist.value?.adding?.value == true) {
             return
         }
         addToPlaylistDialogVisible.update { false }
         addToPlaylist.update { it?.clear(); null }
+    }
+
+    private fun addTrackToQueue(id: Long) {
+        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(id)))
     }
 
     private sealed class PlaylistDetailsState {
@@ -179,7 +191,9 @@ class PlaylistDetails(
             val onAddToPlaylistClick: () -> Unit,
             val onAddToQueueClick: () -> Unit,
             val onAddTrackToPlaylistClick: (id: Long) -> Unit,
-            val onDismissAddToPlaylistDialog: () -> Unit
+            val onRemoveTrackFromPlaylistClick: (id: Long) -> Unit,
+            val onDismissAddToPlaylistDialog: () -> Unit,
+            val onAddTrackToQueueClick: (id: Long) -> Unit
         ) : PlaylistDetailsState() {
             data class Playlist(
                 val id: Long,
@@ -232,7 +246,9 @@ class PlaylistDetails(
                 onTrackClick = state.onTrackClick,
                 onArtistClick = state.onArtistClick,
                 onAlbumClick = state.onAlbumClick,
-                onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick
+                onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick,
+                onAddTrackToQueueClick = state.onAddTrackToQueueClick,
+                onRemoveTrackFromPlaylistClick = state.onRemoveTrackFromPlaylistClick
             )
 
             if (addToPlaylistDialogVisible) {
@@ -254,7 +270,9 @@ class PlaylistDetails(
             onTrackClick: (id: Long) -> Unit,
             onArtistClick: (id: Long) -> Unit,
             onAlbumClick: (id: Long) -> Unit,
-            onAddTrackToPlaylistClick: (id: Long) -> Unit
+            onAddTrackToPlaylistClick: (id: Long) -> Unit,
+            onAddTrackToQueueClick: (id: Long) -> Unit,
+            onRemoveTrackFromPlaylistClick: (id: Long) -> Unit
         ) {
             val playlist by playlist.collectAsState()
             val items by tracks.collectAsState()
@@ -294,7 +312,9 @@ class PlaylistDetails(
                                     onTrackClick = { onTrackClick(track.id) },
                                     onArtistClick = onArtistClick,
                                     onAlbumClick = onAlbumClick,
-                                    onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) }
+                                    onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
+                                    onAddToQueueClick = { onAddTrackToQueueClick(track.id) },
+                                    onRemoveFromPlaylistClick = { onRemoveTrackFromPlaylistClick(track.id) }
                                 )
                             }
                         }
@@ -438,7 +458,9 @@ class PlaylistDetails(
             onTrackClick: () -> Unit,
             onArtistClick: (id: Long) -> Unit,
             onAlbumClick: (id: Long) -> Unit,
-            onAddToPlaylistClick: () -> Unit
+            onAddToPlaylistClick: () -> Unit,
+            onAddToQueueClick: () -> Unit,
+            onRemoveFromPlaylistClick: () -> Unit
         ) {
             var showContextMenu by remember { mutableStateOf(false) }
 
@@ -553,22 +575,22 @@ class PlaylistDetails(
                     Option(
                         label = "Remove from playlist",
                         icon = Icons.Default.Remove,
-                        onClick = { TODO() },
+                        onClick = { onRemoveFromPlaylistClick(); showContextMenu = false }
                     )
                     Option(
                         label = "Add to playlist",
                         icon = Icons.AutoMirrored.Default.PlaylistAdd,
-                        onClick = onAddToPlaylistClick,
+                        onClick = onAddToPlaylistClick
                     )
                     Option(
                         label = "Add to queue",
                         icon = Icons.Default.AddToQueue,
-                        onClick = { TODO() },
+                        onClick = { onAddToQueueClick(); showContextMenu = false }
                     )
                     Option(
                         label = "Play next",
                         icon = Icons.Default.QueuePlayNext,
-                        onClick = { TODO() },
+                        onClick = { TODO() }
                     )
                 }
             }

@@ -85,7 +85,7 @@ class PlaylistList(
     }
 
     private fun addPlaylistToQueue(id: Long) {
-        mediaController.addToQueue(MediaController.QueueItemParameter.Playlist(id))
+        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Playlist(id)))
     }
 
     private fun deletePlaylist(id: Long) {

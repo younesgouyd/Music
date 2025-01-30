@@ -76,6 +76,7 @@ class ArtistDetails(
                     onArtistClick = showArtistDetails,
                     onPlayAlbumClick = ::playAlbum,
                     onAddAlbumToPlaylistClick = ::showAddAlbumToPlaylistDialog,
+                    onAddAlbumToQueueClick = ::addAlbumToQueueClick,
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
                 )
             }
@@ -112,6 +113,10 @@ class ArtistDetails(
         addToPlaylistDialogVisible.update { true }
     }
 
+    private fun addAlbumToQueueClick(id: Long) {
+        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Album(id)))
+    }
+
     private fun dismissAddToPlaylistDialog() {
         if (addToPlaylist.value?.adding?.value == true) {
             return
@@ -132,6 +137,7 @@ class ArtistDetails(
             val onArtistClick: (Long) -> Unit,
             val onPlayAlbumClick: (Long) -> Unit,
             val onAddAlbumToPlaylistClick: (id: Long) -> Unit,
+            val onAddAlbumToQueueClick: (id: Long) -> Unit,
             val onDismissAddToPlaylistDialog: () -> Unit
         ) : ArtistDetailsState() {
             data class Artist(
@@ -182,6 +188,7 @@ class ArtistDetails(
                 onAlbumClick = state.onAlbumClick,
                 onArtistClick = state.onArtistClick,
                 onAddAlbumToPlaylistClick = state.onAddAlbumToPlaylistClick,
+                onAddAlbumToQueueClick = state.onAddAlbumToQueueClick,
                 onPlayAlbumClick = state.onPlayAlbumClick,
             )
 
@@ -200,6 +207,7 @@ class ArtistDetails(
             onAlbumClick: (Long) -> Unit,
             onArtistClick: (Long) -> Unit,
             onAddAlbumToPlaylistClick: (id: Long) -> Unit,
+            onAddAlbumToQueueClick: (id: Long) -> Unit,
             onPlayAlbumClick: (Long) -> Unit
         ) {
             val artist by artist.collectAsState()
@@ -240,6 +248,7 @@ class ArtistDetails(
                                     onClick = { onAlbumClick(album.id) },
                                     onArtistClick = onArtistClick,
                                     onAddToPlaylistClick = { onAddAlbumToPlaylistClick(album.id) },
+                                    onAddToQueueClick = { onAddAlbumToQueueClick(album.id) },
                                     onPlayClick = { onPlayAlbumClick(album.id) }
                                 )
                             }
@@ -287,6 +296,7 @@ class ArtistDetails(
             onClick: () -> Unit,
             onArtistClick: (Long) -> Unit,
             onAddToPlaylistClick: () -> Unit,
+            onAddToQueueClick: () -> Unit,
             onPlayClick: () -> Unit
         ) {
             var showContextMenu by remember { mutableStateOf(false) }
@@ -372,7 +382,7 @@ class ArtistDetails(
                     Option(
                         label = "Add to queue",
                         icon = Icons.Default.AddToQueue,
-                        onClick = { TODO() },
+                        onClick = onAddToQueueClick,
                     )
                     Option(
                         label = "Play next",

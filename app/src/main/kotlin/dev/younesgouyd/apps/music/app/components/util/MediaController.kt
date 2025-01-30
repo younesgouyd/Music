@@ -394,7 +394,7 @@ class MediaController(
         }
     }
 
-    fun addToQueue(item: QueueItemParameter) {
+    fun addToQueue(items: List<QueueItemParameter>) {
         coroutineScope.launch {
             mutex.withLock {
                 enabled.update { false }
@@ -409,7 +409,7 @@ class MediaController(
                     when (currentState) {
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> {
-                            val newQueue = listOf(item.toModel())
+                            val newQueue = items.map { it.toModel() }
                             newQueue.first().let { firstQueueItem ->
                                 val currentTrack = when (firstQueueItem) {
                                     is MediaControllerState.Available.PlaybackState.QueueItem.Track -> firstQueueItem
@@ -452,7 +452,7 @@ class MediaController(
                         is MediaControllerState.Available -> {
                             currentState.copy(
                                 playbackState = currentState.playbackState.copy(
-                                    queue = currentState.playbackState.queue.toMutableList().apply { add(item.toModel()) }
+                                    queue = currentState.playbackState.queue.toMutableList().apply { addAll(items.map { it.toModel() }) }
                                 )
                             )
                         }
