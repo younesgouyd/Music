@@ -5,8 +5,8 @@ get:
 SELECT * FROM album WHERE id = :id;
 
 add:
-INSERT INTO album (name, image, folder_id, release_date, creation_datetime, update_datetime)
-VALUES (:name, :image, :folder_id, :release_date, :creation_datetime, :update_datetime)
+INSERT INTO album (name, image, release_date, creation_datetime, update_datetime)
+VALUES (:name, :image, :release_date, :creation_datetime, :update_datetime)
 RETURNING id;
 
 updateName:
@@ -19,12 +19,6 @@ updateImage:
 UPDATE album
 SET image = :image,
     update_datetime = :update_datetime
-WHERE id = :id;
-
-updateFolderId:
-UPDATE album
-SET folder_id = :folder_id,
-  update_datetime = :update_datetime
 WHERE id = :id;
 
 updateReleaseDate:
@@ -43,11 +37,6 @@ JOIN track t ON t.album_id = a.id
 JOIN artist_track_cross_ref atcr ON atcr.track_id = t.id
 JOIN artist at ON at.id = atcr.artist_id
 WHERE at.id = :artist_id;
-
-getFolderAlbums:
-SELECT *
-FROM album
-WHERE folder_id = :folder_id;
 
 getByName:
 SELECT * FROM album WHERE name = :name;

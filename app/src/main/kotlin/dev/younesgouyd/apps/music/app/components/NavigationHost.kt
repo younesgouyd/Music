@@ -164,7 +164,6 @@ class NavigationHost(
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
                         mediaController = mediaController,
                         showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },
-                        showAlbum = { navigateTo(Destination.AlbumDetails(it)) },
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
                     )
                     is Destination.AlbumDetails -> AlbumDetails(

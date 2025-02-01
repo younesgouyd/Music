@@ -47,7 +47,6 @@ class Library(
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     private val mediaController: MediaController,
     private val showPlaylist: (id: Long) -> Unit,
-    private val showAlbum: (id: Long) -> Unit,
     private val showArtistDetails: (id: Long) -> Unit
 ) : Component() {
     override val title: String = "Library"
@@ -55,12 +54,10 @@ class Library(
     private val path: StateFlow<Set<Folder>>
     private val folders: StateFlow<List<Folder>>
     private val playlists: StateFlow<List<Playlist>>
-    private val albums: StateFlow<List<Models.Album>>
     private val tracks: StateFlow<List<Models.Track>>
     private val loadingItems: StateFlow<Boolean>
     private val loadingFolders: MutableStateFlow<Boolean>
     private val loadingPlaylists: MutableStateFlow<Boolean>
-    private val loadingAlbums: MutableStateFlow<Boolean>
     private val loadingTracks: MutableStateFlow<Boolean>
     private val importingFolder: MutableStateFlow<Boolean>
     private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
@@ -69,11 +66,10 @@ class Library(
     init {
         loadingFolders = MutableStateFlow(true)
         loadingPlaylists = MutableStateFlow(true)
-        loadingAlbums = MutableStateFlow(true)
         loadingTracks = MutableStateFlow(true)
         importingFolder = MutableStateFlow(false)
-        loadingItems = combine(loadingFolders, loadingPlaylists, loadingAlbums, loadingTracks, importingFolder) { loading1, loading2, loading3, loading4, loading5 ->
-            loading1 || loading2 || loading3 || loading4 || loading5
+        loadingItems = combine(loadingFolders, loadingPlaylists, loadingTracks, importingFolder) { loading1, loading2, loading3, loading4 ->
+            loading1 || loading2 || loading3 || loading4
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = true)
 
         path = flow {
@@ -110,32 +106,6 @@ class Library(
                     loadingPlaylists.value = false
                 }
                 loadingPlaylists.value = false
-            }
-        }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
-
-        albums = currentFolder.flatMapLatest { currentFolder ->
-            flow {
-                emit(emptyList())
-                loadingAlbums.value = true
-                albumRepo.getFolderAlbums(currentFolder?.id).collect { dbAlbums ->
-                    emit(
-                        dbAlbums.map { dbAlbum ->
-                            Models.Album(
-                                id = dbAlbum.id,
-                                name = dbAlbum.name,
-                                image = dbAlbum.image,
-                                artists = artistRepo.getAlbumArtistsStatic(dbAlbum.id).map { dbArtist ->
-                                    Models.Album.Artist(
-                                        id = dbArtist.id,
-                                        name = dbArtist.name
-                                    )
-                                }
-                            )
-                        }
-                    )
-                    loadingAlbums.value = false
-                }
-                loadingAlbums.value = false
             }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
 
@@ -187,7 +157,6 @@ class Library(
             currentFolder = currentFolder.asStateFlow(),
             folders = folders,
             playlists = playlists,
-            albums = albums,
             tracks = tracks,
             addToPlaylistDialogVisible = addToPlaylistDialogVisible,
             addToPlaylist = addToPlaylist,
@@ -202,13 +171,9 @@ class Library(
             onPlayPlaylistClick = ::playPlaylist,
             onAddPlaylistToPlaylistClick = ::showAddPlaylistToPlaylistDialog,
             onAddPlaylistToQueueClick = ::addPlaylistToQueue,
-            onAlbumClick = showAlbum,
-            onAddAlbumToPlaylistClick = ::showAddAlbumToPlaylistDialog,
-            onAddAlbumToQueueClick = ::addAlbumToQueue,
             onTrackClick = ::playTrack,
             onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
             onArtistClick = showArtistDetails,
-            onPlayAlbumClick = ::playAlbum,
             onRenameFolder = ::renameFolder,
             onRenamePlaylist = ::renamePlaylist,
             onDeleteFolder = ::deleteFolder,
@@ -216,7 +181,6 @@ class Library(
             onDeleteTrack = ::deleteTrack,
             onAddTrackToQueue = ::addTrackToQueue,
             onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
-            onRenameAlbum = ::renameAlbum,
             onRenameTrack = ::renameTrack
         )
     }
@@ -253,8 +217,7 @@ class Library(
         suspend fun getFolderItems(_folderId: Long): List<MediaController.QueueItemParameter> {
             val tracks = trackRepo.getFolderTracksStatic(_folderId).map { dbTrack -> MediaController.QueueItemParameter.Track(dbTrack.id) }
             val playlists = playlistRepo.getFolderPlaylistsStatic(_folderId).map { dbPlaylist -> MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
-            val albums = albumRepo.getFolderAlbumsStatic(_folderId).map { dbAlbum -> MediaController.QueueItemParameter.Album(dbAlbum.id) }
-            return tracks + playlists + albums + folderRepo.getSubfoldersStatic(_folderId).flatMap { getFolderItems(it.id) }
+            return tracks + playlists + folderRepo.getSubfoldersStatic(_folderId).flatMap { getFolderItems(it.id) }
         }
         coroutineScope.launch {
             val queue = getFolderItems(folderId)
@@ -264,10 +227,6 @@ class Library(
 
     private fun playPlaylist(id: Long) {
         mediaController.playQueue(listOf(MediaController.QueueItemParameter.Playlist(id)))
-    }
-
-    private fun playAlbum(id: Long) {
-        mediaController.playQueue(listOf(MediaController.QueueItemParameter.Album(id)))
     }
 
     private fun playTrack(id: Long) {
@@ -287,12 +246,6 @@ class Library(
     private fun renamePlaylist(id: Long, name: String) {
         coroutineScope.launch {
             playlistRepo.updateName(id = id, name = name)
-        }
-    }
-
-    private fun renameAlbum(id: Long, name: String) {
-        coroutineScope.launch {
-            albumRepo.updateName(id = id, name = name)
         }
     }
 
@@ -366,7 +319,7 @@ class Library(
                     if (!album.isNullOrEmpty()) {
                         val albums = albumRepo.getByName(album)
                         if (albums.isEmpty()) {
-                            albumId = albumRepo.add(name = album, image = albumImage, folderId = currentFolder.value?.id, releaseDate = year)
+                            albumId = albumRepo.add(name = album, image = albumImage, releaseDate = year)
                         } else if (albums.size == 1) {
                             albumId = albums.first().id
                         }
@@ -409,25 +362,6 @@ class Library(
         addToPlaylistDialogVisible.update { true }
     }
 
-    private fun showAddAlbumToPlaylistDialog(albumId: Long) {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Album(albumId),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                albumRepo = albumRepo,
-                folderRepo = folderRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.update { true }
-    }
-
-    private fun addAlbumToQueue(id: Long) {
-        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Album(id)))
-    }
-
     private fun showAddPlaylistToPlaylistDialog(playlistId: Long) {
         addToPlaylist.update {
             AddToPlaylist(
@@ -466,8 +400,7 @@ class Library(
         suspend fun getFolderItems(_id: Long): List<MediaController.QueueItemParameter> {
             val tracks = trackRepo.getFolderTracksStatic(_id).map { dbTrack -> MediaController.QueueItemParameter.Track(dbTrack.id) }
             val playlists = playlistRepo.getFolderPlaylistsStatic(_id).map { dbPlaylist -> MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
-            val albums = albumRepo.getFolderAlbumsStatic(_id).map { dbAlbum -> MediaController.QueueItemParameter.Album(dbAlbum.id) }
-            return tracks + playlists + albums + folderRepo.getSubfoldersStatic(_id).flatMap { getFolderItems(it.id) }
+            return tracks + playlists + folderRepo.getSubfoldersStatic(_id).flatMap { getFolderItems(it.id) }
         }
         coroutineScope.launch {
             val queue = getFolderItems(id)
@@ -526,7 +459,6 @@ class Library(
             currentFolder: StateFlow<Folder?>,
             folders: StateFlow<List<Folder>>,
             playlists: StateFlow<List<Playlist>>,
-            albums: StateFlow<List<Models.Album>>,
             tracks: StateFlow<List<Models.Track>>,
             onImportFolder: (path: String) -> Unit,
             onNewFolder: (name: String) -> Unit,
@@ -541,13 +473,9 @@ class Library(
             onPlayPlaylistClick: (id: Long) -> Unit,
             onAddPlaylistToPlaylistClick: (id: Long) -> Unit,
             onAddPlaylistToQueueClick: (id: Long) -> Unit,
-            onAlbumClick: (id: Long) -> Unit,
-            onAddAlbumToPlaylistClick: (id: Long) -> Unit,
-            onAddAlbumToQueueClick: (id: Long) -> Unit,
             onTrackClick: (id: Long) -> Unit,
             onAddTrackToPlaylistClick: (id: Long) -> Unit,
             onArtistClick: (id: Long) -> Unit,
-            onPlayAlbumClick: (id: Long) -> Unit,
             onRenameFolder: (Long, name: String) -> Unit,
             onRenamePlaylist: (id: Long, name: String) -> Unit,
             onDeleteFolder: (id: Long) -> Unit,
@@ -555,14 +483,12 @@ class Library(
             onDeleteTrack: (id: Long) -> Unit,
             onAddTrackToQueue: (id: Long) -> Unit,
             onDismissAddToPlaylistDialog: () -> Unit,
-            onRenameAlbum: (id: Long, name: String) -> Unit,
             onRenameTrack: (id: Long, name: String) -> Unit
         ) {
             val path by path.collectAsState()
             val loadingItems by loadingItems.collectAsState()
             val folders by folders.collectAsState()
             val playlists by playlists.collectAsState()
-            val albums by albums.collectAsState()
             val tracks by tracks.collectAsState()
             val lazyGridState = rememberLazyGridState()
             val addToPlaylistDialogVisible by addToPlaylistDialogVisible.collectAsState()
@@ -625,17 +551,6 @@ class Library(
                                             onAddToQueueClick = { onAddPlaylistToQueueClick(playlist.id) },
                                             onRenameClick = { onRenamePlaylist(playlist.id, it) },
                                             onDeleteClick = { onDeletePlaylist(playlist.id) }
-                                        )
-                                    }
-                                    items(albums) { album ->
-                                        AlbumItem(
-                                            album = album,
-                                            onClick = { onAlbumClick(album.id) },
-                                            onArtistClick = onArtistClick,
-                                            onPlayClick = { onPlayAlbumClick(album.id) },
-                                            onAddToPlaylistClick = { onAddAlbumToPlaylistClick(album.id) },
-                                            onAddToQueueClick = { onAddAlbumToQueueClick(album.id) },
-                                            onRenameClick = { onRenameAlbum(album.id, it) }
                                         )
                                     }
                                     items(tracks) { track ->
@@ -847,12 +762,21 @@ class Library(
                         contentDescription = null
                     )
                     Text(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(4.dp),
                         text = folder.name,
                         style = MaterialTheme.typography.titleMedium,
                         textAlign = TextAlign.Center,
                         minLines = 2,
                         maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        modifier = Modifier.padding(4.dp),
+                        text = "Folder",
+                        style = MaterialTheme.typography.labelMedium,
+                        textAlign = TextAlign.Center,
+                        minLines = 1,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Row(
@@ -972,6 +896,15 @@ class Library(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
+                    Text(
+                        modifier = Modifier.padding(4.dp),
+                        text = "Playlist",
+                        style = MaterialTheme.typography.labelMedium,
+                        textAlign = TextAlign.Center,
+                        minLines = 1,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1049,138 +982,6 @@ class Library(
         }
 
         @Composable
-        private fun AlbumItem(
-            modifier: Modifier = Modifier,
-            album: Models.Album,
-            onClick: () -> Unit,
-            onArtistClick: (id: Long) -> Unit,
-            onPlayClick: () -> Unit,
-            onAddToPlaylistClick: () -> Unit,
-            onAddToQueueClick: () -> Unit,
-            onRenameClick: (name: String) -> Unit
-        ) {
-            var showContextMenu by remember { mutableStateOf(false) }
-            var showEditFormDialog by remember { mutableStateOf(false) }
-
-            Item(
-                modifier = modifier,
-                onClick = onClick
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Image(
-                        modifier = Modifier.aspectRatio(1f),
-                        data = album.image,
-                        contentScale = ContentScale.FillWidth,
-                        alignment = Alignment.TopCenter
-                    )
-                    Text(
-                        modifier = Modifier.fillMaxWidth().padding(8.dp),
-                        text = album.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        textAlign = TextAlign.Center,
-                        minLines = 2,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = "By: ",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        LazyRow(
-                            modifier = Modifier.weight(1f),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            items(album.artists) { artist ->
-                                TextButton(
-                                    content = {
-                                        Row(
-                                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(Icons.Default.Person, null)
-                                            Text(
-                                                text = artist.name,
-                                                style = MaterialTheme.typography.labelMedium,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    },
-                                    onClick = { onArtistClick(artist.id) }
-                                )
-                            }
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            content = { Icon(Icons.Default.PlayCircle, null) },
-                            onClick = onPlayClick
-                        )
-                        IconButton(
-                            content = { Icon(Icons.Default.MoreVert, null) },
-                            onClick = { showContextMenu = true }
-                        )
-                    }
-                }
-            }
-
-            if (showContextMenu) {
-                ItemContextMenu(
-                    item = Item(name = album.name, image = album.image),
-                    onDismiss = { showContextMenu = false }
-                ) {
-                    Option(
-                        label = "Rename",
-                        icon = Icons.Default.Edit,
-                        onClick = { showEditFormDialog = true },
-                    )
-                    Option(
-                        label = "Add to playlist",
-                        icon = Icons.AutoMirrored.Default.PlaylistAdd,
-                        onClick = onAddToPlaylistClick,
-                    )
-                    Option(
-                        label = "Add to queue",
-                        icon = Icons.Default.AddToQueue,
-                        onClick = { onAddToQueueClick(); showContextMenu = false }
-                    )
-                    Option(
-                        label = "Play next",
-                        icon = Icons.Default.QueuePlayNext,
-                        onClick = { TODO() },
-                    )
-                }
-            }
-
-            if (showEditFormDialog) {
-                RenameDialog(
-                    title = "Rename album: ${album.name}",
-                    name = album.name,
-                    onDone = {
-                        onRenameClick(it)
-                        showEditFormDialog = false
-                        showContextMenu = false
-                    },
-                    onDismiss = { showEditFormDialog = false }
-                )
-            }
-        }
-
-        @Composable
         private fun TrackItem(
             modifier: Modifier = Modifier,
             track: Models.Track,
@@ -1215,15 +1016,20 @@ class Library(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
+                    Text(
+                        modifier = Modifier.padding(4.dp),
+                        text = "Track",
+                        style = MaterialTheme.typography.labelMedium,
+                        textAlign = TextAlign.Center,
+                        minLines = 1,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "By: ",
-                            style = MaterialTheme.typography.titleMedium
-                        )
                         LazyRow(
                             modifier = Modifier.weight(1f),
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
