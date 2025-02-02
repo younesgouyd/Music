@@ -19,5 +19,11 @@ SET name = :name,
     update_datetime = :update_datetime
 WHERE id = :id;
 
+updateParentFolderId:
+UPDATE folder
+SET parent_folder_id = :parent_folder_id,
+    update_datetime = :update_datetime
+WHERE id = :id;
+
 delete:
 DELETE FROM folder WHERE id = :id;

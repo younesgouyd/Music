@@ -161,42 +161,36 @@ class Library(
             addToPlaylistDialogVisible = addToPlaylistDialogVisible,
             addToPlaylist = addToPlaylist,
             onImportFolder = ::importFolder,
-            onNewFolder = ::addFolder,
+            onNewFolder = { coroutineScope.launch { folderRepo.add(name = it, parentFolderId = currentFolder.value?.id) } },
             onNewTrack = ::addTrack,
-            onFolderClick = ::openFolder,
+            onFolderClick = { currentFolder.value = it },
             onAddFolderToPlaylistClick = ::showAddFolderToPlaylistDialog,
             onAddFolderToQueueClick = ::addFolderToQueue,
             onPlayFolder = ::playFolder,
             onPlaylistClick = showPlaylist,
-            onPlayPlaylistClick = ::playPlaylist,
+            onPlayPlaylistClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Playlist(it))) },
             onAddPlaylistToPlaylistClick = ::showAddPlaylistToPlaylistDialog,
-            onAddPlaylistToQueueClick = ::addPlaylistToQueue,
-            onTrackClick = ::playTrack,
+            onAddPlaylistToQueueClick = { mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Playlist(it))) },
+            onTrackClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
             onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
             onArtistClick = showArtistDetails,
-            onRenameFolder = ::renameFolder,
-            onRenamePlaylist = ::renamePlaylist,
-            onDeleteFolder = ::deleteFolder,
-            onDeletePlaylist = ::deletePlaylist,
-            onDeleteTrack = ::deleteTrack,
-            onAddTrackToQueue = ::addTrackToQueue,
+            onRenameFolder = { id: Long, name: String -> coroutineScope.launch { folderRepo.updateName(id = id, name = name) } },
+            onRenamePlaylist = { id: Long, name: String -> coroutineScope.launch { playlistRepo.updateName(id = id, name = name) } },
+            onDeleteFolder = { coroutineScope.launch { folderRepo.delete(it) } },
+            onDeletePlaylist = { coroutineScope.launch { playlistRepo.delete(it) } },
+            onDeleteTrack = { coroutineScope.launch { trackRepo.delete(it) } },
+            onAddTrackToQueue = { mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
             onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
-            onRenameTrack = ::renameTrack
+            onRenameTrack = { id: Long, name: String -> coroutineScope.launch { trackRepo.updateName(id = id, name = name) } },
+            loadFolders = folderRepo::getSubfoldersStatic,
+            onMoveFolderToFolder = { id: Long, folderId: Long -> coroutineScope.launch { folderRepo.updateParentFolderId(id = id, parentFolderId = folderId) } },
+            onMoveTrackToFolder = { id: Long, folderId: Long -> coroutineScope.launch { trackRepo.updateFolderId(id = id, folderId = folderId) }},
+            onMovePlaylistToFolder = { id: Long, folderId: Long -> coroutineScope.launch { playlistRepo.updateFolderId(id = id, folderId = folderId) }}
         )
     }
 
     override fun clear() {
         coroutineScope.cancel()
-    }
-
-    private fun openFolder(folder: Folder?) {
-        currentFolder.value = folder
-    }
-
-    private fun addFolder(name: String) {
-        coroutineScope.launch {
-            folderRepo.add(name = name, parentFolderId = currentFolder.value?.id)
-        }
     }
 
     private fun addTrack(name: String, audioUrl: String?, videoUrl: String?) {
@@ -222,54 +216,6 @@ class Library(
         coroutineScope.launch {
             val queue = getFolderItems(folderId)
             mediaController.playQueue(queue)
-        }
-    }
-
-    private fun playPlaylist(id: Long) {
-        mediaController.playQueue(listOf(MediaController.QueueItemParameter.Playlist(id)))
-    }
-
-    private fun playTrack(id: Long) {
-        mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(id)))
-    }
-
-    private fun addTrackToQueue(id: Long) {
-        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(id)))
-    }
-
-    private fun renameFolder(id: Long, name: String) {
-        coroutineScope.launch {
-            folderRepo.updateName(id = id, name = name)
-        }
-    }
-
-    private fun renamePlaylist(id: Long, name: String) {
-        coroutineScope.launch {
-            playlistRepo.updateName(id = id, name = name)
-        }
-    }
-
-    private fun renameTrack(id: Long, name: String) {
-        coroutineScope.launch {
-            trackRepo.updateName(id = id, name = name)
-        }
-    }
-
-    private fun deleteFolder(id: Long) {
-        coroutineScope.launch {
-            folderRepo.delete(id)
-        }
-    }
-
-    private fun deletePlaylist(id: Long) {
-        coroutineScope.launch {
-            playlistRepo.delete(id)
-        }
-    }
-
-    private fun deleteTrack(id: Long) {
-        coroutineScope.launch {
-            trackRepo.delete(id)
         }
     }
 
@@ -377,10 +323,6 @@ class Library(
         addToPlaylistDialogVisible.update { true }
     }
 
-    private fun addPlaylistToQueue(id: Long) {
-        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Playlist(id)))
-    }
-
     private fun showAddFolderToPlaylistDialog(folderId: Long) {
         addToPlaylist.update {
             AddToPlaylist(
@@ -417,18 +359,6 @@ class Library(
     }
 
     private object Models {
-        data class Album(
-            val id: Long,
-            val name: String,
-            val image: ByteArray?,
-            val artists: List<Artist>
-        ) {
-            data class Artist(
-                val id: Long,
-                val name: String
-            )
-        }
-
         data class Track(
             val id: Long,
             val name: String,
@@ -476,14 +406,18 @@ class Library(
             onTrackClick: (id: Long) -> Unit,
             onAddTrackToPlaylistClick: (id: Long) -> Unit,
             onArtistClick: (id: Long) -> Unit,
-            onRenameFolder: (Long, name: String) -> Unit,
+            onRenameFolder: (id: Long, name: String) -> Unit,
             onRenamePlaylist: (id: Long, name: String) -> Unit,
             onDeleteFolder: (id: Long) -> Unit,
             onDeletePlaylist: (id: Long) -> Unit,
             onDeleteTrack: (id: Long) -> Unit,
             onAddTrackToQueue: (id: Long) -> Unit,
             onDismissAddToPlaylistDialog: () -> Unit,
-            onRenameTrack: (id: Long, name: String) -> Unit
+            onRenameTrack: (id: Long, name: String) -> Unit,
+            loadFolders: suspend (parentFolderId: Long?) -> List<Folder>,
+            onMoveFolderToFolder: (id: Long, folderId: Long) -> Unit,
+            onMoveTrackToFolder: (id: Long, folderId: Long) -> Unit,
+            onMovePlaylistToFolder: (id: Long, folderId: Long) -> Unit
         ) {
             val path by path.collectAsState()
             val loadingItems by loadingItems.collectAsState()
@@ -539,7 +473,9 @@ class Library(
                                             onAddToQueueClick = { onAddFolderToQueueClick(folder.id) },
                                             onPlayClick = { onPlayFolder(folder.id) },
                                             onRenameClick = { onRenameFolder(folder.id, it) },
-                                            onDeleteClick = { onDeleteFolder(folder.id) }
+                                            onDeleteClick = { onDeleteFolder(folder.id) },
+                                            loadFolders = loadFolders,
+                                            onMoveToFolder = { onMoveFolderToFolder(folder.id, it) }
                                         )
                                     }
                                     items(playlists) { playlist ->
@@ -550,7 +486,9 @@ class Library(
                                             onAddToPlaylistClick = { onAddPlaylistToPlaylistClick(playlist.id) },
                                             onAddToQueueClick = { onAddPlaylistToQueueClick(playlist.id) },
                                             onRenameClick = { onRenamePlaylist(playlist.id, it) },
-                                            onDeleteClick = { onDeletePlaylist(playlist.id) }
+                                            onDeleteClick = { onDeletePlaylist(playlist.id) },
+                                            loadFolders = loadFolders,
+                                            onMoveToFolder = { onMovePlaylistToFolder(playlist.id, it) }
                                         )
                                     }
                                     items(tracks) { track ->
@@ -561,7 +499,9 @@ class Library(
                                             onArtistClick = onArtistClick,
                                             onDeleteClick = { onDeleteTrack(track.id) },
                                             onAddToQueueClick = { onAddTrackToQueue(track.id) },
-                                            onRenameClick = { onRenameTrack(track.id, it) }
+                                            onRenameClick = { onRenameTrack(track.id, it) },
+                                            loadFolders = loadFolders,
+                                            onMoveToFolder = { onMoveTrackToFolder(track.id, it) }
                                         )
                                     }
                                     if (loadingItems) {
@@ -740,11 +680,14 @@ class Library(
             onAddToQueueClick: () -> Unit,
             onPlayClick: () -> Unit,
             onRenameClick: (name: String) -> Unit,
-            onDeleteClick: () -> Unit
+            onDeleteClick: () -> Unit,
+            loadFolders: suspend (parentFolderId: Long?) -> List<Folder>,
+            onMoveToFolder: (id: Long) -> Unit
         ) {
             var showContextMenu by remember { mutableStateOf(false) }
             var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
             var showEditFormDialog by remember { mutableStateOf(false) }
+            var moveToFolderDialogVisible by remember { mutableStateOf(false) }
 
             Item(
                 modifier = modifier,
@@ -815,6 +758,11 @@ class Library(
                         onClick = { showEditFormDialog = true },
                     )
                     Option(
+                        label = "Move to folder",
+                        icon = Icons.Default.Folder,
+                        onClick = { moveToFolderDialogVisible = true },
+                    )
+                    Option(
                         label = "Add to playlist",
                         icon = Icons.AutoMirrored.Default.PlaylistAdd,
                         onClick = onAddToPlaylistClick,
@@ -856,6 +804,24 @@ class Library(
                     }
                 )
             }
+
+            if (moveToFolderDialogVisible) {
+                MoveToFolderDialog(
+                    itemToMove = ItemToMove(
+                        id = folder.id,
+                        name = folder.name,
+                        image = null, // TODO
+                        typeLabel = "Folder"
+                    ),
+                    loadFolders = loadFolders,
+                    onMoveToFolder = {
+                        moveToFolderDialogVisible = false
+                        showContextMenu = false
+                        onMoveToFolder(it)
+                    },
+                    onDismissRequest = { moveToFolderDialogVisible = false }
+                )
+            }
         }
 
         @Composable
@@ -867,11 +833,14 @@ class Library(
             onAddToPlaylistClick: () -> Unit,
             onAddToQueueClick: () -> Unit,
             onRenameClick: (name: String) -> Unit,
-            onDeleteClick: () -> Unit
+            onDeleteClick: () -> Unit,
+            loadFolders: suspend (parentFolderId: Long?) -> List<Folder>,
+            onMoveToFolder: (id: Long) -> Unit
         ) {
             var showContextMenu by remember { mutableStateOf(false) }
             var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
             var showEditFormDialog by remember { mutableStateOf(false) }
+            var moveToFolderDialogVisible by remember { mutableStateOf(false) }
 
             Item(
                 modifier = modifier,
@@ -938,6 +907,11 @@ class Library(
                         onClick = { showEditFormDialog = true },
                     )
                     Option(
+                        label = "Move to folder",
+                        icon = Icons.Default.Folder,
+                        onClick = { moveToFolderDialogVisible = true },
+                    )
+                    Option(
                         label = "Add to playlist",
                         icon = Icons.AutoMirrored.Default.PlaylistAdd,
                         onClick = onAddToPlaylistClick,
@@ -979,6 +953,24 @@ class Library(
                     }
                 )
             }
+
+            if (moveToFolderDialogVisible) {
+                MoveToFolderDialog(
+                    itemToMove = ItemToMove(
+                        id = playlist.id,
+                        name = playlist.name,
+                        image = playlist.image,
+                        typeLabel = "Playlist"
+                    ),
+                    loadFolders = loadFolders,
+                    onMoveToFolder = {
+                        moveToFolderDialogVisible = false
+                        showContextMenu = false
+                        onMoveToFolder(it)
+                    },
+                    onDismissRequest = { moveToFolderDialogVisible = false }
+                )
+            }
         }
 
         @Composable
@@ -990,11 +982,14 @@ class Library(
             onArtistClick: (id: Long) -> Unit,
             onDeleteClick: () -> Unit,
             onAddToQueueClick: () -> Unit,
-            onRenameClick: (name: String) -> Unit
+            onRenameClick: (name: String) -> Unit,
+            loadFolders: suspend (parentFolderId: Long?) -> List<Folder>,
+            onMoveToFolder: (id: Long) -> Unit
         ) {
             var showContextMenu by remember { mutableStateOf(false) }
             var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
             var showEditFormDialog by remember { mutableStateOf(false) }
+            var moveToFolderDialogVisible by remember { mutableStateOf(false) }
 
             Item(modifier = modifier, onClick = onClick) {
                 Column(
@@ -1089,6 +1084,11 @@ class Library(
                         onClick = { showEditFormDialog = true },
                     )
                     Option(
+                        label = "Move to folder",
+                        icon = Icons.Default.Folder,
+                        onClick = { moveToFolderDialogVisible = true },
+                    )
+                    Option(
                         label = "Add to playlist",
                         icon = Icons.AutoMirrored.Default.PlaylistAdd,
                         onClick = onAddToPlaylistClick,
@@ -1124,6 +1124,24 @@ class Library(
                     name = track.name,
                     onDone = { onRenameClick(it); showEditFormDialog = false },
                     onDismiss = { showEditFormDialog = false }
+                )
+            }
+
+            if (moveToFolderDialogVisible) {
+                MoveToFolderDialog(
+                    itemToMove = ItemToMove(
+                        id = track.id,
+                        name = track.name,
+                        image = track.album?.image,
+                        typeLabel = "Track"
+                    ),
+                    loadFolders = loadFolders,
+                    onMoveToFolder = {
+                        moveToFolderDialogVisible = false
+                        showContextMenu = false
+                        onMoveToFolder(it)
+                    },
+                    onDismissRequest = { moveToFolderDialogVisible = false }
                 )
             }
         }

@@ -35,7 +35,7 @@ class FolderRepo(private val queries: FolderQueries) {
             .mapToList(Dispatchers.IO)
     }
 
-    suspend fun getSubfoldersStatic(id: Long): List<Folder> {
+    suspend fun getSubfoldersStatic(id: Long?): List<Folder> {
         return withContext(Dispatchers.IO) {
             queries.getSubfolders(id).executeAsList()
         }
@@ -58,6 +58,16 @@ class FolderRepo(private val queries: FolderQueries) {
         require(name.isNotEmpty())
         withContext(Dispatchers.IO) {
             queries.updateName(name, Instant.now().toEpochMilli(), id)
+        }
+    }
+
+    suspend fun updateParentFolderId(id: Long, parentFolderId: Long?) {
+        withContext(Dispatchers.IO) {
+            queries.updateParentFolderId(
+                parent_folder_id = parentFolderId,
+                update_datetime = Instant.now().toEpochMilli(),
+                id = id
+            )
         }
     }
 
