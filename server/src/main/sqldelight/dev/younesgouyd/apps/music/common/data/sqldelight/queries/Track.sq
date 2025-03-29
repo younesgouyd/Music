@@ -1,0 +1,77 @@
+getAll:
+SELECT * FROM track;
+
+get:
+SELECT * FROM track WHERE id = :id;
+
+add:
+INSERT INTO track (name, folder_id, album_id, audio_url, video_url, lyrics, album_track_number, creation_datetime, update_datetime)
+VALUES (:name, :folder_id, :album_id, :audio_url, :video_url, :lyrics, :album_track_number, :creation_datetime, :update_datetime)
+RETURNING id;
+
+updateName:
+UPDATE track
+SET name = :name,
+    update_datetime = :update_datetime
+WHERE id = :id;
+
+updateAlbumId:
+UPDATE track
+SET album_id = :album_id,
+    update_datetime = :update_datetime
+WHERE id = :id;
+
+updateFolderId:
+UPDATE track
+SET folder_id = :folder_id,
+    update_datetime = :update_datetime
+WHERE id = :id;
+
+updateAudioUrl:
+UPDATE track
+SET audio_url = :audio_url,
+    update_datetime = :update_datetime
+WHERE id = :id;
+
+updateVideoUrl:
+UPDATE track
+SET video_url = :video_url,
+    update_datetime = :update_datetime
+WHERE id = :id;
+
+updateLyrics:
+UPDATE track
+SET lyrics = :lyrics,
+    update_datetime = :update_datetime
+WHERE id = :id;
+
+updateAlbumTrackNumber:
+UPDATE track
+SET album_track_number = :album_track_number,
+    update_datetime = :update_datetime
+WHERE id = :id;
+
+delete:
+DELETE FROM track WHERE id = :id;
+
+getAlbumTracks:
+SELECT *
+FROM track
+WHERE album_id = :album_id;
+
+getArtistTracks:
+SELECT DISTINCT t.*
+FROM track t
+JOIN artist_track_cross_ref cr ON cr.track_id = t.id
+WHERE cr.artist_id = :artist_id;
+
+getFolderTracks:
+SELECT *
+FROM track
+WHERE folder_id = :folder_id;
+
+getPlaylistTracks:
+SELECT DISTINCT t.*, cr.creation_datetime AS added_at
+FROM track t
+JOIN playlist_track_cross_ref cr ON cr.track_id = t.id
+WHERE cr.playlist_id = :playlist_id;

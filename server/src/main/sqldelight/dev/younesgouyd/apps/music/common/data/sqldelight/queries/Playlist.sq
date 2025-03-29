@@ -1,0 +1,42 @@
+getAll:
+SELECT * FROM playlist;
+
+get:
+SELECT * FROM playlist WHERE id = :id;
+
+add:
+INSERT INTO playlist (name, folder_id, image, creation_datetime, update_datetime)
+VALUES (:name, :folder_id, :image, :creation_datetime, :update_datetime)
+RETURNING id;
+
+updateName:
+UPDATE playlist
+SET name = :name,
+    update_datetime = :update_datetime
+WHERE id = :id;
+
+updateFolderId:
+UPDATE playlist
+SET folder_id = :folder_id,
+    update_datetime = :update_datetime
+WHERE id = :id;
+
+updateImage:
+UPDATE playlist
+SET image = :image,
+    update_datetime = :update_datetime
+WHERE id = :id;
+
+delete:
+DELETE FROM playlist WHERE id = :id;
+
+getFolderPlaylists:
+SELECT *
+FROM playlist
+WHERE folder_id = :folder_id;
+
+getTrackPlaylists:
+SELECT DISTINCT p.*
+FROM playlist p
+JOIN playlist_track_cross_ref cr ON cr.playlist_id = p.id
+WHERE cr.track_id = :track_id;

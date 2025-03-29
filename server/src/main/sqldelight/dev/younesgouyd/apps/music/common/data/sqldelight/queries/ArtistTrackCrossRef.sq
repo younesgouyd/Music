@@ -1,0 +1,8 @@
+add:
+INSERT INTO artist_track_cross_ref (artist_id, track_id, creation_datetime, update_datetime)
+VALUES (:artist_id, :track_id, :creation_datetime, :update_datetime);
+
+delete:
+DELETE FROM artist_track_cross_ref
+WHERE artist_id = :artist_id
+AND track_id = :track_id;
