@@ -37,28 +37,32 @@ dependencyResolutionManagement {
                 }
                 val sqldelight = version("sqldelight", "2.0.2")
                 val json = version("json", "20240303")
-                val vlcj = version("vlcj", "4.8.3")
+                val vlcj = object {
+                    val desktop = version("vlcj.desktop", "4.8.3")
+                    val android = version("vlcj.android", "3.6.0")
+                }
                 val mp3agic = version("mp3agic", "0.9.1")
             }
 
             plugin("kotlin.jvm", "org.jetbrains.kotlin.jvm").versionRef(versions.kotlin)
-            plugin("kotlin.android", "org.jetbrains.kotlin.android").versionRef(versions.kotlin)
-            plugin("android.application", "com.android.application").versionRef(versions.android.agp)
             plugin("compose.jetbrains", "org.jetbrains.compose").versionRef(versions.compose)
             plugin("compose.compiler", "org.jetbrains.kotlin.plugin.compose").versionRef(versions.kotlin)
             plugin("sqldelight", "app.cash.sqldelight").versionRef(versions.sqldelight)
 
             library("coroutines.core", "org.jetbrains.kotlinx", "kotlinx-coroutines-core").versionRef(versions.coroutines)
-            library("coroutines.android", "org.jetbrains.kotlinx", "kotlinx-coroutines-android").versionRef(versions.coroutines)
             library("sqldelight.sqliteDriver", "app.cash.sqldelight", "sqlite-driver").versionRef(versions.sqldelight)
             library("sqldelight.jdbcDriver", "app.cash.sqldelight", "jdbc-driver").versionRef(versions.sqldelight)
-            library("sqldelight.androidDriver", "app.cash.sqldelight", "android-driver").versionRef(versions.sqldelight)
             library("sqldelight.sqliteDialect", "app.cash.sqldelight", "sqlite-3-38-dialect").versionRef(versions.sqldelight)
             library("sqldelight.coroutines", "app.cash.sqldelight", "coroutines-extensions").versionRef(versions.sqldelight)
             library("json", "org.json", "json").versionRef(versions.json)
-            library("vlcj", "uk.co.caprica", "vlcj").versionRef(versions.vlcj)
+            library("vlcj.desktop", "uk.co.caprica", "vlcj").versionRef(versions.vlcj.desktop)
             library("mp3agic", "com.mpatric", "mp3agic").versionRef(versions.mp3agic)
 
+            // ANDROID
+            plugin("kotlin.android", "org.jetbrains.kotlin.android").versionRef(versions.kotlin)
+            plugin("android.application", "com.android.application").versionRef(versions.android.agp)
+
+            library("coroutines.android", "org.jetbrains.kotlinx", "kotlinx-coroutines-android").versionRef(versions.coroutines)
             library("android.coreKtx", "androidx.core", "core-ktx").versionRef(versions.android.coreKtx)
             library("android.appcompat", "androidx.appcompat", "appcompat").versionRef(versions.android.appcompat)
             library("android.activityKtx", "androidx.activity", "activity-ktx").versionRef(versions.android.activity)
@@ -69,6 +73,8 @@ dependencyResolutionManagement {
             library("android.lifecycle.viewmodelCompose", "androidx.lifecycle", "lifecycle-viewmodel-compose").versionRef(versions.android.lifecycle)
             library("android.navigation.uiKtx", "androidx.navigation", "navigation-ui-ktx").versionRef(versions.android.navigation)
             library("android.navigation.compose", "androidx.navigation", "navigation-compose").versionRef(versions.android.navigation)
+            library("sqldelight.androidDriver", "app.cash.sqldelight", "android-driver").versionRef(versions.sqldelight)
+            library("vlcj.android", "org.videolan.android", "libvlc-all").versionRef(versions.vlcj.android)
         }
     }
 }

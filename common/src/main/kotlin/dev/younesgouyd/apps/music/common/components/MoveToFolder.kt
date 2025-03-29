@@ -2,11 +2,11 @@ package dev.younesgouyd.apps.music.common.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import dev.younesgouyd.apps.music.common.Component
 import dev.younesgouyd.apps.music.common.data.repoes.FolderRepo
 import dev.younesgouyd.apps.music.common.data.repoes.PlaylistRepo
 import dev.younesgouyd.apps.music.common.data.repoes.PlaylistTrackCrossRefRepo
 import dev.younesgouyd.apps.music.common.data.repoes.TrackRepo
+import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.cancel
 
 class MoveToFolder(

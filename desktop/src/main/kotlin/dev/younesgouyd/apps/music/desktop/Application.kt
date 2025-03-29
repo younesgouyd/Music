@@ -7,11 +7,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.*
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import dev.younesgouyd.apps.music.common.Component
-import dev.younesgouyd.apps.music.common.components.Main
 import dev.younesgouyd.apps.music.common.components.SplashScreen
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.data.sqldelight.YounesMusic
+import dev.younesgouyd.apps.music.common.util.Component
+import dev.younesgouyd.apps.music.desktop.components.Main
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import java.io.File
@@ -31,7 +31,7 @@ object Application {
             file.createNewFile()
             YounesMusic.Schema.create(driver)
         }
-        repoStore = RepoStore(YounesMusic(driver))
+        repoStore = RepoStore(YounesMusic(driver), FileManager())
         currentComponent = MutableStateFlow(
             SplashScreen(
                 repoStore = repoStore,
@@ -58,7 +58,11 @@ object Application {
     private fun showContent() {
         currentComponent.update {
             it.clear()
-            Main(repoStore)
+            Main(
+                repoStore = repoStore,
+                mediaPlayer = MediaPlayer(),
+                mediaUtil = MediaUtil()
+            )
         }
     }
 }

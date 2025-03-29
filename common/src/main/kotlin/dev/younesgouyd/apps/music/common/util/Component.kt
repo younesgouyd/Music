@@ -1,4 +1,4 @@
-package dev.younesgouyd.apps.music.common
+package dev.younesgouyd.apps.music.common.util
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -10,7 +10,7 @@ abstract class Component {
     abstract val title: String
 
     @Composable
-    open fun show(modifier: Modifier) {}
+    abstract fun show(modifier: Modifier)
 
     abstract fun clear()
 }

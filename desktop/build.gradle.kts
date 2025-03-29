@@ -18,6 +18,10 @@ dependencies {
     implementation(compose.desktop.currentOs) {
         exclude("org.jetbrains.compose.material") // todo
     }
+    implementation(compose.material3)
+    implementation(compose.materialIconsExtended)
     implementation(libs.sqldelight.sqliteDriver)
     implementation(libs.sqldelight.jdbcDriver)
+    implementation(libs.json)
+    implementation(libs.vlcj.desktop)
 }

@@ -20,7 +20,6 @@ dependencies {
     implementation(libs.sqldelight.jdbcDriver)
     implementation(libs.sqldelight.coroutines)
     implementation(libs.json)
-    implementation(libs.vlcj)
     implementation(libs.mp3agic)
 }
 

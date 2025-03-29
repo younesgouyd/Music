@@ -2,8 +2,12 @@ package dev.younesgouyd.apps.music.common.data
 
 import dev.younesgouyd.apps.music.common.data.repoes.*
 import dev.younesgouyd.apps.music.common.data.sqldelight.YounesMusic
+import dev.younesgouyd.apps.music.common.util.FileManager
 
-class RepoStore(private val database: YounesMusic) {
+class RepoStore(
+    private val database: YounesMusic,
+    private val fileManager: FileManager
+) {
     lateinit var settingsRepo: SettingsRepo private set
     lateinit var albumRepo: AlbumRepo private set
     lateinit var artistRepo: ArtistRepo private set
@@ -14,7 +18,7 @@ class RepoStore(private val database: YounesMusic) {
     lateinit var trackRepo: TrackRepo private set
 
     suspend fun init() {
-        settingsRepo = SettingsRepo()
+        settingsRepo = SettingsRepo(fileManager)
         folderRepo = FolderRepo(database.folderQueries)
         albumRepo = AlbumRepo(database.albumQueries)
         artistRepo = ArtistRepo(database.artistQueries)

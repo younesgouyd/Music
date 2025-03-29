@@ -11,9 +11,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.common.Component
-import dev.younesgouyd.apps.music.common.DarkThemeOptions
 import dev.younesgouyd.apps.music.common.data.RepoStore
+import dev.younesgouyd.apps.music.common.util.Component
+import dev.younesgouyd.apps.music.common.util.DarkThemeOptions
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
