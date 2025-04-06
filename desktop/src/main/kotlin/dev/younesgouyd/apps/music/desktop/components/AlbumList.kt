@@ -21,9 +21,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.common.components.AlbumList
 import dev.younesgouyd.apps.music.common.components.util.MediaController
-import dev.younesgouyd.apps.music.common.components.util.widgets.*
 import dev.younesgouyd.apps.music.common.data.repoes.*
+import dev.younesgouyd.apps.music.desktop.components.util.widgets.*
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 
 class AlbumList(
     albumRepo: AlbumRepo,
@@ -44,6 +45,21 @@ class AlbumList(
         val state by state.collectAsState()
 
         Ui.Main(modifier = modifier, state = state)
+    }
+
+    override fun showAddToPlaylistDialog(albumId: Long) {
+        addToPlaylist.update {
+            AddToPlaylist(
+                itemToAdd = dev.younesgouyd.apps.music.common.components.AddToPlaylist.Item.Album(albumId),
+                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                trackRepo = trackRepo,
+                albumRepo = albumRepo,
+                folderRepo = folderRepo,
+                dismiss = ::dismissAddToPlaylistDialog,
+                playlistRepo = playlistRepo
+            )
+        }
+        addToPlaylistDialogVisible.update { true }
     }
 
     private object Ui {

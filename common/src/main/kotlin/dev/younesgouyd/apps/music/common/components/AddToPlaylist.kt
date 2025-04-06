@@ -1,21 +1,7 @@
 package dev.younesgouyd.apps.music.common.components
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.common.components.util.widgets.Image
-import dev.younesgouyd.apps.music.common.components.util.widgets.Item
-import dev.younesgouyd.apps.music.common.components.util.widgets.VerticalScrollbar
 import dev.younesgouyd.apps.music.common.data.repoes.*
 import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Track
 import dev.younesgouyd.apps.music.common.data.sqldelight.queries.GetPlaylistTracks
@@ -24,7 +10,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class AddToPlaylist(
+abstract class AddToPlaylist(
     private val itemToAdd: Item,
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     private val trackRepo: TrackRepo,
@@ -34,7 +20,7 @@ class AddToPlaylist(
     private val playlistRepo: PlaylistRepo
 ) : Component() {
     override val title: String = "Add to Playlist"
-    private val state: MutableStateFlow<AddToPlaylistState> = MutableStateFlow(AddToPlaylistState.Loading)
+    protected val state: MutableStateFlow<AddToPlaylistState> = MutableStateFlow(AddToPlaylistState.Loading)
     private val _adding: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
     val adding: StateFlow<Boolean> get() = _adding.asStateFlow()
@@ -85,14 +71,7 @@ class AddToPlaylist(
     }
 
     @Composable
-    override fun show(modifier: Modifier) {
-        val state by state.collectAsState()
-
-        Ui.Main(
-            modifier = modifier,
-            state = state
-        )
-    }
+    abstract override fun show(modifier: Modifier)
 
     override fun clear() {
         coroutineScope.cancel()
@@ -164,7 +143,7 @@ class AddToPlaylist(
         data class Folder(override val id: Long) : Item()
     }
 
-    private sealed class AddToPlaylistState {
+    protected sealed class AddToPlaylistState {
         data object Loading : AddToPlaylistState()
 
         data class Loaded(
@@ -209,135 +188,6 @@ class AddToPlaylist(
                 data class Id(val value: Long) : PlaylistToAddTo()
 
                 data class New(val name: String) : PlaylistToAddTo()
-            }
-        }
-    }
-
-    private object Ui {
-        @Composable
-        fun Main(
-            modifier: Modifier,
-            state: AddToPlaylistState
-        ) {
-            when (state) {
-                is AddToPlaylistState.Loading -> Text(modifier = modifier, text = "Loading...")
-                is AddToPlaylistState.Loaded -> Main(modifier = modifier, loaded = state)
-            }
-        }
-        @Composable
-        fun Main(
-            modifier: Modifier,
-            loaded: AddToPlaylistState.Loaded
-        ) {
-            val adding by loaded.adding.collectAsState()
-            val itemToAdd = loaded.itemToAdd
-            val playlists by loaded.playlists.collectAsState()
-            val lazyColumnState = rememberLazyListState()
-
-            if (!adding) {
-                Surface(
-                    modifier = modifier.size(width = 500.dp, height = 600.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Spacer(Modifier.height(12.dp))
-                        Text(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                            text = "Add to playlist",
-                            style = MaterialTheme.typography.headlineMedium,
-                            textAlign = TextAlign.Center
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Image(
-                                modifier = Modifier.size(64.dp),
-                                data = itemToAdd.image
-                            )
-                            Text(
-                                text = itemToAdd.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        Box(modifier = Modifier.fillMaxWidth()) {
-                            VerticalScrollbar(lazyColumnState)
-                            LazyColumn(
-                                modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
-                                state = lazyColumnState,
-                                contentPadding = PaddingValues(8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                item {
-                                    var name by remember { mutableStateOf("") }
-
-                                    Item(
-                                        modifier = Modifier.padding(8.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            androidx.compose.foundation.Image(
-                                                modifier = Modifier.size(64.dp),
-                                                imageVector = Icons.AutoMirrored.Default.PlaylistAdd,
-                                                contentDescription = null
-                                            )
-                                            OutlinedTextField(
-                                                modifier = Modifier.weight(1f),
-                                                label = { Text("Create new playlist") },
-                                                value = name,
-                                                onValueChange = { name = it }
-                                            )
-                                            Button(
-                                                content = { Text("Done") },
-                                                onClick = { loaded.onAddTopPlaylist(AddToPlaylistState.Loaded.PlaylistToAddTo.New(name)) }
-                                            )
-                                        }
-                                    }
-                                }
-                                items(
-                                    items = playlists,
-                                    key = { it.id }
-                                ) { playlistOption ->
-                                    Item(
-                                        modifier = Modifier.padding(8.dp),
-                                        onClick = { loaded.onAddTopPlaylist(AddToPlaylistState.Loaded.PlaylistToAddTo.Id(playlistOption.id)) }
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Image(
-                                                modifier = Modifier.size(64.dp),
-                                                data = playlistOption.image
-                                            )
-                                            Text(
-                                                text = playlistOption.name,
-                                                style = MaterialTheme.typography.titleMedium,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                Text(modifier = modifier, text = "Adding...")
             }
         }
     }

@@ -22,15 +22,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import dev.younesgouyd.apps.music.common.components.AddToPlaylist
 import dev.younesgouyd.apps.music.common.components.Library
 import dev.younesgouyd.apps.music.common.components.util.MediaController
-import dev.younesgouyd.apps.music.common.components.util.widgets.*
 import dev.younesgouyd.apps.music.common.data.repoes.*
 import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Folder
 import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Playlist
+import dev.younesgouyd.apps.music.desktop.components.util.widgets.*
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -60,7 +60,7 @@ class Library(
             playlists = playlists,
             tracks = tracks,
             addToPlaylistDialogVisible = addToPlaylistDialogVisible,
-            addToPlaylist = addToPlaylist,
+            addToPlaylist = addToPlaylist.asStateFlow(),
             onImportFolder = ::importFolder,
             onNewFolder = {
                 coroutineScope.launch {
@@ -147,6 +147,57 @@ class Library(
         )
     }
 
+    override fun showAddTrackToPlaylistDialog(trackId: Long) {
+        addToPlaylist.update {
+            AddToPlaylist(
+                itemToAdd = dev.younesgouyd.apps.music.common.components.AddToPlaylist.Item.Track(
+                    trackId
+                ),
+                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                trackRepo = trackRepo,
+                albumRepo = albumRepo,
+                folderRepo = folderRepo,
+                dismiss = ::dismissAddToPlaylistDialog,
+                playlistRepo = playlistRepo
+            )
+        }
+        addToPlaylistDialogVisible.update { true }
+    }
+
+    override fun showAddPlaylistToPlaylistDialog(playlistId: Long) {
+        addToPlaylist.update {
+            AddToPlaylist(
+                itemToAdd = dev.younesgouyd.apps.music.common.components.AddToPlaylist.Item.Playlist(
+                    playlistId
+                ),
+                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                trackRepo = trackRepo,
+                albumRepo = albumRepo,
+                folderRepo = folderRepo,
+                dismiss = ::dismissAddToPlaylistDialog,
+                playlistRepo = playlistRepo
+            )
+        }
+        addToPlaylistDialogVisible.update { true }
+    }
+
+    override fun showAddFolderToPlaylistDialog(folderId: Long) {
+        addToPlaylist.update {
+            AddToPlaylist(
+                itemToAdd = dev.younesgouyd.apps.music.common.components.AddToPlaylist.Item.Folder(
+                    folderId
+                ),
+                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                trackRepo = trackRepo,
+                albumRepo = albumRepo,
+                folderRepo = folderRepo,
+                dismiss = ::dismissAddToPlaylistDialog,
+                playlistRepo = playlistRepo
+            )
+        }
+        addToPlaylistDialogVisible.update { true }
+    }
+
     private fun importFolder(path: String) {
         suspend fun importFolder(folder: File, parent: Long?) {
             val parent: Long = folderRepo.add(folder.name, parent)
@@ -179,7 +230,7 @@ class Library(
             onImportFolder: (path: String) -> Unit,
             onNewFolder: (name: String) -> Unit,
             addToPlaylistDialogVisible: StateFlow<Boolean>,
-            addToPlaylist: StateFlow<AddToPlaylist?>,
+            addToPlaylist: StateFlow<dev.younesgouyd.apps.music.common.components.AddToPlaylist?>,
             onNewTrack: (name: String, audioUrl: String?, videoUrl: String?) -> Unit,
             onFolderClick: (Folder?) -> Unit,
             onAddFolderToPlaylistClick: (id: Long) -> Unit,

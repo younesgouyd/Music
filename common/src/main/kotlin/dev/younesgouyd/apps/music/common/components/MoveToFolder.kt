@@ -9,7 +9,7 @@ import dev.younesgouyd.apps.music.common.data.repoes.TrackRepo
 import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.cancel
 
-class MoveToFolder(
+abstract class MoveToFolder(
     private val itemToMove: Item,
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     private val trackRepo: TrackRepo,
@@ -20,9 +20,7 @@ class MoveToFolder(
     override val title: String = "Move to Folder"
 
     @Composable
-    override fun show(modifier: Modifier) {
-        TODO("Not yet implemented")
-    }
+    abstract override fun show(modifier: Modifier)
 
     override fun clear() {
         coroutineScope.cancel()

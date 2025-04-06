@@ -48,7 +48,6 @@ dependencies {
 
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
-
     implementation(compose.material3)
     implementation(compose.materialIconsExtended)
     implementation(libs.android.coreKtx)

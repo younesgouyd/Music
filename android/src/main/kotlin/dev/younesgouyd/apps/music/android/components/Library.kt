@@ -28,15 +28,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import dev.younesgouyd.apps.music.common.components.AddToPlaylist
+import dev.younesgouyd.apps.music.android.components.util.widgets.*
 import dev.younesgouyd.apps.music.common.components.Library
 import dev.younesgouyd.apps.music.common.components.util.MediaController
-import dev.younesgouyd.apps.music.common.components.util.widgets.*
 import dev.younesgouyd.apps.music.common.data.repoes.*
 import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Folder
 import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Playlist
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -55,45 +55,6 @@ class Library(
     folderRepo, playlistRepo, trackRepo, albumRepo, artistRepo, artistTrackCrossRefRepo,
     playlistTrackCrossRefRepo, mediaController
 ) {
-    private fun importFolder(context: Context, folderUri: Uri) {
-        fun getFileName(uri: Uri): String {
-            return uri.lastPathSegment?.substringAfterLast('/') ?: TODO()
-        }
-        suspend fun importFolder(folderUri: Uri, parent: Long?) {
-            val parent: Long = folderRepo.add(getFileName(folderUri), parent)
-            val contentResolver = context.contentResolver
-            val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(folderUri, DocumentsContract.getTreeDocumentId(folderUri))
-            contentResolver.query(childrenUri, arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_MIME_TYPE), null, null, null)?.use { cursor ->
-                val documentIdIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
-                val mimeTypeIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE)
-                while (cursor.moveToNext()) {
-                    val documentId = cursor.getString(documentIdIndex)
-                    val mimeType = cursor.getString(mimeTypeIndex)
-                    val documentUri = DocumentsContract.buildDocumentUriUsingTree(folderUri, documentId)
-                    if (mimeType == DocumentsContract.Document.MIME_TYPE_DIR) {
-                        importFolder(documentUri, parent)
-                    } else if (mimeType == "audio/mpeg") {
-                        context.contentResolver.openInputStream(documentUri)?.use { inputStream ->
-                            val tempFile = File.createTempFile(getFileName(documentUri), ".mp3", context.cacheDir)
-                            tempFile.outputStream().use { output -> inputStream.copyTo(output) }
-                            try {
-                                saveMp3FileAsTrack(tempFile, parent)
-                            } finally {
-                                tempFile.delete()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        coroutineScope.launch {
-            importingFolder.value = true
-            importFolder(folderUri, null)
-            importingFolder.value = false
-        }
-    }
-
-
     @Composable
     override fun show(modifier: Modifier) {
         Ui.Main(
@@ -105,7 +66,7 @@ class Library(
             playlists = playlists,
             tracks = tracks,
             addToPlaylistDialogVisible = addToPlaylistDialogVisible,
-            addToPlaylist = addToPlaylist,
+            addToPlaylist = addToPlaylist.asStateFlow(),
             onImportFolder = ::importFolder,
             onNewFolder = {
                 coroutineScope.launch {
@@ -192,6 +153,95 @@ class Library(
         )
     }
 
+    override fun showAddTrackToPlaylistDialog(trackId: Long) {
+        addToPlaylist.update {
+            AddToPlaylist(
+                itemToAdd = dev.younesgouyd.apps.music.common.components.AddToPlaylist.Item.Track(
+                    trackId
+                ),
+                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                trackRepo = trackRepo,
+                albumRepo = albumRepo,
+                folderRepo = folderRepo,
+                dismiss = ::dismissAddToPlaylistDialog,
+                playlistRepo = playlistRepo
+            )
+        }
+        addToPlaylistDialogVisible.update { true }
+    }
+
+    override fun showAddPlaylistToPlaylistDialog(playlistId: Long) {
+        addToPlaylist.update {
+            AddToPlaylist(
+                itemToAdd = dev.younesgouyd.apps.music.common.components.AddToPlaylist.Item.Playlist(
+                    playlistId
+                ),
+                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                trackRepo = trackRepo,
+                albumRepo = albumRepo,
+                folderRepo = folderRepo,
+                dismiss = ::dismissAddToPlaylistDialog,
+                playlistRepo = playlistRepo
+            )
+        }
+        addToPlaylistDialogVisible.update { true }
+    }
+
+    override fun showAddFolderToPlaylistDialog(folderId: Long) {
+        addToPlaylist.update {
+            AddToPlaylist(
+                itemToAdd = dev.younesgouyd.apps.music.common.components.AddToPlaylist.Item.Folder(
+                    folderId
+                ),
+                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                trackRepo = trackRepo,
+                albumRepo = albumRepo,
+                folderRepo = folderRepo,
+                dismiss = ::dismissAddToPlaylistDialog,
+                playlistRepo = playlistRepo
+            )
+        }
+        addToPlaylistDialogVisible.update { true }
+    }
+
+    private fun importFolder(context: Context, folderUri: Uri) {
+        fun getFileName(uri: Uri): String {
+            return uri.lastPathSegment?.substringAfterLast('/') ?: TODO()
+        }
+        suspend fun importFolder(folderUri: Uri, parent: Long?) {
+            val parent: Long = folderRepo.add(getFileName(folderUri), parent)
+            val contentResolver = context.contentResolver
+            val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(folderUri, DocumentsContract.getTreeDocumentId(folderUri))
+            contentResolver.query(childrenUri, arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_MIME_TYPE), null, null, null)?.use { cursor ->
+                val documentIdIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+                val mimeTypeIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE)
+                while (cursor.moveToNext()) {
+                    val documentId = cursor.getString(documentIdIndex)
+                    val mimeType = cursor.getString(mimeTypeIndex)
+                    val documentUri = DocumentsContract.buildDocumentUriUsingTree(folderUri, documentId)
+                    if (mimeType == DocumentsContract.Document.MIME_TYPE_DIR) {
+                        importFolder(documentUri, parent)
+                    } else if (mimeType == "audio/mpeg") {
+                        context.contentResolver.openInputStream(documentUri)?.use { inputStream ->
+                            val tempFile = File.createTempFile(getFileName(documentUri), ".mp3", context.cacheDir)
+                            tempFile.outputStream().use { output -> inputStream.copyTo(output) }
+                            try {
+                                saveMp3FileAsTrack(tempFile, parent)
+                            } finally {
+                                tempFile.delete()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        coroutineScope.launch {
+            importingFolder.value = true
+            importFolder(folderUri, null)
+            importingFolder.value = false
+        }
+    }
+
     private object Ui {
         @Composable
         fun Main(
@@ -205,7 +255,7 @@ class Library(
             onImportFolder: (context: Context, folderUri: Uri) -> Unit,
             onNewFolder: (name: String) -> Unit,
             addToPlaylistDialogVisible: StateFlow<Boolean>,
-            addToPlaylist: StateFlow<AddToPlaylist?>,
+            addToPlaylist: StateFlow<dev.younesgouyd.apps.music.common.components.AddToPlaylist?>,
             onNewTrack: (name: String, audioUrl: String?, videoUrl: String?) -> Unit,
             onFolderClick: (Folder?) -> Unit,
             onAddFolderToPlaylistClick: (id: Long) -> Unit,
@@ -250,7 +300,11 @@ class Library(
                 ) {
                     Scaffold(
                         modifier = Modifier.weight(weight = .7f),
-                        floatingActionButton = { ScrollToTopFloatingActionButton(lazyGridState) }
+                        floatingActionButton = {
+                            ScrollToTopFloatingActionButton(
+                                lazyGridState
+                            )
+                        }
                     ) { paddingValues ->
                         Column(
                             modifier = Modifier.fillMaxSize().padding(paddingValues),

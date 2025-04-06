@@ -17,11 +17,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.android.components.util.widgets.Image
+import dev.younesgouyd.apps.music.android.components.util.widgets.Item
+import dev.younesgouyd.apps.music.android.components.util.widgets.ScrollToTopFloatingActionButton
 import dev.younesgouyd.apps.music.common.components.ArtistList
-import dev.younesgouyd.apps.music.common.components.util.widgets.Image
-import dev.younesgouyd.apps.music.common.components.util.widgets.Item
-import dev.younesgouyd.apps.music.common.components.util.widgets.ScrollToTopFloatingActionButton
-import dev.younesgouyd.apps.music.common.components.util.widgets.VerticalScrollbar
 import dev.younesgouyd.apps.music.common.data.repoes.ArtistRepo
 import kotlinx.coroutines.flow.StateFlow
 
@@ -67,7 +66,6 @@ class ArtistList(
                 modifier = modifier.fillMaxSize(),
                 content = { paddingValues ->
                     Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-                        VerticalScrollbar(lazyGridState)
                         LazyVerticalGrid(
                             modifier = Modifier.fillMaxSize().padding(end = 16.dp),
                             state = lazyGridState,
@@ -88,7 +86,11 @@ class ArtistList(
                         }
                     }
                 },
-                floatingActionButton = { ScrollToTopFloatingActionButton(lazyGridState) }
+                floatingActionButton = {
+                    ScrollToTopFloatingActionButton(
+                        lazyGridState
+                    )
+                }
             )
         }
 

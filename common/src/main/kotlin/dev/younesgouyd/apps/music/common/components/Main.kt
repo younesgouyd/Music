@@ -12,9 +12,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 
 abstract class Main(
-    private val repoStore: RepoStore,
-    private val mediaPlayer: MediaPlayer,
-    private val mediaUtil: MediaUtil
+    repoStore: RepoStore,
+    mediaPlayer: MediaPlayer,
+    mediaUtil: MediaUtil
 ) : Component() {
     override val title: String = ""
     protected val mainComponentController = MainComponentController()
@@ -24,21 +24,10 @@ abstract class Main(
         initialValue = DarkThemeOptions.SystemDefault
     )
 
-    protected val mediaController = MediaController(
-        trackRepo = repoStore.trackRepo,
-        artistRepo = repoStore.artistRepo,
-        albumRepo = repoStore.albumRepo,
-        playlistRepo = repoStore.playlistRepo,
-        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
-        folderRepo = repoStore.folderRepo,
-        onAlbumClick = mainComponentController::showAlbums,
-        onArtistClick = mainComponentController::showArtists,
-        mediaPlayer = mediaPlayer,
-        mediaUtil = mediaUtil
-    )
+    protected abstract val mediaController: MediaController
 
-    protected val player = Player(mediaController)
-    protected val queue = Queue(mediaController)
+    protected abstract val player: Player
+    protected abstract val queue: Queue
 
     protected abstract val settingsHost: Settings
     protected abstract val libraryHost: NavigationHost

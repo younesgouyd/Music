@@ -17,10 +17,10 @@ abstract class Library(
     private val folderRepo: FolderRepo,
     private val playlistRepo: PlaylistRepo,
     private val trackRepo: TrackRepo,
-    private val albumRepo: AlbumRepo,
+    protected val albumRepo: AlbumRepo,
     private val artistRepo: ArtistRepo,
     private val artistTrackCrossRefRepo: ArtistTrackCrossRefRepo,
-    private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
+    protected val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     private val mediaController: MediaController
 ) : Component() {
     override val title: String = "Library"
@@ -215,56 +215,11 @@ abstract class Library(
         }
     }
 
-    protected fun showAddTrackToPlaylistDialog(trackId: Long) {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Track(
-                    trackId
-                ),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                albumRepo = albumRepo,
-                folderRepo = folderRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.update { true }
-    }
+    protected abstract fun showAddTrackToPlaylistDialog(trackId: Long)
 
-    protected fun showAddPlaylistToPlaylistDialog(playlistId: Long) {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Playlist(
-                    playlistId
-                ),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                albumRepo = albumRepo,
-                folderRepo = folderRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.update { true }
-    }
+    protected abstract fun showAddPlaylistToPlaylistDialog(playlistId: Long)
 
-    protected fun showAddFolderToPlaylistDialog(folderId: Long) {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Folder(
-                    folderId
-                ),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                albumRepo = albumRepo,
-                folderRepo = folderRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.update { true }
-    }
+    protected abstract fun showAddFolderToPlaylistDialog(folderId: Long)
 
     protected fun addFolderToQueue(id: Long) {
         suspend fun getFolderItems(_id: Long): List<MediaController.QueueItemParameter> {

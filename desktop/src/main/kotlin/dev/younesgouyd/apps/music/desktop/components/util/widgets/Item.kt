@@ -1,4 +1,4 @@
-package dev.younesgouyd.apps.music.common.components.util.widgets
+package dev.younesgouyd.apps.music.desktop.components.util.widgets
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize

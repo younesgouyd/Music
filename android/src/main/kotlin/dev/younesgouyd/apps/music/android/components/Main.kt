@@ -9,9 +9,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.android.components.util.MediaController
 import dev.younesgouyd.apps.music.common.components.Main
 import dev.younesgouyd.apps.music.common.components.NavigationHost
-import dev.younesgouyd.apps.music.common.components.Settings
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.util.Component
 import dev.younesgouyd.apps.music.common.util.DarkThemeOptions
@@ -24,6 +24,21 @@ class Main(
     mediaPlayer: MediaPlayer,
     mediaUtil: MediaUtil
 ) : Main(repoStore, mediaPlayer, mediaUtil) {
+    override val mediaController = MediaController(
+        trackRepo = repoStore.trackRepo,
+        artistRepo = repoStore.artistRepo,
+        albumRepo = repoStore.albumRepo,
+        playlistRepo = repoStore.playlistRepo,
+        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
+        folderRepo = repoStore.folderRepo,
+        onAlbumClick = mainComponentController::showAlbums,
+        onArtistClick = mainComponentController::showArtists,
+        mediaPlayer = mediaPlayer,
+        mediaUtil = mediaUtil
+    )
+
+    override val player = Player(mediaController)
+    override val queue = Queue(mediaController)
     override val settingsHost: Settings by lazy { Settings(repoStore) }
     override val libraryHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.Library) }
     override val playlistsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.PlaylistList) }

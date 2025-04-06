@@ -8,24 +8,25 @@ import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.time.Instant
+import java.text.SimpleDateFormat
+import java.util.*
 
 abstract class PlaylistDetails(
-    private val id: Long,
-    private val trackRepo: TrackRepo,
-    private val playlistRepo: PlaylistRepo,
+    protected val id: Long,
+    protected val trackRepo: TrackRepo,
+    protected val playlistRepo: PlaylistRepo,
     private val artistRepo: ArtistRepo,
-    private val albumRepo: AlbumRepo,
-    private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
-    private val folderRepo: FolderRepo,
+    protected val albumRepo: AlbumRepo,
+    protected val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
+    protected val folderRepo: FolderRepo,
     private val mediaController: MediaController,
     showArtistDetails: (id: Long) -> Unit,
     showAlbumDetails: (id: Long) -> Unit
 ) : Component() {
     override val title: String = "Playlist"
     protected val state: MutableStateFlow<PlaylistDetailsState> = MutableStateFlow(PlaylistDetailsState.Loading)
-    private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
+    protected val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    protected val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
 
     init {
         coroutineScope.launch {
@@ -58,7 +59,7 @@ abstract class PlaylistDetails(
                                         )
                                     }
                                 },
-                                addedAt = Instant.ofEpochMilli(dbTrack.added_at).toString()
+                                addedAt = formatAddedAt(dbTrack.added_at)
                             )
                         }
                     }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList()),
@@ -106,35 +107,9 @@ abstract class PlaylistDetails(
         }
     }
 
-    private fun showAddToPlaylistDialog() {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Playlist(id),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                albumRepo = albumRepo,
-                folderRepo = folderRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.update { true }
-    }
+    protected abstract fun showAddToPlaylistDialog()
 
-    private fun showAddTrackToPlaylistDialog(trackId: Long) {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Track(trackId),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                albumRepo = albumRepo,
-                folderRepo = folderRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.update { true }
-    }
+    protected abstract fun showAddTrackToPlaylistDialog(trackId: Long)
 
     private fun removeTrackFromPlaylist(trackId: Long) {
         coroutineScope.launch {
@@ -142,7 +117,7 @@ abstract class PlaylistDetails(
         }
     }
 
-    private fun dismissAddToPlaylistDialog() {
+    protected fun dismissAddToPlaylistDialog() {
         if (addToPlaylist.value?.adding?.value == true) {
             return
         }
@@ -198,5 +173,12 @@ abstract class PlaylistDetails(
                 )
             }
         }
+    }
+
+    private fun formatAddedAt(addedAtMillis: Long): String {
+        val date = Date(addedAtMillis)
+        val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+        formatter.timeZone = TimeZone.getTimeZone("UTC")
+        return formatter.format(date)
     }
 }

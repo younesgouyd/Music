@@ -7,11 +7,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.*
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import dev.younesgouyd.apps.music.common.components.SplashScreen
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.data.sqldelight.YounesMusic
 import dev.younesgouyd.apps.music.common.util.Component
 import dev.younesgouyd.apps.music.desktop.components.Main
+import dev.younesgouyd.apps.music.desktop.components.SplashScreen
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import java.io.File

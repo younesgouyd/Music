@@ -10,7 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import dev.younesgouyd.apps.music.android.components.Main
-import dev.younesgouyd.apps.music.common.components.SplashScreen
+import dev.younesgouyd.apps.music.android.components.SplashScreen
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.data.sqldelight.YounesMusic
 import dev.younesgouyd.apps.music.common.util.Component
@@ -25,8 +25,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val driver = AndroidSqliteDriver(schema = YounesMusic.Schema, context = this, "younesmusic.db")
+        driver.execute(null, "PRAGMA foreign_keys = ON;", 0)
         _repoStore = RepoStore(
-            database = YounesMusic(AndroidSqliteDriver(schema = YounesMusic.Schema, context = this)),
+            database = YounesMusic(driver),
             fileManager = FileManager(this)
         )
         currentComponent = MutableStateFlow(

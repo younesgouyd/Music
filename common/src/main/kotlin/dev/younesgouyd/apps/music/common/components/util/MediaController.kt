@@ -10,13 +10,13 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-class MediaController(
-    private val trackRepo: TrackRepo,
+abstract class MediaController(
+    protected val trackRepo: TrackRepo,
     private val artistRepo: ArtistRepo,
-    private val albumRepo: AlbumRepo,
-    private val playlistRepo: PlaylistRepo,
-    private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
-    private val folderRepo: FolderRepo,
+    protected val albumRepo: AlbumRepo,
+    protected val playlistRepo: PlaylistRepo,
+    protected val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
+    protected val folderRepo: FolderRepo,
     private val onAlbumClick: (Long) -> Unit,
     private val onArtistClick: (Long) -> Unit,
     private val mediaPlayer: MediaPlayer,
@@ -26,8 +26,8 @@ class MediaController(
     private val mutex = Mutex()
     private val _state: MutableStateFlow<MediaControllerState> = MutableStateFlow(MediaControllerState.Unavailable)
     private val enabled: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
+    protected val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    protected val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
     private val elapsedTime: StateFlow<Long>
 
     val state: StateFlow<MediaControllerState> get() = _state.asStateFlow()
@@ -682,22 +682,9 @@ class MediaController(
         mediaPlayer.release()
     }
 
-    private fun showAddToPlaylistDialog(trackId: Long) {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Track(trackId),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                albumRepo = albumRepo,
-                folderRepo = folderRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.update { true }
-    }
+    protected abstract fun showAddToPlaylistDialog(trackId: Long)
 
-    private fun dismissAddToPlaylistDialog() {
+    protected fun dismissAddToPlaylistDialog() {
         if (addToPlaylist.value?.adding?.value == true) {
             return
         }

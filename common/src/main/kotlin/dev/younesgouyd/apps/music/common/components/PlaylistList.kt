@@ -10,18 +10,18 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 abstract class PlaylistList(
-    private val playlistRepo: PlaylistRepo,
-    private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
-    private val trackRepo: TrackRepo,
-    private val folderRepo: FolderRepo,
-    private val albumRepo: AlbumRepo,
+    protected val playlistRepo: PlaylistRepo,
+    protected val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
+    protected val trackRepo: TrackRepo,
+    protected val folderRepo: FolderRepo,
+    protected val albumRepo: AlbumRepo,
     private val mediaController: MediaController,
     showPlaylistDetails: (id: Long) -> Unit
 ) : Component() {
     override val title: String = "Playlists"
     protected val state: MutableStateFlow<PlaylistListState> = MutableStateFlow(PlaylistListState.Loading)
-    private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
+    protected val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    protected val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
 
     init {
         coroutineScope.launch {
@@ -77,22 +77,9 @@ abstract class PlaylistList(
         }
     }
 
-    private fun showAddToPlaylistDialog(playlistId: Long) {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Playlist(playlistId),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                albumRepo = albumRepo,
-                folderRepo = folderRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.update { true }
-    }
+    protected abstract fun showAddToPlaylistDialog(playlistId: Long)
 
-    private fun dismissAddToPlaylistDialog() {
+    protected fun dismissAddToPlaylistDialog() {
         if (addToPlaylist.value?.adding?.value == true) {
             return
         }

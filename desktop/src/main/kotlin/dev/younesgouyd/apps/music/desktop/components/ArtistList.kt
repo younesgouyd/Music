@@ -18,11 +18,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.common.components.ArtistList
-import dev.younesgouyd.apps.music.common.components.util.widgets.Image
-import dev.younesgouyd.apps.music.common.components.util.widgets.Item
-import dev.younesgouyd.apps.music.common.components.util.widgets.ScrollToTopFloatingActionButton
-import dev.younesgouyd.apps.music.common.components.util.widgets.VerticalScrollbar
 import dev.younesgouyd.apps.music.common.data.repoes.ArtistRepo
+import dev.younesgouyd.apps.music.desktop.components.util.widgets.Image
+import dev.younesgouyd.apps.music.desktop.components.util.widgets.Item
+import dev.younesgouyd.apps.music.desktop.components.util.widgets.ScrollToTopFloatingActionButton
+import dev.younesgouyd.apps.music.desktop.components.util.widgets.VerticalScrollbar
 import kotlinx.coroutines.flow.StateFlow
 
 class ArtistList(

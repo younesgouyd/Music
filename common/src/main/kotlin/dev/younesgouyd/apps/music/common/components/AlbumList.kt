@@ -10,20 +10,20 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 abstract class AlbumList(
-    private val albumRepo: AlbumRepo,
+    protected val albumRepo: AlbumRepo,
     private val artistRepo: ArtistRepo,
-    private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
-    private val trackRepo: TrackRepo,
-    private val playlistRepo: PlaylistRepo,
-    private val folderRepo: FolderRepo,
+    protected val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
+    protected val trackRepo: TrackRepo,
+    protected val playlistRepo: PlaylistRepo,
+    protected val folderRepo: FolderRepo,
     private val mediaController: MediaController,
     showAlbumDetails: (Long) -> Unit,
     showArtistDetails: (Long) -> Unit
 ) : Component() {
     override val title: String = "Albums"
     protected val state: MutableStateFlow<AlbumListState> = MutableStateFlow(AlbumListState.Loading)
-    private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
+    protected val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    protected val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
 
     init {
         coroutineScope.launch {
@@ -73,22 +73,9 @@ abstract class AlbumList(
         mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Album(id)))
     }
 
-    private fun showAddToPlaylistDialog(albumId: Long) {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Album(albumId),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                albumRepo = albumRepo,
-                folderRepo = folderRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.update { true }
-    }
+    protected abstract fun showAddToPlaylistDialog(albumId: Long)
 
-    private fun dismissAddToPlaylistDialog() {
+    protected fun dismissAddToPlaylistDialog() {
         if (addToPlaylist.value?.adding?.value == true) {
             return
         }

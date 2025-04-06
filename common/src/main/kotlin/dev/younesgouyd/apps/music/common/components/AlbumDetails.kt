@@ -13,20 +13,20 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalCoroutinesApi::class)
 abstract class AlbumDetails(
-    private val id: Long,
-    private val albumRepo: AlbumRepo,
+    protected val id: Long,
+    protected val albumRepo: AlbumRepo,
     private val artistRepo: ArtistRepo,
-    private val trackRepo: TrackRepo,
-    private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
-    private val playlistRepo: PlaylistRepo,
-    private val folderRepo: FolderRepo,
+    protected val trackRepo: TrackRepo,
+    protected val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
+    protected val playlistRepo: PlaylistRepo,
+    protected val folderRepo: FolderRepo,
     private val mediaController: MediaController,
     private val showArtistDetails: (Long) -> Unit
 ) : Component() {
     override val title: String = "Album"
     protected val state: MutableStateFlow<AlbumDetailsState> = MutableStateFlow(AlbumDetailsState.Loading)
-    private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
+    protected val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    protected val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
 
     init {
         coroutineScope.launch {
@@ -102,41 +102,15 @@ abstract class AlbumDetails(
         }
     }
 
-    private fun showAddToPlaylistDialog() {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Album(id),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                albumRepo = albumRepo,
-                folderRepo = folderRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.update { true }
-    }
+    protected abstract fun showAddToPlaylistDialog()
 
     private fun addTrackToQueue(id: Long) {
         mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(id)))
     }
 
-    private fun showAddTrackToPlaylistDialog(trackId: Long) {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Track(trackId),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                albumRepo = albumRepo,
-                folderRepo = folderRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.update { true }
-    }
+    protected abstract fun showAddTrackToPlaylistDialog(trackId: Long)
 
-    private fun dismissAddToPlaylistDialog() {
+    protected fun dismissAddToPlaylistDialog() {
         if (addToPlaylist.value?.adding?.value == true) {
             return
         }
