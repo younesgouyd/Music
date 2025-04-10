@@ -24,4 +24,5 @@ dependencies {
     implementation(libs.sqldelight.jdbcDriver)
     implementation(libs.json)
     implementation(libs.vlcj.desktop)
+    implementation(libs.mp3agic)
 }

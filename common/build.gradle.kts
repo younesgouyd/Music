@@ -21,7 +21,6 @@ dependencies {
     implementation(libs.sqldelight.jdbcDriver)
     implementation(libs.sqldelight.coroutines)
     implementation(libs.json)
-    implementation(libs.mp3agic)
     implementation(libs.ktor.serialization)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)

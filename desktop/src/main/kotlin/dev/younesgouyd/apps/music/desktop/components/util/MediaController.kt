@@ -22,6 +22,13 @@ class MediaController(
     trackRepo, artistRepo, albumRepo, playlistRepo, playlistTrackCrossRefRepo,
     folderRepo, onAlbumClick, onArtistClick, mediaPlayer, mediaUtil
 ) {
+    override suspend fun getAudioSource(uri: String): MediaControllerState.Available.PlaybackState.QueueItem.Track.Audio {
+        return MediaControllerState.Available.PlaybackState.QueueItem.Track.Audio(
+            url = uri.replaceFirst("file:/", "file:///"),
+            duration = getDuration(uri)
+        )
+    }
+
     override fun showAddToPlaylistDialog(trackId: Long) {
         addToPlaylist.update {
             AddToPlaylist(

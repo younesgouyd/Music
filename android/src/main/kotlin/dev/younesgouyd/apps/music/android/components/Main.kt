@@ -1,5 +1,6 @@
 package dev.younesgouyd.apps.music.android.components
 
+import android.content.Context
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -22,7 +23,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class Main(
     repoStore: RepoStore,
     mediaPlayer: MediaPlayer,
-    mediaUtil: MediaUtil
+    mediaUtil: MediaUtil,
+    context: Context
 ) : Main(repoStore, mediaPlayer, mediaUtil) {
     override val mediaController = MediaController(
         trackRepo = repoStore.trackRepo,
@@ -34,7 +36,8 @@ class Main(
         onAlbumClick = mainComponentController::showAlbums,
         onArtistClick = mainComponentController::showArtists,
         mediaPlayer = mediaPlayer,
-        mediaUtil = mediaUtil
+        mediaUtil = mediaUtil,
+        context = context
     )
 
     override val player = Player(mediaController)
@@ -54,29 +57,29 @@ class Main(
         val selectedNavigationDrawerItem by selectedNavigationDrawerItem.collectAsState()
         val darkTheme by darkTheme.collectAsState()
 
-        Column {
-            Ui.Main(
-                darkTheme = darkTheme,
-                currentMainComponent = currentMainComponent,
-                player = player,
-                queue = queue,
-                selectedNavigationDrawerItem = selectedNavigationDrawerItem,
-                onNavigationDrawerItemClick = {
-                    when (it) {
-                        NavigationDrawerItems.Settings -> mainComponentController.showSettings()
-                        NavigationDrawerItems.Library -> mainComponentController.showLibrary()
-                        NavigationDrawerItems.Playlists -> mainComponentController.showPlaylists(null)
-                        NavigationDrawerItems.Albums -> mainComponentController.showAlbums(null)
-                        NavigationDrawerItems.Artists -> mainComponentController.showArtists(null)
-                    }
+        Ui.Main(
+            modifier = modifier,
+            darkTheme = darkTheme,
+            currentMainComponent = currentMainComponent,
+            player = player,
+            queue = queue,
+            selectedNavigationDrawerItem = selectedNavigationDrawerItem,
+            onNavigationDrawerItemClick = {
+                when (it) {
+                    NavigationDrawerItems.Settings -> mainComponentController.showSettings()
+                    NavigationDrawerItems.Library -> mainComponentController.showLibrary()
+                    NavigationDrawerItems.Playlists -> mainComponentController.showPlaylists(null)
+                    NavigationDrawerItems.Albums -> mainComponentController.showAlbums(null)
+                    NavigationDrawerItems.Artists -> mainComponentController.showArtists(null)
                 }
-            )
-        }
+            }
+        )
     }
 
     private object Ui {
         @Composable
         fun Main(
+            modifier: Modifier,
             darkTheme: DarkThemeOptions,
             currentMainComponent: Component,
             player: Component,
@@ -88,7 +91,7 @@ class Main(
                 darkTheme = darkTheme,
                 content = {
                     Surface(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
                         Column(

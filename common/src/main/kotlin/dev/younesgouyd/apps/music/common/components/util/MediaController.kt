@@ -60,6 +60,7 @@ abstract class MediaController(
                     when (currentState) {
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> {
+                            clearAndroidCache()
                             val newQueue = queue.map { it.toModel() }
                             require(newQueue.isNotEmpty())
                             newQueue[queueItemIndex].let { firstQueueItem ->
@@ -106,6 +107,7 @@ abstract class MediaController(
                                 if (!currentState.playbackState.isPlaying) { mediaPlayer.controls.play() }
                                 currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = true))
                             } else {
+                                clearAndroidCache()
                                 val newQueue = queue.map { it.toModel() }
                                 val index = queueItemIndex ?: 0
                                 val subIndex = queueSubItemIndex ?: 0
@@ -408,6 +410,7 @@ abstract class MediaController(
                     when (currentState) {
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> {
+                            clearAndroidCache()
                             val newQueue = items.map { it.toModel() }
                             newQueue.first().let { firstQueueItem ->
                                 val currentTrack = when (firstQueueItem) {
@@ -449,6 +452,7 @@ abstract class MediaController(
                             )
                         }
                         is MediaControllerState.Available -> {
+                            clearAndroidCache()
                             currentState.copy(
                                 playbackState = currentState.playbackState.copy(
                                     queue = currentState.playbackState.queue.toMutableList().apply { addAll(items.map { it.toModel() }) }
@@ -575,18 +579,8 @@ abstract class MediaController(
                             )
                         }
                     },
-                    audio = dbTrack.audio_url?.let {
-                        MediaControllerState.Available.PlaybackState.QueueItem.Track.Audio(
-                            url = it.replaceFirst("file:/", "file:///"),
-                            duration = getDuration(it)
-                        )
-                    },
-                    video = dbTrack.video_url?.let {
-                        MediaControllerState.Available.PlaybackState.QueueItem.Track.Video(
-                            url = it.replaceFirst("file:/", "file:///"),
-                            duration = getDuration(it)
-                        )
-                    }
+                    audio = dbTrack.audio_url?.let { getAudioSource(it) },
+                    video = null // TODO
                 )
             }
             is QueueItemParameter.Album -> albumRepo.getStatic(this.id)!!.let { dbAlbum ->
@@ -612,18 +606,8 @@ abstract class MediaController(
                                 image = dbAlbum.image,
                                 releaseDate = dbAlbum.release_date
                             ),
-                            audio = dbTrack.audio_url?.let {
-                                MediaControllerState.Available.PlaybackState.QueueItem.Track.Audio(
-                                    url = it.replaceFirst("file:/", "file:///"),
-                                    duration = getDuration(it)
-                                )
-                            },
-                            video = dbTrack.video_url?.let {
-                                MediaControllerState.Available.PlaybackState.QueueItem.Track.Video(
-                                    url = it.replaceFirst("file:/", "file:///"),
-                                    duration = getDuration(it)
-                                )
-                            }
+                            audio = dbTrack.audio_url?.let { getAudioSource(it) },
+                            video = null // TODO
                         )
                     }
                 )
@@ -654,18 +638,8 @@ abstract class MediaController(
                                     )
                                 }
                             },
-                            audio = dbTrack.audio_url?.let {
-                                MediaControllerState.Available.PlaybackState.QueueItem.Track.Audio(
-                                    url = it.replaceFirst("file:/", "file:///"),
-                                    duration = getDuration(it)
-                                )
-                            },
-                            video = dbTrack.video_url?.let {
-                                MediaControllerState.Available.PlaybackState.QueueItem.Track.Video(
-                                    url = it.replaceFirst("file:/", "file:///"),
-                                    duration = getDuration(it)
-                                )
-                            }
+                            audio = dbTrack.audio_url?.let { getAudioSource(it) },
+                            video = null // TODO
                         )
                     }
                 )
@@ -673,7 +647,9 @@ abstract class MediaController(
         }
     }
 
-    private suspend fun getDuration(mediaPath: String): Long {
+    protected abstract suspend fun getAudioSource(uri: String): MediaControllerState.Available.PlaybackState.QueueItem.Track.Audio
+
+    protected suspend fun getDuration(mediaPath: String): Long {
         return mediaUtil.getDuration(mediaPath)
     }
 
@@ -690,6 +666,9 @@ abstract class MediaController(
         }
         addToPlaylistDialogVisible.update { false }
         addToPlaylist.update { it?.clear(); null }
+    }
+
+    protected open fun clearAndroidCache() {
     }
 
     sealed class QueueItemParameter {

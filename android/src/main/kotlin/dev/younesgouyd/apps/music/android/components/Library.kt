@@ -1,6 +1,7 @@
 package dev.younesgouyd.apps.music.android.components
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.mpatric.mp3agic.Mp3File
 import dev.younesgouyd.apps.music.android.components.util.widgets.*
 import dev.younesgouyd.apps.music.common.components.Library
 import dev.younesgouyd.apps.music.common.components.util.MediaController
@@ -153,6 +155,65 @@ class Library(
         )
     }
 
+    suspend fun saveMp3FileAsTrack(file: File, uri: Uri, parentFolderId: Long) {
+        val mp3file = Mp3File(file)
+        var title: String? = null
+        var albumTrackNumber: Long? = null
+        var artist: String? = null
+        var album: String? = null
+        var lyrics: String? = null
+        var year: String? = null
+        var albumImage: ByteArray? = null
+        if (mp3file.hasId3v2Tag()) {
+            val id3 = mp3file.id3v2Tag
+            val albumImageData = id3.albumImage
+            title = id3.title
+            albumTrackNumber = id3.track?.toLongOrNull()
+            artist = id3.artist
+            album = id3.album
+            year = id3.year
+            lyrics = id3.lyrics
+            albumImage = albumImageData
+        } else if (mp3file.hasId3v1Tag()) {
+            val id3 = mp3file.id3v1Tag
+            title = id3.title
+            albumTrackNumber = id3.track?.toLongOrNull()
+            artist = id3.artist
+            album = id3.album
+            year = id3.year
+        }
+        var artistId: Long? = null
+        var albumId: Long? = null
+        if (!artist.isNullOrEmpty()) {
+            val artists = artistRepo.getByName(artist)
+            if (artists.isEmpty()) {
+                artistId = artistRepo.add(name = artist, image = null)
+            } else if (artists.size == 1) {
+                artistId = artists.first().id
+            }
+        }
+        if (!album.isNullOrEmpty()) {
+            val albums = albumRepo.getByName(album)
+            if (albums.isEmpty()) {
+                albumId = albumRepo.add(name = album, image = albumImage, releaseDate = year)
+            } else if (albums.size == 1) {
+                albumId = albums.first().id
+            }
+        }
+        val trackId = trackRepo.add(
+            name = if (!title.isNullOrEmpty()) title else file.name,
+            folderId = parentFolderId,
+            albumId = albumId,
+            audioUrl = uri.toString(),
+            videoUrl = null,
+            lyrics = lyrics,
+            albumTrackNumber = albumTrackNumber
+        )
+        if (artistId != null) {
+            artistTrackCrossRefRepo.add(artistId, trackId)
+        }
+    }
+
     override fun showAddTrackToPlaylistDialog(trackId: Long) {
         addToPlaylist.update {
             AddToPlaylist(
@@ -226,7 +287,7 @@ class Library(
                             val tempFile = File.createTempFile(getFileName(documentUri), ".mp3", context.cacheDir)
                             tempFile.outputStream().use { output -> inputStream.copyTo(output) }
                             try {
-                                saveMp3FileAsTrack(tempFile, parent)
+                                saveMp3FileAsTrack(tempFile, documentUri, parent)
                             } finally {
                                 tempFile.delete()
                             }
@@ -482,7 +543,8 @@ class Library(
                         val context = LocalContext.current
                         val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
                             if (uri != null) {
-                                onImportFolder(context, uri)
+                                onImportFolder(context, uri)// Persist permission here
+                                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
                             } else { TODO() }
                         }
                         IconButton(

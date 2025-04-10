@@ -45,7 +45,6 @@ android {
 
 dependencies {
     implementation(project(":common"))
-
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
     implementation(compose.material3)
@@ -58,7 +57,7 @@ dependencies {
     implementation(libs.android.lifecycle.savedState)
     implementation(libs.android.lifecycle.viewmodelCompose)
     implementation(libs.android.navigation.compose)
-
     implementation(libs.sqldelight.androidDriver)
     implementation(libs.vlcj.android)
+    implementation(libs.mp3agic)
 }
