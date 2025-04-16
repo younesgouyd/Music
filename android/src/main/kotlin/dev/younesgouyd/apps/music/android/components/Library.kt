@@ -270,24 +270,39 @@ class Library(
             return uri.lastPathSegment?.substringAfterLast('/') ?: TODO()
         }
         suspend fun importFolder(folderUri: Uri, parent: Long?) {
-            val parent: Long = folderRepo.add(getFileName(folderUri), parent)
+            val folderName = getFileName(folderUri)
+            val parentId: Long = folderRepo.add(folderName, parent)
             val contentResolver = context.contentResolver
-            val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(folderUri, DocumentsContract.getTreeDocumentId(folderUri))
-            contentResolver.query(childrenUri, arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_MIME_TYPE), null, null, null)?.use { cursor ->
+            val folderDocumentId = when {
+                DocumentsContract.isDocumentUri(context, folderUri) -> DocumentsContract.getDocumentId(folderUri)
+                else -> DocumentsContract.getTreeDocumentId(folderUri)
+            }
+            val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(folderUri, folderDocumentId)
+            contentResolver.query(
+                childrenUri,
+                arrayOf(
+                    DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    DocumentsContract.Document.COLUMN_MIME_TYPE
+                ),
+                null,
+                null,
+                null
+            )?.use { cursor ->
                 val documentIdIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
                 val mimeTypeIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE)
                 while (cursor.moveToNext()) {
-                    val documentId = cursor.getString(documentIdIndex)
+                    val childDocumentId = cursor.getString(documentIdIndex)
                     val mimeType = cursor.getString(mimeTypeIndex)
-                    val documentUri = DocumentsContract.buildDocumentUriUsingTree(folderUri, documentId)
+                    if (childDocumentId == folderDocumentId) continue
+                    val childUri = DocumentsContract.buildDocumentUriUsingTree(folderUri, childDocumentId)
                     if (mimeType == DocumentsContract.Document.MIME_TYPE_DIR) {
-                        importFolder(documentUri, parent)
+                        importFolder(childUri, parentId)
                     } else if (mimeType == "audio/mpeg") {
-                        context.contentResolver.openInputStream(documentUri)?.use { inputStream ->
-                            val tempFile = File.createTempFile(getFileName(documentUri), ".mp3", context.cacheDir)
+                        contentResolver.openInputStream(childUri)?.use { inputStream ->
+                            val tempFile = File.createTempFile(getFileName(childUri), ".mp3", context.cacheDir)
                             tempFile.outputStream().use { output -> inputStream.copyTo(output) }
                             try {
-                                saveMp3FileAsTrack(tempFile, documentUri, parent)
+                                saveMp3FileAsTrack(tempFile, childUri, parentId)
                             } finally {
                                 tempFile.delete()
                             }
