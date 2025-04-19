@@ -42,7 +42,7 @@ class Main(
         context = context
     )
 
-    override val player = Player(mediaController)
+    override val miniPlayer = MiniPlayer(mediaController)
     override val queue = Queue(mediaController)
     override val settingsHost: Settings by lazy { Settings(repoStore) }
     override val libraryHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.Library, ::toggleDrawerState) }
@@ -63,7 +63,7 @@ class Main(
             modifier = modifier,
             darkTheme = darkTheme,
             currentMainComponent = currentMainComponent,
-            player = player,
+            miniPlayer = miniPlayer,
             queue = queue,
             selectedNavigationDrawerItem = selectedNavigationDrawerItem,
             drawerState = drawerState.asStateFlow(),
@@ -85,7 +85,7 @@ class Main(
             modifier: Modifier,
             darkTheme: DarkThemeOptions,
             currentMainComponent: Component,
-            player: Component,
+            miniPlayer: MiniPlayer,
             queue: Component,
             selectedNavigationDrawerItem: NavigationDrawerItems,
             drawerState: StateFlow<DrawerState>,
@@ -125,13 +125,8 @@ class Main(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().weight(weight = .7f)
-                                    ) {
-                                        currentMainComponent.show(Modifier.weight(.7f))
-                                        queue.show(Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp).weight(.3f))
-                                    }
-                                    player.show(Modifier.padding(8.dp).weight(.3f))
+                                    currentMainComponent.show(Modifier.fillMaxWidth().weight(weight = .9f))
+                                    miniPlayer.show(Modifier.fillMaxWidth().padding(8.dp))
                                 }
                             }
                         )

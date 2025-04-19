@@ -3,7 +3,9 @@ package dev.younesgouyd.apps.music.desktop.components
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -37,7 +39,7 @@ class Main(
         mediaUtil = mediaUtil
     )
 
-    override val player = Player(mediaController)
+    override val miniPlayer = Player(mediaController)
     override val queue = Queue(mediaController)
 
     override val settingsHost: Settings by lazy { Settings(repoStore) }
@@ -58,7 +60,7 @@ class Main(
         Ui.Main(
             darkTheme = darkTheme,
             currentMainComponent = currentMainComponent,
-            player = player,
+            miniPlayer = miniPlayer,
             queue = queue,
             selectedNavigationDrawerItem = selectedNavigationDrawerItem,
             drawerState = drawerState.asStateFlow(),
@@ -79,7 +81,7 @@ class Main(
         fun Main(
             darkTheme: DarkThemeOptions,
             currentMainComponent: Component,
-            player: Player,
+            miniPlayer: Player,
             queue: Component,
             selectedNavigationDrawerItem: NavigationDrawerItems,
             drawerState: StateFlow<DrawerState>,
@@ -125,7 +127,7 @@ class Main(
                                         currentMainComponent.show(Modifier.weight(.7f))
                                         queue.show(Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp).weight(.3f))
                                     }
-                                    player.show(Modifier.fillMaxWidth().padding(8.dp).weight(.2f))
+                                    miniPlayer.show(Modifier.fillMaxWidth().padding(8.dp).weight(.2f))
                                 }
                             }
                         )

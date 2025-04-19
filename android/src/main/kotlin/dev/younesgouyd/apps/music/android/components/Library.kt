@@ -366,105 +366,93 @@ class Library(
             val addToPlaylistDialogVisible by addToPlaylistDialogVisible.collectAsState()
             val addToPlaylist by addToPlaylist.collectAsState()
 
-            Column(
+            Scaffold(
                 modifier = modifier,
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    modifier = Modifier.weight(weight = .8f)
-                ) {
-                    Scaffold(
-                        modifier = Modifier.weight(weight = .7f),
-                        floatingActionButton = {
-                            ScrollToTopFloatingActionButton(
-                                lazyGridState
-                            )
-                        }
-                    ) { paddingValues ->
-                        Column(
-                            modifier = Modifier.fillMaxSize().padding(paddingValues),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                floatingActionButton = {
+                    ScrollToTopFloatingActionButton(
+                        lazyGridState
+                    )
+                },
+                content = { paddingValues ->
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(paddingValues),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Spacer(Modifier.size(12.dp))
+                        ToolBar(
+                            modifier = Modifier.fillMaxWidth(),
+                            currentFolder = currentFolder,
+                            path = path,
+                            onFolderClick = onFolderClick,
+                            onImportFolder = onImportFolder,
+                            onNewFolder = onNewFolder,
+                            onNewTrack = onNewTrack
+                        )
+                        LazyVerticalGrid(
+                            modifier = Modifier.fillMaxSize().padding(16.dp),
+                            state = lazyGridState,
+                            contentPadding = PaddingValues(vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(18.dp),
+                            columns = GridCells.Adaptive(200.dp)
                         ) {
-                            Spacer(Modifier.size(12.dp))
-                            ToolBar(
-                                modifier = Modifier.fillMaxWidth(),
-                                currentFolder = currentFolder,
-                                path = path,
-                                onFolderClick = onFolderClick,
-                                onImportFolder = onImportFolder,
-                                onNewFolder = onNewFolder,
-                                onNewTrack = onNewTrack
-                            )
-                            Box(modifier = Modifier) {
-//                                VerticalScrollbar(lazyGridState) // TODO
-                                LazyVerticalGrid(
-                                    modifier = Modifier.fillMaxSize().padding(16.dp),
-                                    state = lazyGridState,
-                                    contentPadding = PaddingValues(vertical = 12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(18.dp),
-                                    verticalArrangement = Arrangement.spacedBy(18.dp),
-                                    columns = GridCells.Adaptive(200.dp)
-                                ) {
-                                    items(folders) { folder ->
-                                        FolderItem(
-                                            folder = folder,
-                                            onClick = { onFolderClick(folder) },
-                                            onAddToPlaylistClick = { onAddFolderToPlaylistClick(folder.id) },
-                                            onAddToQueueClick = { onAddFolderToQueueClick(folder.id) },
-                                            onPlayClick = { onPlayFolder(folder.id) },
-                                            onRenameClick = { onRenameFolder(folder.id, it) },
-                                            onDeleteClick = { onDeleteFolder(folder.id) },
-                                            loadFolders = loadFolders,
-                                            onMoveToFolder = { onMoveFolderToFolder(folder.id, it) }
+                            items(folders) { folder ->
+                                FolderItem(
+                                    folder = folder,
+                                    onClick = { onFolderClick(folder) },
+                                    onAddToPlaylistClick = { onAddFolderToPlaylistClick(folder.id) },
+                                    onAddToQueueClick = { onAddFolderToQueueClick(folder.id) },
+                                    onPlayClick = { onPlayFolder(folder.id) },
+                                    onRenameClick = { onRenameFolder(folder.id, it) },
+                                    onDeleteClick = { onDeleteFolder(folder.id) },
+                                    loadFolders = loadFolders,
+                                    onMoveToFolder = { onMoveFolderToFolder(folder.id, it) }
+                                )
+                            }
+                            items(playlists) { playlist ->
+                                PlaylistItem(
+                                    playlist = playlist,
+                                    onClick = { onPlaylistClick(playlist.id) },
+                                    onPlayClick = { onPlayPlaylistClick(playlist.id) },
+                                    onAddToPlaylistClick = { onAddPlaylistToPlaylistClick(playlist.id) },
+                                    onAddToQueueClick = { onAddPlaylistToQueueClick(playlist.id) },
+                                    onRenameClick = { onRenamePlaylist(playlist.id, it) },
+                                    onDeleteClick = { onDeletePlaylist(playlist.id) },
+                                    loadFolders = loadFolders,
+                                    onMoveToFolder = { onMovePlaylistToFolder(playlist.id, it) }
+                                )
+                            }
+                            items(tracks) { track ->
+                                TrackItem(
+                                    track = track,
+                                    onClick = { onTrackClick(track.id) },
+                                    onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
+                                    onArtistClick = onArtistClick,
+                                    onDeleteClick = { onDeleteTrack(track.id) },
+                                    onAddToQueueClick = { onAddTrackToQueue(track.id) },
+                                    onRenameClick = { onRenameTrack(track.id, it) },
+                                    loadFolders = loadFolders,
+                                    onMoveToFolder = { onMoveTrackToFolder(track.id, it) }
+                                )
+                            }
+                            if (loadingItems) {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(50.dp),
+                                            strokeWidth = 2.dp
                                         )
-                                    }
-                                    items(playlists) { playlist ->
-                                        PlaylistItem(
-                                            playlist = playlist,
-                                            onClick = { onPlaylistClick(playlist.id) },
-                                            onPlayClick = { onPlayPlaylistClick(playlist.id) },
-                                            onAddToPlaylistClick = { onAddPlaylistToPlaylistClick(playlist.id) },
-                                            onAddToQueueClick = { onAddPlaylistToQueueClick(playlist.id) },
-                                            onRenameClick = { onRenamePlaylist(playlist.id, it) },
-                                            onDeleteClick = { onDeletePlaylist(playlist.id) },
-                                            loadFolders = loadFolders,
-                                            onMoveToFolder = { onMovePlaylistToFolder(playlist.id, it) }
-                                        )
-                                    }
-                                    items(tracks) { track ->
-                                        TrackItem(
-                                            track = track,
-                                            onClick = { onTrackClick(track.id) },
-                                            onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
-                                            onArtistClick = onArtistClick,
-                                            onDeleteClick = { onDeleteTrack(track.id) },
-                                            onAddToQueueClick = { onAddTrackToQueue(track.id) },
-                                            onRenameClick = { onRenameTrack(track.id, it) },
-                                            loadFolders = loadFolders,
-                                            onMoveToFolder = { onMoveTrackToFolder(track.id, it) }
-                                        )
-                                    }
-                                    if (loadingItems) {
-                                        item(span = { GridItemSpan(maxLineSpan) }) {
-                                            Box(
-                                                modifier = Modifier.fillMaxWidth().padding(10.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(50.dp),
-                                                    strokeWidth = 2.dp
-                                                )
-                                            }
-                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-            }
+            )
 
             if (addToPlaylistDialogVisible) {
                 Dialog(onDismissRequest = onDismissAddToPlaylistDialog) {
@@ -488,13 +476,13 @@ class Library(
             var newFolderFormVisible by remember { mutableStateOf(false) }
             var newTrackFormVisible by remember { mutableStateOf(false) }
 
-            Row(
+            Column(
                 modifier = modifier,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Surface(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
                     color = MaterialTheme.colorScheme.surfaceContainer
                 ) {
@@ -529,52 +517,58 @@ class Library(
                         }
                     }
                 }
-                Surface(
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surfaceContainer
+                Row(
+                    modifier = modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surfaceContainer
                     ) {
-                        IconButton(
-                            onClick = { /* todo - sort by alpha */ },
-                            content = { Icon(Icons.Default.SortByAlpha, null) }
-                        )
-                        IconButton(
-                            onClick = { /* todo - sort by date */ },
-                            content = { Icon(Icons.AutoMirrored.Default.Sort, null) }
-                        )
-                    }
-                }
-                Surface(
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surfaceContainer
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val context = LocalContext.current
-                        val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-                            if (uri != null) {
-                                onImportFolder(context, uri)// Persist permission here
-                                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                            } else { TODO() }
-                        }
-                        IconButton(
-                            onClick = { launcher.launch(null) },
-                            content = { Icon(Icons.Default.ImportExport, null) }
-                        )
-                        IconButton(
-                            onClick = { newFolderFormVisible = true },
-                            content = { Icon(Icons.Default.CreateNewFolder, null) }
-                        )
-                        if (currentFolder != null) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             IconButton(
-                                onClick = { newTrackFormVisible = true },
-                                content = { Icon(Icons.Default.Audiotrack, null) }
+                                onClick = { /* todo - sort by alpha */ },
+                                content = { Icon(Icons.Default.SortByAlpha, null) }
                             )
+                            IconButton(
+                                onClick = { /* todo - sort by date */ },
+                                content = { Icon(Icons.AutoMirrored.Default.Sort, null) }
+                            )
+                        }
+                    }
+                    Surface(
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surfaceContainer
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val context = LocalContext.current
+                            val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+                                if (uri != null) {
+                                    onImportFolder(context, uri)// Persist permission here
+                                    context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                                } else { TODO() }
+                            }
+                            IconButton(
+                                onClick = { launcher.launch(null) },
+                                content = { Icon(Icons.Default.ImportExport, null) }
+                            )
+                            IconButton(
+                                onClick = { newFolderFormVisible = true },
+                                content = { Icon(Icons.Default.CreateNewFolder, null) }
+                            )
+                            if (currentFolder != null) {
+                                IconButton(
+                                    onClick = { newTrackFormVisible = true },
+                                    content = { Icon(Icons.Default.Audiotrack, null) }
+                                )
+                            }
                         }
                     }
                 }

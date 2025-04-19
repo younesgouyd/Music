@@ -326,93 +326,84 @@ class Library(
             val addToPlaylistDialogVisible by addToPlaylistDialogVisible.collectAsState()
             val addToPlaylist by addToPlaylist.collectAsState()
 
-            Column(
+            Scaffold(
                 modifier = modifier,
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    modifier = Modifier.weight(weight = .8f)
-                ) {
-                    Scaffold(
-                        modifier = Modifier.weight(weight = .7f),
-                        floatingActionButton = { ScrollToTopFloatingActionButton(lazyGridState) }
-                    ) { paddingValues ->
-                        Column(
-                            modifier = Modifier.fillMaxSize().padding(paddingValues),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Spacer(Modifier.size(12.dp))
-                            ToolBar(
-                                modifier = Modifier.fillMaxWidth(),
-                                currentFolder = currentFolder,
-                                path = path,
-                                onFolderClick = onFolderClick,
-                                onImportFolder = onImportFolder,
-                                onNewFolder = onNewFolder,
-                                onNewTrack = onNewTrack
-                            )
-                            Box(modifier = Modifier) {
+                floatingActionButton = { ScrollToTopFloatingActionButton(lazyGridState) },
+                content = { paddingValues ->
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(paddingValues),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Spacer(Modifier.size(12.dp))
+                        ToolBar(
+                            modifier = Modifier.fillMaxWidth(),
+                            currentFolder = currentFolder,
+                            path = path,
+                            onFolderClick = onFolderClick,
+                            onImportFolder = onImportFolder,
+                            onNewFolder = onNewFolder,
+                            onNewTrack = onNewTrack
+                        )
+                        Box(modifier = Modifier) {
 //                                VerticalScrollbar(lazyGridState) // TODO
-                                LazyVerticalGrid(
-                                    modifier = Modifier.fillMaxSize().padding(16.dp),
-                                    state = lazyGridState,
-                                    contentPadding = PaddingValues(vertical = 12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(18.dp),
-                                    verticalArrangement = Arrangement.spacedBy(18.dp),
-                                    columns = GridCells.Adaptive(200.dp)
-                                ) {
-                                    items(folders) { folder ->
-                                        FolderItem(
-                                            folder = folder,
-                                            onClick = { onFolderClick(folder) },
-                                            onAddToPlaylistClick = { onAddFolderToPlaylistClick(folder.id) },
-                                            onAddToQueueClick = { onAddFolderToQueueClick(folder.id) },
-                                            onPlayClick = { onPlayFolder(folder.id) },
-                                            onRenameClick = { onRenameFolder(folder.id, it) },
-                                            onDeleteClick = { onDeleteFolder(folder.id) },
-                                            loadFolders = loadFolders,
-                                            onMoveToFolder = { onMoveFolderToFolder(folder.id, it) }
-                                        )
-                                    }
-                                    items(playlists) { playlist ->
-                                        PlaylistItem(
-                                            playlist = playlist,
-                                            onClick = { onPlaylistClick(playlist.id) },
-                                            onPlayClick = { onPlayPlaylistClick(playlist.id) },
-                                            onAddToPlaylistClick = { onAddPlaylistToPlaylistClick(playlist.id) },
-                                            onAddToQueueClick = { onAddPlaylistToQueueClick(playlist.id) },
-                                            onRenameClick = { onRenamePlaylist(playlist.id, it) },
-                                            onDeleteClick = { onDeletePlaylist(playlist.id) },
-                                            loadFolders = loadFolders,
-                                            onMoveToFolder = { onMovePlaylistToFolder(playlist.id, it) }
-                                        )
-                                    }
-                                    items(tracks) { track ->
-                                        TrackItem(
-                                            track = track,
-                                            onClick = { onTrackClick(track.id) },
-                                            onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
-                                            onArtistClick = onArtistClick,
-                                            onDeleteClick = { onDeleteTrack(track.id) },
-                                            onAddToQueueClick = { onAddTrackToQueue(track.id) },
-                                            onRenameClick = { onRenameTrack(track.id, it) },
-                                            loadFolders = loadFolders,
-                                            onMoveToFolder = { onMoveTrackToFolder(track.id, it) }
-                                        )
-                                    }
-                                    if (loadingItems) {
-                                        item(span = { GridItemSpan(maxLineSpan) }) {
-                                            Box(
-                                                modifier = Modifier.fillMaxWidth().padding(10.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(50.dp),
-                                                    strokeWidth = 2.dp
-                                                )
-                                            }
+                            LazyVerticalGrid(
+                                modifier = Modifier.fillMaxSize().padding(16.dp),
+                                state = lazyGridState,
+                                contentPadding = PaddingValues(vertical = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(18.dp),
+                                verticalArrangement = Arrangement.spacedBy(18.dp),
+                                columns = GridCells.Adaptive(200.dp)
+                            ) {
+                                items(folders) { folder ->
+                                    FolderItem(
+                                        folder = folder,
+                                        onClick = { onFolderClick(folder) },
+                                        onAddToPlaylistClick = { onAddFolderToPlaylistClick(folder.id) },
+                                        onAddToQueueClick = { onAddFolderToQueueClick(folder.id) },
+                                        onPlayClick = { onPlayFolder(folder.id) },
+                                        onRenameClick = { onRenameFolder(folder.id, it) },
+                                        onDeleteClick = { onDeleteFolder(folder.id) },
+                                        loadFolders = loadFolders,
+                                        onMoveToFolder = { onMoveFolderToFolder(folder.id, it) }
+                                    )
+                                }
+                                items(playlists) { playlist ->
+                                    PlaylistItem(
+                                        playlist = playlist,
+                                        onClick = { onPlaylistClick(playlist.id) },
+                                        onPlayClick = { onPlayPlaylistClick(playlist.id) },
+                                        onAddToPlaylistClick = { onAddPlaylistToPlaylistClick(playlist.id) },
+                                        onAddToQueueClick = { onAddPlaylistToQueueClick(playlist.id) },
+                                        onRenameClick = { onRenamePlaylist(playlist.id, it) },
+                                        onDeleteClick = { onDeletePlaylist(playlist.id) },
+                                        loadFolders = loadFolders,
+                                        onMoveToFolder = { onMovePlaylistToFolder(playlist.id, it) }
+                                    )
+                                }
+                                items(tracks) { track ->
+                                    TrackItem(
+                                        track = track,
+                                        onClick = { onTrackClick(track.id) },
+                                        onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
+                                        onArtistClick = onArtistClick,
+                                        onDeleteClick = { onDeleteTrack(track.id) },
+                                        onAddToQueueClick = { onAddTrackToQueue(track.id) },
+                                        onRenameClick = { onRenameTrack(track.id, it) },
+                                        loadFolders = loadFolders,
+                                        onMoveToFolder = { onMoveTrackToFolder(track.id, it) }
+                                    )
+                                }
+                                if (loadingItems) {
+                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(50.dp),
+                                                strokeWidth = 2.dp
+                                            )
                                         }
                                     }
                                 }
@@ -420,7 +411,7 @@ class Library(
                         }
                     }
                 }
-            }
+            )
 
             if (addToPlaylistDialogVisible) {
                 Dialog(onDismissRequest = onDismissAddToPlaylistDialog) {

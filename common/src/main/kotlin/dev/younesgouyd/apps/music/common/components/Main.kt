@@ -28,7 +28,7 @@ abstract class Main(
 
     protected abstract val mediaController: MediaController
 
-    protected abstract val player: Player
+    protected abstract val miniPlayer: Component
     protected abstract val queue: Queue
 
     protected abstract val settingsHost: Settings
