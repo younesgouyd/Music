@@ -6,7 +6,10 @@ import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
 
-abstract class NavigationHost(protected val navController: NavigationController) : Component() {
+abstract class NavigationHost(
+    protected val navController: NavigationController,
+    protected val toggleDrawerState: suspend () -> Unit
+) : Component() {
     override val title: String = ""
 
     @Composable

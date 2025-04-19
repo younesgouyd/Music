@@ -1,5 +1,7 @@
 package dev.younesgouyd.apps.music.common.components
 
+import androidx.compose.material3.DrawerState
+import androidx.compose.material3.DrawerValue
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import dev.younesgouyd.apps.music.common.components.util.MediaController
@@ -38,6 +40,8 @@ abstract class Main(
     protected abstract val currentMainComponent: MutableStateFlow<Component>
     protected abstract val selectedNavigationDrawerItem: MutableStateFlow<NavigationDrawerItems>
 
+    protected val drawerState: MutableStateFlow<DrawerState> = MutableStateFlow(DrawerState(initialValue = DrawerValue.Closed))
+
     @Composable
     abstract override fun show(modifier: Modifier)
 
@@ -46,6 +50,13 @@ abstract class Main(
         settingsHost.clear()
         libraryHost.clear()
         coroutineScope.cancel()
+    }
+
+    protected suspend fun toggleDrawerState() {
+        when (drawerState.value.currentValue) {
+            DrawerValue.Open -> drawerState.value.close()
+            DrawerValue.Closed -> drawerState.value.open()
+        }
     }
 
     protected inner class MainComponentController {

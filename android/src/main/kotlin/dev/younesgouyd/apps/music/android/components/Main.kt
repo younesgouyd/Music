@@ -19,6 +19,8 @@ import dev.younesgouyd.apps.music.common.util.DarkThemeOptions
 import dev.younesgouyd.apps.music.common.util.MediaPlayer
 import dev.younesgouyd.apps.music.common.util.MediaUtil
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class Main(
     repoStore: RepoStore,
@@ -43,10 +45,10 @@ class Main(
     override val player = Player(mediaController)
     override val queue = Queue(mediaController)
     override val settingsHost: Settings by lazy { Settings(repoStore) }
-    override val libraryHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.Library) }
-    override val playlistsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.PlaylistList) }
-    override val artistsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.ArtistList) }
-    override val albumsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.AlbumList) }
+    override val libraryHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.Library, ::toggleDrawerState) }
+    override val playlistsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.PlaylistList, ::toggleDrawerState) }
+    override val artistsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.ArtistList, ::toggleDrawerState) }
+    override val albumsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.AlbumList, ::toggleDrawerState) }
 
     override val currentMainComponent: MutableStateFlow<Component> = MutableStateFlow(libraryHost)
     override val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Library)
@@ -64,6 +66,7 @@ class Main(
             player = player,
             queue = queue,
             selectedNavigationDrawerItem = selectedNavigationDrawerItem,
+            drawerState = drawerState.asStateFlow(),
             onNavigationDrawerItemClick = {
                 when (it) {
                     NavigationDrawerItems.Settings -> mainComponentController.showSettings()
@@ -85,8 +88,11 @@ class Main(
             player: Component,
             queue: Component,
             selectedNavigationDrawerItem: NavigationDrawerItems,
+            drawerState: StateFlow<DrawerState>,
             onNavigationDrawerItemClick: (NavigationDrawerItems) -> Unit
         ) {
+            val drawerState by drawerState.collectAsState()
+
             YounesMusicTheme(
                 darkTheme = darkTheme,
                 content = {
@@ -94,17 +100,10 @@ class Main(
                         modifier = modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().weight(weight = .8f)
-                            ) {
-                                PermanentDrawerSheet(
-                                    modifier = Modifier.weight(.15f)
-                                ) {
+                        ModalNavigationDrawer(
+                            drawerState = drawerState,
+                            drawerContent = {
+                                ModalDrawerSheet {
                                     Column(
                                         modifier = Modifier.fillMaxWidth().padding(),
                                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -119,15 +118,23 @@ class Main(
                                         }
                                     }
                                 }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().weight(.85f)
+                            },
+                            content = {
+                                Column(
+                                    modifier = Modifier.fillMaxSize(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    currentMainComponent.show(Modifier.weight(.7f))
-                                    queue.show(Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp).weight(.3f))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().weight(weight = .7f)
+                                    ) {
+                                        currentMainComponent.show(Modifier.weight(.7f))
+                                        queue.show(Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp).weight(.3f))
+                                    }
+                                    player.show(Modifier.padding(8.dp).weight(.3f))
                                 }
                             }
-                            player.show(Modifier.padding(8.dp).weight(.2f))
-                        }
+                        )
                     }
                 }
             )

@@ -1,13 +1,19 @@
 package dev.younesgouyd.apps.music.android.components
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.common.components.NavigationHost
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.data.RepoStore
@@ -16,29 +22,43 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.util.*
 
 class NavigationHost(
     repoStore: RepoStore,
     mediaController: MediaController,
-    startDestination: Destination
-) : NavigationHost(NavigationController(repoStore, mediaController, startDestination)) {
+    startDestination: Destination,
+    toggleDrawerState: suspend () -> Unit
+) : NavigationHost(NavigationController(repoStore, mediaController, startDestination), toggleDrawerState) {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun show(modifier: Modifier) {
         val currentDestination by navController.currentDestination.collectAsState()
         val inHome by navController.inHome.collectAsState()
+        val coroutineScope = rememberCoroutineScope()
 
         Scaffold(
             modifier = modifier,
             topBar = {
                 TopAppBar(
                     navigationIcon = {
-                        if (!inHome) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             IconButton(
-                                content = { Icon(Icons.AutoMirrored.Default.ArrowBack, null) },
-                                onClick = { navController.navigateBack() }
+                                content = { Icon(Icons.Default.Menu, null) },
+                                onClick = {
+                                    coroutineScope.launch { toggleDrawerState() }
+                                }
                             )
+                            if (!inHome) {
+                                IconButton(
+                                    content = { Icon(Icons.AutoMirrored.Default.ArrowBack, null) },
+                                    onClick = { navController.navigateBack() }
+                                )
+                            }
                         }
                     },
                     title = { Text(text = currentDestination.title, style = MaterialTheme.typography.headlineMedium) }
