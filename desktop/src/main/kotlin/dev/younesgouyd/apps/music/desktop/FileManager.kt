@@ -14,7 +14,7 @@ class FileManager : FileManager() {
 
     override suspend fun init() {
         withContext(Dispatchers.IO) {
-            val file = File("younesmusic", DATA_FILE_NAME)
+            val file = File(DATA_FILE_NAME)
             file.parentFile?.mkdirs()
             if (!file.exists()) {
                 OutputStreamWriter(FileOutputStream(file), charset).use {

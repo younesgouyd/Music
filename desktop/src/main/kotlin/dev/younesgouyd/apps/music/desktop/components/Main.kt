@@ -14,30 +14,13 @@ import dev.younesgouyd.apps.music.common.components.NavigationHost
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.util.Component
 import dev.younesgouyd.apps.music.common.util.DarkThemeOptions
-import dev.younesgouyd.apps.music.common.util.MediaPlayer
-import dev.younesgouyd.apps.music.common.util.MediaUtil
 import dev.younesgouyd.apps.music.desktop.components.util.MediaController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class Main(
-    repoStore: RepoStore,
-    mediaPlayer: MediaPlayer,
-    mediaUtil: MediaUtil
-) : Main(repoStore, mediaPlayer, mediaUtil) {
-    override val mediaController = MediaController(
-        trackRepo = repoStore.trackRepo,
-        artistRepo = repoStore.artistRepo,
-        albumRepo = repoStore.albumRepo,
-        playlistRepo = repoStore.playlistRepo,
-        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
-        folderRepo = repoStore.folderRepo,
-        onAlbumClick = mainComponentController::showAlbums,
-        onArtistClick = mainComponentController::showArtists,
-        mediaPlayer = mediaPlayer,
-        mediaUtil = mediaUtil
-    )
+class Main(repoStore: RepoStore) : Main(repoStore) {
+    override val mediaController = MediaController(repoStore)
 
     override val miniPlayer = Player(mediaController)
     override val queue = Queue(mediaController)

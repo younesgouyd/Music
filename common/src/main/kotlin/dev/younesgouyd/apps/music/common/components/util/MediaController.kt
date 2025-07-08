@@ -1,58 +1,50 @@
 package dev.younesgouyd.apps.music.common.components.util
 
-import dev.younesgouyd.apps.music.common.components.AddToPlaylist
-import dev.younesgouyd.apps.music.common.data.repoes.*
-import dev.younesgouyd.apps.music.common.util.Component
-import dev.younesgouyd.apps.music.common.util.MediaPlayer
-import dev.younesgouyd.apps.music.common.util.MediaUtil
+import dev.younesgouyd.apps.music.common.data.RepoStore
+import dev.younesgouyd.apps.music.common.data.repoes.AlbumRepo
+import dev.younesgouyd.apps.music.common.data.repoes.ArtistRepo
+import dev.younesgouyd.apps.music.common.data.repoes.PlaylistRepo
+import dev.younesgouyd.apps.music.common.data.repoes.TrackRepo
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-abstract class MediaController(
-    protected val trackRepo: TrackRepo,
-    private val artistRepo: ArtistRepo,
-    protected val albumRepo: AlbumRepo,
-    protected val playlistRepo: PlaylistRepo,
-    protected val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
-    protected val folderRepo: FolderRepo,
-    private val onAlbumClick: (Long) -> Unit,
-    private val onArtistClick: (Long) -> Unit,
+abstract class MediaController protected constructor(
     private val mediaPlayer: MediaPlayer,
-    private val mediaUtil: MediaUtil
+    private val repoStore: RepoStore,
+    protected val isPlaying: MutableStateFlow<Boolean>,
+    protected val timePositionChange: MutableStateFlow<Long>
 ) {
-    private val coroutineScope = CoroutineScope(SupervisorJob())
+    private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val mutex = Mutex()
+
     private val _state: MutableStateFlow<MediaControllerState> = MutableStateFlow(MediaControllerState.Unavailable)
     private val enabled: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    protected val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    protected val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
-    private val elapsedTime: StateFlow<Long>
+
+    private val trackRepo: TrackRepo get() = repoStore.trackRepo
+    private val artistRepo: ArtistRepo get() = repoStore.artistRepo
+    private val albumRepo: AlbumRepo get() = repoStore.albumRepo
+    private val playlistRepo: PlaylistRepo get() = repoStore.playlistRepo
 
     val state: StateFlow<MediaControllerState> get() = _state.asStateFlow()
-
-    init {
-        elapsedTime = flow {
-            while (true) {
-                emit(mediaPlayer.status.time.let { if (it != -1L) it else 0 })
-                delay(100)
-            }
-        }.distinctUntilChanged().stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = 0)
-    }
 
     fun playQueue(queue: List<QueueItemParameter>, queueItemIndex: Int = 0, queueSubItemIndex: Int = 0) {
         require(queue.isNotEmpty())
         coroutineScope.launch {
             mutex.withLock {
-                enabled.update { false }
+                this@MediaController.enabled.value = false
                 _state.update { currentState ->
                     when (currentState) {
                         is MediaControllerState.Unavailable -> MediaControllerState.Loading
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
-                            if (currentState.playbackState.isPlaying) { mediaPlayer.controls.pause() }
-                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = false))
+                            if (currentState.isPlaying.value) { mediaPlayer.pause() }
+                            this@MediaController.isPlaying.value = false
+                            currentState
                         }
                     }
                 }
@@ -60,102 +52,84 @@ abstract class MediaController(
                     when (currentState) {
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> {
-                            clearAndroidCache()
-                            val newQueue = queue.map { it.toModel() }
-                            require(newQueue.isNotEmpty())
-                            newQueue[queueItemIndex].let { firstQueueItem ->
+                            require(queue.isNotEmpty())
+                            val mapped: List<MediaControllerState.Available.QueueItem> = queue.map { it.toModel() }
+                            mapped[queueItemIndex].let { firstQueueItem ->
                                 val currentTrack = when (firstQueueItem) {
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Track -> firstQueueItem
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> firstQueueItem.items[queueSubItemIndex] // TODO: handle invalid subIndex
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Album -> firstQueueItem.items[queueSubItemIndex] // TODO: handle invalid subIndex
+                                    is MediaControllerState.Available.QueueItem.Track -> firstQueueItem
+                                    is MediaControllerState.Available.QueueItem.Playlist -> firstQueueItem.items[queueSubItemIndex] // TODO: handle invalid subIndex
+                                    is MediaControllerState.Available.QueueItem.Album -> firstQueueItem.items[queueSubItemIndex] // TODO: handle invalid subIndex
                                 }
-                                if (currentTrack.audio?.url != null) {
-                                    mediaPlayer.media.start(currentTrack.audio.url)
+                                if (currentTrack.uri != null) {
+                                    mediaPlayer.setMedia(currentTrack.uri)
+                                    mediaPlayer.play()
+                                } else {
+                                    TODO()
                                 }
                             }
                             MediaControllerState.Available(
-                                enabled = enabled.asStateFlow(),
-                                playbackState = MediaControllerState.Available.PlaybackState(
-                                    queue = newQueue,
-                                    queueItemIndex = queueItemIndex,
-                                    queueSubItemIndex = queueSubItemIndex,
-                                    isPlaying = true,
-                                    repeatState = MediaControllerState.Available.PlaybackState.RepeatState.Off,
-                                    duration = mediaPlayer.media.info.duration,
-                                    elapsedTime = elapsedTime,
-                                    audioOrVideoState = MediaControllerState.Available.PlaybackState.AudioOrVideoState.Audio
-                                ),
-                                addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
-                                addToPlaylist = addToPlaylist.asStateFlow(),
-                                onAlbumClick = onAlbumClick,
-                                onArtistClick = onArtistClick,
-                                onValueChange = ::seek,
-                                onPreviousClick = ::previous,
-                                onPlayQueueClick = ::playQueue,
-                                onPlayClick = ::play,
-                                onPauseClick = ::pause,
-                                onNextClick = ::next,
-                                onRepeatClick = ::repeat, // TODO
-                                onPlayQueueItem = ::playQueueItem,
-                                onPlayQueueSubItem = ::playTrackInQueue,
-                                onAddToPlaylistClick = ::showAddToPlaylistDialog,
-                                onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
+                                enabled = this@MediaController.enabled.asStateFlow(),
+                                queue = mapped,
+                                queueItemIndex = queueItemIndex,
+                                queueSubItemIndex = queueSubItemIndex,
+                                timePositionChange = timePositionChange,
+                                isPlaying = this@MediaController.isPlaying.asStateFlow(),
+                                repeatState = MediaControllerState.Available.RepeatState.Off,
                             )
                         }
                         is MediaControllerState.Available -> {
                             if (queue.isEmpty()) {
-                                if (!currentState.playbackState.isPlaying) { mediaPlayer.controls.play() }
-                                currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = true))
+                                if (!currentState.isPlaying.value) { mediaPlayer.play() }
+                                this@MediaController.isPlaying.value = true
+                                currentState
                             } else {
-                                clearAndroidCache()
-                                val newQueue = queue.map { it.toModel() }
-                                val index = queueItemIndex ?: 0
-                                val subIndex = queueSubItemIndex ?: 0
-                                if (newQueue.isNotEmpty()) {
-                                    newQueue[index].let { firstQueueItem ->
-                                        val currentTrack = when (firstQueueItem) {
-                                            is MediaControllerState.Available.PlaybackState.QueueItem.Track -> firstQueueItem
-                                            is MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> firstQueueItem.items[subIndex] // TODO: handle invalid subIndex
-                                            is MediaControllerState.Available.PlaybackState.QueueItem.Album -> firstQueueItem.items[subIndex] // TODO: handle invalid subIndex
-                                        }
-                                        if (currentTrack.audio?.url != null) {
-                                            mediaPlayer.media.start(currentTrack.audio.url)
-                                        }
+                                val index = queueItemIndex
+                                val subIndex = queueSubItemIndex
+                                val mapped: List<MediaControllerState.Available.QueueItem> = queue.map { it.toModel() }
+                                mapped[index].let { firstQueueItem ->
+                                    val currentTrack = when (firstQueueItem) {
+                                        is MediaControllerState.Available.QueueItem.Track -> firstQueueItem
+                                        is MediaControllerState.Available.QueueItem.Playlist -> firstQueueItem.items[subIndex] // TODO: handle invalid subIndex
+                                        is MediaControllerState.Available.QueueItem.Album -> firstQueueItem.items[subIndex] // TODO: handle invalid subIndex
+                                    }
+                                    if (currentTrack.uri != null) {
+                                        mediaPlayer.setMedia(currentTrack.uri)
+                                        mediaPlayer.play()
+                                    } else {
+                                        TODO()
                                     }
                                 }
+                                this@MediaController.isPlaying.value = true
                                 currentState.copy(
-                                    playbackState = currentState.playbackState.copy(
-                                        queue = newQueue,
-                                        queueItemIndex = index,
-                                        queueSubItemIndex = subIndex,
-                                        isPlaying = true,
-                                        duration = mediaPlayer.media.info.duration
-                                    )
+                                    queue = mapped,
+                                    queueItemIndex = index,
+                                    queueSubItemIndex = subIndex
                                 )
                             }
                         }
                     }
                 }
-                enabled.update { true }
+                this@MediaController.enabled.value = true
             }
         }
     }
-    
+
     fun play() {
         coroutineScope.launch {
             mutex.withLock {
-                enabled.update { false }
+                this@MediaController.enabled.value = false
                 _state.update { currentState ->
                     when (currentState) {
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
-                            if (!currentState.playbackState.isPlaying) { mediaPlayer.controls.pause() }
-                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = true))
+                            if (!currentState.isPlaying.value) { mediaPlayer.play() }
+                            this@MediaController.isPlaying.value = true
+                            currentState
                         }
                     }
                 }
-                enabled.update { true }
+                this@MediaController.enabled.value = true
             }
         }
     }
@@ -163,18 +137,18 @@ abstract class MediaController(
     fun pause() {
         coroutineScope.launch {
             mutex.withLock {
-                enabled.update { false }
+                this@MediaController.enabled.value = false
                 _state.update { currentState ->
                     when (currentState) {
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
-                            if (currentState.playbackState.isPlaying) { mediaPlayer.controls.pause() }
-                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = false))
+                            if (currentState.isPlaying.value) { mediaPlayer.pause() }
+                            currentState
                         }
                     }
                 }
-                enabled.update { true }
+                this@MediaController.enabled.value = true
             }
         }
     }
@@ -182,9 +156,10 @@ abstract class MediaController(
     fun seek(position: Long) {
         coroutineScope.launch {
             mutex.withLock {
-                enabled.update { false }
-                mediaPlayer.controls.setTime(position)
-                enabled.update { true }
+                this@MediaController.enabled.value = false
+                mediaPlayer.setTime(position)
+                timePositionChange.value = position
+                this@MediaController.enabled.value = true
             }
         }
     }
@@ -192,15 +167,16 @@ abstract class MediaController(
     fun next() {
         coroutineScope.launch {
             mutex.withLock {
-                enabled.update { false }
-                var wasPlaying = false
+                this@MediaController.enabled.value = false
+                var wasPlaying: Boolean? = null
                 _state.update { currentState ->
                     when (currentState) {
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
-                            if (currentState.playbackState.isPlaying) { wasPlaying = true; mediaPlayer.controls.stop() }
-                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = false))
+                            if (currentState.isPlaying.value) { wasPlaying = true; mediaPlayer.stop() }
+                            this@MediaController.isPlaying.value = false
+                            currentState
                         }
                     }
                 }
@@ -209,18 +185,18 @@ abstract class MediaController(
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
-                            val queue = currentState.playbackState.queue
-                            val currentIndex = currentState.playbackState.queueItemIndex
-                            val currentSubIndex = currentState.playbackState.queueSubItemIndex
+                            val queue = currentState.queue
+                            val currentIndex = currentState.queueItemIndex
+                            val currentSubIndex = currentState.queueSubItemIndex
                             val newIndex: Int
                             val newSubIndex: Int
                             queue[currentIndex].let { queueItem ->
                                 when (queueItem) {
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Track -> {
+                                    is MediaControllerState.Available.QueueItem.Track -> {
                                         newIndex = if (currentIndex + 1 > queue.size - 1) 0 else currentIndex + 1
                                         newSubIndex = 0
                                     }
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> {
+                                    is MediaControllerState.Available.QueueItem.Playlist -> {
                                         if (currentSubIndex + 1 > queueItem.items.size - 1) {
                                             newIndex = if (currentIndex + 1 > queue.size - 1) 0 else currentIndex + 1
                                             newSubIndex = 0
@@ -229,7 +205,7 @@ abstract class MediaController(
                                             newSubIndex = currentSubIndex + 1
                                         }
                                     }
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Album -> {
+                                    is MediaControllerState.Available.QueueItem.Album -> {
                                         if (currentSubIndex + 1 > queueItem.items.size - 1) {
                                             newIndex = if (currentIndex + 1 > queue.size - 1) 0 else currentIndex + 1
                                             newSubIndex = 0
@@ -242,30 +218,27 @@ abstract class MediaController(
                             }
                             val newTrack = queue[newIndex].let { queueItem ->
                                 when (queueItem) {
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Track -> queueItem
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> queueItem.items[newSubIndex]
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Album -> queueItem.items[newSubIndex]
+                                    is MediaControllerState.Available.QueueItem.Track -> queueItem
+                                    is MediaControllerState.Available.QueueItem.Playlist -> queueItem.items[newSubIndex]
+                                    is MediaControllerState.Available.QueueItem.Album -> queueItem.items[newSubIndex]
                                 }
                             }
-                            if (newTrack.audio?.url != null) {
+                            if (wasPlaying == null) { TODO() }
+                            if (newTrack.uri != null) {
+                                mediaPlayer.setMedia(newTrack.uri)
                                 if (wasPlaying) {
-                                    mediaPlayer.media.start(newTrack.audio.url)
-                                } else {
-                                    mediaPlayer.media.startPaused(newTrack.audio.url)
+                                    mediaPlayer.play()
                                 }
                             }
+                            this@MediaController.isPlaying.value = wasPlaying
                             currentState.copy(
-                                playbackState = currentState.playbackState.copy(
-                                    queueItemIndex = newIndex,
-                                    queueSubItemIndex = newSubIndex,
-                                    isPlaying = wasPlaying,
-                                    duration = mediaPlayer.media.info.duration
-                                )
+                                queueItemIndex = newIndex,
+                                queueSubItemIndex = newSubIndex
                             )
                         }
                     }
                 }
-                enabled.update { true }
+                this@MediaController.enabled.value = true
             }
         }
     }
@@ -273,15 +246,16 @@ abstract class MediaController(
     fun previous() {
         coroutineScope.launch {
             mutex.withLock {
-                enabled.update { false }
-                var wasPlaying = false
+                this@MediaController.enabled.value = false
+                var wasPlaying: Boolean? = null
                 _state.update { currentState ->
                     when (currentState) {
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
-                            if (currentState.playbackState.isPlaying) { wasPlaying = true; mediaPlayer.controls.stop() }
-                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = false))
+                            if (currentState.isPlaying.value) { wasPlaying = true; mediaPlayer.stop() }
+                            this@MediaController.isPlaying.value = false
+                            currentState
                         }
                     }
                 }
@@ -290,31 +264,31 @@ abstract class MediaController(
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
-                            val queue = currentState.playbackState.queue
-                            val currentIndex = currentState.playbackState.queueItemIndex
-                            val currentSubIndex = currentState.playbackState.queueSubItemIndex
+                            val queue = currentState.queue
+                            val currentIndex = currentState.queueItemIndex
+                            val currentSubIndex = currentState.queueSubItemIndex
                             val newIndex: Int
                             val newSubIndex: Int
                             queue[currentIndex].let { queueItem ->
                                 when (queueItem) {
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Track -> {
+                                    is MediaControllerState.Available.QueueItem.Track -> {
                                         newIndex = if (currentIndex - 1 < 0) 0 else currentIndex - 1
                                         newSubIndex = if (currentIndex - 1 < 0) 0 else queue[currentIndex - 1].let {
                                             when (it) {
-                                                is MediaControllerState.Available.PlaybackState.QueueItem.Track -> 0
-                                                is MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> it.items.lastIndex
-                                                is MediaControllerState.Available.PlaybackState.QueueItem.Album -> it.items.lastIndex
+                                                is MediaControllerState.Available.QueueItem.Track -> 0
+                                                is MediaControllerState.Available.QueueItem.Playlist -> it.items.lastIndex
+                                                is MediaControllerState.Available.QueueItem.Album -> it.items.lastIndex
                                             }
                                         }
                                     }
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> {
+                                    is MediaControllerState.Available.QueueItem.Playlist -> {
                                         if (currentSubIndex - 1 < 0) {
                                             newIndex = if (currentIndex - 1 < 0) 0 else currentIndex - 1
                                             newSubIndex = if (currentIndex - 1 < 0) 0 else queue[currentIndex - 1].let {
                                                 when (it) {
-                                                    is MediaControllerState.Available.PlaybackState.QueueItem.Track -> 0
-                                                    is MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> it.items.lastIndex
-                                                    is MediaControllerState.Available.PlaybackState.QueueItem.Album -> it.items.lastIndex
+                                                    is MediaControllerState.Available.QueueItem.Track -> 0
+                                                    is MediaControllerState.Available.QueueItem.Playlist -> it.items.lastIndex
+                                                    is MediaControllerState.Available.QueueItem.Album -> it.items.lastIndex
                                                 }
                                             }
                                         } else {
@@ -322,14 +296,14 @@ abstract class MediaController(
                                             newSubIndex = currentSubIndex - 1
                                         }
                                     }
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Album -> {
+                                    is MediaControllerState.Available.QueueItem.Album -> {
                                         if (currentSubIndex - 1 < 0) {
                                             newIndex = if (currentIndex - 1 < 0) 0 else currentIndex - 1
                                             newSubIndex = if (currentIndex - 1 < 0) 0 else queue[currentIndex - 1].let {
                                                 when (it) {
-                                                    is MediaControllerState.Available.PlaybackState.QueueItem.Track -> 0
-                                                    is MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> it.items.lastIndex
-                                                    is MediaControllerState.Available.PlaybackState.QueueItem.Album -> it.items.lastIndex
+                                                    is MediaControllerState.Available.QueueItem.Track -> 0
+                                                    is MediaControllerState.Available.QueueItem.Playlist -> it.items.lastIndex
+                                                    is MediaControllerState.Available.QueueItem.Album -> it.items.lastIndex
                                                 }
                                             }
                                         } else {
@@ -341,30 +315,25 @@ abstract class MediaController(
                             }
                             val newTrack = queue[newIndex].let { queueItem ->
                                 when (queueItem) {
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Track -> queueItem
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> queueItem.items[newSubIndex]
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Album -> queueItem.items[newSubIndex]
+                                    is MediaControllerState.Available.QueueItem.Track -> queueItem
+                                    is MediaControllerState.Available.QueueItem.Playlist -> queueItem.items[newSubIndex]
+                                    is MediaControllerState.Available.QueueItem.Album -> queueItem.items[newSubIndex]
                                 }
                             }
-                            if (newTrack.audio?.url != null) {
-                                if (wasPlaying) {
-                                    mediaPlayer.media.start(newTrack.audio.url)
-                                } else {
-                                    mediaPlayer.media.startPaused(newTrack.audio.url)
-                                }
+                            if (wasPlaying == null) TODO()
+                            if (newTrack.uri != null) {
+                                mediaPlayer.setMedia(newTrack.uri)
+                                if (wasPlaying) { mediaPlayer.play() }
                             }
+                            this@MediaController.isPlaying.value = wasPlaying
                             currentState.copy(
-                                playbackState = currentState.playbackState.copy(
-                                    queueItemIndex = newIndex,
-                                    queueSubItemIndex = newSubIndex,
-                                    isPlaying = wasPlaying,
-                                    duration = mediaPlayer.media.info.duration
-                                )
+                                queueItemIndex = newIndex,
+                                queueSubItemIndex = newSubIndex
                             )
                         }
                     }
                 }
-                enabled.update { true }
+                this@MediaController.enabled.value = true
             }
         }
     }
@@ -372,25 +341,23 @@ abstract class MediaController(
     fun repeat() {
         coroutineScope.launch {
             mutex.withLock {
-                enabled.update { false }
+                this@MediaController.enabled.value = false
                 _state.update { currentState ->
                     when (currentState) {
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
                             currentState.copy(
-                                playbackState = currentState.playbackState.copy(
-                                    repeatState = when (currentState.playbackState.repeatState) {
-                                        MediaControllerState.Available.PlaybackState.RepeatState.Off -> MediaControllerState.Available.PlaybackState.RepeatState.List
-                                        MediaControllerState.Available.PlaybackState.RepeatState.List -> MediaControllerState.Available.PlaybackState.RepeatState.Track
-                                        MediaControllerState.Available.PlaybackState.RepeatState.Track -> MediaControllerState.Available.PlaybackState.RepeatState.Off
-                                    }
-                                )
+                                repeatState = when (currentState.repeatState) {
+                                    MediaControllerState.Available.RepeatState.Off -> MediaControllerState.Available.RepeatState.List
+                                    MediaControllerState.Available.RepeatState.List -> MediaControllerState.Available.RepeatState.Track
+                                    MediaControllerState.Available.RepeatState.Track -> MediaControllerState.Available.RepeatState.Off
+                                }
                             )
                         }
                     }
                 }
-                enabled.update { true }
+                this@MediaController.enabled.value = true
             }
         }
     }
@@ -398,7 +365,7 @@ abstract class MediaController(
     fun addToQueue(items: List<QueueItemParameter>) {
         coroutineScope.launch {
             mutex.withLock {
-                enabled.update { false }
+                this@MediaController.enabled.value = false
                 _state.update { currentState ->
                     when (currentState) {
                         is MediaControllerState.Unavailable -> MediaControllerState.Loading
@@ -410,73 +377,53 @@ abstract class MediaController(
                     when (currentState) {
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> {
-                            clearAndroidCache()
-                            val newQueue = items.map { it.toModel() }
+                            val mapped: List<MediaControllerState.Available.QueueItem> = items.map { it.toModel() }
+                            val newQueue = mapped
                             newQueue.first().let { firstQueueItem ->
                                 val currentTrack = when (firstQueueItem) {
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Track -> firstQueueItem
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> firstQueueItem.items.first()
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Album -> firstQueueItem.items.first()
+                                    is MediaControllerState.Available.QueueItem.Track -> firstQueueItem
+                                    is MediaControllerState.Available.QueueItem.Playlist -> firstQueueItem.items.first()
+                                    is MediaControllerState.Available.QueueItem.Album -> firstQueueItem.items.first()
                                 }
-                                if (currentTrack.audio?.url != null) {
-                                    mediaPlayer.media.startPaused(currentTrack.audio.url)
+                                if (currentTrack.uri != null) {
+                                    mediaPlayer.setMedia(currentTrack.uri)
+                                } else {
+                                    TODO()
                                 }
                             }
                             MediaControllerState.Available(
                                 enabled = enabled.asStateFlow(),
-                                playbackState = MediaControllerState.Available.PlaybackState(
-                                    queue = newQueue,
-                                    queueItemIndex = 0,
-                                    queueSubItemIndex = 0,
-                                    isPlaying = false,
-                                    repeatState = MediaControllerState.Available.PlaybackState.RepeatState.Off,
-                                    duration = mediaPlayer.media.info.duration,
-                                    elapsedTime = elapsedTime,
-                                    audioOrVideoState = MediaControllerState.Available.PlaybackState.AudioOrVideoState.Audio
-                                ),
-                                addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
-                                addToPlaylist = addToPlaylist.asStateFlow(),
-                                onAlbumClick = onAlbumClick,
-                                onArtistClick = onArtistClick,
-                                onValueChange = ::seek,
-                                onPreviousClick = ::previous,
-                                onPlayQueueClick = ::playQueue,
-                                onPlayClick = ::play,
-                                onPauseClick = ::pause,
-                                onNextClick = ::next,
-                                onRepeatClick = ::repeat, // TODO
-                                onPlayQueueItem = ::playQueueItem,
-                                onPlayQueueSubItem = ::playTrackInQueue,
-                                onAddToPlaylistClick = ::showAddToPlaylistDialog,
-                                onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
+                                queue = newQueue,
+                                queueItemIndex = 0,
+                                queueSubItemIndex = 0,
+                                timePositionChange = timePositionChange,
+                                isPlaying = this@MediaController.isPlaying,
+                                repeatState = MediaControllerState.Available.RepeatState.Off
                             )
                         }
                         is MediaControllerState.Available -> {
-                            clearAndroidCache()
-                            currentState.copy(
-                                playbackState = currentState.playbackState.copy(
-                                    queue = currentState.playbackState.queue.toMutableList().apply { addAll(items.map { it.toModel() }) }
-                                )
-                            )
+                            val mapped: List<MediaControllerState.Available.QueueItem> = items.map { it.toModel() }
+                            currentState.copy(queue = currentState.queue + mapped)
                         }
                     }
                 }
-                enabled.update { true }
+                this@MediaController.enabled.value = true
             }
         }
     }
 
-    private fun playQueueItem(queueItemIndex: Int) {
+    fun playQueueItem(queueItemIndex: Int) {
         coroutineScope.launch {
             mutex.withLock {
-                enabled.update { false }
+                this@MediaController.enabled.value = false
                 _state.update { currentState ->
                     when (currentState) {
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
-                            if (currentState.playbackState.isPlaying) { mediaPlayer.controls.stop() }
-                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = false))
+                            if (currentState.isPlaying.value) { mediaPlayer.stop() }
+                            this@MediaController.isPlaying.value = false
+                            currentState
                         }
                     }
                 }
@@ -485,85 +432,82 @@ abstract class MediaController(
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
-                            currentState.playbackState.queue[queueItemIndex].let { queueItem ->
+                            currentState.queue[queueItemIndex].let { queueItem ->
                                 val newTrack = when (queueItem) {
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Track -> queueItem
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> queueItem.items.first()
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Album -> queueItem.items.first()
+                                    is MediaControllerState.Available.QueueItem.Track -> queueItem
+                                    is MediaControllerState.Available.QueueItem.Playlist -> queueItem.items.first()
+                                    is MediaControllerState.Available.QueueItem.Album -> queueItem.items.first()
                                 }
-                                if (newTrack.audio?.url != null) {
-                                    mediaPlayer.media.start(newTrack.audio.url)
+                                if (newTrack.uri != null) {
+                                    mediaPlayer.setMedia(newTrack.uri)
+                                    mediaPlayer.play()
+                                }
+                            }
+                            this@MediaController.isPlaying.value = true
+                            currentState.copy(
+                                queueItemIndex = queueItemIndex,
+                                queueSubItemIndex = 0
+                            )
+                        }
+                    }
+                }
+                this@MediaController.enabled.value = true
+            }
+        }
+    }
+
+    fun playTrackInQueue(queueItemIndex: Int, trackIndex: Int) {
+        coroutineScope.launch {
+            mutex.withLock {
+                this@MediaController.enabled.value = false
+                _state.update { currentState ->
+                    when (currentState) {
+                        is MediaControllerState.Unavailable -> TODO()
+                        is MediaControllerState.Loading -> TODO()
+                        is MediaControllerState.Available -> {
+                            if (currentState.isPlaying.value) { mediaPlayer.stop() }
+                            this@MediaController.isPlaying.value = false
+                            currentState
+                        }
+                    }
+                }
+                _state.update { currentState ->
+                    when (currentState) {
+                        is MediaControllerState.Unavailable -> TODO()
+                        is MediaControllerState.Loading -> TODO()
+                        is MediaControllerState.Available -> {
+                            currentState.queue[queueItemIndex].let { queueItem ->
+                                val newTrack = when (queueItem) {
+                                    is MediaControllerState.Available.QueueItem.Track -> queueItem
+                                    is MediaControllerState.Available.QueueItem.Playlist -> queueItem.items[trackIndex]
+                                    is MediaControllerState.Available.QueueItem.Album -> queueItem.items[trackIndex]
+                                }
+                                if (newTrack.uri != null) {
+                                    mediaPlayer.setMedia(newTrack.uri)
+                                    mediaPlayer.play()
                                 }
                             }
                             currentState.copy(
-                                playbackState = currentState.playbackState.copy(
-                                    queueItemIndex = queueItemIndex,
-                                    queueSubItemIndex = 0,
-                                    isPlaying = true,
-                                    duration = mediaPlayer.media.info.duration
-                                )
+                                queueItemIndex = queueItemIndex,
+                                queueSubItemIndex = trackIndex
                             )
                         }
                     }
                 }
-                enabled.update { true }
+                this@MediaController.enabled.value = true
             }
         }
     }
 
-    private fun playTrackInQueue(queueItemIndex: Int, trackIndex: Int) {
-        coroutineScope.launch {
-            mutex.withLock {
-                enabled.update { false }
-                _state.update { currentState ->
-                    when (currentState) {
-                        is MediaControllerState.Unavailable -> TODO()
-                        is MediaControllerState.Loading -> TODO()
-                        is MediaControllerState.Available -> {
-                            if (currentState.playbackState.isPlaying) { mediaPlayer.controls.stop() }
-                            currentState.copy(playbackState = currentState.playbackState.copy(isPlaying = false))
-                        }
-                    }
-                }
-                _state.update { currentState ->
-                    when (currentState) {
-                        is MediaControllerState.Unavailable -> TODO()
-                        is MediaControllerState.Loading -> TODO()
-                        is MediaControllerState.Available -> {
-                            currentState.playbackState.queue[queueItemIndex].let { queueItem ->
-                                val newTrack = when (queueItem) {
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Track -> queueItem
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> queueItem.items[trackIndex]
-                                    is MediaControllerState.Available.PlaybackState.QueueItem.Album -> queueItem.items[trackIndex]
-                                }
-                                if (newTrack.audio?.url != null) {
-                                    mediaPlayer.media.start(newTrack.audio.url)
-                                }
-                            }
-                            currentState.copy(
-                                playbackState = currentState.playbackState.copy(
-                                    queueItemIndex = queueItemIndex,
-                                    queueSubItemIndex = trackIndex,
-                                    duration = mediaPlayer.media.info.duration
-                                )
-                            )
-                        }
-                    }
-                }
-                enabled.update { true }
-            }
-        }
-    }
-
-    private suspend fun QueueItemParameter.toModel(): MediaControllerState.Available.PlaybackState.QueueItem {
+    private suspend fun QueueItemParameter.toModel(): MediaControllerState.Available.QueueItem {
         return when (this) {
             is QueueItemParameter.Track -> trackRepo.getStatic(this.id)!!.let { dbTrack ->
-                MediaControllerState.Available.PlaybackState.QueueItem.Track(
+                MediaControllerState.Available.QueueItem.Track(
                     id = dbTrack.id,
                     name = dbTrack.name,
                     artists = artistRepo.getTrackArtistsStatic(this.id)
                         .map { dbArtist ->
-                            MediaControllerState.Available.PlaybackState.QueueItem.Track.Artist(
+                            MediaControllerState.Available.QueueItem.Track.Artist(
                                 id = dbArtist.id,
                                 name = dbArtist.name,
                                 image = dbArtist.image
@@ -571,7 +515,7 @@ abstract class MediaController(
                         },
                     album = dbTrack.album_id?.let {
                         albumRepo.getStatic(it)!!.let { dbAlbum ->
-                            MediaControllerState.Available.PlaybackState.QueueItem.Track.Album(
+                            MediaControllerState.Available.QueueItem.Track.Album(
                                 id = dbAlbum.id,
                                 name = dbAlbum.name,
                                 image = dbAlbum.image,
@@ -579,50 +523,50 @@ abstract class MediaController(
                             )
                         }
                     },
-                    audio = dbTrack.audio_url?.let { getAudioSource(it) },
-                    video = null // TODO
+                    uri = dbTrack.audio_url,
+                    duration = dbTrack.duration
                 )
             }
             is QueueItemParameter.Album -> albumRepo.getStatic(this.id)!!.let { dbAlbum ->
-                MediaControllerState.Available.PlaybackState.QueueItem.Album(
+                MediaControllerState.Available.QueueItem.Album(
                     id = dbAlbum.id,
                     name = dbAlbum.name,
                     image = dbAlbum.image,
                     releaseDate = dbAlbum.release_date,
                     items = trackRepo.getAlbumTracksStatic(dbAlbum.id).map { dbTrack ->
-                        MediaControllerState.Available.PlaybackState.QueueItem.Track(
+                        MediaControllerState.Available.QueueItem.Track(
                             id = dbTrack.id,
                             name = dbTrack.name,
                             artists = artistRepo.getTrackArtistsStatic(dbTrack.id).map { dbArtist ->
-                                MediaControllerState.Available.PlaybackState.QueueItem.Track.Artist(
+                                MediaControllerState.Available.QueueItem.Track.Artist(
                                     id = dbArtist.id,
                                     name = dbArtist.name,
                                     image = dbArtist.image
                                 )
                             },
-                            album = MediaControllerState.Available.PlaybackState.QueueItem.Track.Album(
+                            album = MediaControllerState.Available.QueueItem.Track.Album(
                                 id = dbAlbum.id,
                                 name = dbAlbum.name,
                                 image = dbAlbum.image,
                                 releaseDate = dbAlbum.release_date
                             ),
-                            audio = dbTrack.audio_url?.let { getAudioSource(it) },
-                            video = null // TODO
+                            uri = dbTrack.audio_url,
+                            duration = dbTrack.duration
                         )
                     }
                 )
             }
             is QueueItemParameter.Playlist -> playlistRepo.getStatic(this.id)!!.let { dbPlaylist ->
-                MediaControllerState.Available.PlaybackState.QueueItem.Playlist(
+                MediaControllerState.Available.QueueItem.Playlist(
                     id = dbPlaylist.id,
                     name = dbPlaylist.name,
                     image = dbPlaylist.image,
                     items = trackRepo.getPlaylistTracksStatic(dbPlaylist.id).map { dbTrack ->
-                        MediaControllerState.Available.PlaybackState.QueueItem.Track(
+                        MediaControllerState.Available.QueueItem.Track(
                             id = dbTrack.id,
                             name = dbTrack.name,
                             artists = artistRepo.getTrackArtistsStatic(dbTrack.id).map { dbArtist ->
-                                MediaControllerState.Available.PlaybackState.QueueItem.Track.Artist(
+                                MediaControllerState.Available.QueueItem.Track.Artist(
                                     id = dbArtist.id,
                                     name = dbArtist.name,
                                     image = dbArtist.image
@@ -630,7 +574,7 @@ abstract class MediaController(
                             },
                             album = dbTrack.album_id?.let {
                                 albumRepo.getStatic(it)!!.let { dbAlbum ->
-                                    MediaControllerState.Available.PlaybackState.QueueItem.Track.Album(
+                                    MediaControllerState.Available.QueueItem.Track.Album(
                                         id = dbAlbum.id,
                                         name = dbAlbum.name,
                                         image = dbAlbum.image,
@@ -638,8 +582,8 @@ abstract class MediaController(
                                     )
                                 }
                             },
-                            audio = dbTrack.audio_url?.let { getAudioSource(it) },
-                            video = null // TODO
+                            uri = dbTrack.audio_url,
+                            duration = dbTrack.duration
                         )
                     }
                 )
@@ -647,44 +591,9 @@ abstract class MediaController(
         }
     }
 
-    protected abstract suspend fun getAudioSource(uri: String): MediaControllerState.Available.PlaybackState.QueueItem.Track.Audio
-
-    protected suspend fun getDuration(mediaPath: String): Long {
-        return mediaUtil.getDuration(mediaPath)
-    }
-
     fun release() {
         coroutineScope.cancel()
         mediaPlayer.release()
-    }
-
-    protected abstract fun showAddToPlaylistDialog(trackId: Long)
-
-    protected fun dismissAddToPlaylistDialog() {
-        if (addToPlaylist.value?.adding?.value == true) {
-            return
-        }
-        addToPlaylistDialogVisible.update { false }
-        addToPlaylist.update { it?.clear(); null }
-    }
-
-    protected open fun clearAndroidCache() {
-    }
-
-    sealed class QueueItemParameter {
-        abstract val id: Long
-
-        data class Track(
-            override val id: Long
-        ) : QueueItemParameter()
-
-        data class Playlist(
-            override val id: Long,
-        ): QueueItemParameter()
-
-        data class Album(
-            override val id: Long
-        ): QueueItemParameter()
     }
 
     sealed class MediaControllerState {
@@ -694,100 +603,79 @@ abstract class MediaController(
 
         data class Available(
             val enabled: StateFlow<Boolean>,
-            val playbackState: PlaybackState,
-            val addToPlaylistDialogVisible: StateFlow<Boolean>,
-            val addToPlaylist: StateFlow<Component?>,
-            val onAlbumClick: (Long) -> Unit,
-            val onArtistClick: (Long) -> Unit,
-            val onValueChange: (Long) -> Unit,
-            val onPreviousClick: () -> Unit,
-            val onPlayQueueClick: (queue: List<QueueItemParameter>, queueItemIndex: Int, queueSubItemIndex: Int) -> Unit,
-            val onPlayClick: () -> Unit,
-            val onPauseClick: () -> Unit,
-            val onNextClick: () -> Unit,
-            val onRepeatClick: () -> Unit,
-            val onPlayQueueItem: (queueItemIndex: Int) -> Unit,
-            val onPlayQueueSubItem: (queueItemIndex: Int, trackIndex: Int) ->Unit,
-            val onAddToPlaylistClick: (trackId: Long) -> Unit,
-            val onDismissAddToPlaylistDialog: () -> Unit
+            val queue: List<QueueItem>,
+            val queueItemIndex: Int,
+            val queueSubItemIndex: Int,
+            val timePositionChange: StateFlow<Long>,
+            val isPlaying: StateFlow<Boolean>,
+            val repeatState: RepeatState
         ) : MediaControllerState() {
-            data class PlaybackState(
-                val queue: List<QueueItem>,
-                val queueItemIndex: Int,
-                val queueSubItemIndex: Int,
-                val isPlaying: Boolean,
-                val repeatState: RepeatState,
-                val duration: Long,
-                val elapsedTime: StateFlow<Long>,
-                val audioOrVideoState: AudioOrVideoState
-            ) {
-                val currentTrack get() = when (val it = queue[queueItemIndex]) {
-                    is QueueItem.Track -> it
-                    is QueueItem.Playlist -> it.items[queueSubItemIndex]
-                    is QueueItem.Album -> it.items[queueSubItemIndex]
-                }
+            val currentTrack: QueueItem.Track get() = when (val result = queue[queueItemIndex]) {
+                is QueueItem.Track -> result
+                is QueueItem.Playlist -> result.items[queueSubItemIndex]
+                is QueueItem.Album -> result.items[queueSubItemIndex]
+            }
 
-                init { if (queue.isEmpty()) { TODO() } }
+            enum class RepeatState { Off, List, Track }
 
-                sealed class QueueItem {
-                    data class Track(
+            sealed class QueueItem {
+                data class Track(
+                    val id: Long,
+                    val name: String,
+                    val artists: List<Artist>,
+                    val album: Album?,
+                    val uri: String?,
+                    val duration: Long
+                ) : QueueItem() {
+                    data class Artist(
                         val id: Long,
                         val name: String,
-                        val artists: List<Artist>,
-                        val album: Album?,
-                        val audio: Audio?,
-                        val video: Video?
-                    ) : QueueItem() {
-                        val playable = audio?.url != null
-
-                        data class Artist(
-                            val id: Long,
-                            val name: String,
-                            val image: ByteArray?
-                        )
-
-                        data class Album(
-                            val id: Long,
-                            val name: String,
-                            val image: ByteArray?,
-                            val releaseDate: String?
-                        )
-
-                        data class Audio(
-                            val url: String,
-                            val duration: Long
-                        )
-
-                        data class Video(
-                            val url: String,
-                            val duration: Long
-                        )
-                    }
-
-                    data class Playlist(
-                        val id: Long,
-                        val name: String,
-                        val image: ByteArray?,
-                        val items: List<Track>
-                    ): QueueItem() {
-                        init { if (items.isEmpty()) { TODO() } }
-                    }
+                        val image: ByteArray?
+                    )
 
                     data class Album(
                         val id: Long,
                         val name: String,
                         val image: ByteArray?,
-                        val releaseDate: String?,
-                        val items: List<Track>
-                    ): QueueItem() {
-                        init { if (items.isEmpty()) { TODO() } }
-                    }
+                        val releaseDate: String?
+                    )
                 }
 
-                enum class RepeatState { Off, List, Track }
+                data class Playlist(
+                    val id: Long,
+                    val name: String,
+                    val image: ByteArray?,
+                    val items: List<Track>
+                ): QueueItem() {
+                    init { if (items.isEmpty()) { TODO() } }
+                }
 
-                enum class AudioOrVideoState { Audio, Video }
+                data class Album(
+                    val id: Long,
+                    val name: String,
+                    val image: ByteArray?,
+                    val releaseDate: String?,
+                    val items: List<Track>
+                ): QueueItem() {
+                    init { if (items.isEmpty()) { TODO() } }
+                }
             }
         }
+    }
+
+    sealed class QueueItemParameter {
+        abstract val id: Long
+        data class Track(override val id: Long) : QueueItemParameter()
+        data class Playlist(override val id: Long): QueueItemParameter()
+        data class Album(override val id: Long): QueueItemParameter()
+    }
+
+    protected abstract class MediaPlayer {
+        abstract fun setMedia(uri: String)
+        abstract fun play()
+        abstract fun pause()
+        abstract fun stop()
+        abstract fun setTime(time: Long)
+        abstract fun release()
     }
 }

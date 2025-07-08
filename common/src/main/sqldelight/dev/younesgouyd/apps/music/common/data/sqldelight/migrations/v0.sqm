@@ -24,6 +24,7 @@ CREATE TABLE track (
     video_url TEXT,
     lyrics TEXT,
     album_track_number INTEGER,
+    duration INTEGER NOT NULL,
     creation_datetime INTEGER NOT NULL,
     update_datetime INTEGER NOT NULL,
     CHECK (

@@ -2,6 +2,7 @@ package dev.younesgouyd.apps.music.common.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.mpatric.mp3agic.Mp3File
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.data.repoes.*
 import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Folder
@@ -10,6 +11,7 @@ import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.File
 
 abstract class Library(
     private val folderRepo: FolderRepo,
@@ -83,7 +85,6 @@ abstract class Library(
 
         tracks = currentFolder.flatMapLatest { currentFolder ->
             flow {
-                emit(emptyList())
                 loadingTracks.value = true
                 if (currentFolder != null) {
                     trackRepo.getFolderTracks(currentFolder.id).collect { tracks ->
@@ -112,7 +113,6 @@ abstract class Library(
                                 )
                             }
                         )
-                        loadingTracks.value = false
                     }
                 }
                 loadingTracks.value = false
@@ -127,7 +127,67 @@ abstract class Library(
         coroutineScope.cancel()
     }
 
-    protected fun addTrack(name: String, audioUrl: String?, videoUrl: String?) {
+    suspend fun saveMp3FileAsTrack(file: File, uri: String, parentFolderId: Long) {
+        val mp3file = Mp3File(file)
+        var title: String? = null
+        var albumTrackNumber: Long? = null
+        var artist: String? = null
+        var album: String? = null
+        var lyrics: String? = null
+        var year: String? = null
+        var albumImage: ByteArray? = null
+        if (mp3file.hasId3v2Tag()) {
+            val id3 = mp3file.id3v2Tag
+            val albumImageData = id3.albumImage
+            title = id3.title
+            albumTrackNumber = id3.track?.toLongOrNull()
+            artist = id3.artist
+            album = id3.album
+            year = id3.year
+            lyrics = id3.lyrics
+            albumImage = albumImageData
+        } else if (mp3file.hasId3v1Tag()) {
+            val id3 = mp3file.id3v1Tag
+            title = id3.title
+            albumTrackNumber = id3.track?.toLongOrNull()
+            artist = id3.artist
+            album = id3.album
+            year = id3.year
+        }
+        var artistId: Long? = null
+        var albumId: Long? = null
+        if (!artist.isNullOrEmpty()) {
+            val artists = artistRepo.getByName(artist)
+            if (artists.isEmpty()) {
+                artistId = artistRepo.add(name = artist, image = null)
+            } else if (artists.size == 1) {
+                artistId = artists.first().id
+            }
+        }
+        if (!album.isNullOrEmpty()) {
+            val albums = albumRepo.getByName(album)
+            if (albums.isEmpty()) {
+                albumId = albumRepo.add(name = album, image = albumImage, releaseDate = year)
+            } else if (albums.size == 1) {
+                albumId = albums.first().id
+            }
+        }
+        val trackId = trackRepo.add(
+            name = if (!title.isNullOrEmpty()) title else file.name,
+            folderId = parentFolderId,
+            albumId = albumId,
+            audioUrl = uri,
+            videoUrl = null,
+            lyrics = lyrics,
+            albumTrackNumber = albumTrackNumber,
+            duration = mp3file.lengthInMilliseconds
+        )
+        if (artistId != null) {
+            artistTrackCrossRefRepo.add(artistId, trackId)
+        }
+    }
+
+    protected fun addTrack(name: String, audioUrl: String?, videoUrl: String?, duration: Long) {
         coroutineScope.launch {
             trackRepo.add(
                 name = name,
@@ -136,7 +196,8 @@ abstract class Library(
                 audioUrl = audioUrl,
                 videoUrl = videoUrl,
                 lyrics = null,
-                albumTrackNumber = null
+                albumTrackNumber = null,
+                duration = duration
             )
         }
     }

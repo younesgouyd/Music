@@ -38,13 +38,11 @@ dependencyResolutionManagement {
                     val activity = version("android.activity", "1.10.0")
                     val lifecycle = version("android.lifecycle", "2.8.7")
                     val navigation = version("android.navigation", "2.8.6")
+                    val media3 = version("android.media3", "1.6.1")
                 }
                 val sqldelight = version("sqldelight", "2.0.2")
                 val json = version("json", "20240303")
-                val vlcj = object {
-                    val desktop = version("vlcj.desktop", "4.8.3")
-                    val android = version("vlcj.android", "3.6.0")
-                }
+                val vlcj = version("vlcj", "4.8.3")
                 val mp3agic = version("mp3agic", "0.9.1")
             }
 
@@ -75,12 +73,13 @@ dependencyResolutionManagement {
             library("okhttp.logging", "com.squareup.okhttp3", "logging-interceptor").versionRef(versions.okhttp)
 
             library("coroutines.core", "org.jetbrains.kotlinx", "kotlinx-coroutines-core").versionRef(versions.coroutines)
+            library("coroutines.desktop", "org.jetbrains.kotlinx", "kotlinx-coroutines-swing").versionRef(versions.coroutines)
             library("sqldelight.sqliteDriver", "app.cash.sqldelight", "sqlite-driver").versionRef(versions.sqldelight)
             library("sqldelight.jdbcDriver", "app.cash.sqldelight", "jdbc-driver").versionRef(versions.sqldelight)
             library("sqldelight.sqliteDialect", "app.cash.sqldelight", "sqlite-3-38-dialect").versionRef(versions.sqldelight)
             library("sqldelight.coroutines", "app.cash.sqldelight", "coroutines-extensions").versionRef(versions.sqldelight)
             library("json", "org.json", "json").versionRef(versions.json)
-            library("vlcj.desktop", "uk.co.caprica", "vlcj").versionRef(versions.vlcj.desktop)
+            library("vlcj", "uk.co.caprica", "vlcj").versionRef(versions.vlcj)
             library("mp3agic", "com.mpatric", "mp3agic").versionRef(versions.mp3agic)
 
             // ANDROID
@@ -99,7 +98,10 @@ dependencyResolutionManagement {
             library("android.navigation.uiKtx", "androidx.navigation", "navigation-ui-ktx").versionRef(versions.android.navigation)
             library("android.navigation.compose", "androidx.navigation", "navigation-compose").versionRef(versions.android.navigation)
             library("sqldelight.androidDriver", "app.cash.sqldelight", "android-driver").versionRef(versions.sqldelight)
-            library("vlcj.android", "org.videolan.android", "libvlc-all").versionRef(versions.vlcj.android)
+            library("android.media3.common", "androidx.media3", "media3-common").versionRef(versions.android.media3)
+            library("android.media3.exoplayer", "androidx.media3", "media3-exoplayer").versionRef(versions.android.media3)
+            library("android.media3.ui", "androidx.media3", "media3-ui").versionRef(versions.android.media3)
+            library("android.media3.session", "androidx.media3", "media3-session").versionRef(versions.android.media3)
         }
     }
 }

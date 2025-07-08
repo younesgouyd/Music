@@ -8,7 +8,6 @@ import dev.younesgouyd.apps.music.common.data.sqldelight.queries.FolderQueries
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
-import java.time.Instant
 
 class FolderRepo(private val queries: FolderQueries) {
     fun getAll(): Flow<List<Folder>> {
@@ -44,7 +43,7 @@ class FolderRepo(private val queries: FolderQueries) {
     suspend fun add(name: String, parentFolderId: Long?): Long {
         require(name.isNotEmpty())
         return withContext(Dispatchers.IO) {
-            val currentTime = Instant.now().toEpochMilli()
+            val currentTime = System.currentTimeMillis()
             queries.add(
                 name = name,
                 parentFolderId = parentFolderId,
@@ -57,7 +56,7 @@ class FolderRepo(private val queries: FolderQueries) {
     suspend fun updateName(id: Long, name: String) {
         require(name.isNotEmpty())
         withContext(Dispatchers.IO) {
-            queries.updateName(name, Instant.now().toEpochMilli(), id)
+            queries.updateName(name, System.currentTimeMillis(), id)
         }
     }
 
@@ -65,7 +64,7 @@ class FolderRepo(private val queries: FolderQueries) {
         withContext(Dispatchers.IO) {
             queries.updateParentFolderId(
                 parent_folder_id = parentFolderId,
-                update_datetime = Instant.now().toEpochMilli(),
+                update_datetime = System.currentTimeMillis(),
                 id = id
             )
         }

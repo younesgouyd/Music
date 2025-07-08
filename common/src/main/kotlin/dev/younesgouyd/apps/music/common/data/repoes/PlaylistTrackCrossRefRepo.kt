@@ -4,12 +4,11 @@ import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Playlist_tra
 import dev.younesgouyd.apps.music.common.data.sqldelight.queries.PlaylistTrackCrossRefQueries
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.time.Instant
 
 class PlaylistTrackCrossRefRepo(private val queries: PlaylistTrackCrossRefQueries) {
     suspend fun add(playlistId: Long, trackId: Long) {
         withContext(Dispatchers.IO) {
-            val currentTime = Instant.now().toEpochMilli()
+            val currentTime = System.currentTimeMillis()
             queries.add(
                 playlist_id = playlistId,
                 track_id = trackId,

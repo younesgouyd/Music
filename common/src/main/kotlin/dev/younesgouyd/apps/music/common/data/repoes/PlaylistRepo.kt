@@ -8,7 +8,6 @@ import dev.younesgouyd.apps.music.common.data.sqldelight.queries.PlaylistQueries
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
-import java.time.Instant
 
 class PlaylistRepo(private val queries: PlaylistQueries) {
     fun getAll(): Flow<List<Playlist>> {
@@ -32,7 +31,7 @@ class PlaylistRepo(private val queries: PlaylistQueries) {
     suspend fun add(name: String, folderId: Long?, image: ByteArray?): Long {
         require(name.isNotEmpty())
         return withContext(Dispatchers.IO) {
-            val currentTime = Instant.now().toEpochMilli()
+            val currentTime = System.currentTimeMillis()
             queries.add(
                 name = name,
                 folder_id = folderId,
@@ -46,19 +45,19 @@ class PlaylistRepo(private val queries: PlaylistQueries) {
     suspend fun updateName(id: Long, name: String) {
         require(name.isNotEmpty())
         withContext(Dispatchers.IO) {
-            queries.updateName(name, Instant.now().toEpochMilli(), id)
+            queries.updateName(name, System.currentTimeMillis(), id)
         }
     }
 
     suspend fun updateFolderId(id: Long, folderId: Long) {
         withContext(Dispatchers.IO) {
-            queries.updateFolderId(folderId, Instant.now().toEpochMilli(), id)
+            queries.updateFolderId(folderId, System.currentTimeMillis(), id)
         }
     }
 
     suspend fun updateImage(id: Long, image: ByteArray?) {
         withContext(Dispatchers.IO) {
-            queries.updateImage(image, Instant.now().toEpochMilli(), id)
+            queries.updateImage(image, System.currentTimeMillis(), id)
         }
     }
 

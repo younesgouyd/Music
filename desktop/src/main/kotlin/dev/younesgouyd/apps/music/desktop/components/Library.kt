@@ -22,7 +22,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import com.mpatric.mp3agic.Mp3File
 import dev.younesgouyd.apps.music.common.components.Library
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.data.repoes.*
@@ -149,65 +148,6 @@ class Library(
         )
     }
 
-    suspend fun saveMp3FileAsTrack(file: File, parentFolderId: Long) {
-        val mp3file = Mp3File(file)
-        var title: String? = null
-        var albumTrackNumber: Long? = null
-        var artist: String? = null
-        var album: String? = null
-        var lyrics: String? = null
-        var year: String? = null
-        var albumImage: ByteArray? = null
-        if (mp3file.hasId3v2Tag()) {
-            val id3 = mp3file.id3v2Tag
-            val albumImageData = id3.albumImage
-            title = id3.title
-            albumTrackNumber = id3.track?.toLongOrNull()
-            artist = id3.artist
-            album = id3.album
-            year = id3.year
-            lyrics = id3.lyrics
-            albumImage = albumImageData
-        } else if (mp3file.hasId3v1Tag()) {
-            val id3 = mp3file.id3v1Tag
-            title = id3.title
-            albumTrackNumber = id3.track?.toLongOrNull()
-            artist = id3.artist
-            album = id3.album
-            year = id3.year
-        }
-        var artistId: Long? = null
-        var albumId: Long? = null
-        if (!artist.isNullOrEmpty()) {
-            val artists = artistRepo.getByName(artist)
-            if (artists.isEmpty()) {
-                artistId = artistRepo.add(name = artist, image = null)
-            } else if (artists.size == 1) {
-                artistId = artists.first().id
-            }
-        }
-        if (!album.isNullOrEmpty()) {
-            val albums = albumRepo.getByName(album)
-            if (albums.isEmpty()) {
-                albumId = albumRepo.add(name = album, image = albumImage, releaseDate = year)
-            } else if (albums.size == 1) {
-                albumId = albums.first().id
-            }
-        }
-        val trackId = trackRepo.add(
-            name = if (!title.isNullOrEmpty()) title else file.name,
-            folderId = parentFolderId,
-            albumId = albumId,
-            audioUrl = file.toURI().toString(),
-            videoUrl = null,
-            lyrics = lyrics,
-            albumTrackNumber = albumTrackNumber
-        )
-        if (artistId != null) {
-            artistTrackCrossRefRepo.add(artistId, trackId)
-        }
-    }
-
     override fun showAddTrackToPlaylistDialog(trackId: Long) {
         addToPlaylist.update {
             AddToPlaylist(
@@ -260,13 +200,14 @@ class Library(
     }
 
     private fun importFolder(path: String) {
+        fun File.toCorrectFileUri(): String { return this.toPath().toUri().toString().replace("file:/", "file:///") }
         suspend fun importFolder(folder: File, parent: Long?) {
             val parent: Long = folderRepo.add(folder.name, parent)
             for (file in folder.listFiles()!!) {
                 if (file.isDirectory) {
                     importFolder(file, parent)
                 } else if (file.extension.lowercase() == "mp3") {
-                    saveMp3FileAsTrack(file, parent)
+                    saveMp3FileAsTrack(file, file.toCorrectFileUri(), parent)
                 }
             }
         }
@@ -292,7 +233,7 @@ class Library(
             onNewFolder: (name: String) -> Unit,
             addToPlaylistDialogVisible: StateFlow<Boolean>,
             addToPlaylist: StateFlow<dev.younesgouyd.apps.music.common.components.AddToPlaylist?>,
-            onNewTrack: (name: String, audioUrl: String?, videoUrl: String?) -> Unit,
+            onNewTrack: (name: String, audioUrl: String?, videoUrl: String?, duration: Long) -> Unit,
             onFolderClick: (Folder?) -> Unit,
             onAddFolderToPlaylistClick: (id: Long) -> Unit,
             onAddFolderToQueueClick: (id: Long) -> Unit,
@@ -428,7 +369,7 @@ class Library(
             onFolderClick: (Folder?) -> Unit,
             onImportFolder: (path: String) -> Unit,
             onNewFolder: (name: String) -> Unit,
-            onNewTrack: (name: String, audioUrl: String?, videoUrl: String?) -> Unit
+            onNewTrack: (name: String, audioUrl: String?, videoUrl: String?, duration: Long) -> Unit
         ) {
             val currentFolder by currentFolder.collectAsState()
             val pathLazyListState = rememberLazyListState()
@@ -547,8 +488,8 @@ class Library(
             if (newTrackFormVisible) {
                 TrackForm(
                     title = "New Track",
-                    onDone = { name: String, audioUrl: String?, videoUrl: String? ->
-                        onNewTrack(name, audioUrl, videoUrl)
+                    onDone = { name: String, audioUrl: String?, videoUrl: String?, duration: Long ->
+                        onNewTrack(name, audioUrl, videoUrl, duration)
                         newTrackFormVisible = false
                     },
                     onDismiss = { newTrackFormVisible = false }
@@ -1084,12 +1025,14 @@ class Library(
         private fun TrackForm(
             title: String,
             name: String = "",
-            onDone: (name: String, audioUrl: String?, videoUrl: String?) -> Unit,
+            onDone: (name: String, audioUrl: String?, videoUrl: String?, duration: Long) -> Unit,
             onDismiss: () -> Unit
         ) {
             var name by remember { mutableStateOf(name) }
             var audioUrl: String? by remember { mutableStateOf(null) }
             var videoUrl: String? by remember { mutableStateOf(null) }
+            var duration: String? by remember { mutableStateOf(null) }
+            var durationError: Boolean? by remember { mutableStateOf(null) }
 
             fun getFilePathFromSystemFilePicker(): String? {
                 TODO()
@@ -1150,10 +1093,26 @@ class Library(
                                 )
                             }
                         )
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Duration (in millis)") },
+                            value = duration ?: "",
+                            onValueChange = { duration = it },
+                            singleLine = true,
+                            isError = durationError ?: false,
+                            supportingText = if (durationError == true) { @Composable { Text("This field is required") } } else null
+                        )
                         Button(
                             content = { Text("Done") },
                             modifier = Modifier.fillMaxWidth(),
-                            onClick = { onDone(name, audioUrl, videoUrl) }
+                            onClick = {
+                                val dur = duration
+                                if (dur == null) {
+                                    durationError = true
+                                } else {
+                                    onDone(name, audioUrl, videoUrl, dur.toLong())
+                                }
+                            }
                         )
                     }
                 }

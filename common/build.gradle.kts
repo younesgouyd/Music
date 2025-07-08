@@ -29,6 +29,7 @@ dependencies {
     implementation(libs.ktor.client.coreJvm)
     implementation(libs.ktor.client.websockets)
     implementation(libs.ktor.client.loggingJvm)
+    implementation(libs.mp3agic)
 }
 
 sqldelight {

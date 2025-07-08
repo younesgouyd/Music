@@ -58,11 +58,7 @@ object Application {
     private fun showContent() {
         currentComponent.update {
             it.clear()
-            Main(
-                repoStore = repoStore,
-                mediaPlayer = MediaPlayer(),
-                mediaUtil = MediaUtil()
-            )
+            Main(repoStore)
         }
     }
 }

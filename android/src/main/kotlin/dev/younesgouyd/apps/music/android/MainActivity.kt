@@ -1,5 +1,6 @@
 package dev.younesgouyd.apps.music.android
 
+import android.content.ComponentName
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -9,7 +10,11 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
 import dev.younesgouyd.apps.music.android.components.Main
 import dev.younesgouyd.apps.music.android.components.SplashScreen
 import dev.younesgouyd.apps.music.common.data.RepoStore
@@ -38,6 +43,7 @@ class MainActivity : ComponentActivity() {
                 showContent = ::showContent
             )
         )
+
         setContent {
             val currentComponent by currentComponent.collectAsState()
             currentComponent.show(
@@ -48,14 +54,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showContent() {
-        currentComponent.update {
-            it.clear()
-            Main(
-                repoStore = repoStore,
-                mediaPlayer = MediaPlayer(this),
-                mediaUtil = MediaUtil(this),
-                this
-            )
-        }
+        val sessionToken = SessionToken(this, ComponentName(this, PlaybackService::class.java))
+        val controllerFuture: ListenableFuture<MediaController> = MediaController.Builder(this, sessionToken)
+            .buildAsync()
+        controllerFuture.addListener({
+            currentComponent.update {
+                it.clear()
+                Main(repoStore, controllerFuture.get())
+            }
+        }, MoreExecutors.directExecutor())
     }
 }

@@ -8,7 +8,6 @@ import dev.younesgouyd.apps.music.common.data.sqldelight.queries.ArtistQueries
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
-import java.time.Instant
 
 class ArtistRepo(private val queries: ArtistQueries) {
     fun getAll(): Flow<List<Artist>> {
@@ -26,7 +25,7 @@ class ArtistRepo(private val queries: ArtistQueries) {
     suspend fun add(name: String, image: ByteArray?): Long {
         require(name.isNotEmpty())
         return withContext(Dispatchers.IO) {
-            val currentTime = Instant.now().toEpochMilli()
+            val currentTime = System.currentTimeMillis()
             queries.add(
                 name = name,
                 image = image,
@@ -39,13 +38,13 @@ class ArtistRepo(private val queries: ArtistQueries) {
     suspend fun updateName(id: Long, name: String) {
         require(name.isNotEmpty())
         withContext(Dispatchers.IO) {
-            queries.updateName(name, Instant.now().toEpochMilli(), id)
+            queries.updateName(name, System.currentTimeMillis(), id)
         }
     }
 
     suspend fun updateImage(id: Long, image: ByteArray?) {
         withContext(Dispatchers.IO) {
-            queries.updateImage(image, Instant.now().toEpochMilli(), id)
+            queries.updateImage(image, System.currentTimeMillis(), id)
         }
     }
 

@@ -15,6 +15,7 @@ kotlin {
 dependencies {
     implementation(project(":common"))
     implementation(libs.coroutines.core)
+    implementation(libs.coroutines.desktop)
     implementation(compose.desktop.currentOs) {
         exclude("org.jetbrains.compose.material") // todo
     }
@@ -23,6 +24,5 @@ dependencies {
     implementation(libs.sqldelight.sqliteDriver)
     implementation(libs.sqldelight.jdbcDriver)
     implementation(libs.json)
-    implementation(libs.vlcj.desktop)
-    implementation(libs.mp3agic)
+    implementation(libs.vlcj)
 }

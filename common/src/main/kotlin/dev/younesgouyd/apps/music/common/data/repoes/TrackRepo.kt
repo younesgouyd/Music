@@ -9,7 +9,6 @@ import dev.younesgouyd.apps.music.common.data.sqldelight.queries.TrackQueries
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
-import java.time.Instant
 
 class TrackRepo(private val queries: TrackQueries) {
     fun getAll(): Flow<List<Track>> {
@@ -30,10 +29,10 @@ class TrackRepo(private val queries: TrackQueries) {
         }
     }
 
-    suspend fun add(name: String, folderId: Long, albumId: Long?, audioUrl: String?, videoUrl: String?, lyrics: String?, albumTrackNumber: Long?): Long {
+    suspend fun add(name: String, folderId: Long, albumId: Long?, audioUrl: String?, videoUrl: String?, lyrics: String?, albumTrackNumber: Long?, duration: Long): Long {
         require(name.isNotEmpty())
         return withContext(Dispatchers.IO) {
-            val currentTime = Instant.now().toEpochMilli()
+            val currentTime = System.currentTimeMillis()
             queries.add(
                 name = name,
                 folder_id = folderId,
@@ -42,6 +41,7 @@ class TrackRepo(private val queries: TrackQueries) {
                 video_url = videoUrl,
                 lyrics = lyrics,
                 album_track_number = albumTrackNumber,
+                duration = duration,
                 creation_datetime = currentTime,
                 update_datetime = currentTime
             ).executeAsOne()
@@ -51,43 +51,43 @@ class TrackRepo(private val queries: TrackQueries) {
     suspend fun updateName(id: Long, name: String) {
         require(name.isNotEmpty())
         withContext(Dispatchers.IO) {
-            queries.updateName(name, Instant.now().toEpochMilli(), id)
+            queries.updateName(name, System.currentTimeMillis(), id)
         }
     }
 
     suspend fun updateAlbumId(id: Long, albumId: Long?) {
         withContext(Dispatchers.IO) {
-            queries.updateAlbumId(albumId, Instant.now().toEpochMilli(), id)
+            queries.updateAlbumId(albumId, System.currentTimeMillis(), id)
         }
     }
 
     suspend fun updateFolderId(id: Long, folderId: Long) {
         withContext(Dispatchers.IO) {
-            queries.updateFolderId(folderId, Instant.now().toEpochMilli(), id)
+            queries.updateFolderId(folderId, System.currentTimeMillis(), id)
         }
     }
 
     suspend fun updateAudioUrl(id: Long, audioUrl: String?) {
         withContext(Dispatchers.IO) {
-            queries.updateAudioUrl(audioUrl, Instant.now().toEpochMilli(), id)
+            queries.updateAudioUrl(audioUrl, System.currentTimeMillis(), id)
         }
     }
 
     suspend fun updateVideoUrl(id: Long, videoUrl: String?) {
         withContext(Dispatchers.IO) {
-            queries.updateVideoUrl(videoUrl, Instant.now().toEpochMilli(), id)
+            queries.updateVideoUrl(videoUrl, System.currentTimeMillis(), id)
         }
     }
 
     suspend fun updateLyrics(id: Long, lyrics: String?) {
         withContext(Dispatchers.IO) {
-            queries.updateLyrics(lyrics, Instant.now().toEpochMilli(), id)
+            queries.updateLyrics(lyrics, System.currentTimeMillis(), id)
         }
     }
 
     suspend fun updateAlbumTrackNumber(id: Long, albumTrackNumber: Long?) {
         withContext(Dispatchers.IO) {
-            queries.updateAlbumTrackNumber(albumTrackNumber, Instant.now().toEpochMilli(), id)
+            queries.updateAlbumTrackNumber(albumTrackNumber, System.currentTimeMillis(), id)
         }
     }
 

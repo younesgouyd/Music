@@ -34,23 +34,21 @@ class Queue(
 
     private object Ui {
         @Composable
-        fun Main(modifier: Modifier = Modifier, state: MediaController.MediaControllerState) {
+        fun Main(modifier: Modifier = Modifier, state: QueueState) {
             when (state) {
-                is MediaController.MediaControllerState.Loading -> Unit
-                is MediaController.MediaControllerState.Unavailable -> Unit
-                is MediaController.MediaControllerState.Available -> Main(
-                    modifier = modifier,
-                    mediaControllerState = state
-                )
+                is QueueState.Loading -> Unit
+                is QueueState.Unavailable -> Unit
+                is QueueState.Available -> Main(modifier = modifier, queueState = state)
             }
         }
 
         @Composable
         private fun Main(
             modifier: Modifier = Modifier,
-            mediaControllerState: MediaController.MediaControllerState.Available
+            queueState: QueueState.Available
         ) {
-            val enabled by mediaControllerState.enabled.collectAsState()
+            val enabled by queueState.enabled.collectAsState()
+            val queue = queueState.queue
 
             Surface(
                 modifier = modifier.fillMaxWidth(),
@@ -80,28 +78,32 @@ class Queue(
                         contentPadding = PaddingValues(12.dp)
                     ) {
                         itemsIndexed(
-                            items = mediaControllerState.playbackState.queue
-                        ) { index: Int, queueItem: MediaController.MediaControllerState.Available.PlaybackState.QueueItem ->
+                            items = queue
+                        ) { index: Int, queueItem: MediaController.MediaControllerState.Available.QueueItem ->
                             when (queueItem) {
-                                is MediaController.MediaControllerState.Available.PlaybackState.QueueItem.Track -> {
+                                is MediaController.MediaControllerState.Available.QueueItem.Track -> {
                                     TrackItem(
                                         modifier = Modifier.fillMaxWidth(),
                                         item = queueItem,
-                                        isPlaying = mediaControllerState.playbackState.queueItemIndex == index,
+                                        isPlaying = queueState.queueItemIndex == index,
                                         enabled = enabled,
-                                        onClick = { mediaControllerState.onPlayQueueItem(index) }
+                                        onClick = { queueState.onPlayQueueItem(index) }
                                     )
                                 }
 
-                                is MediaController.MediaControllerState.Available.PlaybackState.QueueItem.Playlist -> {
+                                is MediaController.MediaControllerState.Available.QueueItem.Playlist -> {
                                     PlaylistItem(
                                         modifier = Modifier.fillMaxWidth(),
                                         item = queueItem,
                                         enabled = enabled,
-                                        isPlaying = mediaControllerState.playbackState.queueItemIndex == index,
-                                        playingItem = if (mediaControllerState.playbackState.queueItemIndex == index) { mediaControllerState.playbackState.queueSubItemIndex } else { null },
+                                        isPlaying = queueState.queueItemIndex == index,
+                                        playingItem = if (queueState.queueItemIndex == index) {
+                                            queueState.queueSubItemIndex
+                                        } else {
+                                            null
+                                        },
                                         onTrackClick = { trackIndex ->
-                                            mediaControllerState.onPlayQueueSubItem(
+                                            queueState.onPlayQueueSubItem(
                                                 index,
                                                 trackIndex
                                             )
@@ -109,15 +111,19 @@ class Queue(
                                     )
                                 }
 
-                                is MediaController.MediaControllerState.Available.PlaybackState.QueueItem.Album -> {
+                                is MediaController.MediaControllerState.Available.QueueItem.Album -> {
                                     AlbumItem(
                                         modifier = Modifier.fillMaxWidth(),
                                         item = queueItem,
                                         enabled = enabled,
-                                        isPlaying = mediaControllerState.playbackState.queueItemIndex == index,
-                                        playingItem = if (mediaControllerState.playbackState.queueItemIndex == index) { mediaControllerState.playbackState.queueSubItemIndex } else { null },
+                                        isPlaying = queueState.queueItemIndex == index,
+                                        playingItem = if (queueState.queueItemIndex == index) {
+                                            queueState.queueSubItemIndex
+                                        } else {
+                                            null
+                                        },
                                         onTrackClick = { trackIndex ->
-                                            mediaControllerState.onPlayQueueSubItem(
+                                            queueState.onPlayQueueSubItem(
                                                 index,
                                                 trackIndex
                                             )
@@ -134,7 +140,7 @@ class Queue(
         @Composable
         private fun TrackItem(
             modifier: Modifier = Modifier,
-            item: MediaController.MediaControllerState.Available.PlaybackState.QueueItem.Track,
+            item: MediaController.MediaControllerState.Available.QueueItem.Track,
             isPlaying: Boolean,
             enabled: Boolean,
             onClick: () -> Unit
@@ -169,7 +175,7 @@ class Queue(
         @Composable
         private fun AlbumItem(
             modifier: Modifier = Modifier,
-            item: MediaController.MediaControllerState.Available.PlaybackState.QueueItem.Album,
+            item: MediaController.MediaControllerState.Available.QueueItem.Album,
             isPlaying: Boolean,
             playingItem: Int?,
             enabled: Boolean,
@@ -263,7 +269,7 @@ class Queue(
         @Composable
         private fun PlaylistItem(
             modifier: Modifier = Modifier,
-            item: MediaController.MediaControllerState.Available.PlaybackState.QueueItem.Playlist,
+            item: MediaController.MediaControllerState.Available.QueueItem.Playlist,
             isPlaying: Boolean,
             playingItem: Int?,
             enabled: Boolean,

@@ -8,15 +8,11 @@ import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.util.Component
 import dev.younesgouyd.apps.music.common.util.DarkThemeOptions
-import dev.younesgouyd.apps.music.common.util.MediaPlayer
-import dev.younesgouyd.apps.music.common.util.MediaUtil
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 
 abstract class Main(
-    repoStore: RepoStore,
-    mediaPlayer: MediaPlayer,
-    mediaUtil: MediaUtil
+    repoStore: RepoStore
 ) : Component() {
     override val title: String = ""
     protected val mainComponentController = MainComponentController()

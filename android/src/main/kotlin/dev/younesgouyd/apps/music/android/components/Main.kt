@@ -1,6 +1,5 @@
 package dev.younesgouyd.apps.music.android.components
 
-import android.content.Context
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -16,33 +15,18 @@ import dev.younesgouyd.apps.music.common.components.NavigationHost
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.util.Component
 import dev.younesgouyd.apps.music.common.util.DarkThemeOptions
-import dev.younesgouyd.apps.music.common.util.MediaPlayer
-import dev.younesgouyd.apps.music.common.util.MediaUtil
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class Main(
     repoStore: RepoStore,
-    mediaPlayer: MediaPlayer,
-    mediaUtil: MediaUtil,
-    context: Context
-) : Main(repoStore, mediaPlayer, mediaUtil) {
-    override val mediaController = MediaController(
-        trackRepo = repoStore.trackRepo,
-        artistRepo = repoStore.artistRepo,
-        albumRepo = repoStore.albumRepo,
-        playlistRepo = repoStore.playlistRepo,
-        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
-        folderRepo = repoStore.folderRepo,
-        onAlbumClick = mainComponentController::showAlbums,
-        onArtistClick = mainComponentController::showArtists,
-        mediaPlayer = mediaPlayer,
-        mediaUtil = mediaUtil,
-        context = context
+    media3Controller: androidx.media3.session.MediaController
+) : Main(repoStore) {
+    override val mediaController = MediaController(media3Controller, repoStore)
+    override val miniPlayer = MiniPlayer(
+        mediaController = mediaController
     )
-
-    override val miniPlayer = MiniPlayer(mediaController)
     override val queue = Queue(mediaController)
     override val settingsHost: Settings by lazy { Settings(repoStore) }
     override val libraryHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.Library, ::toggleDrawerState) }
