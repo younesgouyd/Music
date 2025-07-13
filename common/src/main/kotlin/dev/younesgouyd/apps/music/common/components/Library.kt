@@ -114,6 +114,8 @@ abstract class Library(
                             }
                         )
                     }
+                } else {
+                    emit(emptyList())
                 }
                 loadingTracks.value = false
             }
