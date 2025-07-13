@@ -8,11 +8,13 @@ import dev.younesgouyd.apps.music.common.data.repoes.*
 import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Folder
 import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Playlist
 import dev.younesgouyd.apps.music.common.util.Component
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
 
+@OptIn(ExperimentalCoroutinesApi::class)
 abstract class Library(
     private val folderRepo: FolderRepo,
     private val playlistRepo: PlaylistRepo,
@@ -62,12 +64,9 @@ abstract class Library(
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptySet())
 
         folders = currentFolder.flatMapLatest {
-            flow {
-                loadingFolders.value = true
-                folderRepo.getSubfolders(it?.id).collect {
-                    emit(it)
-                    loadingFolders.value = false
-                }
+            loadingFolders.value = true
+            folderRepo.getSubfolders(it?.id).also {
+                loadingFolders.value = false
             }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
 
@@ -84,40 +83,34 @@ abstract class Library(
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
 
         tracks = currentFolder.flatMapLatest { currentFolder ->
-            flow {
+            if (currentFolder == null) {
                 loadingTracks.value = true
-                if (currentFolder != null) {
-                    trackRepo.getFolderTracks(currentFolder.id).collect { tracks ->
-                        emit(
-                            tracks.map { dbTrack ->
-                                Models.Track(
-                                    id = dbTrack.id,
-                                    name = dbTrack.name,
-                                    audioUrl = dbTrack.audio_url,
-                                    videoUrl = dbTrack.video_url,
-                                    artists = artistRepo.getTrackArtistsStatic(dbTrack.id).map { dbArtist ->
-                                        Models.Track.Artist(
-                                            id = dbArtist.id,
-                                            name = dbArtist.name
-                                        )
-                                    },
-                                    album = dbTrack.album_id?.let {
-                                        albumRepo.getStatic(it)!!.let { dbAlbum ->
-                                            Models.Track.Album(
-                                                id = dbAlbum.id,
-                                                name = dbAlbum.name,
-                                                image = dbAlbum.image
-                                            )
-                                        }
-                                    }
-                                )
+                flowOf(emptyList<Models.Track>())
+                    .also {
+                        loadingTracks.value = false
+                    }
+            } else {
+                trackRepo.getFolderTracks(currentFolder.id).mapLatest { tracks ->
+                    loadingTracks.value = true
+                    val result = tracks.map { dbTrack ->
+                        Models.Track(
+                            id = dbTrack.id,
+                            name = dbTrack.name,
+                            audioUrl = dbTrack.audio_url,
+                            videoUrl = dbTrack.video_url,
+                            artists = artistRepo.getTrackArtistsStatic(dbTrack.id).map {
+                                Models.Track.Artist(id = it.id, name = it.name)
+                            },
+                            album = dbTrack.album_id?.let {
+                                albumRepo.getStatic(it)?.let { dbAlbum ->
+                                    Models.Track.Album(id = dbAlbum.id, name = dbAlbum.name, image = dbAlbum.image)
+                                }
                             }
                         )
                     }
-                } else {
-                    emit(emptyList())
+                    loadingTracks.value = false
+                    result
                 }
-                loadingTracks.value = false
             }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
     }
