@@ -67,12 +67,12 @@ class ArtistList(
                 content = { paddingValues ->
                     Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                         LazyVerticalGrid(
-                            modifier = Modifier.fillMaxSize().padding(end = 16.dp),
+                            modifier = Modifier.fillMaxSize().padding(12.dp),
                             state = lazyGridState,
-                            contentPadding = PaddingValues(18.dp),
-                            horizontalArrangement = Arrangement.spacedBy(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(18.dp),
-                            columns = GridCells.Adaptive(200.dp)
+                            contentPadding = PaddingValues(vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            columns = GridCells.Adaptive(100.dp)
                         ) {
                             items(
                                 items = items,
@@ -80,7 +80,7 @@ class ArtistList(
                             ) { item ->
                                 ArtistItem(
                                     artist = item,
-                                    onArtistClick = onArtistClick
+                                    onClick = { onArtistClick(item.id) }
                                 )
                             }
                         }
@@ -98,11 +98,11 @@ class ArtistList(
         private fun ArtistItem(
             modifier: Modifier = Modifier,
             artist: ArtistListState.Loaded.ArtistItem,
-            onArtistClick: (Long) -> Unit
+            onClick: () -> Unit
         ) {
             Item(
                 modifier = modifier,
-                onClick = { onArtistClick(artist.id) }
+                onClick = onClick
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -119,7 +119,6 @@ class ArtistList(
                         text = artist.name,
                         style = MaterialTheme.typography.titleMedium,
                         textAlign = TextAlign.Center,
-                        minLines = 2,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )

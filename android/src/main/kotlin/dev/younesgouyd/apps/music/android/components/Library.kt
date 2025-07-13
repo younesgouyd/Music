@@ -7,6 +7,7 @@ import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.*
@@ -302,11 +303,7 @@ class Library(
 
             Scaffold(
                 modifier = modifier,
-                floatingActionButton = {
-                    ScrollToTopFloatingActionButton(
-                        lazyGridState
-                    )
-                },
+                floatingActionButton = { ScrollToTopFloatingActionButton(lazyGridState) },
                 content = { paddingValues ->
                     Column(
                         modifier = Modifier.fillMaxSize().padding(paddingValues),
@@ -324,12 +321,12 @@ class Library(
                             onNewTrack = onNewTrack
                         )
                         LazyVerticalGrid(
-                            modifier = Modifier.fillMaxSize().padding(16.dp),
+                            modifier = Modifier.fillMaxSize().padding(12.dp),
                             state = lazyGridState,
                             contentPadding = PaddingValues(vertical = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(18.dp),
-                            columns = GridCells.Adaptive(200.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            columns = GridCells.Adaptive(100.dp)
                         ) {
                             items(folders) { folder ->
                                 FolderItem(
@@ -551,8 +548,10 @@ class Library(
             var moveToFolderDialogVisible by remember { mutableStateOf(false) }
 
             Item(
-                modifier = modifier,
-                onClick = onClick
+                modifier = modifier.combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { showContextMenu = true }
+                )
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -566,11 +565,10 @@ class Library(
                         contentDescription = null
                     )
                     Text(
-                        modifier = Modifier.fillMaxWidth().padding(4.dp),
+                        modifier = Modifier.fillMaxWidth().padding(8.dp),
                         text = folder.name,
                         style = MaterialTheme.typography.titleMedium,
                         textAlign = TextAlign.Center,
-                        minLines = 2,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -583,20 +581,6 @@ class Library(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            content = { Icon(Icons.Default.PlayCircle, null) },
-                            onClick = onPlayClick
-                        )
-                        IconButton(
-                            content = { Icon(Icons.Default.MoreVert, null) },
-                            onClick = { showContextMenu = true }
-                        )
-                    }
                 }
             }
 
@@ -608,6 +592,11 @@ class Library(
                     ),
                     onDismiss = { showContextMenu = false }
                 ) {
+                    Option(
+                        label = "Play",
+                        icon = Icons.Default.PlayCircle,
+                        onClick = { onPlayClick(); showContextMenu = false },
+                    )
                     Option(
                         label = "Delete",
                         icon = Icons.Default.Delete,
@@ -704,8 +693,10 @@ class Library(
             var moveToFolderDialogVisible by remember { mutableStateOf(false) }
 
             Item(
-                modifier = modifier,
-                onClick = onClick
+                modifier = modifier.combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { showContextMenu = true }
+                )
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -718,11 +709,10 @@ class Library(
                         alignment = Alignment.TopCenter
                     )
                     Text(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(8.dp),
                         text = playlist.name,
                         style = MaterialTheme.typography.titleMedium,
                         textAlign = TextAlign.Center,
-                        minLines = 2,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -735,20 +725,6 @@ class Library(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            content = { Icon(Icons.Default.PlayCircle, null) },
-                            onClick = onPlayClick
-                        )
-                        IconButton(
-                            content = { Icon(Icons.Default.MoreVert, null) },
-                            onClick = { showContextMenu = true }
-                        )
-                    }
                 }
             }
 
@@ -757,6 +733,11 @@ class Library(
                     item = Item(name = playlist.name, image = playlist.image),
                     onDismiss = { showContextMenu = false }
                 ) {
+                    Option(
+                        label = "Play",
+                        icon = Icons.Default.PlayCircle,
+                        onClick = { onPlayClick(); showContextMenu = false },
+                    )
                     Option(
                         label = "Delete",
                         icon = Icons.Default.Delete,
@@ -852,7 +833,12 @@ class Library(
             var showEditFormDialog by remember { mutableStateOf(false) }
             var moveToFolderDialogVisible by remember { mutableStateOf(false) }
 
-            Item(modifier = modifier, onClick = onClick) {
+            Item(
+                modifier = modifier.combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { showContextMenu = true }
+                )
+            ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
@@ -864,21 +850,11 @@ class Library(
                         alignment = Alignment.TopCenter
                     )
                     Text(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(8.dp),
                         text = track.name,
                         style = MaterialTheme.typography.titleMedium,
                         textAlign = TextAlign.Center,
-                        minLines = 2,
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        modifier = Modifier.padding(4.dp),
-                        text = "Track",
-                        style = MaterialTheme.typography.labelMedium,
-                        textAlign = TextAlign.Center,
-                        minLines = 1,
-                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Row(
@@ -901,9 +877,7 @@ class Library(
                                             Icon(Icons.Default.Person, null)
                                             Text(
                                                 text = artist.name,
-                                                style = MaterialTheme.typography.labelMedium,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                                style = MaterialTheme.typography.labelMedium
                                             )
                                         }
                                     },
@@ -911,20 +885,6 @@ class Library(
                                 )
                             }
                         }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            content = { Icon(Icons.Default.PlayCircle, null) },
-                            onClick = onClick
-                        )
-                        IconButton(
-                            content = { Icon(Icons.Default.MoreVert, null) },
-                            onClick = { showContextMenu = true }
-                        )
                     }
                 }
             }

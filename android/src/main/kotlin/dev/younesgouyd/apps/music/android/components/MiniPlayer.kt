@@ -122,9 +122,7 @@ class MiniPlayer(
                                             Icon(Icons.Default.Person, null)
                                             Text(
                                                 text = artist.name,
-                                                style = MaterialTheme.typography.labelMedium,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                                style = MaterialTheme.typography.labelMedium
                                             )
                                         }
                                     },

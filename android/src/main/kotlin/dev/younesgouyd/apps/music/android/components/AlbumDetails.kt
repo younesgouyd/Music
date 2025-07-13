@@ -134,16 +134,21 @@ class AlbumDetails(
                 content = { paddingValues ->
                     Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize().padding(end = 16.dp),
+                            modifier = Modifier.fillMaxSize(),
                             state = lazyColumnState,
                             verticalArrangement = Arrangement.Top,
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             item {
                                 AlbumInfo(
-                                    modifier = Modifier.fillMaxWidth().height(400.dp),
+                                    modifier = Modifier.fillMaxWidth(),
                                     album = album,
-                                    onArtistClick = onArtistClick,
+                                    onArtistClick = onArtistClick
+                                )
+                            }
+                            item {
+                                Actions(
+                                    modifier = Modifier.fillMaxWidth(),
                                     onPlayClick = onPlayClick,
                                     onAddToQueueClick = onAddToQueueClick,
                                     onAddToPlaylistClick = onAddToPlaylistClick
@@ -153,7 +158,12 @@ class AlbumDetails(
                                 Spacer(Modifier.size(8.dp))
                             }
                             stickyHeader {
-                                TracksHeader(modifier = Modifier.fillMaxWidth().height(64.dp))
+                                Text(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    text = "Tracks",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    textAlign = TextAlign.Start
+                                )
                                 HorizontalDivider()
                             }
                             items(items = items, key = { it.id }) { track ->
@@ -183,103 +193,107 @@ class AlbumDetails(
             modifier: Modifier,
             album: AlbumDetailsState.Loaded.Album,
             onArtistClick: (Long) -> Unit,
+        ) {
+            Column(
+                modifier = modifier,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Top
+            ) {
+                Image(
+                    modifier = Modifier.fillMaxWidth(),
+                    data = album.image,
+                    contentScale = ContentScale.FillWidth
+                )
+                Text(
+                    modifier = Modifier.fillMaxWidth(),
+                    text = album.name,
+                    style = MaterialTheme.typography.displayMedium,
+                    textAlign = TextAlign.Center,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (album.releaseDate != null) {
+                    Text(
+                        modifier = Modifier.fillMaxWidth(),
+                        text = "Released: ${album.releaseDate}",
+                        style = MaterialTheme.typography.labelMedium,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp, alignment = Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    items(album.artists) { artist ->
+                        TextButton(
+                            onClick = { onArtistClick(artist.id) },
+                            content = {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    content = {
+                                        Icon(Icons.Default.Person, null)
+                                        Text(
+                                            text = artist.name,
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        @Composable
+        private fun Actions(
+            modifier: Modifier,
             onPlayClick: () -> Unit,
             onAddToQueueClick: () -> Unit,
             onAddToPlaylistClick: () -> Unit
         ) {
-            Row(
+            LazyRow(
                 modifier = modifier,
-                horizontalArrangement = Arrangement.spacedBy(space = 12.dp, alignment = Alignment.Start),
+                horizontalArrangement = Arrangement.spacedBy(space = 12.dp, alignment = Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Image(
-                    modifier = Modifier.fillMaxHeight(),
-                    data = album.image,
-                    contentScale = ContentScale.FillHeight
-                )
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        modifier = Modifier.fillMaxWidth(),
-                        text = album.name,
-                        style = MaterialTheme.typography.displayMedium,
-                        textAlign = TextAlign.Center
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                item {
+                    IconButton(
+                        onClick = onPlayClick
                     ) {
-                        for (artist in album.artists) {
-                            TextButton(
-                                onClick = { onArtistClick(artist.id) },
-                                content = {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        content = {
-                                            Icon(Icons.Default.Person, null)
-                                            Text(
-                                                text = artist.name,
-                                                style = MaterialTheme.typography.bodyMedium
-                                            )
-                                        }
-                                    )
-                                }
-                            )
+                        Icon(
+                            modifier = Modifier.fillMaxSize(),
+                            imageVector = Icons.Default.PlayCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                item {
+                    OutlinedButton(
+                        onClick = onAddToQueueClick
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.AddToQueue, null)
+                            Text(text = "Add to queue", style = MaterialTheme.typography.labelMedium)
                         }
                     }
-                    if (album.releaseDate != null) {
-                        Text(
-                            modifier = Modifier.fillMaxWidth(),
-                            text = "Release date: ${album.releaseDate}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(space = 12.dp, alignment = Alignment.CenterHorizontally),
-                        verticalAlignment = Alignment.CenterVertically
+                }
+                item {
+                    OutlinedButton(
+                        onClick = onAddToPlaylistClick
                     ) {
-                        Button(
-                            content = {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.PlayCircle, null)
-                                    Text(text = "Play", style = MaterialTheme.typography.labelMedium)
-                                }
-                            },
-                            onClick = onPlayClick
-                        )
-                        OutlinedButton(
-                            content = {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.AddToQueue, null)
-                                    Text(text = "Add to queue", style = MaterialTheme.typography.labelMedium)
-                                }
-                            },
-                            onClick = onAddToQueueClick
-                        )
-                        OutlinedButton(
-                            content = {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.AutoMirrored.Default.PlaylistAdd, null)
-                                    Text(text = "Add to playlist", style = MaterialTheme.typography.labelMedium)
-                                }
-                            },
-                            onClick = onAddToPlaylistClick
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.AutoMirrored.Default.PlaylistAdd, null)
+                            Text(text = "Add to playlist", style = MaterialTheme.typography.labelMedium)
+                        }
                     }
                 }
             }
@@ -287,35 +301,6 @@ class AlbumDetails(
 
         private const val TITLE_WEIGHT = .9f
         private const val ACTIONS_WEIGHT = .1f
-
-        @Composable
-        private fun TracksHeader(modifier: Modifier = Modifier) {
-            Surface {
-                Row(
-                    modifier = modifier,
-                    horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(modifier = Modifier.fillMaxSize().weight(TITLE_WEIGHT), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "Title",
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Box(modifier = Modifier.fillMaxSize().weight(ACTIONS_WEIGHT), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "",
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-        }
 
         @Composable
         private fun TrackItem(
@@ -334,7 +319,6 @@ class AlbumDetails(
                 horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // image + title + artists
                 Box(modifier = Modifier.fillMaxSize().weight(TITLE_WEIGHT), contentAlignment = Alignment.CenterStart) {
                     Column(
                         horizontalAlignment = Alignment.Start,
@@ -362,7 +346,7 @@ class AlbumDetails(
                                             Icon(Icons.Default.Person, null)
                                             Text(
                                                 text = artist.name,
-                                                style = MaterialTheme.typography.bodyMedium
+                                                style = MaterialTheme.typography.labelMedium
                                             )
                                         }
                                     }
@@ -374,7 +358,6 @@ class AlbumDetails(
 
                 Spacer(Modifier.width(8.dp))
 
-                // actions
                 Box(modifier = Modifier.fillMaxSize().weight(ACTIONS_WEIGHT), contentAlignment = Alignment.CenterEnd) {
                     IconButton(
                         content = { Icon(Icons.Default.MoreVert, null) },

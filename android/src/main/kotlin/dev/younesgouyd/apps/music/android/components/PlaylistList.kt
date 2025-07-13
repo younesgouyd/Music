@@ -1,5 +1,6 @@
 package dev.younesgouyd.apps.music.android.components
 
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -108,16 +109,16 @@ class PlaylistList(
             val lazyGridState = rememberLazyGridState()
 
             Scaffold(
-                modifier = modifier.fillMaxSize(),
+                modifier = modifier,
                 content = { paddingValues ->
                     Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                         LazyVerticalGrid (
-                            modifier = Modifier.fillMaxSize().padding(end = 16.dp),
+                            modifier = Modifier.fillMaxSize().padding(12.dp),
                             state = lazyGridState,
-                            contentPadding = PaddingValues(18.dp),
-                            horizontalArrangement = Arrangement.spacedBy(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(18.dp),
-                            columns = GridCells.Adaptive(200.dp)
+                            contentPadding = PaddingValues(vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            columns = GridCells.Adaptive(100.dp)
                         ) {
                             items(items = items, key = { it.id }) { playlist ->
                                 PlaylistItem(
@@ -157,8 +158,10 @@ class PlaylistList(
             var showEditFormDialog by remember { mutableStateOf(false) }
 
             Item (
-                modifier = modifier,
-                onClick = onClick
+                modifier = modifier.combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { showContextMenu = true }
+                )
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -171,28 +174,13 @@ class PlaylistList(
                         alignment = Alignment.TopCenter
                     )
                     Text(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(8.dp),
                         text = playlist.name,
                         style = MaterialTheme.typography.titleMedium,
                         textAlign = TextAlign.Center,
-                        minLines = 2,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            content = { Icon(Icons.Default.PlayCircle, null) },
-                            onClick = onPlayClick
-                        )
-                        IconButton(
-                            content = { Icon(Icons.Default.MoreVert, null) },
-                            onClick = { showContextMenu = true }
-                        )
-                    }
                 }
             }
 
@@ -201,6 +189,11 @@ class PlaylistList(
                     item = Item(name = playlist.name, image = playlist.image),
                     onDismiss = { showContextMenu = false }
                 ) {
+                    Option(
+                        label = "Play",
+                        icon = Icons.Default.PlayCircle,
+                        onClick = { onPlayClick(); showContextMenu = false },
+                    )
                     Option(
                         label = "Delete",
                         icon = Icons.Default.Delete,

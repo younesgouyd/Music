@@ -139,15 +139,23 @@ class PlaylistDetails(
                 content = {
                     Box(modifier = Modifier.fillMaxSize().padding(it)) {
                         LazyColumn (
-                            modifier = Modifier.fillMaxSize().padding(end = 16.dp),
+                            modifier = Modifier.fillMaxSize(),
                             state = lazyColumnState,
                             verticalArrangement = Arrangement.Top,
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             item {
                                 PlaylistInfo(
-                                    modifier = Modifier.fillMaxWidth().height(400.dp),
+                                    modifier = Modifier.fillMaxWidth(),
                                     playlist = playlist,
+                                    onPlayClick = onPlayClick,
+                                    onAddToQueueClick = onAddToQueueClick,
+                                    onAddToPlaylistClick = onAddToPlaylistClick
+                                )
+                            }
+                            item {
+                                Actions(
+                                    modifier = Modifier.fillMaxWidth(),
                                     onPlayClick = onPlayClick,
                                     onAddToQueueClick = onAddToQueueClick,
                                     onAddToPlaylistClick = onAddToPlaylistClick
@@ -157,7 +165,12 @@ class PlaylistDetails(
                                 Spacer(Modifier.size(8.dp))
                             }
                             stickyHeader {
-                                TracksHeader(modifier = Modifier.fillMaxWidth().height(64.dp))
+                                Text(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    text = "Tracks",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    textAlign = TextAlign.Start
+                                )
                                 HorizontalDivider()
                             }
                             items(items = items) { track ->
@@ -191,124 +204,128 @@ class PlaylistDetails(
             onAddToQueueClick: () -> Unit,
             onAddToPlaylistClick: () -> Unit
         ) {
-            Row(
+            Column(
                 modifier = modifier,
-                horizontalArrangement = Arrangement.spacedBy(space = 12.dp, alignment = Alignment.Start),
-                verticalAlignment = Alignment.CenterVertically
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Top
             ) {
                 Image(
-                    modifier = Modifier.fillMaxHeight(),
+                    modifier = Modifier.fillMaxWidth(),
                     data = playlist.image,
-                    contentScale = ContentScale.FillHeight
+                    contentScale = ContentScale.FillWidth
                 )
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        modifier = Modifier.fillMaxWidth(),
-                        text = playlist.name,
-                        style = MaterialTheme.typography.displayMedium,
-                        textAlign = TextAlign.Center
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(space = 12.dp, alignment = Alignment.CenterHorizontally),
-                        verticalAlignment = Alignment.CenterVertically
+                Text(
+                    modifier = Modifier.fillMaxWidth(),
+                    text = playlist.name,
+                    style = MaterialTheme.typography.displayMedium,
+                    textAlign = TextAlign.Center,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        @Composable
+        private fun Actions(
+            modifier: Modifier,
+            onPlayClick: () -> Unit,
+            onAddToQueueClick: () -> Unit,
+            onAddToPlaylistClick: () -> Unit
+        ) {
+            LazyRow(
+                modifier = modifier,
+                horizontalArrangement = Arrangement.spacedBy(space = 12.dp, alignment = Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                item {
+                    IconButton(
+                        onClick = onPlayClick
                     ) {
-                        Button(
-                            content = {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.PlayCircle, null)
-                                    Text(text = "Play", style = MaterialTheme.typography.labelMedium)
-                                }
-                            },
-                            onClick = onPlayClick
+                        Icon(
+                            modifier = Modifier.fillMaxSize(),
+                            imageVector = Icons.Default.PlayCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
                         )
-                        OutlinedButton(
-                            content = {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.AddToQueue, null)
-                                    Text(text = "Add to queue", style = MaterialTheme.typography.labelMedium)
-                                }
-                            },
-                            onClick = onAddToQueueClick
-                        )
-                        OutlinedButton(
-                            content = {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.AutoMirrored.Default.PlaylistAdd, null)
-                                    Text(text = "Add to playlist", style = MaterialTheme.typography.labelMedium)
-                                }
-                            },
-                            onClick = onAddToPlaylistClick
-                        )
+                    }
+                }
+                item {
+                    OutlinedButton(
+                        onClick = onAddToQueueClick
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.AddToQueue, null)
+                            Text(text = "Add to queue", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+                item {
+                    OutlinedButton(
+                        onClick = onAddToPlaylistClick
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.AutoMirrored.Default.PlaylistAdd, null)
+                            Text(text = "Add to playlist", style = MaterialTheme.typography.labelMedium)
+                        }
                     }
                 }
             }
         }
 
         private const val TITLE_WEIGHT = .45f
-        private const val ALBUM_WEIGHT = .18f
-        private const val ADDED_AT_WEIGHT = .1f
         private const val ACTIONS_WEIGHT = .1f
 
-        @Composable
-        private fun TracksHeader(modifier: Modifier = Modifier) {
-            Surface {
-                Row(
-                    modifier = modifier,
-                    horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(modifier = Modifier.fillMaxSize().weight(TITLE_WEIGHT), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "Title",
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Box(modifier = Modifier.fillMaxSize().weight(ALBUM_WEIGHT), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "Album",
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Box(modifier = Modifier.fillMaxSize().weight(ADDED_AT_WEIGHT), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "Date added",
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Box(modifier = Modifier.fillMaxSize().weight(ACTIONS_WEIGHT), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "",
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-        }
+//        @Composable
+//        private fun TracksHeader(modifier: Modifier = Modifier) {
+//            Surface {
+//                Row(
+//                    modifier = modifier,
+//                    horizontalArrangement = Arrangement.Start,
+//                    verticalAlignment = Alignment.CenterVertically
+//                ) {
+//                    Box(modifier = Modifier.fillMaxSize().weight(TITLE_WEIGHT), contentAlignment = Alignment.Center) {
+//                        Text(
+//                            text = "Title",
+//                            style = MaterialTheme.typography.titleMedium,
+//                            maxLines = 1,
+//                            overflow = TextOverflow.Ellipsis
+//                        )
+//                    }
+//                    Spacer(Modifier.width(8.dp))
+//                    Box(modifier = Modifier.fillMaxSize().weight(ALBUM_WEIGHT), contentAlignment = Alignment.Center) {
+//                        Text(
+//                            text = "Album",
+//                            style = MaterialTheme.typography.titleMedium,
+//                            maxLines = 1,
+//                            overflow = TextOverflow.Ellipsis
+//                        )
+//                    }
+//                    Spacer(Modifier.width(8.dp))
+//                    Box(modifier = Modifier.fillMaxSize().weight(ADDED_AT_WEIGHT), contentAlignment = Alignment.Center) {
+//                        Text(
+//                            text = "Date added",
+//                            style = MaterialTheme.typography.titleMedium,
+//                            maxLines = 1,
+//                            overflow = TextOverflow.Ellipsis
+//                        )
+//                    }
+//                    Spacer(Modifier.width(8.dp))
+//                    Box(modifier = Modifier.fillMaxSize().weight(ACTIONS_WEIGHT), contentAlignment = Alignment.Center) {
+//                        Text(
+//                            text = "",
+//                            style = MaterialTheme.typography.titleMedium,
+//                            maxLines = 1,
+//                            overflow = TextOverflow.Ellipsis
+//                        )
+//                    }
+//                }
+//            }
+//        }
 
         @Composable
         private fun TrackItem(
@@ -328,7 +345,6 @@ class PlaylistDetails(
                 horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // image + title + artists
                 Box(modifier = Modifier.fillMaxSize().weight(TITLE_WEIGHT), contentAlignment = Alignment.CenterStart) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -366,7 +382,7 @@ class PlaylistDetails(
                                                 Icon(Icons.Default.Person, null)
                                                 Text(
                                                     text = artist.name,
-                                                    style = MaterialTheme.typography.bodyMedium
+                                                    style = MaterialTheme.typography.labelMedium
                                                 )
                                             }
                                         }
@@ -379,44 +395,6 @@ class PlaylistDetails(
 
                 Spacer(Modifier.width(8.dp))
 
-                // album
-                Box(modifier = Modifier.fillMaxSize().weight(ALBUM_WEIGHT), contentAlignment = Alignment.CenterStart) {
-                    if (track.album != null) {
-                        TextButton(
-                            onClick = { onAlbumClick(track.album!!.id) },
-                            content = {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.Album, null)
-                                    Text(
-                                        text = track.album!!.name,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-                        )
-                    }
-                }
-
-                Spacer(Modifier.width(8.dp))
-
-                // added at
-                Box(modifier = Modifier.fillMaxSize().weight(ADDED_AT_WEIGHT), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = track.addedAt,
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Spacer(Modifier.width(8.dp))
-
-                // actions
                 Box(modifier = Modifier.fillMaxSize().weight(ACTIONS_WEIGHT), contentAlignment = Alignment.CenterEnd) {
                     IconButton(
                         content = { Icon(Icons.Default.MoreVert, null) },

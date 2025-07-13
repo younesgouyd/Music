@@ -1,13 +1,16 @@
 package dev.younesgouyd.apps.music.android.components
 
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.*
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.AddToQueue
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.QueuePlayNext
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,7 +82,6 @@ class ArtistDetails(
                 artist = state.artist,
                 albums = state.albums,
                 onAlbumClick = state.onAlbumClick,
-                onArtistClick = state.onArtistClick,
                 onAddAlbumToPlaylistClick = state.onAddAlbumToPlaylistClick,
                 onAddAlbumToQueueClick = state.onAddAlbumToQueueClick,
                 onPlayAlbumClick = state.onPlayAlbumClick,
@@ -98,7 +100,6 @@ class ArtistDetails(
             artist: StateFlow<ArtistDetailsState.Loaded.Artist>,
             albums: StateFlow<List<ArtistDetailsState.Loaded.Artist.Album>>,
             onAlbumClick: (Long) -> Unit,
-            onArtistClick: (Long) -> Unit,
             onAddAlbumToPlaylistClick: (id: Long) -> Unit,
             onAddAlbumToQueueClick: (id: Long) -> Unit,
             onPlayAlbumClick: (Long) -> Unit
@@ -112,15 +113,16 @@ class ArtistDetails(
                 content = { paddingValues ->
                     Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                         LazyVerticalGrid(
-                            modifier = Modifier.fillMaxSize().padding(end = 16.dp),
+                            modifier = Modifier.fillMaxSize().padding(12.dp),
                             state = lazyGridState,
-                            horizontalArrangement = Arrangement.spacedBy(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(18.dp),
-                            columns = GridCells.Adaptive(200.dp)
+                            contentPadding = PaddingValues(vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            columns = GridCells.Adaptive(100.dp)
                         ) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 ArtistInfo(
-                                    modifier = Modifier.fillMaxWidth().height(400.dp),
+                                    modifier = Modifier.fillMaxWidth(),
                                     artist = artist,
                                 )
                             }
@@ -128,7 +130,7 @@ class ArtistDetails(
                                 Text(
                                     modifier = Modifier.fillMaxWidth(),
                                     text = "Discography",
-                                    style = MaterialTheme.typography.headlineMedium
+                                    style = MaterialTheme.typography.titleLarge,
                                 )
                             }
                             items(
@@ -138,7 +140,6 @@ class ArtistDetails(
                                 AlbumItem(
                                     album = album,
                                     onClick = { onAlbumClick(album.id) },
-                                    onArtistClick = onArtistClick,
                                     onAddToPlaylistClick = { onAddAlbumToPlaylistClick(album.id) },
                                     onAddToQueueClick = { onAddAlbumToQueueClick(album.id) },
                                     onPlayClick = { onPlayAlbumClick(album.id) }
@@ -157,31 +158,26 @@ class ArtistDetails(
 
         @Composable
         private fun ArtistInfo(
-            modifier: Modifier = Modifier,
+            modifier: Modifier,
             artist: ArtistDetailsState.Loaded.Artist
         ) {
-            Row(
+            Column(
                 modifier = modifier,
-                horizontalArrangement = Arrangement.spacedBy(space = 12.dp, alignment = Alignment.Start),
-                verticalAlignment = Alignment.CenterVertically
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Top
             ) {
                 Image(
-                    modifier = Modifier.fillMaxHeight(),
+                    modifier = Modifier.fillMaxWidth(),
                     data = artist.image,
-                    contentScale = ContentScale.FillHeight
+                    contentScale = ContentScale.FillWidth
                 )
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        modifier = Modifier.fillMaxWidth(),
-                        text = artist.name,
-                        style = MaterialTheme.typography.displayMedium,
-                        textAlign = TextAlign.Center
-                    )
-                }
+                Text(
+                    modifier = Modifier.fillMaxWidth(),
+                    text = artist.name,
+                    style = MaterialTheme.typography.displayMedium,
+                    textAlign = TextAlign.Center,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
 
@@ -190,7 +186,6 @@ class ArtistDetails(
             modifier: Modifier = Modifier,
             album: ArtistDetailsState.Loaded.Artist.Album,
             onClick: () -> Unit,
-            onArtistClick: (Long) -> Unit,
             onAddToPlaylistClick: () -> Unit,
             onAddToQueueClick: () -> Unit,
             onPlayClick: () -> Unit
@@ -198,8 +193,10 @@ class ArtistDetails(
             var showContextMenu by remember { mutableStateOf(false) }
 
             Item(
-                modifier = modifier,
-                onClick = onClick,
+                modifier = modifier.combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { showContextMenu = true }
+                )
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -212,7 +209,7 @@ class ArtistDetails(
                         alignment = Alignment.TopCenter
                     )
                     Text(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(8.dp),
                         text = album.name,
                         style = MaterialTheme.typography.titleMedium,
                         textAlign = TextAlign.Center,
@@ -220,48 +217,6 @@ class ArtistDetails(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        modifier = Modifier.fillMaxWidth(),
-                        text = album.releaseDate?.let { "Released: $it" } ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    LazyRow(
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        items(items = album.artists) { artist ->
-                            TextButton(
-                                onClick = { onArtistClick(artist.id) },
-                                content = {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(Icons.Default.Person, null)
-                                        Text(artist.name)
-                                    }
-                                }
-                            )
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            content = { Icon(Icons.Default.PlayCircle, null) },
-                            onClick = onPlayClick
-                        )
-                        IconButton(
-                            content = { Icon(Icons.Default.MoreVert, null) },
-                            onClick = { showContextMenu = true }
-                        )
-                    }
                 }
             }
 
@@ -270,6 +225,11 @@ class ArtistDetails(
                     item = Item(name = album.name, image = album.image),
                     onDismiss = { showContextMenu = false }
                 ) {
+                    Option(
+                        label = "Play",
+                        icon = Icons.Default.PlayCircle,
+                        onClick = onPlayClick,
+                    )
                     Option(
                         label = "Add to playlist",
                         icon = Icons.AutoMirrored.Default.PlaylistAdd,

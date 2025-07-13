@@ -1,5 +1,6 @@
 package dev.younesgouyd.apps.music.android.components
 
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -9,7 +10,10 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.AddToQueue
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.QueuePlayNext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -110,14 +114,13 @@ class AlbumList(
                 modifier = modifier.fillMaxSize(),
                 content = { paddingValues ->
                     Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-//                        VerticalScrollbar(lazyGridState) // TODO
                         LazyVerticalGrid(
-                            modifier = Modifier.fillMaxSize().padding(end = 16.dp),
+                            modifier = Modifier.fillMaxSize().padding(12.dp),
                             state = lazyGridState,
-                            contentPadding = PaddingValues(18.dp),
-                            horizontalArrangement = Arrangement.spacedBy(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(18.dp),
-                            columns = GridCells.Adaptive(200.dp)
+                            contentPadding = PaddingValues(vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            columns = GridCells.Adaptive(100.dp)
                         ) {
                             items(items = items, key = { it.id }) { album ->
                                 AlbumItem(
@@ -153,8 +156,10 @@ class AlbumList(
             var showContextMenu by remember { mutableStateOf(false) }
 
             Item(
-                modifier = modifier,
-                onClick = onClick,
+                modifier = modifier.combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { showContextMenu = true }
+                )
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -167,25 +172,16 @@ class AlbumList(
                         alignment = Alignment.TopCenter
                     )
                     Text(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(8.dp),
                         text = album.name,
                         style = MaterialTheme.typography.titleMedium,
                         textAlign = TextAlign.Center,
-                        minLines = 2,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        modifier = Modifier.fillMaxWidth(),
-                        text = album.releaseDate?.let { "Released: $it" } ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
                     LazyRow(
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp, alignment = Alignment.CenterHorizontally),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         items(items = album.artists) { artist ->
@@ -197,49 +193,43 @@ class AlbumList(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(Icons.Default.Person, null)
-                                        Text(artist.name)
+                                        Text(
+                                            text = artist.name,
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
                                     }
                                 }
                             )
                         }
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            content = { Icon(Icons.Default.PlayCircle, null) },
-                            onClick = onPlayClick
-                        )
-                        IconButton(
-                            content = { Icon(Icons.Default.MoreVert, null) },
-                            onClick = { showContextMenu = true }
-                        )
-                    }
+                }
+            }
 
-                    if (showContextMenu) {
-                        ItemContextMenu(
-                            item = Item(name = album.name, image = album.image),
-                            onDismiss = { showContextMenu = false }
-                        ) {
-                            Option(
-                                label = "Add to playlist",
-                                icon = Icons.AutoMirrored.Default.PlaylistAdd,
-                                onClick = onAddToPlaylistClick,
-                            )
-                            Option(
-                                label = "Add to queue",
-                                icon = Icons.Default.AddToQueue,
-                                onClick = { onAddToQueueClick(); showContextMenu = false }
-                            )
-                            Option(
-                                label = "Play next",
-                                icon = Icons.Default.QueuePlayNext,
-                                onClick = { TODO() },
-                            )
-                        }
-                    }
+            if (showContextMenu) {
+                ItemContextMenu(
+                    item = Item(name = album.name, image = album.image),
+                    onDismiss = { showContextMenu = false }
+                ) {
+                    Option(
+                        label = "Play",
+                        icon = Icons.Default.PlayCircle,
+                        onClick = { onPlayClick(); showContextMenu = false },
+                    )
+                    Option(
+                        label = "Add to playlist",
+                        icon = Icons.AutoMirrored.Default.PlaylistAdd,
+                        onClick = onAddToPlaylistClick,
+                    )
+                    Option(
+                        label = "Add to queue",
+                        icon = Icons.Default.AddToQueue,
+                        onClick = { onAddToQueueClick(); showContextMenu = false }
+                    )
+                    Option(
+                        label = "Play next",
+                        icon = Icons.Default.QueuePlayNext,
+                        onClick = { TODO() },
+                    )
                 }
             }
         }
