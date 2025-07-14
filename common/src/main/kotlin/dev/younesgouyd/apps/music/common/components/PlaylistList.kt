@@ -35,7 +35,7 @@ abstract class PlaylistList(
                                 image = dbPlaylist.image
                             )
                         }
-                    }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList()),
+                    }.stateIn(coroutineScope),
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     onPlaylist = showPlaylistDetails,

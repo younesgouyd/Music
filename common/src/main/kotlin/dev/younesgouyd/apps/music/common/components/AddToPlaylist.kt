@@ -63,7 +63,7 @@ abstract class AddToPlaylist(
                                 image = dbPlaylist.image
                             )
                         }
-                    }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList()),
+                    }.stateIn(coroutineScope),
                     onAddTopPlaylist = ::addToPlaylist
                 )
             }

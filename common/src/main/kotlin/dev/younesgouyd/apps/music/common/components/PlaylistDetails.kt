@@ -62,7 +62,7 @@ abstract class PlaylistDetails(
                                 addedAt = formatAddedAt(dbTrack.added_at)
                             )
                         }
-                    }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList()),
+                    }.stateIn(coroutineScope),
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     onPlayClick = ::play,

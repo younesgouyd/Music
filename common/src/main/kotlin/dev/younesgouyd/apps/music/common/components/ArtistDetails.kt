@@ -54,7 +54,7 @@ abstract class ArtistDetails(
                                 }
                             )
                         }
-                    }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), emptyList()),
+                    }.stateIn(coroutineScope),
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     onAlbumClick = showAlbumDetails,
