@@ -8,8 +8,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.decodeToImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.loadImageBitmap
 import java.io.ByteArrayInputStream
 
 @Composable
@@ -27,7 +27,9 @@ fun Image(
     } else {
         LaunchedEffect(data) {
             loading = true
-            image = loadImageBitmap(ByteArrayInputStream(data))
+            ByteArrayInputStream(data).use {
+                image = it.readAllBytes().decodeToImageBitmap()
+            }
             loading = false
         }
 
