@@ -1,5 +1,8 @@
 package dev.younesgouyd.apps.music.android.components
 
+import android.os.Build
+import androidx.annotation.RequiresApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -8,7 +11,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.android.components.util.MediaController
 import dev.younesgouyd.apps.music.common.components.Main
 import dev.younesgouyd.apps.music.common.components.NavigationHost
@@ -19,15 +21,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 class Main(
     repoStore: RepoStore,
     media3Controller: androidx.media3.session.MediaController
 ) : Main(repoStore) {
     override val mediaController = MediaController(media3Controller, repoStore)
-    override val miniPlayer = MiniPlayer(
-        mediaController = mediaController
-    )
-    override val queue = Queue(mediaController)
+
     override val settingsHost: Settings by lazy { Settings(repoStore) }
     override val libraryHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.Library, ::toggleDrawerState) }
     override val playlistsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.PlaylistList, ::toggleDrawerState) }
@@ -36,6 +36,28 @@ class Main(
 
     override val currentMainComponent: MutableStateFlow<Component> = MutableStateFlow(libraryHost)
     override val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Library)
+
+    private val playerExpanded: MutableStateFlow<Boolean> = MutableStateFlow(false)
+
+    override val miniPlayer = MiniPlayer(
+        mediaController = mediaController,
+        showAlbumDetails = {}, // TODO
+        showArtistDetails = {} // TODO
+    )
+    override val player: Component = Player(
+        mediaController = mediaController,
+        showAlbumDetails = {
+            albumsHost.navigateTo(NavigationHost.Destination.AlbumDetails(it))
+            currentMainComponent.value = albumsHost
+            playerExpanded.value = false
+        },
+        showArtistDetails = {
+            artistsHost.navigateTo(NavigationHost.Destination.ArtistDetails(it))
+            currentMainComponent.value = artistsHost
+            playerExpanded.value = false
+        },
+        minimizePlayer = { playerExpanded.value = false }
+    )
 
     @Composable
     override fun show(modifier: Modifier) {
@@ -47,10 +69,12 @@ class Main(
             modifier = modifier,
             darkTheme = darkTheme,
             currentMainComponent = currentMainComponent,
+            player = player,
             miniPlayer = miniPlayer,
-            queue = queue,
+            playerExpanded = playerExpanded.asStateFlow(),
             selectedNavigationDrawerItem = selectedNavigationDrawerItem,
             drawerState = drawerState.asStateFlow(),
+            onExpandPlayerClick = { playerExpanded.value = true },
             onNavigationDrawerItemClick = {
                 when (it) {
                     NavigationDrawerItems.Settings -> mainComponentController.showSettings()
@@ -69,13 +93,16 @@ class Main(
             modifier: Modifier,
             darkTheme: DarkThemeOptions,
             currentMainComponent: Component,
-            miniPlayer: MiniPlayer,
-            queue: Component,
+            player: Component,
+            miniPlayer: Component,
+            onExpandPlayerClick: () -> Unit,
+            playerExpanded: StateFlow<Boolean>,
             selectedNavigationDrawerItem: NavigationDrawerItems,
             drawerState: StateFlow<DrawerState>,
             onNavigationDrawerItemClick: (NavigationDrawerItems) -> Unit
         ) {
             val drawerState by drawerState.collectAsState()
+            val playerExpanded by playerExpanded.collectAsState()
 
             YounesMusicTheme(
                 darkTheme = darkTheme,
@@ -109,8 +136,16 @@ class Main(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    currentMainComponent.show(Modifier.fillMaxWidth().weight(weight = .9f))
-                                    miniPlayer.show(Modifier.fillMaxWidth().padding(8.dp))
+                                    if (playerExpanded) {
+                                        player.show(Modifier.fillMaxSize())
+                                    } else {
+                                        currentMainComponent.show(Modifier.fillMaxWidth().weight(weight = 0.88f))
+                                        miniPlayer.show(
+                                            modifier = Modifier.clickable { onExpandPlayerClick() }
+                                                .fillMaxWidth()
+                                                .weight(0.12f)
+                                        )
+                                    }
                                 }
                             }
                         )

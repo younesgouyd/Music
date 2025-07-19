@@ -1,27 +1,34 @@
 package dev.younesgouyd.apps.music.android.components
 
-import androidx.compose.animation.core.*
+import android.os.Build
+import androidx.annotation.RequiresApi
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.TweenSpec
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.android.components.util.widgets.Image
-import dev.younesgouyd.apps.music.common.components.Player
+import dev.younesgouyd.apps.music.common.components.MiniPlayer
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.time.Duration.Companion.milliseconds
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 class MiniPlayer(
-    mediaController: MediaController
-) : Player(mediaController) {
+    mediaController: MediaController,
+    showAlbumDetails: (Long) -> Unit,
+    showArtistDetails: (Long) -> Unit
+) : MiniPlayer(mediaController, showAlbumDetails, showArtistDetails) {
     @Composable
     override fun show(modifier: Modifier) {
         val state by state.collectAsState()
@@ -35,132 +42,94 @@ class MiniPlayer(
 
     private object Ui {
         @Composable
-        fun Main(modifier: Modifier = Modifier, state: PlayerState) {
+        fun Main(modifier: Modifier = Modifier, state: MiniPlayerState) {
             when (state) {
-                is PlayerState.Loading -> Unit
-                is PlayerState.Unavailable -> Unit
-                is PlayerState.Available -> Main(modifier = modifier, state = state)
+                is MiniPlayerState.Loading -> Unit
+                is MiniPlayerState.Unavailable -> Unit
+                is MiniPlayerState.Available -> Main(modifier = modifier, state = state)
             }
         }
 
         @Composable
-        private fun Main(modifier: Modifier = Modifier, state: PlayerState.Available) {
+        private fun Main(modifier: Modifier = Modifier, state: MiniPlayerState.Available) {
             Main(
                 modifier =  modifier,
-                enabled = state.enabled,
                 currentTrack = state.currentTrack,
                 timePositionChange = state.timePositionChange,
-                isPlaying = state.isPlaying,
-                onAlbumClick = state.onAlbumClick,
-                onArtistClick = state.onArtistClick,
-                onValueChange = state.onValueChange,
-                onPlayClick = state.onPlayClick,
-                onPauseClick = state.onPauseClick
+                isPlaying = state.isPlaying
             )
         }
 
         @Composable
         private fun Main(
             modifier: Modifier = Modifier,
-            enabled: StateFlow<Boolean>,
             currentTrack: MediaController.MediaControllerState.Available.QueueItem.Track,
             timePositionChange: StateFlow<Long>,
-            isPlaying: StateFlow<Boolean>,
-            onAlbumClick: (Long) -> Unit,
-            onArtistClick: (Long) -> Unit,
-            onValueChange: (Long) -> Unit,
-            onPlayClick: () -> Unit,
-            onPauseClick: () -> Unit
+            isPlaying: StateFlow<Boolean>
         ) {
             fun <T> linearAnimation(duration: Int): TweenSpec<T> = tween(durationMillis = duration, easing = LinearEasing)
             fun durationMillisFormatted(time: Long): String = time.milliseconds.toComponents { minutes, seconds, _ -> minutes.toString().padStart(2, '0') + ":" + seconds.toString().padStart(2, '0') }
 
-            val enabled by enabled.collectAsState()
             val isPlaying by isPlaying.collectAsState()
             val timePositionChange by timePositionChange.collectAsState()
             val animatedPosition = remember { Animatable(0f) }
             val formattedDuration = remember(currentTrack.duration) { durationMillisFormatted(currentTrack.duration) }
-            val isUserInteracting = remember { mutableStateOf(false) }
 
             Surface(
-                modifier = modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                shape = MaterialTheme.shapes.medium
+                modifier = modifier,
+                color = MaterialTheme.colorScheme.surfaceContainer
             ) {
                 Row(
-                    modifier = Modifier.padding(end = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Image(
-                        modifier = Modifier.size(100.dp),
-                        data = currentTrack.album?.image
+                        modifier = Modifier.fillMaxHeight(),
+                        data = currentTrack.album?.image,
+                        contentScale = ContentScale.FillHeight
                     )
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.weight(1f),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        Text(
+                            text = currentTrack.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = currentTrack.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
                             currentTrack.artists.firstOrNull()?.let { artist ->
-                                TextButton(
-                                    content = {
-                                        Row(
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(Icons.Default.Person, null)
-                                            Text(
-                                                text = artist.name,
-                                                style = MaterialTheme.typography.labelMedium
-                                            )
-                                        }
-                                    },
-                                    onClick = { onArtistClick(artist.id) }
-                                )
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Person, null)
+                                    Text(
+                                        text = artist.name,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(space = 8.dp, alignment = Alignment.Start),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            when (isPlaying) {
-                                true -> IconButton(
-                                    content = { Icon(Icons.Default.PauseCircle, null) },
-                                    enabled = enabled,
-                                    onClick = onPauseClick
-                                )
-                                false -> IconButton(
-                                    content = { Icon(Icons.Default.PlayCircle, null) },
-                                    enabled = enabled,
-                                    onClick = onPlayClick
-                                )
-                            }
-                            PlaybackSlider(
-                                modifier = Modifier.weight(1f),
-                                enabled = enabled,
-                                duration = currentTrack.duration,
-                                animatedPosition = animatedPosition,
-                                onSeek = onValueChange,
-                                isInteracting = isUserInteracting
-                            )
                             Text(
                                 text = "${durationMillisFormatted((animatedPosition.value * currentTrack.duration).toLong())}/${formattedDuration}",
                                 style = MaterialTheme.typography.labelMedium
                             )
                         }
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            progress = { animatedPosition.value }
+                        )
                     }
+                    Spacer(Modifier.wrapContentWidth().size(4.dp))
                 }
             }
 
@@ -175,45 +144,16 @@ class MiniPlayer(
             }
 
             LaunchedEffect(timePositionChange) {
-                if (!isUserInteracting.value) {
-                    animatedPosition.stop()
-                    animatedPosition.snapTo(timePositionChange.toFloat() / currentTrack.duration.toFloat())
-                    if (isPlaying) {
-                        val remaining = currentTrack.duration - timePositionChange
-                        animatedPosition.animateTo(
-                            targetValue = 1f,
-                            animationSpec = linearAnimation(remaining.toInt())
-                        )
-                    }
+                animatedPosition.stop()
+                animatedPosition.snapTo(timePositionChange.toFloat() / currentTrack.duration.toFloat())
+                if (isPlaying) {
+                    val remaining = currentTrack.duration - timePositionChange
+                    animatedPosition.animateTo(
+                        targetValue = 1f,
+                        animationSpec = linearAnimation(remaining.toInt())
+                    )
                 }
             }
-        }
-
-        @Composable
-        fun PlaybackSlider(
-            modifier: Modifier = Modifier,
-            duration: Long,
-            animatedPosition: Animatable<Float, AnimationVector1D>,
-            enabled: Boolean,
-            onSeek: (Long) -> Unit,
-            isInteracting: MutableState<Boolean>
-        ) {
-            var sliderPosition by remember { mutableFloatStateOf(0f) }
-            val sliderValue = if (isInteracting.value) sliderPosition else animatedPosition.value
-
-            Slider(
-                modifier = modifier,
-                enabled = enabled,
-                value = sliderValue,
-                onValueChange = { newValue ->
-                    isInteracting.value = true
-                    sliderPosition = newValue
-                },
-                onValueChangeFinished = {
-                    isInteracting.value = false
-                    onSeek((sliderPosition * duration).toLong())
-                }
-            )
         }
     }
 }

@@ -43,7 +43,7 @@ abstract class MediaController protected constructor(
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
                             if (currentState.isPlaying.value) { mediaPlayer.pause() }
-                            this@MediaController.isPlaying.value = false
+                            isPlaying.value = false
                             currentState
                         }
                     }
@@ -62,6 +62,7 @@ abstract class MediaController protected constructor(
                                 }
                                 if (currentTrack.uri != null) {
                                     mediaPlayer.setMedia(currentTrack.uri)
+                                    timePositionChange.value = 0
                                     mediaPlayer.play()
                                 } else {
                                     TODO()
@@ -73,14 +74,14 @@ abstract class MediaController protected constructor(
                                 queueItemIndex = queueItemIndex,
                                 queueSubItemIndex = queueSubItemIndex,
                                 timePositionChange = timePositionChange,
-                                isPlaying = this@MediaController.isPlaying.asStateFlow(),
+                                isPlaying = isPlaying.asStateFlow(),
                                 repeatState = MediaControllerState.Available.RepeatState.Off,
                             )
                         }
                         is MediaControllerState.Available -> {
                             if (queue.isEmpty()) {
                                 if (!currentState.isPlaying.value) { mediaPlayer.play() }
-                                this@MediaController.isPlaying.value = true
+                                isPlaying.value = true
                                 currentState
                             } else {
                                 val index = queueItemIndex
@@ -94,12 +95,13 @@ abstract class MediaController protected constructor(
                                     }
                                     if (currentTrack.uri != null) {
                                         mediaPlayer.setMedia(currentTrack.uri)
+                                        timePositionChange.value = 0
                                         mediaPlayer.play()
+                                        isPlaying.value = true
                                     } else {
                                         TODO()
                                     }
                                 }
-                                this@MediaController.isPlaying.value = true
                                 currentState.copy(
                                     queue = mapped,
                                     queueItemIndex = index,
@@ -124,7 +126,7 @@ abstract class MediaController protected constructor(
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
                             if (!currentState.isPlaying.value) { mediaPlayer.play() }
-                            this@MediaController.isPlaying.value = true
+                            isPlaying.value = true
                             currentState
                         }
                     }
@@ -144,6 +146,7 @@ abstract class MediaController protected constructor(
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
                             if (currentState.isPlaying.value) { mediaPlayer.pause() }
+                            isPlaying.value = false
                             currentState
                         }
                     }
@@ -175,7 +178,7 @@ abstract class MediaController protected constructor(
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
                             if (currentState.isPlaying.value) { wasPlaying = true; mediaPlayer.stop() }
-                            this@MediaController.isPlaying.value = false
+                            isPlaying.value = false
                             currentState
                         }
                     }
@@ -226,11 +229,12 @@ abstract class MediaController protected constructor(
                             if (wasPlaying == null) { TODO() }
                             if (newTrack.uri != null) {
                                 mediaPlayer.setMedia(newTrack.uri)
+                                timePositionChange.value = 0
                                 if (wasPlaying) {
                                     mediaPlayer.play()
                                 }
                             }
-                            this@MediaController.isPlaying.value = wasPlaying
+                            isPlaying.value = wasPlaying
                             currentState.copy(
                                 queueItemIndex = newIndex,
                                 queueSubItemIndex = newSubIndex
@@ -254,7 +258,7 @@ abstract class MediaController protected constructor(
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
                             if (currentState.isPlaying.value) { wasPlaying = true; mediaPlayer.stop() }
-                            this@MediaController.isPlaying.value = false
+                            isPlaying.value = false
                             currentState
                         }
                     }
@@ -323,9 +327,10 @@ abstract class MediaController protected constructor(
                             if (wasPlaying == null) TODO()
                             if (newTrack.uri != null) {
                                 mediaPlayer.setMedia(newTrack.uri)
+                                timePositionChange.value = 0
                                 if (wasPlaying) { mediaPlayer.play() }
                             }
-                            this@MediaController.isPlaying.value = wasPlaying
+                            isPlaying.value = wasPlaying
                             currentState.copy(
                                 queueItemIndex = newIndex,
                                 queueSubItemIndex = newSubIndex
@@ -387,6 +392,7 @@ abstract class MediaController protected constructor(
                                 }
                                 if (currentTrack.uri != null) {
                                     mediaPlayer.setMedia(currentTrack.uri)
+                                    timePositionChange.value = 0
                                 } else {
                                     TODO()
                                 }
@@ -422,7 +428,7 @@ abstract class MediaController protected constructor(
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
                             if (currentState.isPlaying.value) { mediaPlayer.stop() }
-                            this@MediaController.isPlaying.value = false
+                            isPlaying.value = false
                             currentState
                         }
                     }
@@ -440,10 +446,11 @@ abstract class MediaController protected constructor(
                                 }
                                 if (newTrack.uri != null) {
                                     mediaPlayer.setMedia(newTrack.uri)
+                                    timePositionChange.value = 0
                                     mediaPlayer.play()
+                                    isPlaying.value = true
                                 }
                             }
-                            this@MediaController.isPlaying.value = true
                             currentState.copy(
                                 queueItemIndex = queueItemIndex,
                                 queueSubItemIndex = 0
@@ -466,7 +473,7 @@ abstract class MediaController protected constructor(
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
                             if (currentState.isPlaying.value) { mediaPlayer.stop() }
-                            this@MediaController.isPlaying.value = false
+                            isPlaying.value = false
                             currentState
                         }
                     }
@@ -484,7 +491,9 @@ abstract class MediaController protected constructor(
                                 }
                                 if (newTrack.uri != null) {
                                     mediaPlayer.setMedia(newTrack.uri)
+                                    timePositionChange.value = 0
                                     mediaPlayer.play()
+                                    isPlaying.value = true
                                 }
                             }
                             currentState.copy(

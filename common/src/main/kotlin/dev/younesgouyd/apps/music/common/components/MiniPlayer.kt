@@ -10,26 +10,22 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-abstract class Player(
+abstract class MiniPlayer(
     mediaController: MediaController,
     showAlbumDetails: (Long) -> Unit,
-    showArtistDetails: (Long) -> Unit,
-    minimizePlayer: () -> Unit
+    showArtistDetails: (Long) -> Unit
 ) : Component() {
-    override val title: String = "Player"
-    protected val state: MutableStateFlow<PlayerState> = MutableStateFlow(PlayerState.Unavailable)
+    override val title: String = "Mini Player"
+    protected val state: MutableStateFlow<MiniPlayerState> = MutableStateFlow(MiniPlayerState.Unavailable)
 
     init {
         coroutineScope.launch {
             mediaController.state.collectLatest { mediaControllerState ->
                 state.value = when (mediaControllerState) {
-                    is MediaController.MediaControllerState.Unavailable -> PlayerState.Unavailable
-                    is MediaController.MediaControllerState.Loading -> PlayerState.Loading
-                    is MediaController.MediaControllerState.Available -> PlayerState.Available(
+                    is MediaController.MediaControllerState.Unavailable -> MiniPlayerState.Unavailable
+                    is MediaController.MediaControllerState.Loading -> MiniPlayerState.Loading
+                    is MediaController.MediaControllerState.Available -> MiniPlayerState.Available(
                         enabled = mediaControllerState.enabled,
-                        queue = mediaControllerState.queue,
-                        queueItemIndex = mediaControllerState.queueItemIndex,
-                        queueSubItemIndex = mediaControllerState.queueSubItemIndex,
                         timePositionChange = mediaControllerState.timePositionChange,
                         isPlaying = mediaControllerState.isPlaying,
                         repeatState = mediaControllerState.repeatState,
@@ -41,10 +37,7 @@ abstract class Player(
                         onPlayClick = mediaController::play,
                         onPauseClick = mediaController::pause,
                         onNextClick = mediaController::next,
-                        onRepeatClick = mediaController::repeat,
-                        onPlayQueueItem = mediaController::playQueueItem,
-                        onPlayQueueSubItem = mediaController::playTrackInQueue,
-                        onMinimizeClick = minimizePlayer
+                        onRepeatClick = mediaController::repeat
                     )
                 }
             }
@@ -55,16 +48,13 @@ abstract class Player(
         coroutineScope.cancel()
     }
 
-    protected sealed class PlayerState {
-        data object Loading : PlayerState()
+    protected sealed class MiniPlayerState {
+        data object Loading : MiniPlayerState()
 
-        data object Unavailable : PlayerState()
+        data object Unavailable : MiniPlayerState()
 
         data class Available(
             val enabled: StateFlow<Boolean>,
-            val queue: List<QueueItem>,
-            val queueItemIndex: Int,
-            val queueSubItemIndex: Int,
             val timePositionChange: StateFlow<Long>,
             val isPlaying: StateFlow<Boolean>,
             val repeatState: RepeatState,
@@ -76,10 +66,7 @@ abstract class Player(
             val onPlayClick: () -> Unit,
             val onPauseClick: () -> Unit,
             val onNextClick: () -> Unit,
-            val onRepeatClick: () -> Unit,
-            val onPlayQueueItem: (queueItemIndex: Int) -> Unit,
-            val onPlayQueueSubItem: (queueItemIndex: Int, trackIndex: Int) -> Unit,
-            val onMinimizeClick: () -> Unit
-        ) : PlayerState()
+            val onRepeatClick: () -> Unit
+        ) : MiniPlayerState()
     }
 }

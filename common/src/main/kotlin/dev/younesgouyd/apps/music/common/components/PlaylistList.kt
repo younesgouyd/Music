@@ -1,7 +1,5 @@
 package dev.younesgouyd.apps.music.common.components
 
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.data.repoes.*
 import dev.younesgouyd.apps.music.common.util.Component
@@ -49,9 +47,6 @@ abstract class PlaylistList(
             }
         }
     }
-
-    @Composable
-    abstract override fun show(modifier: Modifier)
 
     override fun clear() {
         coroutineScope.cancel()

@@ -1,7 +1,5 @@
 package dev.younesgouyd.apps.music.common.components
 
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import com.mpatric.mp3agic.Mp3File
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.data.repoes.*
@@ -114,9 +112,6 @@ abstract class Library(
             }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
     }
-
-    @Composable
-    abstract override fun show(modifier: Modifier)
 
     override fun clear() {
         coroutineScope.cancel()

@@ -1,5 +1,7 @@
 package dev.younesgouyd.apps.music.android.components
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -26,6 +28,7 @@ import dev.younesgouyd.apps.music.common.data.repoes.*
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 class AlbumDetails(
     id: Long,
     albumRepo: AlbumRepo,

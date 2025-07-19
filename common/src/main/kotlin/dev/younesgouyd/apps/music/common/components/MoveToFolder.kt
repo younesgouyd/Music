@@ -1,7 +1,5 @@
 package dev.younesgouyd.apps.music.common.components
 
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import dev.younesgouyd.apps.music.common.data.repoes.FolderRepo
 import dev.younesgouyd.apps.music.common.data.repoes.PlaylistRepo
 import dev.younesgouyd.apps.music.common.data.repoes.PlaylistTrackCrossRefRepo
@@ -18,9 +16,6 @@ abstract class MoveToFolder(
     private val dismiss: () -> Unit
 ) : Component() {
     override val title: String = "Move to Folder"
-
-    @Composable
-    abstract override fun show(modifier: Modifier)
 
     override fun clear() {
         coroutineScope.cancel()

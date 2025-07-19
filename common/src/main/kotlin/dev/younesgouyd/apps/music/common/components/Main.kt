@@ -2,8 +2,6 @@ package dev.younesgouyd.apps.music.common.components
 
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.util.Component
@@ -25,7 +23,7 @@ abstract class Main(
     protected abstract val mediaController: MediaController
 
     protected abstract val miniPlayer: Component
-    protected abstract val queue: Queue
+    protected abstract val player: Component
 
     protected abstract val settingsHost: Settings
     protected abstract val libraryHost: NavigationHost
@@ -37,9 +35,6 @@ abstract class Main(
     protected abstract val selectedNavigationDrawerItem: MutableStateFlow<NavigationDrawerItems>
 
     protected val drawerState: MutableStateFlow<DrawerState> = MutableStateFlow(DrawerState(initialValue = DrawerValue.Closed))
-
-    @Composable
-    abstract override fun show(modifier: Modifier)
 
     override fun clear() {
         mediaController.release()

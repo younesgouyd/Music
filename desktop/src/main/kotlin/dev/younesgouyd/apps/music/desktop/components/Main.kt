@@ -1,5 +1,6 @@
 package dev.younesgouyd.apps.music.desktop.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -22,9 +23,6 @@ import kotlinx.coroutines.flow.asStateFlow
 class Main(repoStore: RepoStore) : Main(repoStore) {
     override val mediaController = MediaController(repoStore)
 
-    override val miniPlayer = Player(mediaController)
-    override val queue = Queue(mediaController)
-
     override val settingsHost: Settings by lazy { Settings(repoStore) }
     override val libraryHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.Library, ::toggleDrawerState) }
     override val playlistsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.PlaylistList, ::toggleDrawerState) }
@@ -33,6 +31,34 @@ class Main(repoStore: RepoStore) : Main(repoStore) {
 
     override val currentMainComponent: MutableStateFlow<Component> = MutableStateFlow(libraryHost)
     override val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Library)
+
+    private val playerExpanded: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    override val miniPlayer = MiniPlayer(
+        mediaController = mediaController,
+        showAlbumDetails = {
+            albumsHost.navigateTo(NavigationHost.Destination.AlbumDetails(it))
+            currentMainComponent.value = albumsHost
+        },
+        showArtistDetails = {
+            artistsHost.navigateTo(NavigationHost.Destination.ArtistDetails(it))
+            currentMainComponent.value = artistsHost
+        }
+    )
+    override val player: Component = Player(
+        mediaController = mediaController,
+        showAlbumDetails = {
+            albumsHost.navigateTo(NavigationHost.Destination.AlbumDetails(it))
+            currentMainComponent.value = albumsHost
+            playerExpanded.value = false
+        },
+        showArtistDetails = {
+            artistsHost.navigateTo(NavigationHost.Destination.ArtistDetails(it))
+            currentMainComponent.value = artistsHost
+            playerExpanded.value = false
+        },
+        minimizePlayer = { playerExpanded.value = false }
+    )
+    val queue = Queue(mediaController)
 
     @Composable
     override fun show(modifier: Modifier) {
@@ -43,10 +69,13 @@ class Main(repoStore: RepoStore) : Main(repoStore) {
         Ui.Main(
             darkTheme = darkTheme,
             currentMainComponent = currentMainComponent,
+            player = player,
             miniPlayer = miniPlayer,
+            playerExpanded = playerExpanded.asStateFlow(),
             queue = queue,
             selectedNavigationDrawerItem = selectedNavigationDrawerItem,
             drawerState = drawerState.asStateFlow(),
+            onExpandPlayerClick = { playerExpanded.value = true },
             onNavigationDrawerItemClick = {
                 when (it) {
                     NavigationDrawerItems.Settings -> mainComponentController.showSettings()
@@ -64,13 +93,17 @@ class Main(repoStore: RepoStore) : Main(repoStore) {
         fun Main(
             darkTheme: DarkThemeOptions,
             currentMainComponent: Component,
-            miniPlayer: Player,
+            player: Component,
+            miniPlayer: Component,
             queue: Component,
+            onExpandPlayerClick: () -> Unit,
+            playerExpanded: StateFlow<Boolean>,
             selectedNavigationDrawerItem: NavigationDrawerItems,
             drawerState: StateFlow<DrawerState>,
             onNavigationDrawerItemClick: (NavigationDrawerItems) -> Unit
         ) {
             val drawerState by drawerState.collectAsState()
+            val playerExpanded by playerExpanded.collectAsState()
 
             YounesMusicTheme(
                 darkTheme = darkTheme,
@@ -104,13 +137,22 @@ class Main(repoStore: RepoStore) : Main(repoStore) {
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().weight(weight = .8f)
-                                    ) {
-                                        currentMainComponent.show(Modifier.weight(.7f))
-                                        queue.show(Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp).weight(.3f))
+                                    if (playerExpanded) {
+                                        player.show(Modifier.fillMaxSize())
+                                    } else {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().weight(weight = .8f)
+                                        ) {
+                                            currentMainComponent.show(Modifier.weight(.7f))
+                                            queue.show(Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp).weight(.3f))
+                                        }
+                                        miniPlayer.show(
+                                            modifier = Modifier.fillMaxWidth()
+                                                .padding(8.dp)
+                                                .weight(.2f)
+                                                .clickable { onExpandPlayerClick() }
+                                        )
                                     }
-                                    miniPlayer.show(Modifier.fillMaxWidth().padding(8.dp).weight(.2f))
                                 }
                             }
                         )

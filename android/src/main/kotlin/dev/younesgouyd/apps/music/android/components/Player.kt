@@ -1,5 +1,7 @@
-package dev.younesgouyd.apps.music.desktop.components
+package dev.younesgouyd.apps.music.android.components
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -13,9 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.android.components.util.widgets.Image
 import dev.younesgouyd.apps.music.common.components.Player
 import dev.younesgouyd.apps.music.common.components.util.MediaController
-import dev.younesgouyd.apps.music.desktop.components.util.widgets.Image
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -25,6 +27,7 @@ class Player(
     showArtistDetails: (Long) -> Unit,
     minimizePlayer: () -> Unit
 ) : Player(mediaController, showAlbumDetails, showArtistDetails, minimizePlayer) {
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     @Composable
     override fun show(modifier: Modifier) {
         val state by state.collectAsState()
@@ -33,6 +36,7 @@ class Player(
     }
 
     private object Ui {
+        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
         @Composable
         fun Main(modifier: Modifier = Modifier, state: PlayerState) {
             when (state) {
@@ -42,6 +46,7 @@ class Player(
             }
         }
 
+        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
         @Composable
         private fun Main(modifier: Modifier = Modifier, state: PlayerState.Available) {
             Main(
@@ -59,6 +64,7 @@ class Player(
             )
         }
 
+        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
         @Composable
         private fun Main(
             modifier: Modifier = Modifier,
@@ -83,38 +89,32 @@ class Player(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Image(
-                            modifier = Modifier.fillMaxWidth(0.4f),
+                            modifier = Modifier.fillMaxWidth(),
                             data = currentTrack.album?.image,
                             contentScale = ContentScale.FillWidth
                         )
-                        TrackInfo(
-                            modifier = Modifier.weight(1f),
-                            track = currentTrack,
-                            onAlbumClick = onAlbumClick,
-                            onArtistClick = onArtistClick
-                        )
-                    }
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.CenterStart,
-                        content = {
-                            IconButton(
-                                modifier = Modifier.size(50.dp),
-                                onClick = onMinimizeClick
-                            ) {
-                                Icon(
-                                    modifier = Modifier.fillMaxSize(),
-                                    imageVector = Icons.Default.UnfoldLess,
-                                    contentDescription = null
-                                )
-                            }
+                        IconButton(
+                            modifier = Modifier.size(50.dp),
+                            onClick = onMinimizeClick
+                        ) {
+                            Icon(
+                                modifier = Modifier.fillMaxSize(),
+                                imageVector = Icons.Default.UnfoldLess,
+                                contentDescription = null
+                            )
                         }
+                    }
+                    TrackInfo(
+                        modifier = Modifier.fillMaxWidth(),
+                        track = currentTrack,
+                        onAlbumClick = onAlbumClick,
+                        onArtistClick = onArtistClick
                     )
                     PlaybackControls(
                         modifier = Modifier.fillMaxWidth(),

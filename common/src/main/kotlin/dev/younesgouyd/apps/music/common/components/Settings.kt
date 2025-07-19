@@ -1,7 +1,5 @@
 package dev.younesgouyd.apps.music.common.components
 
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.util.Component
 import dev.younesgouyd.apps.music.common.util.DarkThemeOptions
@@ -31,9 +29,6 @@ abstract class Settings(
             }
         }
     }
-
-    @Composable
-    abstract override fun show(modifier: Modifier)
 
     override fun clear() {
         coroutineScope.cancel()

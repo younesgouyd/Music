@@ -1,7 +1,5 @@
 package dev.younesgouyd.apps.music.common.components
 
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
@@ -11,9 +9,6 @@ abstract class NavigationHost(
     protected val toggleDrawerState: suspend () -> Unit
 ) : Component() {
     override val title: String = ""
-
-    @Composable
-    abstract override fun show(modifier: Modifier)
 
     override fun clear() {
         navController.dispose()
