@@ -75,10 +75,17 @@ class NavigationHost(
         private val mediaController: MediaController,
         startDestination: Destination
     ) : NavigationHost.NavigationController() {
+        override val inHome: StateFlow<Boolean>
+        override val currentDestination: StateFlow<Component>
+
         private val destinationFactory: DestinationFactory = DestinationFactory()
-        private val backStack: BackStack = BackStack(destinationFactory.get(startDestination))
-        override val inHome: StateFlow<Boolean> = backStack.inHome.asStateFlow()
-        override val currentDestination: StateFlow<Component> = backStack.currentDestination.asStateFlow()
+        private val backStack: BackStack
+
+        init {
+            backStack = BackStack(destinationFactory.get(startDestination))
+            inHome = backStack.inHome.asStateFlow()
+            currentDestination = backStack.currentDestination.asStateFlow()
+        }
 
         override fun navigateTo(destination: Destination) {
             backStack.push(destinationFactory.get(destination))
@@ -133,6 +140,7 @@ class NavigationHost(
         private inner class DestinationFactory {
             fun get(destination: Destination): Component {
                 return when (destination) {
+                    is Destination.Settings -> Settings(repoStore)
                     is Destination.Library -> Library(
                         folderRepo = repoStore.folderRepo,
                         playlistRepo = repoStore.playlistRepo,

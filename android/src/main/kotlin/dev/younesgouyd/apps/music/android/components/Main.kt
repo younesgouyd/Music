@@ -20,25 +20,26 @@ import dev.younesgouyd.apps.music.common.util.DarkThemeOptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 class Main(
-    repoStore: RepoStore,
+    private val repoStore: RepoStore,
     media3Controller: androidx.media3.session.MediaController
 ) : Main(repoStore) {
     override val mediaController = MediaController(media3Controller, repoStore)
 
-    override val settingsHost: Settings by lazy { Settings(repoStore) }
-    override val libraryHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.Library, ::toggleDrawerState) }
-    override val playlistsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.PlaylistList, ::toggleDrawerState) }
-    override val artistsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.ArtistList, ::toggleDrawerState) }
-    override val albumsHost: NavigationHost by lazy { NavigationHost(repoStore, mediaController, NavigationHost.Destination.AlbumList, ::toggleDrawerState) }
-
-    override val currentMainComponent: MutableStateFlow<Component> = MutableStateFlow(libraryHost)
+    override val navigationHost: MutableStateFlow<NavigationHost> = MutableStateFlow(
+        NavigationHost(
+            repoStore = repoStore,
+            mediaController = mediaController,
+            startDestination = NavigationHost.Destination.Library,
+            toggleDrawerState = ::toggleDrawerState
+        )
+    )
     override val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Library)
 
     private val playerExpanded: MutableStateFlow<Boolean> = MutableStateFlow(false)
-
     override val miniPlayer = MiniPlayer(
         mediaController = mediaController,
         showAlbumDetails = {}, // TODO
@@ -47,13 +48,11 @@ class Main(
     override val player: Component = Player(
         mediaController = mediaController,
         showAlbumDetails = {
-            albumsHost.navigateTo(NavigationHost.Destination.AlbumDetails(it))
-            currentMainComponent.value = albumsHost
+            navigationHost.value.navigateTo(NavigationHost.Destination.AlbumDetails(it))
             playerExpanded.value = false
         },
         showArtistDetails = {
-            artistsHost.navigateTo(NavigationHost.Destination.ArtistDetails(it))
-            currentMainComponent.value = artistsHost
+            navigationHost.value.navigateTo(NavigationHost.Destination.AlbumDetails(it))
             playerExpanded.value = false
         },
         minimizePlayer = { playerExpanded.value = false }
@@ -61,30 +60,39 @@ class Main(
 
     @Composable
     override fun show(modifier: Modifier) {
-        val currentMainComponent by currentMainComponent.collectAsState()
-        val selectedNavigationDrawerItem by selectedNavigationDrawerItem.collectAsState()
         val darkTheme by darkTheme.collectAsState()
 
         Ui.Main(
             modifier = modifier,
             darkTheme = darkTheme,
-            currentMainComponent = currentMainComponent,
+            navigationHost = navigationHost.asStateFlow(),
             player = player,
             miniPlayer = miniPlayer,
             playerExpanded = playerExpanded.asStateFlow(),
-            selectedNavigationDrawerItem = selectedNavigationDrawerItem,
+            selectedNavigationDrawerItem = selectedNavigationDrawerItem.asStateFlow(),
             drawerState = drawerState.asStateFlow(),
             onExpandPlayerClick = { playerExpanded.value = true },
-            onNavigationDrawerItemClick = {
-                when (it) {
-                    NavigationDrawerItems.Settings -> mainComponentController.showSettings()
-                    NavigationDrawerItems.Library -> mainComponentController.showLibrary()
-                    NavigationDrawerItems.Playlists -> mainComponentController.showPlaylists(null)
-                    NavigationDrawerItems.Albums -> mainComponentController.showAlbums(null)
-                    NavigationDrawerItems.Artists -> mainComponentController.showArtists(null)
-                }
-            }
+            onNavigationDrawerItemClick = ::handleNavigationDrawerItemClick
         )
+    }
+
+    private fun handleNavigationDrawerItemClick(item: NavigationDrawerItems) {
+        navigationHost.update {
+            it.clear()
+            NavigationHost(
+                repoStore = repoStore,
+                mediaController = mediaController,
+                startDestination = when (item) {
+                    NavigationDrawerItems.Settings -> NavigationHost.Destination.Settings
+                    NavigationDrawerItems.Library -> NavigationHost.Destination.Library
+                    NavigationDrawerItems.Playlists -> NavigationHost.Destination.PlaylistList
+                    NavigationDrawerItems.Albums -> NavigationHost.Destination.AlbumList
+                    NavigationDrawerItems.Artists -> NavigationHost.Destination.ArtistList
+                },
+                toggleDrawerState = ::toggleDrawerState
+            )
+        }
+        selectedNavigationDrawerItem.value = item
     }
 
     private object Ui {
@@ -92,23 +100,25 @@ class Main(
         fun Main(
             modifier: Modifier,
             darkTheme: DarkThemeOptions,
-            currentMainComponent: Component,
+            navigationHost: StateFlow<Component>,
             player: Component,
             miniPlayer: Component,
             onExpandPlayerClick: () -> Unit,
             playerExpanded: StateFlow<Boolean>,
-            selectedNavigationDrawerItem: NavigationDrawerItems,
+            selectedNavigationDrawerItem: StateFlow<NavigationDrawerItems>,
             drawerState: StateFlow<DrawerState>,
             onNavigationDrawerItemClick: (NavigationDrawerItems) -> Unit
         ) {
+            val navigationHost by navigationHost.collectAsState()
             val drawerState by drawerState.collectAsState()
             val playerExpanded by playerExpanded.collectAsState()
+            val selectedNavigationDrawerItem by selectedNavigationDrawerItem.collectAsState()
 
             YounesMusicTheme(
                 darkTheme = darkTheme,
                 content = {
                     Surface(
-                        modifier = modifier.fillMaxSize(),
+                        modifier = modifier,
                         color = MaterialTheme.colorScheme.background
                     ) {
                         ModalNavigationDrawer(
@@ -139,7 +149,7 @@ class Main(
                                     if (playerExpanded) {
                                         player.show(Modifier.fillMaxSize())
                                     } else {
-                                        currentMainComponent.show(Modifier.fillMaxWidth().weight(weight = 0.88f))
+                                        navigationHost.show(Modifier.fillMaxWidth().weight(weight = 0.88f))
                                         miniPlayer.show(
                                             modifier = Modifier.clickable { onExpandPlayerClick() }
                                                 .fillMaxWidth()

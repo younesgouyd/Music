@@ -1,5 +1,7 @@
 package dev.younesgouyd.apps.music.android.components
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -25,6 +27,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.*
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 class NavigationHost(
     repoStore: RepoStore,
     mediaController: MediaController,
@@ -75,10 +78,18 @@ class NavigationHost(
         private val mediaController: MediaController,
         startDestination: Destination
     ) : NavigationHost.NavigationController() {
+        override val inHome: StateFlow<Boolean>
+        override val currentDestination: StateFlow<Component>
+
         private val destinationFactory: DestinationFactory = DestinationFactory()
-        private val backStack: BackStack = BackStack(destinationFactory.get(startDestination))
-        override val inHome: StateFlow<Boolean> = backStack.inHome.asStateFlow()
-        override val currentDestination: StateFlow<Component> = backStack.currentDestination.asStateFlow()
+        private val backStack: BackStack
+
+
+        init {
+            backStack = BackStack(destinationFactory.get(startDestination))
+            inHome = backStack.inHome.asStateFlow()
+            currentDestination = backStack.currentDestination.asStateFlow()
+        }
 
         override fun navigateTo(destination: Destination) {
             backStack.push(destinationFactory.get(destination))
@@ -133,6 +144,7 @@ class NavigationHost(
         private inner class DestinationFactory {
             fun get(destination: Destination): Component {
                 return when (destination) {
+                    is Destination.Settings -> Settings(repoStore)
                     is Destination.Library -> Library(
                         folderRepo = repoStore.folderRepo,
                         playlistRepo = repoStore.playlistRepo,

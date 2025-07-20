@@ -20,6 +20,8 @@ abstract class NavigationHost(
     }
 
     sealed class Destination {
+        data object Settings : Destination()
+
         data object Library : Destination()
 
         data object PlaylistList : Destination()
@@ -40,9 +42,7 @@ abstract class NavigationHost(
         abstract val currentDestination: StateFlow<Component>
 
         abstract fun navigateTo(destination: Destination)
-
         abstract fun navigateBack()
-
         abstract fun dispose()
     }
 }

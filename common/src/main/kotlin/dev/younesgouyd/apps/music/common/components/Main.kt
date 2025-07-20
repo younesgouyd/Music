@@ -13,7 +13,6 @@ abstract class Main(
     repoStore: RepoStore
 ) : Component() {
     override val title: String = ""
-    protected val mainComponentController = MainComponentController()
     protected val darkTheme: StateFlow<DarkThemeOptions> = repoStore.settingsRepo.getDarkThemeFlow().filterNotNull().stateIn(
         scope = coroutineScope,
         started = SharingStarted.WhileSubscribed(),
@@ -25,21 +24,14 @@ abstract class Main(
     protected abstract val miniPlayer: Component
     protected abstract val player: Component
 
-    protected abstract val settingsHost: Settings
-    protected abstract val libraryHost: NavigationHost
-    protected abstract val playlistsHost: NavigationHost
-    protected abstract val artistsHost: NavigationHost
-    protected abstract val albumsHost: NavigationHost
-
-    protected abstract val currentMainComponent: MutableStateFlow<Component>
+    protected abstract val navigationHost: MutableStateFlow<NavigationHost>
     protected abstract val selectedNavigationDrawerItem: MutableStateFlow<NavigationDrawerItems>
 
     protected val drawerState: MutableStateFlow<DrawerState> = MutableStateFlow(DrawerState(initialValue = DrawerValue.Closed))
 
     override fun clear() {
         mediaController.release()
-        settingsHost.clear()
-        libraryHost.clear()
+        navigationHost.value.clear()
         coroutineScope.cancel()
     }
 
@@ -47,36 +39,6 @@ abstract class Main(
         when (drawerState.value.currentValue) {
             DrawerValue.Open -> drawerState.value.close()
             DrawerValue.Closed -> drawerState.value.open()
-        }
-    }
-
-    protected inner class MainComponentController {
-        fun showSettings() {
-            currentMainComponent.update { settingsHost }
-            selectedNavigationDrawerItem.update { NavigationDrawerItems.Settings }
-        }
-
-        fun showLibrary() {
-            currentMainComponent.update { libraryHost }
-            selectedNavigationDrawerItem.update { NavigationDrawerItems.Library }
-        }
-
-        fun showPlaylists(id: Long?) {
-            currentMainComponent.update { playlistsHost }
-            selectedNavigationDrawerItem.update { NavigationDrawerItems.Playlists }
-            if (id != null) { playlistsHost.navigateTo(NavigationHost.Destination.PlaylistDetails(id)) }
-        }
-
-        fun showAlbums(id: Long?) {
-            currentMainComponent.update { albumsHost }
-            selectedNavigationDrawerItem.update { NavigationDrawerItems.Albums }
-            if (id != null) { albumsHost.navigateTo(NavigationHost.Destination.AlbumDetails(id)) }
-        }
-
-        fun showArtists(id: Long?) {
-            currentMainComponent.update { artistsHost }
-            selectedNavigationDrawerItem.update { NavigationDrawerItems.Artists }
-            if (id != null) { artistsHost.navigateTo(NavigationHost.Destination.ArtistDetails(id)) }
         }
     }
 
