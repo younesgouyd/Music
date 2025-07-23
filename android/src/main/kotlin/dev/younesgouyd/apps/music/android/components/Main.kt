@@ -1,7 +1,5 @@
 package dev.younesgouyd.apps.music.android.components
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
@@ -22,7 +20,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 class Main(
     private val repoStore: RepoStore,
     media3Controller: androidx.media3.session.MediaController

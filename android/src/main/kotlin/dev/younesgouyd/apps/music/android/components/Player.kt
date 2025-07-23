@@ -1,7 +1,5 @@
 package dev.younesgouyd.apps.music.android.components
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -27,7 +25,6 @@ class Player(
     showArtistDetails: (Long) -> Unit,
     minimizePlayer: () -> Unit
 ) : Player(mediaController, showAlbumDetails, showArtistDetails, minimizePlayer) {
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     @Composable
     override fun show(modifier: Modifier) {
         val state by state.collectAsState()
@@ -36,7 +33,6 @@ class Player(
     }
 
     private object Ui {
-        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
         @Composable
         fun Main(modifier: Modifier = Modifier, state: PlayerState) {
             when (state) {
@@ -46,7 +42,6 @@ class Player(
             }
         }
 
-        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
         @Composable
         private fun Main(modifier: Modifier = Modifier, state: PlayerState.Available) {
             Main(
@@ -64,7 +59,6 @@ class Player(
             )
         }
 
-        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
         @Composable
         private fun Main(
             modifier: Modifier = Modifier,

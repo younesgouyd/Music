@@ -1,7 +1,5 @@
 package dev.younesgouyd.apps.music.android.components
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -27,7 +25,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.*
 
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 class NavigationHost(
     repoStore: RepoStore,
     mediaController: MediaController,

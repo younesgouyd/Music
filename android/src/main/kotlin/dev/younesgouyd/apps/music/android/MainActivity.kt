@@ -1,12 +1,10 @@
 package dev.younesgouyd.apps.music.android
 
 import android.content.ComponentName
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.runtime.collectAsState
@@ -25,7 +23,6 @@ import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 class MainActivity : ComponentActivity() {
     private lateinit var _repoStore: RepoStore
     val repoStore by lazy { _repoStore }

@@ -1,7 +1,5 @@
 package dev.younesgouyd.apps.music.android.components
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.TweenSpec
@@ -23,7 +21,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.time.Duration.Companion.milliseconds
 
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 class MiniPlayer(
     mediaController: MediaController,
     showAlbumDetails: (Long) -> Unit,

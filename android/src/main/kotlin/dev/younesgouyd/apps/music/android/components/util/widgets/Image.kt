@@ -1,7 +1,5 @@
 package dev.younesgouyd.apps.music.android.components.util.widgets
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
@@ -13,8 +11,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.decodeToImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 fun Image(
     modifier: Modifier = Modifier,
@@ -31,7 +30,7 @@ fun Image(
         LaunchedEffect(data) {
             loading = true
             ByteArrayInputStream(data).use {
-                image = it.readAllBytes().decodeToImageBitmap()
+                image = it.readAllBytesCompat().decodeToImageBitmap()
             }
             loading = false
         }
@@ -77,4 +76,15 @@ private fun BrokenImage(
             contentDescription = null
         )
     }
+}
+
+
+private fun InputStream.readAllBytesCompat(): ByteArray {
+    val buffer = ByteArrayOutputStream()
+    val data = ByteArray(4096)
+    var n: Int
+    while (this.read(data, 0, data.size).also { n = it } != -1) {
+        buffer.write(data, 0, n)
+    }
+    return buffer.toByteArray()
 }
