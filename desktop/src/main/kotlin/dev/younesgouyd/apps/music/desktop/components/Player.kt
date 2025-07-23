@@ -54,8 +54,10 @@ class Player(
                 onAlbumClick = state.onAlbumClick,
                 onArtistClick = state.onArtistClick,
                 onValueChange = state.onValueChange,
+                onPreviousClick = state.onPreviousClick,
                 onPlayClick = state.onPlayClick,
-                onPauseClick = state.onPauseClick
+                onPauseClick = state.onPauseClick,
+                onNextClick = state.onNextClick
             )
         }
 
@@ -70,8 +72,10 @@ class Player(
             onAlbumClick: (Long) -> Unit,
             onArtistClick: (Long) -> Unit,
             onValueChange: (Long) -> Unit,
+            onPreviousClick: () -> Unit,
             onPlayClick: () -> Unit,
-            onPauseClick: () -> Unit
+            onPauseClick: () -> Unit,
+            onNextClick: () -> Unit
         ) {
             Surface(
                 modifier = modifier,
@@ -123,8 +127,10 @@ class Player(
                         isPlaying = isPlaying,
                         timePositionChange = timePositionChange,
                         onValueChange = onValueChange,
+                        onPreviousClick = onPreviousClick,
                         onPlayClick = onPlayClick,
-                        onPauseClick = onPauseClick
+                        onPauseClick = onPauseClick,
+                        onNextClick = onNextClick
                     )
                     Spacer(Modifier.size(14.dp))
                 }
@@ -202,8 +208,10 @@ class Player(
             isPlaying: StateFlow<Boolean>,
             timePositionChange: StateFlow<Long>,
             onValueChange: (Long) -> Unit,
+            onPreviousClick: () -> Unit,
             onPlayClick: () -> Unit,
-            onPauseClick: () -> Unit
+            onPauseClick: () -> Unit,
+            onNextClick: () -> Unit
         ) {
             fun <T> linearAnimation(duration: Int): TweenSpec<T> = tween(durationMillis = duration, easing = LinearEasing)
             fun durationMillisFormatted(time: Long): String = time.milliseconds.toComponents { minutes, seconds, _ -> minutes.toString().padStart(2, '0') + ":" + seconds.toString().padStart(2, '0') }
@@ -251,7 +259,7 @@ class Player(
                     IconButton(
                         modifier = Modifier.size(40.dp),
                         enabled = enabled,
-                        onClick = onPauseClick
+                        onClick = onPreviousClick
                     ) {
                         Icon(
                             modifier = Modifier.fillMaxSize(),
@@ -286,7 +294,7 @@ class Player(
                     IconButton(
                         modifier = Modifier.size(40.dp),
                         enabled = enabled,
-                        onClick = onPauseClick
+                        onClick = onNextClick
                     ) {
                         Icon(
                             modifier = Modifier.fillMaxSize(),
