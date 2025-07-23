@@ -51,8 +51,7 @@ abstract class MediaController protected constructor(
                 _state.update { currentState ->
                     when (currentState) {
                         is MediaControllerState.Unavailable -> TODO()
-                        is MediaControllerState.Loading -> {
-                            require(queue.isNotEmpty())
+                        is MediaControllerState.Loading, is MediaControllerState.Available -> {
                             val mapped: List<MediaControllerState.Available.QueueItem> = queue.map { it.toModel() }
                             mapped[queueItemIndex].let { firstQueueItem ->
                                 val currentTrack = when (firstQueueItem) {
@@ -64,49 +63,31 @@ abstract class MediaController protected constructor(
                                     mediaPlayer.setMedia(currentTrack.uri)
                                     timePositionChange.value = 0
                                     mediaPlayer.play()
+                                    isPlaying.value = true
                                 } else {
                                     TODO()
                                 }
                             }
-                            MediaControllerState.Available(
-                                enabled = this@MediaController.enabled.asStateFlow(),
-                                queue = mapped,
-                                queueItemIndex = queueItemIndex,
-                                queueSubItemIndex = queueSubItemIndex,
-                                timePositionChange = timePositionChange,
-                                isPlaying = isPlaying.asStateFlow(),
-                                repeatState = MediaControllerState.Available.RepeatState.Off,
-                            )
-                        }
-                        is MediaControllerState.Available -> {
-                            if (queue.isEmpty()) {
-                                if (!currentState.isPlaying.value) { mediaPlayer.play() }
-                                isPlaying.value = true
-                                currentState
-                            } else {
-                                val index = queueItemIndex
-                                val subIndex = queueSubItemIndex
-                                val mapped: List<MediaControllerState.Available.QueueItem> = queue.map { it.toModel() }
-                                mapped[index].let { firstQueueItem ->
-                                    val currentTrack = when (firstQueueItem) {
-                                        is MediaControllerState.Available.QueueItem.Track -> firstQueueItem
-                                        is MediaControllerState.Available.QueueItem.Playlist -> firstQueueItem.items[subIndex] // TODO: handle invalid subIndex
-                                        is MediaControllerState.Available.QueueItem.Album -> firstQueueItem.items[subIndex] // TODO: handle invalid subIndex
-                                    }
-                                    if (currentTrack.uri != null) {
-                                        mediaPlayer.setMedia(currentTrack.uri)
-                                        timePositionChange.value = 0
-                                        mediaPlayer.play()
-                                        isPlaying.value = true
-                                    } else {
-                                        TODO()
-                                    }
+                            when (currentState) {
+                                is MediaControllerState.Loading -> {
+                                    MediaControllerState.Available(
+                                        enabled = this@MediaController.enabled.asStateFlow(),
+                                        queue = mapped,
+                                        queueItemIndex = queueItemIndex,
+                                        queueSubItemIndex = queueSubItemIndex,
+                                        timePositionChange = timePositionChange,
+                                        isPlaying = isPlaying.asStateFlow(),
+                                        repeatState = MediaControllerState.Available.RepeatState.Off,
+                                    )
                                 }
-                                currentState.copy(
-                                    queue = mapped,
-                                    queueItemIndex = index,
-                                    queueSubItemIndex = subIndex
-                                )
+                                is MediaControllerState.Available -> {
+                                    currentState.copy(
+                                        queue = mapped,
+                                        queueItemIndex = queueItemIndex,
+                                        queueSubItemIndex = queueSubItemIndex
+                                    )
+                                }
+                                else -> { TODO() }
                             }
                         }
                     }
