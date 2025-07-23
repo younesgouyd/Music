@@ -532,7 +532,7 @@ abstract class MediaController protected constructor(
                             )
                         }
                     },
-                    uri = dbTrack.audio_url,
+                    uri = dbTrack.audio_uri,
                     duration = dbTrack.duration
                 )
             }
@@ -559,7 +559,7 @@ abstract class MediaController protected constructor(
                                 image = dbAlbum.image,
                                 releaseDate = dbAlbum.release_date
                             ),
-                            uri = dbTrack.audio_url,
+                            uri = dbTrack.audio_uri,
                             duration = dbTrack.duration
                         )
                     }
@@ -591,7 +591,7 @@ abstract class MediaController protected constructor(
                                     )
                                 }
                             },
-                            uri = dbTrack.audio_url,
+                            uri = dbTrack.audio_uri,
                             duration = dbTrack.duration
                         )
                     }

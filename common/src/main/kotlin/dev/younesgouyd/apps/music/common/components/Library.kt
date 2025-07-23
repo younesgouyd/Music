@@ -94,8 +94,8 @@ abstract class Library(
                         Models.Track(
                             id = dbTrack.id,
                             name = dbTrack.name,
-                            audioUrl = dbTrack.audio_url,
-                            videoUrl = dbTrack.video_url,
+                            audioUri = dbTrack.audio_uri,
+                            videoUrl = dbTrack.video_uri,
                             artists = artistRepo.getTrackArtistsStatic(dbTrack.id).map {
                                 Models.Track.Artist(id = it.id, name = it.name)
                             },
@@ -166,7 +166,7 @@ abstract class Library(
             name = if (!title.isNullOrEmpty()) title else file.name,
             folderId = parentFolderId,
             albumId = albumId,
-            audioUrl = uri,
+            audioUri = uri,
             videoUrl = null,
             lyrics = lyrics,
             albumTrackNumber = albumTrackNumber,
@@ -177,13 +177,13 @@ abstract class Library(
         }
     }
 
-    protected fun addTrack(name: String, audioUrl: String?, videoUrl: String?, duration: Long) {
+    protected fun addTrack(name: String, audioUri: String?, videoUrl: String?, duration: Long) {
         coroutineScope.launch {
             trackRepo.add(
                 name = name,
                 folderId = currentFolder.value!!.id,
                 albumId = null,
-                audioUrl = audioUrl,
+                audioUri = audioUri,
                 videoUrl = videoUrl,
                 lyrics = null,
                 albumTrackNumber = null,
@@ -234,7 +234,7 @@ abstract class Library(
         data class Track(
             val id: Long,
             val name: String,
-            val audioUrl: String?,
+            val audioUri: String?,
             val videoUrl: String?,
             val artists: List<Artist>,
             val album: Album?

@@ -5,8 +5,8 @@ get:
 SELECT * FROM track WHERE id = :id;
 
 add:
-INSERT INTO track (name, folder_id, album_id, audio_url, video_url, lyrics, album_track_number, duration, creation_datetime, update_datetime)
-VALUES (:name, :folder_id, :album_id, :audio_url, :video_url, :lyrics, :album_track_number, :duration, :creation_datetime, :update_datetime)
+INSERT INTO track (name, folder_id, album_id, audio_uri, video_uri, lyrics, album_track_number, duration, creation_datetime, update_datetime)
+VALUES (:name, :folder_id, :album_id, :audio_uri, :video_uri, :lyrics, :album_track_number, :duration, :creation_datetime, :update_datetime)
 RETURNING id;
 
 updateName:
@@ -27,15 +27,15 @@ SET folder_id = :folder_id,
     update_datetime = :update_datetime
 WHERE id = :id;
 
-updateAudioUrl:
+updateAudioUri:
 UPDATE track
-SET audio_url = :audio_url,
+SET audio_uri = :audio_uri,
     update_datetime = :update_datetime
 WHERE id = :id;
 
-updateVideoUrl:
+updateVideoUri:
 UPDATE track
-SET video_url = :video_url,
+SET video_uri = :video_uri,
     update_datetime = :update_datetime
 WHERE id = :id;
 
