@@ -87,27 +87,11 @@ class Player(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(
+                    Image(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.End,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Image(
-                            modifier = Modifier.fillMaxWidth(),
-                            data = currentTrack.album?.image,
-                            contentScale = ContentScale.FillWidth
-                        )
-                        IconButton(
-                            modifier = Modifier.size(50.dp),
-                            onClick = onMinimizeClick
-                        ) {
-                            Icon(
-                                modifier = Modifier.fillMaxSize(),
-                                imageVector = Icons.Default.UnfoldLess,
-                                contentDescription = null
-                            )
-                        }
-                    }
+                        data = currentTrack.album?.image,
+                        contentScale = ContentScale.FillWidth
+                    )
                     TrackInfo(
                         modifier = Modifier.fillMaxWidth(),
                         track = currentTrack,
@@ -126,7 +110,17 @@ class Player(
                         onPauseClick = onPauseClick,
                         onNextClick = onNextClick
                     )
-                    Spacer(Modifier.size(14.dp))
+                    IconButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onMinimizeClick,
+                        content = {
+                            Icon(
+                                modifier = Modifier.fillMaxSize(),
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = null
+                            )
+                        }
+                    )
                 }
 
             }
