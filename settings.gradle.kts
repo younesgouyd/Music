@@ -36,8 +36,6 @@ dependencyResolutionManagement {
                     val coreKtx = version("coreKtx", "1.16.0")
                     val appcompat = version("appcompat", "1.7.1")
                     val activity = version("android.activity", "1.10.1")
-                    val lifecycle = version("android.lifecycle", "2.9.1")
-                    val navigation = version("android.navigation", "2.9.1")
                     val media3 = version("android.media3", "1.7.1")
                 }
                 val sqldelight = version("sqldelight", "2.1.0")
@@ -91,16 +89,9 @@ dependencyResolutionManagement {
             library("android.appcompat", "androidx.appcompat", "appcompat").versionRef(versions.android.appcompat)
             library("android.activityKtx", "androidx.activity", "activity-ktx").versionRef(versions.android.activity)
             library("android.activityCompose", "androidx.activity", "activity-compose").versionRef(versions.android.activity)
-            library("android.lifecycle.viewmodelKtx", "androidx.lifecycle", "lifecycle-viewmodel-ktx").versionRef(versions.android.lifecycle)
-            library("android.lifecycle.savedState", "androidx.lifecycle", "lifecycle-viewmodel-savedstate").versionRef(versions.android.lifecycle)
-            library("android.lifecycle.runtimeKtx", "androidx.lifecycle", "lifecycle-runtime-ktx").versionRef(versions.android.lifecycle)
-            library("android.lifecycle.viewmodelCompose", "androidx.lifecycle", "lifecycle-viewmodel-compose").versionRef(versions.android.lifecycle)
-            library("android.navigation.uiKtx", "androidx.navigation", "navigation-ui-ktx").versionRef(versions.android.navigation)
-            library("android.navigation.compose", "androidx.navigation", "navigation-compose").versionRef(versions.android.navigation)
             library("sqldelight.androidDriver", "app.cash.sqldelight", "android-driver").versionRef(versions.sqldelight)
             library("android.media3.common", "androidx.media3", "media3-common").versionRef(versions.android.media3)
             library("android.media3.exoplayer", "androidx.media3", "media3-exoplayer").versionRef(versions.android.media3)
-            library("android.media3.ui", "androidx.media3", "media3-ui").versionRef(versions.android.media3)
             library("android.media3.session", "androidx.media3", "media3-session").versionRef(versions.android.media3)
         }
     }

@@ -53,13 +53,8 @@ dependencies {
     implementation(libs.android.appcompat)
     implementation(libs.android.activityKtx)
     implementation(libs.android.activityCompose)
-    implementation(libs.android.lifecycle.viewmodelKtx)
-    implementation(libs.android.lifecycle.savedState)
-    implementation(libs.android.lifecycle.viewmodelCompose)
-    implementation(libs.android.navigation.compose)
     implementation(libs.android.media3.common)
     implementation(libs.android.media3.exoplayer)
-    implementation(libs.android.media3.ui)
     implementation(libs.android.media3.session)
     implementation(libs.sqldelight.androidDriver)
 }
