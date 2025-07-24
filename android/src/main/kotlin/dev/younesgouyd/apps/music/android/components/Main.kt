@@ -49,7 +49,7 @@ class Main(
             playerExpanded.value = false
         },
         showArtistDetails = {
-            navigationHost.value.navigateTo(NavigationHost.Destination.AlbumDetails(it))
+            navigationHost.value.navigateTo(NavigationHost.Destination.ArtistDetails(it))
             playerExpanded.value = false
         },
         minimizePlayer = { playerExpanded.value = false }
