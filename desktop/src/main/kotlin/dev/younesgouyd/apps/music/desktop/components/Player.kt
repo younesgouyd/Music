@@ -24,7 +24,7 @@ class Player(
     showAlbumDetails: (Long) -> Unit,
     showArtistDetails: (Long) -> Unit,
     minimizePlayer: () -> Unit
-) : Player(mediaController, showAlbumDetails, showArtistDetails, minimizePlayer) {
+) : Player(mediaController, showAlbumDetails, showArtistDetails, {} /* TODO */, minimizePlayer) {
     @Composable
     override fun show(modifier: Modifier) {
         val state by state.collectAsState()

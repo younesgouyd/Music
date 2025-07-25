@@ -23,6 +23,7 @@ abstract class Main(
 
     protected abstract val miniPlayer: Component
     protected abstract val player: Component
+    protected abstract val queue: Component
 
     protected abstract val navigationHost: MutableStateFlow<NavigationHost>
     protected abstract val selectedNavigationDrawerItem: MutableStateFlow<NavigationDrawerItems>

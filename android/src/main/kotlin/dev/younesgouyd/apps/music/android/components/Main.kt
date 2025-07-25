@@ -36,7 +36,7 @@ class Main(
     )
     override val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Library)
 
-    private val playerExpanded: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    private val mainContent: MutableStateFlow<MainContent> = MutableStateFlow(MainContent.Content)
     override val miniPlayer = MiniPlayer(
         mediaController = mediaController,
         showAlbumDetails = {}, // TODO
@@ -46,13 +46,18 @@ class Main(
         mediaController = mediaController,
         showAlbumDetails = {
             navigationHost.value.navigateTo(NavigationHost.Destination.AlbumDetails(it))
-            playerExpanded.value = false
+            mainContent.value = MainContent.Content
         },
         showArtistDetails = {
             navigationHost.value.navigateTo(NavigationHost.Destination.ArtistDetails(it))
-            playerExpanded.value = false
+            mainContent.value = MainContent.Content
         },
-        minimizePlayer = { playerExpanded.value = false }
+        showQueue = { mainContent.value = MainContent.Queue },
+        minimizePlayer = { mainContent.value = MainContent.Content }
+    )
+    override val queue: Component = Queue(
+        mediaController = mediaController,
+        close = { mainContent.value = MainContent.Player }
     )
 
     @Composable
@@ -62,13 +67,14 @@ class Main(
         Ui.Main(
             modifier = modifier,
             darkTheme = darkTheme,
+            mainContent = mainContent.asStateFlow(),
             navigationHost = navigationHost.asStateFlow(),
             player = player,
             miniPlayer = miniPlayer,
-            playerExpanded = playerExpanded.asStateFlow(),
+            queue = queue,
             selectedNavigationDrawerItem = selectedNavigationDrawerItem.asStateFlow(),
             drawerState = drawerState.asStateFlow(),
-            onExpandPlayerClick = { playerExpanded.value = true },
+            onExpandPlayerClick = { mainContent.value = MainContent.Player },
             onNavigationDrawerItemClick = ::handleNavigationDrawerItemClick
         )
     }
@@ -97,18 +103,19 @@ class Main(
         fun Main(
             modifier: Modifier,
             darkTheme: DarkThemeOptions,
+            mainContent: StateFlow<MainContent>,
             navigationHost: StateFlow<Component>,
             player: Component,
             miniPlayer: Component,
+            queue: Component,
             onExpandPlayerClick: () -> Unit,
-            playerExpanded: StateFlow<Boolean>,
             selectedNavigationDrawerItem: StateFlow<NavigationDrawerItems>,
             drawerState: StateFlow<DrawerState>,
             onNavigationDrawerItemClick: (NavigationDrawerItems) -> Unit
         ) {
+            val mainContent by mainContent.collectAsState()
             val navigationHost by navigationHost.collectAsState()
             val drawerState by drawerState.collectAsState()
-            val playerExpanded by playerExpanded.collectAsState()
             val selectedNavigationDrawerItem by selectedNavigationDrawerItem.collectAsState()
 
             YounesMusicTheme(
@@ -143,15 +150,17 @@ class Main(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    if (playerExpanded) {
-                                        player.show(Modifier.fillMaxSize())
-                                    } else {
-                                        navigationHost.show(Modifier.fillMaxWidth().weight(weight = 0.88f))
-                                        miniPlayer.show(
-                                            modifier = Modifier.clickable { onExpandPlayerClick() }
-                                                .fillMaxWidth()
-                                                .weight(0.12f)
-                                        )
+                                    when (mainContent) {
+                                        MainContent.Content -> {
+                                            navigationHost.show(Modifier.fillMaxWidth().weight(weight = 0.88f))
+                                            miniPlayer.show(
+                                                modifier = Modifier.clickable { onExpandPlayerClick() }
+                                                    .fillMaxWidth()
+                                                    .weight(0.12f)
+                                            )
+                                        }
+                                        MainContent.Player -> { player.show(Modifier.fillMaxSize()) }
+                                        MainContent.Queue -> { queue.show(Modifier.fillMaxSize()) }
                                     }
                                 }
                             }
@@ -175,5 +184,9 @@ class Main(
                 content = content
             )
         }
+    }
+
+    private enum class MainContent {
+        Content, Player, Queue
     }
 }

@@ -14,6 +14,7 @@ abstract class Player(
     mediaController: MediaController,
     showAlbumDetails: (Long) -> Unit,
     showArtistDetails: (Long) -> Unit,
+    showQueue: () -> Unit,
     minimizePlayer: () -> Unit
 ) : Component() {
     override val title: String = "Player"
@@ -36,6 +37,7 @@ abstract class Player(
                         currentTrack = mediaControllerState.currentTrack,
                         onAlbumClick = showAlbumDetails,
                         onArtistClick = showArtistDetails,
+                        onShowQueueClick = showQueue,
                         onValueChange = mediaController::seek,
                         onPreviousClick = mediaController::previous,
                         onPlayClick = mediaController::play,
@@ -71,6 +73,7 @@ abstract class Player(
             val currentTrack: QueueItem.Track,
             val onAlbumClick: (Long) -> Unit,
             val onArtistClick: (Long) -> Unit,
+            val onShowQueueClick: () -> Unit,
             val onValueChange: (Long) -> Unit,
             val onPreviousClick: () -> Unit,
             val onPlayClick: () -> Unit,

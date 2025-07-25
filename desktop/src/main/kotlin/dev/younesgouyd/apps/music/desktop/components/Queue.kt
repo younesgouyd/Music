@@ -24,7 +24,7 @@ import dev.younesgouyd.apps.music.desktop.components.util.widgets.Image
 
 class Queue(
     mediaController: MediaController
-) : Queue(mediaController) {
+) : Queue(mediaController, {} /* TODO */) {
     @Composable
     override fun show(modifier: Modifier) {
         val state by state.collectAsState()

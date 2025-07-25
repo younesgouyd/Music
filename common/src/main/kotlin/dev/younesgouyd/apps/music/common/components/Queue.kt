@@ -10,7 +10,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 abstract class Queue(
-    protected val mediaController: MediaController
+    protected val mediaController: MediaController,
+    close: () -> Unit
 ) : Component() {
     override val title: String = "Queue"
     protected val state: MutableStateFlow<QueueState> = MutableStateFlow(QueueState.Unavailable)
@@ -27,7 +28,8 @@ abstract class Queue(
                         queueItemIndex = mediaControllerState.queueItemIndex,
                         queueSubItemIndex = mediaControllerState.queueSubItemIndex,
                         onPlayQueueItem = mediaController::playQueueItem,
-                        onPlayQueueSubItem = mediaController::playTrackInQueue
+                        onPlayQueueSubItem = mediaController::playTrackInQueue,
+                        onCloseClick = close
                     )
                 }
             }
@@ -49,7 +51,8 @@ abstract class Queue(
             val queueItemIndex: Int,
             val queueSubItemIndex: Int,
             val onPlayQueueItem: (queueItemIndex: Int) -> Unit,
-            val onPlayQueueSubItem: (queueItemIndex: Int, trackIndex: Int) ->Unit
+            val onPlayQueueSubItem: (queueItemIndex: Int, trackIndex: Int) -> Unit,
+            val onCloseClick: () -> Unit
         ) : QueueState()
     }
 }

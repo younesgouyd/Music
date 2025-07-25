@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,8 +24,9 @@ class Player(
     mediaController: MediaController,
     showAlbumDetails: (Long) -> Unit,
     showArtistDetails: (Long) -> Unit,
+    showQueue: () -> Unit,
     minimizePlayer: () -> Unit
-) : Player(mediaController, showAlbumDetails, showArtistDetails, minimizePlayer) {
+) : Player(mediaController, showAlbumDetails, showArtistDetails, showQueue, minimizePlayer) {
     @Composable
     override fun show(modifier: Modifier) {
         val state by state.collectAsState()
@@ -50,14 +52,15 @@ class Player(
                 currentTrack = state.currentTrack,
                 timePositionChange = state.timePositionChange,
                 isPlaying = state.isPlaying,
-                onMinimizeClick = state.onMinimizeClick,
                 onAlbumClick = state.onAlbumClick,
                 onArtistClick = state.onArtistClick,
+                onShowQueueClick = state.onShowQueueClick,
                 onValueChange = state.onValueChange,
                 onPreviousClick = state.onPreviousClick,
                 onPlayClick = state.onPlayClick,
                 onPauseClick = state.onPauseClick,
-                onNextClick = state.onNextClick
+                onNextClick = state.onNextClick,
+                onMinimizeClick = state.onMinimizeClick
             )
         }
 
@@ -68,14 +71,15 @@ class Player(
             currentTrack: MediaController.MediaControllerState.Available.QueueItem.Track,
             timePositionChange: StateFlow<Long>,
             isPlaying: StateFlow<Boolean>,
-            onMinimizeClick: () -> Unit,
+            onShowQueueClick: () -> Unit,
             onAlbumClick: (Long) -> Unit,
             onArtistClick: (Long) -> Unit,
             onValueChange: (Long) -> Unit,
             onPreviousClick: () -> Unit,
             onPlayClick: () -> Unit,
             onPauseClick: () -> Unit,
-            onNextClick: () -> Unit
+            onNextClick: () -> Unit,
+            onMinimizeClick: () -> Unit
         ) {
             Surface(
                 modifier = modifier,
@@ -104,6 +108,7 @@ class Player(
                         track = currentTrack,
                         isPlaying = isPlaying,
                         timePositionChange = timePositionChange,
+                        onShowQueueClick = onShowQueueClick,
                         onValueChange = onValueChange,
                         onPreviousClick = onPreviousClick,
                         onPlayClick = onPlayClick,
@@ -195,6 +200,7 @@ class Player(
             track: MediaController.MediaControllerState.Available.QueueItem.Track,
             isPlaying: StateFlow<Boolean>,
             timePositionChange: StateFlow<Long>,
+            onShowQueueClick: () -> Unit,
             onValueChange: (Long) -> Unit,
             onPreviousClick: () -> Unit,
             onPlayClick: () -> Unit,
@@ -216,6 +222,16 @@ class Player(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onShowQueueClick,
+                        content = { Icon(Icons.AutoMirrored.Default.QueueMusic, null) }
+                    )
+                }
                 PlaybackSlider(
                     modifier = Modifier.fillMaxWidth().padding(8.dp),
                     enabled = enabled,

@@ -6,14 +6,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowDropUp
-import androidx.compose.material.icons.filled.Audiotrack
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,8 +17,9 @@ import dev.younesgouyd.apps.music.common.components.Queue
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 
 class Queue(
-    mediaController: MediaController
-) : Queue(mediaController) {
+    mediaController: MediaController,
+    close: () -> Unit
+) : Queue(mediaController, close) {
     @Composable
     override fun show(modifier: Modifier) {
         val state by state.collectAsState()
@@ -38,20 +33,20 @@ class Queue(
             when (state) {
                 is QueueState.Loading -> Unit
                 is QueueState.Unavailable -> Unit
-                is QueueState.Available -> Main(modifier = modifier, queueState = state)
+                is QueueState.Available -> Main(modifier = modifier, state = state)
             }
         }
 
         @Composable
         private fun Main(
             modifier: Modifier = Modifier,
-            queueState: QueueState.Available
+            state: QueueState.Available
         ) {
-            val enabled by queueState.enabled.collectAsState()
-            val queue = queueState.queue
+            val enabled by state.enabled.collectAsState()
+            val queue = state.queue
 
             Surface(
-                modifier = modifier.fillMaxWidth(),
+                modifier = modifier,
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 shape = MaterialTheme.shapes.medium
             ) {
@@ -72,7 +67,7 @@ class Queue(
                         )
                     }
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().weight(1f),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         contentPadding = PaddingValues(12.dp)
@@ -85,9 +80,9 @@ class Queue(
                                     TrackItem(
                                         modifier = Modifier.fillMaxWidth(),
                                         item = queueItem,
-                                        isPlaying = queueState.queueItemIndex == index,
+                                        isPlaying = state.queueItemIndex == index,
                                         enabled = enabled,
-                                        onClick = { queueState.onPlayQueueItem(index) }
+                                        onClick = { state.onPlayQueueItem(index) }
                                     )
                                 }
 
@@ -96,10 +91,10 @@ class Queue(
                                         modifier = Modifier.fillMaxWidth(),
                                         item = queueItem,
                                         enabled = enabled,
-                                        isPlaying = queueState.queueItemIndex == index,
-                                        playingItem = if (queueState.queueItemIndex == index) { queueState.queueSubItemIndex } else { null },
+                                        isPlaying = state.queueItemIndex == index,
+                                        playingItem = if (state.queueItemIndex == index) { state.queueSubItemIndex } else { null },
                                         onTrackClick = { trackIndex ->
-                                            queueState.onPlayQueueSubItem(
+                                            state.onPlayQueueSubItem(
                                                 index,
                                                 trackIndex
                                             )
@@ -112,10 +107,10 @@ class Queue(
                                         modifier = Modifier.fillMaxWidth(),
                                         item = queueItem,
                                         enabled = enabled,
-                                        isPlaying = queueState.queueItemIndex == index,
-                                        playingItem = if (queueState.queueItemIndex == index) { queueState.queueSubItemIndex } else { null },
+                                        isPlaying = state.queueItemIndex == index,
+                                        playingItem = if (state.queueItemIndex == index) { state.queueSubItemIndex } else { null },
                                         onTrackClick = { trackIndex ->
-                                            queueState.onPlayQueueSubItem(
+                                            state.onPlayQueueSubItem(
                                                 index,
                                                 trackIndex
                                             )
@@ -125,6 +120,11 @@ class Queue(
                             }
                         }
                     }
+                    IconButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = state.onCloseClick,
+                        content = { Icon(Icons.Default.Close, null) }
+                    )
                 }
             }
         }

@@ -56,7 +56,7 @@ class Main(private val repoStore: RepoStore) : Main(repoStore) {
         },
         minimizePlayer = { playerExpanded.value = false }
     )
-    val queue = Queue(mediaController)
+    override val queue: Component = Queue(mediaController)
 
     @Composable
     override fun show(modifier: Modifier) {
