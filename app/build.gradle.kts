@@ -1,7 +1,3 @@
-@file:OptIn(ExperimentalWasmDsl::class)
-
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
-
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.composeCompiler)
@@ -11,6 +7,7 @@ plugins {
 }
 
 kotlin {
+    jvmToolchain(libs.versions.java.get().toInt())
     androidTarget {
         compilations.configureEach {
             compileTaskProvider.configure {
@@ -20,7 +17,6 @@ kotlin {
             }
         }
     }
-    jvmToolchain(libs.versions.java.get().toInt())
     jvm {
         compilations.configureEach {
             compileTaskProvider.configure {
