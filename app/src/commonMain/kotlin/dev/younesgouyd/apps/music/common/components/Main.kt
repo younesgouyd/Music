@@ -1,6 +1,5 @@
 package dev.younesgouyd.apps.music.common.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -53,7 +52,8 @@ class Main(
         },
         showArtistDetails = {
             navigationHost.value.navigateTo(NavigationHost.Destination.ArtistDetails(it))
-        }
+        },
+        expand = { mainContent.value = MainContent.Player }
     )
     private val player: Component = Player(
         mediaController = mediaController,
@@ -222,7 +222,6 @@ class Main(
                                                 modifier = Modifier.fillMaxWidth()
                                                     .padding(8.dp)
                                                     .weight(.2f)
-                                                    .clickable { onExpandPlayerClick() }
                                             )
                                         }
                                     }
@@ -304,11 +303,7 @@ class Main(
                                         when (mainContent) {
                                             MainContent.Content -> {
                                                 navigationHost.show(Modifier.fillMaxWidth().weight(weight = 0.88f))
-                                                miniPlayer.show(
-                                                    modifier = Modifier.clickable { onExpandPlayerClick() }
-                                                        .fillMaxWidth()
-                                                        .weight(0.12f)
-                                                )
+                                                miniPlayer.show(modifier = Modifier.fillMaxWidth().weight(0.12f))
                                             }
                                             MainContent.Player -> { player.show(Modifier.fillMaxSize()) }
                                             MainContent.Queue -> { queue.show(Modifier.fillMaxSize()) }

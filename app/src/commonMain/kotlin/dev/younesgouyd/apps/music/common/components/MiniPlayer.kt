@@ -30,7 +30,8 @@ import kotlin.time.Duration.Companion.milliseconds
 class MiniPlayer(
     mediaController: MediaController,
     showAlbumDetails: (Long) -> Unit,
-    showArtistDetails: (Long) -> Unit
+    showArtistDetails: (Long) -> Unit,
+    expand: () -> Unit
 ) : Component() {
     override val title: String = "Mini Player"
     private val state: MutableStateFlow<MiniPlayerState> = MutableStateFlow(MiniPlayerState.Unavailable)
@@ -47,6 +48,7 @@ class MiniPlayer(
                         isPlaying = mediaControllerState.isPlaying,
                         repeatState = mediaControllerState.repeatState,
                         currentTrack = mediaControllerState.currentTrack,
+                        onClick = expand,
                         onAlbumClick = showAlbumDetails,
                         onArtistClick = showArtistDetails,
                         onValueChange = mediaController::seek,
@@ -86,6 +88,7 @@ class MiniPlayer(
             val isPlaying: StateFlow<Boolean>,
             val repeatState: RepeatState,
             val currentTrack: QueueItem.Track,
+            val onClick: () -> Unit,
             val onAlbumClick: (Long) -> Unit,
             val onArtistClick: (Long) -> Unit,
             val onValueChange: (Long) -> Unit,
@@ -117,6 +120,7 @@ class MiniPlayer(
                     isPlaying = state.isPlaying,
                     repeatState = state.repeatState,
                     currentTrack = state.currentTrack,
+                    onClick = state.onClick,
                     onAlbumClick = state.onAlbumClick,
                     onArtistClick = state.onArtistClick,
                     onValueChange = state.onValueChange,
@@ -136,6 +140,7 @@ class MiniPlayer(
                 timePositionChange: StateFlow<Long>,
                 isPlaying : StateFlow<Boolean>,
                 repeatState: RepeatState,
+                onClick: () -> Unit,
                 onAlbumClick: (Long) -> Unit,
                 onArtistClick: (Long) -> Unit,
                 onValueChange: (Long) -> Unit,
@@ -158,7 +163,8 @@ class MiniPlayer(
                 Surface(
                     modifier = modifier,
                     color = MaterialTheme.colorScheme.surfaceContainer,
-                    shape = MaterialTheme.shapes.medium
+                    shape = MaterialTheme.shapes.medium,
+                    onClick = onClick
                 ) {
                     Row(
                         modifier = Modifier,
@@ -377,16 +383,18 @@ class MiniPlayer(
                     modifier =  modifier,
                     currentTrack = state.currentTrack,
                     timePositionChange = state.timePositionChange,
-                    isPlaying = state.isPlaying
+                    isPlaying = state.isPlaying,
+                    onClick = state.onClick
                 )
             }
 
             @Composable
             private fun Main(
                 modifier: Modifier = Modifier,
-                currentTrack: MediaController.MediaControllerState.Available.QueueItem.Track,
+                currentTrack: QueueItem.Track,
                 timePositionChange: StateFlow<Long>,
-                isPlaying: StateFlow<Boolean>
+                isPlaying: StateFlow<Boolean>,
+                onClick: () -> Unit
             ) {
                 fun <T> linearAnimation(duration: Int): TweenSpec<T> = tween(durationMillis = duration, easing = LinearEasing)
                 fun durationMillisFormatted(time: Long): String = time.milliseconds.toComponents { minutes, seconds, _ -> minutes.toString().padStart(2, '0') + ":" + seconds.toString().padStart(2, '0') }
@@ -398,7 +406,8 @@ class MiniPlayer(
 
                 Surface(
                     modifier = modifier,
-                    color = MaterialTheme.colorScheme.surfaceContainer
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    onClick = onClick
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
