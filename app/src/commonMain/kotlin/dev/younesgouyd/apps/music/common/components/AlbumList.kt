@@ -4,9 +4,9 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
@@ -69,6 +69,7 @@ class AlbumList(
                     }.stateIn(coroutineScope),
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
+                    scrollState = LazyGridState(),
                     onAlbumClick = showAlbumDetails,
                     onArtistClick = showArtistDetails,
                     onPlayAlbumClick = ::playAlbum,
@@ -132,6 +133,7 @@ class AlbumList(
             val albums: StateFlow<List<AlbumListItem>>,
             val addToPlaylistDialogVisible: StateFlow<Boolean>,
             val addToPlaylist: StateFlow<Component?>,
+            val scrollState: LazyGridState,
             val onAlbumClick: (Long) -> Unit,
             val onArtistClick: (Long) -> Unit,
             val onPlayAlbumClick: (Long) -> Unit,
@@ -172,6 +174,7 @@ class AlbumList(
                 Main(
                     modifier = modifier,
                     albums = state.albums,
+                    scrollState = state.scrollState,
                     onAlbumClick = state.onAlbumClick,
                     onArtistClick = state.onArtistClick,
                     onPlayAlbumClick = state.onPlayAlbumClick,
@@ -190,6 +193,7 @@ class AlbumList(
             private fun Main(
                 modifier: Modifier,
                 albums: StateFlow<List<AlbumListState.Loaded.AlbumListItem>>,
+                scrollState: LazyGridState,
                 onAlbumClick: (Long) -> Unit,
                 onArtistClick: (Long) -> Unit,
                 onPlayAlbumClick: (Long) -> Unit,
@@ -197,7 +201,6 @@ class AlbumList(
                 onAddAlbumToQueueClick: (Long) -> Unit
             ) {
                 val items by albums.collectAsState()
-                val lazyGridState = rememberLazyGridState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -205,7 +208,7 @@ class AlbumList(
                         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                             LazyVerticalGrid(
                                 modifier = Modifier.fillMaxSize().padding(end = 16.dp),
-                                state = lazyGridState,
+                                state = scrollState,
                                 contentPadding = PaddingValues(18.dp),
                                 horizontalArrangement = Arrangement.spacedBy(18.dp),
                                 verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -224,7 +227,7 @@ class AlbumList(
                             }
                         }
                     },
-                    floatingActionButton = { ScrollToTopFloatingActionButton(lazyGridState) }
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) }
                 )
             }
 
@@ -350,6 +353,7 @@ class AlbumList(
                 Main(
                     modifier = modifier,
                     albums = state.albums,
+                    scrollState = state.scrollState,
                     onAlbumClick = state.onAlbumClick,
                     onArtistClick = state.onArtistClick,
                     onPlayAlbumClick = state.onPlayAlbumClick,
@@ -368,6 +372,7 @@ class AlbumList(
             private fun Main(
                 modifier: Modifier,
                 albums: StateFlow<List<AlbumListState.Loaded.AlbumListItem>>,
+                scrollState: LazyGridState,
                 onAlbumClick: (Long) -> Unit,
                 onArtistClick: (Long) -> Unit,
                 onPlayAlbumClick: (Long) -> Unit,
@@ -375,7 +380,6 @@ class AlbumList(
                 onAddAlbumToQueueClick: (Long) -> Unit
             ) {
                 val items by albums.collectAsState()
-                val lazyGridState = rememberLazyGridState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -383,7 +387,7 @@ class AlbumList(
                         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                             LazyVerticalGrid(
                                 modifier = Modifier.fillMaxSize().padding(12.dp),
-                                state = lazyGridState,
+                                state = scrollState,
                                 contentPadding = PaddingValues(vertical = 12.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -402,11 +406,7 @@ class AlbumList(
                             }
                         }
                     },
-                    floatingActionButton = {
-                        ScrollToTopFloatingActionButton(
-                            lazyGridState
-                        )
-                    }
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) }
                 )
             }
 

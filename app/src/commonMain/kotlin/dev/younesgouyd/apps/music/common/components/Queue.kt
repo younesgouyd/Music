@@ -3,6 +3,7 @@ package dev.younesgouyd.apps.music.common.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
@@ -41,6 +42,7 @@ class Queue(
                         queue = mediaControllerState.queue,
                         queueItemIndex = mediaControllerState.queueItemIndex,
                         queueSubItemIndex = mediaControllerState.queueSubItemIndex,
+                        scrollState = LazyListState(),
                         onPlayQueueItem = mediaController::playQueueItem,
                         onPlayQueueSubItem = mediaController::playTrackInQueue,
                         onCloseClick = close
@@ -74,6 +76,7 @@ class Queue(
             val queue: List<QueueItem>,
             val queueItemIndex: Int,
             val queueSubItemIndex: Int,
+            val scrollState: LazyListState,
             val onPlayQueueItem: (queueItemIndex: Int) -> Unit,
             val onPlayQueueSubItem: (queueItemIndex: Int, trackIndex: Int) -> Unit,
             val onCloseClick: () -> Unit
@@ -87,17 +90,17 @@ class Queue(
                 when (state) {
                     is QueueState.Loading -> Unit
                     is QueueState.Unavailable -> Unit
-                    is QueueState.Available -> Main(modifier = modifier, queueState = state)
+                    is QueueState.Available -> Main(modifier = modifier, state = state)
                 }
             }
 
             @Composable
             private fun Main(
                 modifier: Modifier = Modifier,
-                queueState: QueueState.Available
+                state: QueueState.Available
             ) {
-                val enabled by queueState.enabled.collectAsState()
-                val queue = queueState.queue
+                val enabled by state.enabled.collectAsState()
+                val queue = state.queue
 
                 Surface(
                     modifier = modifier.fillMaxWidth(),
@@ -122,37 +125,38 @@ class Queue(
                         }
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
+                            state = state.scrollState,
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             contentPadding = PaddingValues(12.dp)
                         ) {
                             itemsIndexed(
                                 items = queue
-                            ) { index: Int, queueItem: MediaController.MediaControllerState.Available.QueueItem ->
+                            ) { index: Int, queueItem: QueueItem ->
                                 when (queueItem) {
-                                    is MediaController.MediaControllerState.Available.QueueItem.Track -> {
+                                    is QueueItem.Track -> {
                                         TrackItem(
                                             modifier = Modifier.fillMaxWidth(),
                                             item = queueItem,
-                                            isPlaying = queueState.queueItemIndex == index,
+                                            isPlaying = state.queueItemIndex == index,
                                             enabled = enabled,
-                                            onClick = { queueState.onPlayQueueItem(index) }
+                                            onClick = { state.onPlayQueueItem(index) }
                                         )
                                     }
 
-                                    is MediaController.MediaControllerState.Available.QueueItem.Playlist -> {
+                                    is QueueItem.Playlist -> {
                                         PlaylistItem(
                                             modifier = Modifier.fillMaxWidth(),
                                             item = queueItem,
                                             enabled = enabled,
-                                            isPlaying = queueState.queueItemIndex == index,
-                                            playingItem = if (queueState.queueItemIndex == index) {
-                                                queueState.queueSubItemIndex
+                                            isPlaying = state.queueItemIndex == index,
+                                            playingItem = if (state.queueItemIndex == index) {
+                                                state.queueSubItemIndex
                                             } else {
                                                 null
                                             },
                                             onTrackClick = { trackIndex ->
-                                                queueState.onPlayQueueSubItem(
+                                                state.onPlayQueueSubItem(
                                                     index,
                                                     trackIndex
                                                 )
@@ -160,19 +164,19 @@ class Queue(
                                         )
                                     }
 
-                                    is MediaController.MediaControllerState.Available.QueueItem.Album -> {
+                                    is QueueItem.Album -> {
                                         AlbumItem(
                                             modifier = Modifier.fillMaxWidth(),
                                             item = queueItem,
                                             enabled = enabled,
-                                            isPlaying = queueState.queueItemIndex == index,
-                                            playingItem = if (queueState.queueItemIndex == index) {
-                                                queueState.queueSubItemIndex
+                                            isPlaying = state.queueItemIndex == index,
+                                            playingItem = if (state.queueItemIndex == index) {
+                                                state.queueSubItemIndex
                                             } else {
                                                 null
                                             },
                                             onTrackClick = { trackIndex ->
-                                                queueState.onPlayQueueSubItem(
+                                                state.onPlayQueueSubItem(
                                                     index,
                                                     trackIndex
                                                 )
@@ -189,7 +193,7 @@ class Queue(
             @Composable
             private fun TrackItem(
                 modifier: Modifier = Modifier,
-                item: MediaController.MediaControllerState.Available.QueueItem.Track,
+                item: QueueItem.Track,
                 isPlaying: Boolean,
                 enabled: Boolean,
                 onClick: () -> Unit
@@ -224,7 +228,7 @@ class Queue(
             @Composable
             private fun AlbumItem(
                 modifier: Modifier = Modifier,
-                item: MediaController.MediaControllerState.Available.QueueItem.Album,
+                item: QueueItem.Album,
                 isPlaying: Boolean,
                 playingItem: Int?,
                 enabled: Boolean,
@@ -318,7 +322,7 @@ class Queue(
             @Composable
             private fun PlaylistItem(
                 modifier: Modifier = Modifier,
-                item: MediaController.MediaControllerState.Available.QueueItem.Playlist,
+                item: QueueItem.Playlist,
                 isPlaying: Boolean,
                 playingItem: Int?,
                 enabled: Boolean,
@@ -451,15 +455,16 @@ class Queue(
                         }
                         LazyColumn(
                             modifier = Modifier.fillMaxSize().weight(1f),
+                            state = state.scrollState,
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             contentPadding = PaddingValues(12.dp)
                         ) {
                             itemsIndexed(
                                 items = queue
-                            ) { index: Int, queueItem: MediaController.MediaControllerState.Available.QueueItem ->
+                            ) { index: Int, queueItem: QueueItem ->
                                 when (queueItem) {
-                                    is MediaController.MediaControllerState.Available.QueueItem.Track -> {
+                                    is QueueItem.Track -> {
                                         TrackItem(
                                             modifier = Modifier.fillMaxWidth(),
                                             item = queueItem,
@@ -469,7 +474,7 @@ class Queue(
                                         )
                                     }
 
-                                    is MediaController.MediaControllerState.Available.QueueItem.Playlist -> {
+                                    is QueueItem.Playlist -> {
                                         PlaylistItem(
                                             modifier = Modifier.fillMaxWidth(),
                                             item = queueItem,
@@ -485,7 +490,7 @@ class Queue(
                                         )
                                     }
 
-                                    is MediaController.MediaControllerState.Available.QueueItem.Album -> {
+                                    is QueueItem.Album -> {
                                         AlbumItem(
                                             modifier = Modifier.fillMaxWidth(),
                                             item = queueItem,
@@ -515,7 +520,7 @@ class Queue(
             @Composable
             private fun TrackItem(
                 modifier: Modifier = Modifier,
-                item: MediaController.MediaControllerState.Available.QueueItem.Track,
+                item: QueueItem.Track,
                 isPlaying: Boolean,
                 enabled: Boolean,
                 onClick: () -> Unit
@@ -550,7 +555,7 @@ class Queue(
             @Composable
             private fun AlbumItem(
                 modifier: Modifier = Modifier,
-                item: MediaController.MediaControllerState.Available.QueueItem.Album,
+                item: QueueItem.Album,
                 isPlaying: Boolean,
                 playingItem: Int?,
                 enabled: Boolean,
@@ -644,7 +649,7 @@ class Queue(
             @Composable
             private fun PlaylistItem(
                 modifier: Modifier = Modifier,
-                item: MediaController.MediaControllerState.Available.QueueItem.Playlist,
+                item: QueueItem.Playlist,
                 isPlaying: Boolean,
                 playingItem: Int?,
                 enabled: Boolean,

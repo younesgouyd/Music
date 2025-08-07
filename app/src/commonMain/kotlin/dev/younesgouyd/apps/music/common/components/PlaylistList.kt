@@ -3,9 +3,9 @@ package dev.younesgouyd.apps.music.common.components
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -59,6 +59,7 @@ class PlaylistList(
                     }.stateIn(coroutineScope),
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
+                    scrollState = LazyGridState(),
                     onPlaylist = showPlaylistDetails,
                     onPlayPlaylist = ::playPlaylist,
                     onAddToPlaylist = ::showAddToPlaylistDialog,
@@ -135,6 +136,7 @@ class PlaylistList(
             val playlists: StateFlow<List<PlaylistListItem>>,
             val addToPlaylistDialogVisible: StateFlow<Boolean>,
             val addToPlaylist: StateFlow<Component?>,
+            val scrollState: LazyGridState,
             val onPlaylist: (Long) -> Unit,
             val onPlayPlaylist: (Long) -> Unit,
             val onAddToPlaylist: (id: Long) -> Unit,
@@ -169,6 +171,7 @@ class PlaylistList(
                 Main(
                     modifier = modifier,
                     playlists = state.playlists,
+                    scrollState = state.scrollState,
                     onPlaylist = state.onPlaylist,
                     onPlayPlaylist = state.onPlayPlaylist,
                     onAddToPlaylist = state.onAddToPlaylist,
@@ -188,6 +191,7 @@ class PlaylistList(
             private fun Main(
                 modifier: Modifier,
                 playlists: StateFlow<List<PlaylistListState.Loaded.PlaylistListItem>>,
+                scrollState: LazyGridState,
                 onPlaylist: (Long) -> Unit,
                 onPlayPlaylist: (Long) -> Unit,
                 onAddToPlaylist: (id: Long) -> Unit,
@@ -196,7 +200,6 @@ class PlaylistList(
                 onAddPlaylistToQueue: (id: Long) -> Unit
             ) {
                 val items by playlists.collectAsState()
-                val lazyGridState = rememberLazyGridState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -204,7 +207,7 @@ class PlaylistList(
                         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                             LazyVerticalGrid (
                                 modifier = Modifier.fillMaxSize().padding(end = 16.dp),
-                                state = lazyGridState,
+                                state = scrollState,
                                 contentPadding = PaddingValues(18.dp),
                                 horizontalArrangement = Arrangement.spacedBy(18.dp),
                                 verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -224,7 +227,7 @@ class PlaylistList(
                             }
                         }
                     },
-                    floatingActionButton = { ScrollToTopFloatingActionButton(lazyGridState) }
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) }
                 )
             }
 
@@ -401,6 +404,7 @@ class PlaylistList(
                 Main(
                     modifier = modifier,
                     playlists = state.playlists,
+                    scrollState = state.scrollState,
                     onPlaylist = state.onPlaylist,
                     onPlayPlaylist = state.onPlayPlaylist,
                     onAddToPlaylist = state.onAddToPlaylist,
@@ -420,6 +424,7 @@ class PlaylistList(
             private fun Main(
                 modifier: Modifier,
                 playlists: StateFlow<List<PlaylistListState.Loaded.PlaylistListItem>>,
+                scrollState: LazyGridState,
                 onPlaylist: (Long) -> Unit,
                 onPlayPlaylist: (Long) -> Unit,
                 onAddToPlaylist: (id: Long) -> Unit,
@@ -428,7 +433,6 @@ class PlaylistList(
                 onAddPlaylistToQueue: (id: Long) -> Unit
             ) {
                 val items by playlists.collectAsState()
-                val lazyGridState = rememberLazyGridState()
 
                 Scaffold(
                     modifier = modifier,
@@ -436,7 +440,7 @@ class PlaylistList(
                         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                             LazyVerticalGrid (
                                 modifier = Modifier.fillMaxSize().padding(12.dp),
-                                state = lazyGridState,
+                                state = scrollState,
                                 contentPadding = PaddingValues(vertical = 12.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -456,11 +460,7 @@ class PlaylistList(
                             }
                         }
                     },
-                    floatingActionButton = {
-                        ScrollToTopFloatingActionButton(
-                            lazyGridState
-                        )
-                    }
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) }
                 )
             }
 

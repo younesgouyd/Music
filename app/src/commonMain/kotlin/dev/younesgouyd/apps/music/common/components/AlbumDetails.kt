@@ -4,9 +4,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
@@ -79,6 +79,7 @@ class AlbumDetails(
                             )
                         }
                     }.stateIn(coroutineScope),
+                    scrollState = LazyListState(),
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     onArtistClick = showArtistDetails,
@@ -176,6 +177,7 @@ class AlbumDetails(
         data class Loaded(
             val album: StateFlow<Album>,
             val tracks: StateFlow<List<Album.Track>>,
+            val scrollState: LazyListState,
             val addToPlaylistDialogVisible: StateFlow<Boolean>,
             val addToPlaylist: StateFlow<Component?>,
             val onArtistClick: (id: Long) -> Unit,
@@ -233,6 +235,7 @@ class AlbumDetails(
                     modifier = modifier,
                     album = state.album,
                     tracks = state.tracks,
+                    scrollState = state.scrollState,
                     onArtistClick = state.onArtistClick,
                     onPlayClick = state.onPlayClick,
                     onAddToQueueClick = state.onAddToQueueClick,
@@ -255,6 +258,7 @@ class AlbumDetails(
                 modifier: Modifier,
                 album: StateFlow<AlbumDetailsState.Loaded.Album>,
                 tracks: StateFlow<List<AlbumDetailsState.Loaded.Album.Track>>,
+                scrollState: LazyListState,
                 onArtistClick: (Long) -> Unit,
                 onPlayClick: () -> Unit,
                 onAddToQueueClick: () -> Unit,
@@ -265,7 +269,6 @@ class AlbumDetails(
             ) {
                 val album by album.collectAsState()
                 val items by tracks.collectAsState()
-                val lazyColumnState = rememberLazyListState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -273,7 +276,7 @@ class AlbumDetails(
                         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize().padding(end = 16.dp),
-                                state = lazyColumnState,
+                                state = scrollState,
                                 verticalArrangement = Arrangement.Top,
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
@@ -308,7 +311,7 @@ class AlbumDetails(
                             }
                         }
                     },
-                    floatingActionButton = { ScrollToTopFloatingActionButton(lazyColumnState) }
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) }
                 )
             }
 
@@ -561,6 +564,7 @@ class AlbumDetails(
                     modifier = modifier,
                     album = state.album,
                     tracks = state.tracks,
+                    scrollState = state.scrollState,
                     onArtistClick = state.onArtistClick,
                     onPlayClick = state.onPlayClick,
                     onAddToQueueClick = state.onAddToQueueClick,
@@ -583,6 +587,7 @@ class AlbumDetails(
                 modifier: Modifier,
                 album: StateFlow<AlbumDetailsState.Loaded.Album>,
                 tracks: StateFlow<List<AlbumDetailsState.Loaded.Album.Track>>,
+                scrollState: LazyListState,
                 onArtistClick: (Long) -> Unit,
                 onPlayClick: () -> Unit,
                 onAddToQueueClick: () -> Unit,
@@ -593,7 +598,6 @@ class AlbumDetails(
             ) {
                 val album by album.collectAsState()
                 val items by tracks.collectAsState()
-                val lazyColumnState = rememberLazyListState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -601,7 +605,7 @@ class AlbumDetails(
                         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
-                                state = lazyColumnState,
+                                state = scrollState,
                                 verticalArrangement = Arrangement.Top,
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
@@ -646,11 +650,7 @@ class AlbumDetails(
                             }
                         }
                     },
-                    floatingActionButton = {
-                        ScrollToTopFloatingActionButton(
-                            lazyColumnState
-                        )
-                    }
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) }
                 )
             }
 

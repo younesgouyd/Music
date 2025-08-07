@@ -52,7 +52,7 @@ class Library(
 ) : Component() {
     override val title: String = "Library"
     private val currentFolder: MutableStateFlow<Folder?> = MutableStateFlow(null)
-    private val path: StateFlow<Set<Folder>>
+    private val path: StateFlow<List<Models.NodeState>>
     private val folders: StateFlow<List<Folder>>
     private val playlists: StateFlow<List<Playlist>>
     private val tracks: StateFlow<List<Models.Track>>
@@ -73,20 +73,33 @@ class Library(
             loading1 || loading2 || loading3 || loading4
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = true)
 
+        val root = Models.NodeState(null, LazyGridState())
+        var list: List<Models.NodeState> = listOf(root)
         path = flow {
-            var value: Set<Folder> = emptySet()
+            fun <T> List<T>.takeUntil(predicate: (T) -> Boolean): List<T> {
+                val list = mutableListOf<T>()
+                for (item in this) {
+                    list.add(item)
+                    if (predicate(item)) {
+                        break
+                    }
+                }
+                return list
+            }
             currentFolder.collect { folder ->
                 if (folder == null) {
-                    value = emptySet()
-                    emit(value)
+                    list = listOf(root)
+                    emit(list)
                 } else {
-                    val list = value.takeWhile { it.id != folder.id }.toMutableList()
-                    list.add(folder)
-                    value = list.toSet()
-                    emit(value)
+                    val temp = list.takeUntil { it.folder?.id == folder.id }.toMutableList()
+                    if (!temp.any { it.folder?.id == folder.id }) {
+                        temp.add(Models.NodeState(folder, LazyGridState()))
+                    }
+                    list = temp
+                    emit(list)
                 }
             }
-        }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptySet())
+        }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = list)
 
         folders = currentFolder.flatMapLatest {
             loadingFolders.value = true
@@ -446,6 +459,10 @@ class Library(
     }
 
     private object Models {
+        data class NodeState(
+            val folder: Folder?,
+            val scrollState: LazyGridState,
+        )
         data class Track(
             val id: Long,
             val name: String,
@@ -472,7 +489,7 @@ class Library(
             @Composable
             fun Main(
                 modifier: Modifier = Modifier,
-                path: StateFlow<Set<Folder>>,
+                path: StateFlow<List<Models.NodeState>>,
                 loadingItems: StateFlow<Boolean>,
                 currentFolder: StateFlow<Folder?>,
                 folders: StateFlow<List<Folder>>,
@@ -512,7 +529,9 @@ class Library(
                 val folders by folders.collectAsState()
                 val playlists by playlists.collectAsState()
                 val tracks by tracks.collectAsState()
-                val lazyGridState = rememberLazyGridState()
+                val lazyGridState = remember(path.lastOrNull()?.folder?.id) {
+                    path.lastOrNull()?.scrollState ?: LazyGridState()
+                }
                 val addToPlaylistDialogVisible by addToPlaylistDialogVisible.collectAsState()
                 val addToPlaylist by addToPlaylist.collectAsState()
 
@@ -529,7 +548,7 @@ class Library(
                             ToolBar(
                                 modifier = Modifier.fillMaxWidth(),
                                 currentFolder = currentFolder,
-                                path = path,
+                                path = path.mapNotNull { it.folder },
                                 onFolderClick = onFolderClick,
                                 onImportFolderClick = onImportFolderClick,
                                 onNewFolder = onNewFolder,
@@ -544,7 +563,7 @@ class Library(
                                     verticalArrangement = Arrangement.spacedBy(18.dp),
                                     columns = GridCells.Adaptive(200.dp)
                                 ) {
-                                    items(folders) { folder ->
+                                    items(folders, { "folder#${it.id}"}) { folder ->
                                         FolderItem(
                                             folder = folder,
                                             onClick = { onFolderClick(folder) },
@@ -557,7 +576,7 @@ class Library(
                                             onMoveToFolder = { onMoveFolderToFolder(folder.id, it) }
                                         )
                                     }
-                                    items(playlists) { playlist ->
+                                    items(playlists, { "playlist#${it.id}" }) { playlist ->
                                         PlaylistItem(
                                             playlist = playlist,
                                             onClick = { onPlaylistClick(playlist.id) },
@@ -570,7 +589,7 @@ class Library(
                                             onMoveToFolder = { onMovePlaylistToFolder(playlist.id, it) }
                                         )
                                     }
-                                    items(tracks) { track ->
+                                    items(tracks, { "track#${it.id}" }) { track ->
                                         TrackItem(
                                             track = track,
                                             onClick = { onTrackClick(track.id) },
@@ -613,7 +632,7 @@ class Library(
             private fun ToolBar(
                 modifier: Modifier = Modifier,
                 currentFolder: StateFlow<Folder?>,
-                path: Set<Folder>,
+                path: List<Folder>,
                 onFolderClick: (Folder?) -> Unit,
                 onImportFolderClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
@@ -651,7 +670,7 @@ class Library(
                                     Text("/")
                                 }
                             }
-                            items(items = path.toList(), key = { it.id }) { folder ->
+                            items(items = path, key = { it.id }) { folder ->
                                 Row(
                                     horizontalArrangement = Arrangement.Start,
                                     verticalAlignment = Alignment.CenterVertically
@@ -1356,7 +1375,7 @@ class Library(
             @Composable
             fun Main(
                 modifier: Modifier = Modifier,
-                path: StateFlow<Set<Folder>>,
+                path: StateFlow<List<Models.NodeState>>,
                 loadingItems: StateFlow<Boolean>,
                 currentFolder: StateFlow<Folder?>,
                 folders: StateFlow<List<Folder>>,
@@ -1396,7 +1415,9 @@ class Library(
                 val folders by folders.collectAsState()
                 val playlists by playlists.collectAsState()
                 val tracks by tracks.collectAsState()
-                val lazyGridState = rememberLazyGridState()
+                val lazyGridState = remember(path.lastOrNull()?.folder?.id) {
+                    path.last().scrollState
+                }
                 val addToPlaylistDialogVisible by addToPlaylistDialogVisible.collectAsState()
                 val addToPlaylist by addToPlaylist.collectAsState()
 
@@ -1413,7 +1434,7 @@ class Library(
                             ToolBar(
                                 modifier = Modifier.fillMaxWidth(),
                                 currentFolder = currentFolder,
-                                path = path,
+                                path = path.mapNotNull { it.folder },
                                 onFolderClick = onFolderClick,
                                 onImportFolderClick = onImportFolderClick,
                                 onNewFolder = onNewFolder,
@@ -1427,7 +1448,7 @@ class Library(
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                                 columns = GridCells.Adaptive(100.dp)
                             ) {
-                                items(folders) { folder ->
+                                items(folders, { "folder#${it.id}"}) { folder ->
                                     FolderItem(
                                         folder = folder,
                                         onClick = { onFolderClick(folder) },
@@ -1440,7 +1461,7 @@ class Library(
                                         onMoveToFolder = { onMoveFolderToFolder(folder.id, it) }
                                     )
                                 }
-                                items(playlists) { playlist ->
+                                items(playlists, { "playlist#${it.id}" }) { playlist ->
                                     PlaylistItem(
                                         playlist = playlist,
                                         onClick = { onPlaylistClick(playlist.id) },
@@ -1453,7 +1474,7 @@ class Library(
                                         onMoveToFolder = { onMovePlaylistToFolder(playlist.id, it) }
                                     )
                                 }
-                                items(tracks) { track ->
+                                items(tracks, { "track#${it.id}" }) { track ->
                                     TrackItem(
                                         track = track,
                                         onClick = { onTrackClick(track.id) },
@@ -1495,7 +1516,7 @@ class Library(
             private fun ToolBar(
                 modifier: Modifier = Modifier,
                 currentFolder: StateFlow<Folder?>,
-                path: Set<Folder>,
+                path: List<Folder>,
                 onFolderClick: (Folder?) -> Unit,
                 onImportFolderClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
@@ -1533,7 +1554,7 @@ class Library(
                                     Text("/")
                                 }
                             }
-                            items(items = path.toList(), key = { it.id }) { folder ->
+                            items(items = path, key = { it.id }) { folder ->
                                 Row(
                                     horizontalArrangement = Arrangement.Start,
                                     verticalAlignment = Alignment.CenterVertically

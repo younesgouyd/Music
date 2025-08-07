@@ -4,9 +4,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
@@ -24,12 +24,14 @@ import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.components.util.widgets.*
 import dev.younesgouyd.apps.music.common.data.repoes.*
 import dev.younesgouyd.apps.music.common.util.Component
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistDetails(
     private val id: Long,
     private val trackRepo: TrackRepo,
@@ -84,6 +86,7 @@ class PlaylistDetails(
                     }.stateIn(coroutineScope),
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
+                    scrollState = LazyListState(),
                     onPlayClick = ::play,
                     onAddToQueueClick = ::addToQueue,
                     onTrackClick = ::playTrack,
@@ -136,7 +139,7 @@ class PlaylistDetails(
     private fun showAddToPlaylistDialog() {
         addToPlaylist.update {
             AddToPlaylist(
-                itemToAdd = dev.younesgouyd.apps.music.common.components.AddToPlaylist.Item.Playlist(id),
+                itemToAdd = AddToPlaylist.Item.Playlist(id),
                 playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
                 trackRepo = trackRepo,
                 albumRepo = albumRepo,
@@ -151,7 +154,7 @@ class PlaylistDetails(
     private fun showAddTrackToPlaylistDialog(trackId: Long) {
         addToPlaylist.update {
             AddToPlaylist(
-                itemToAdd = dev.younesgouyd.apps.music.common.components.AddToPlaylist.Item.Track(trackId),
+                itemToAdd = AddToPlaylist.Item.Track(trackId),
                 playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
                 trackRepo = trackRepo,
                 albumRepo = albumRepo,
@@ -189,6 +192,7 @@ class PlaylistDetails(
             val tracks: StateFlow<List<Track>>,
             val addToPlaylistDialogVisible: StateFlow<Boolean>,
             val addToPlaylist: StateFlow<Component?>,
+            val scrollState: LazyListState,
             val onPlayClick: () -> Unit,
             val onTrackClick: (id: Long) -> Unit,
             val onArtistClick: (id: Long) -> Unit,
@@ -253,6 +257,7 @@ class PlaylistDetails(
                     modifier = modifier,
                     playlist = state.playlist,
                     tracks = state.tracks,
+                    scrollState = state.scrollState,
                     onPlayClick = state.onPlayClick,
                     onAddToQueueClick = state.onAddToQueueClick,
                     onAddToPlaylistClick = state.onAddToPlaylistClick,
@@ -277,6 +282,7 @@ class PlaylistDetails(
                 modifier: Modifier,
                 playlist: StateFlow<PlaylistDetailsState.Loaded.Playlist>,
                 tracks: StateFlow<List<PlaylistDetailsState.Loaded.Track>>,
+                scrollState: LazyListState,
                 onPlayClick: () -> Unit,
                 onAddToQueueClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -289,7 +295,6 @@ class PlaylistDetails(
             ) {
                 val playlist by playlist.collectAsState()
                 val items by tracks.collectAsState()
-                val lazyColumnState = rememberLazyListState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -297,7 +302,7 @@ class PlaylistDetails(
                         Box(modifier = Modifier.fillMaxSize().padding(it)) {
                             LazyColumn (
                                 modifier = Modifier.fillMaxSize().padding(end = 16.dp),
-                                state = lazyColumnState,
+                                state = scrollState,
                                 verticalArrangement = Arrangement.Top,
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
@@ -332,7 +337,7 @@ class PlaylistDetails(
                             }
                         }
                     },
-                    floatingActionButton = { ScrollToTopFloatingActionButton(lazyColumnState) }
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) }
                 )
             }
 
@@ -627,6 +632,7 @@ class PlaylistDetails(
                     modifier = modifier,
                     playlist = state.playlist,
                     tracks = state.tracks,
+                    scrollState = state.scrollState,
                     onPlayClick = state.onPlayClick,
                     onAddToQueueClick = state.onAddToQueueClick,
                     onAddToPlaylistClick = state.onAddToPlaylistClick,
@@ -651,6 +657,7 @@ class PlaylistDetails(
                 modifier: Modifier,
                 playlist: StateFlow<PlaylistDetailsState.Loaded.Playlist>,
                 tracks: StateFlow<List<PlaylistDetailsState.Loaded.Track>>,
+                scrollState: LazyListState,
                 onPlayClick: () -> Unit,
                 onAddToQueueClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -663,7 +670,6 @@ class PlaylistDetails(
             ) {
                 val playlist by playlist.collectAsState()
                 val items by tracks.collectAsState()
-                val lazyColumnState = rememberLazyListState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -671,7 +677,7 @@ class PlaylistDetails(
                         Box(modifier = Modifier.fillMaxSize().padding(it)) {
                             LazyColumn (
                                 modifier = Modifier.fillMaxSize(),
-                                state = lazyColumnState,
+                                state = scrollState,
                                 verticalArrangement = Arrangement.Top,
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
@@ -720,7 +726,7 @@ class PlaylistDetails(
                         }
                     },
                     floatingActionButton = {
-                        ScrollToTopFloatingActionButton(lazyColumnState)
+                        ScrollToTopFloatingActionButton(scrollState)
                     }
                 )
             }

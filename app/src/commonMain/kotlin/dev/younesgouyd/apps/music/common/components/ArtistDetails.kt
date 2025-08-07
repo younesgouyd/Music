@@ -74,6 +74,7 @@ class ArtistDetails(
                     }.stateIn(coroutineScope),
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
+                    scrollState = LazyGridState(),
                     onAlbumClick = showAlbumDetails,
                     onArtistClick = showArtistDetails,
                     onPlayAlbumClick = ::playAlbum,
@@ -138,6 +139,7 @@ class ArtistDetails(
             val albums: StateFlow<List<Artist.Album>>,
             val addToPlaylistDialogVisible: StateFlow<Boolean>,
             val addToPlaylist: StateFlow<Component?>,
+            val scrollState: LazyGridState,
             val onAlbumClick: (Long) -> Unit,
             val onArtistClick: (Long) -> Unit,
             val onPlayAlbumClick: (Long) -> Unit,
@@ -191,6 +193,7 @@ class ArtistDetails(
                     modifier = modifier,
                     artist = state.artist,
                     albums = state.albums,
+                    scrollState = state.scrollState,
                     onAlbumClick = state.onAlbumClick,
                     onArtistClick = state.onArtistClick,
                     onAddAlbumToPlaylistClick = state.onAddAlbumToPlaylistClick,
@@ -210,6 +213,7 @@ class ArtistDetails(
                 modifier: Modifier,
                 artist: StateFlow<ArtistDetailsState.Loaded.Artist>,
                 albums: StateFlow<List<ArtistDetailsState.Loaded.Artist.Album>>,
+                scrollState: LazyGridState,
                 onAlbumClick: (Long) -> Unit,
                 onArtistClick: (Long) -> Unit,
                 onAddAlbumToPlaylistClick: (id: Long) -> Unit,
@@ -218,7 +222,6 @@ class ArtistDetails(
             ) {
                 val artist by artist.collectAsState()
                 val albumItems by albums.collectAsState()
-                val lazyGridState = rememberLazyGridState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -226,7 +229,7 @@ class ArtistDetails(
                         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                             LazyVerticalGrid(
                                 modifier = Modifier.fillMaxSize().padding(end = 16.dp),
-                                state = lazyGridState,
+                                state = scrollState,
                                 horizontalArrangement = Arrangement.spacedBy(18.dp),
                                 verticalArrangement = Arrangement.spacedBy(18.dp),
                                 columns = GridCells.Adaptive(200.dp)
@@ -260,7 +263,7 @@ class ArtistDetails(
                             }
                         }
                     },
-                    floatingActionButton = { ScrollToTopFloatingActionButton(lazyGridState) }
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) }
                 )
             }
 
@@ -417,6 +420,7 @@ class ArtistDetails(
                     modifier = modifier,
                     artist = state.artist,
                     albums = state.albums,
+                    scrollState = state.scrollState,
                     onAlbumClick = state.onAlbumClick,
                     onAddAlbumToPlaylistClick = state.onAddAlbumToPlaylistClick,
                     onAddAlbumToQueueClick = state.onAddAlbumToQueueClick,
@@ -435,6 +439,7 @@ class ArtistDetails(
                 modifier: Modifier,
                 artist: StateFlow<ArtistDetailsState.Loaded.Artist>,
                 albums: StateFlow<List<ArtistDetailsState.Loaded.Artist.Album>>,
+                scrollState: LazyGridState,
                 onAlbumClick: (Long) -> Unit,
                 onAddAlbumToPlaylistClick: (id: Long) -> Unit,
                 onAddAlbumToQueueClick: (id: Long) -> Unit,
@@ -442,7 +447,6 @@ class ArtistDetails(
             ) {
                 val artist by artist.collectAsState()
                 val albumItems by albums.collectAsState()
-                val lazyGridState = rememberLazyGridState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -450,7 +454,7 @@ class ArtistDetails(
                         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                             LazyVerticalGrid(
                                 modifier = Modifier.fillMaxSize().padding(12.dp),
-                                state = lazyGridState,
+                                state = scrollState,
                                 contentPadding = PaddingValues(vertical = 12.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -484,11 +488,7 @@ class ArtistDetails(
                             }
                         }
                     },
-                    floatingActionButton = {
-                        ScrollToTopFloatingActionButton(
-                            lazyGridState
-                        )
-                    }
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) }
                 )
             }
 

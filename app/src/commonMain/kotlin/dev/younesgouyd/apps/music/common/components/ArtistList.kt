@@ -2,9 +2,9 @@ package dev.younesgouyd.apps.music.common.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -49,6 +49,7 @@ class ArtistList(
                             )
                         }
                     }.stateIn(coroutineScope),
+                    scrollState = LazyGridState(),
                     onArtistClick = showArtistDetails
                 )
             }
@@ -74,6 +75,7 @@ class ArtistList(
 
         data class Loaded(
             val artists: StateFlow<List<ArtistItem>>,
+            val scrollState: LazyGridState,
             val onArtistClick: (Long) -> Unit
         ) : ArtistListState() {
             data class ArtistItem(
@@ -99,6 +101,7 @@ class ArtistList(
                 Main(
                     modifier = modifier,
                     artists = loaded.artists,
+                    scrollState = loaded.scrollState,
                     onArtistClick = loaded.onArtistClick
                 )
             }
@@ -107,10 +110,10 @@ class ArtistList(
             private fun Main(
                 modifier: Modifier,
                 artists: StateFlow<List<ArtistListState.Loaded.ArtistItem>>,
+                scrollState: LazyGridState,
                 onArtistClick: (Long) -> Unit
             ) {
                 val items by artists.collectAsState()
-                val lazyGridState = rememberLazyGridState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -118,7 +121,7 @@ class ArtistList(
                         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                             LazyVerticalGrid(
                                 modifier = Modifier.fillMaxSize().padding(end = 16.dp),
-                                state = lazyGridState,
+                                state = scrollState,
                                 contentPadding = PaddingValues(18.dp),
                                 horizontalArrangement = Arrangement.spacedBy(18.dp),
                                 verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -136,7 +139,7 @@ class ArtistList(
                             }
                         }
                     },
-                    floatingActionButton = { ScrollToTopFloatingActionButton(lazyGridState) }
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) }
                 )
             }
 
@@ -188,6 +191,7 @@ class ArtistList(
                 Main(
                     modifier = modifier,
                     artists = loaded.artists,
+                    scrollState = loaded.scrollState,
                     onArtistClick = loaded.onArtistClick
                 )
             }
@@ -196,10 +200,10 @@ class ArtistList(
             private fun Main(
                 modifier: Modifier,
                 artists: StateFlow<List<ArtistListState.Loaded.ArtistItem>>,
+                scrollState: LazyGridState,
                 onArtistClick: (Long) -> Unit
             ) {
                 val items by artists.collectAsState()
-                val lazyGridState = rememberLazyGridState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -207,7 +211,7 @@ class ArtistList(
                         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                             LazyVerticalGrid(
                                 modifier = Modifier.fillMaxSize().padding(12.dp),
-                                state = lazyGridState,
+                                state = scrollState,
                                 contentPadding = PaddingValues(vertical = 12.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -226,9 +230,7 @@ class ArtistList(
                         }
                     },
                     floatingActionButton = {
-                        ScrollToTopFloatingActionButton(
-                            lazyGridState
-                        )
+                        ScrollToTopFloatingActionButton(scrollState)
                     }
                 )
             }
