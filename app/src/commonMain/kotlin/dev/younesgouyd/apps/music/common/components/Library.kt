@@ -529,15 +529,15 @@ class Library(
                 val folders by folders.collectAsState()
                 val playlists by playlists.collectAsState()
                 val tracks by tracks.collectAsState()
-                val lazyGridState = remember(path.lastOrNull()?.folder?.id) {
-                    path.lastOrNull()?.scrollState ?: LazyGridState()
+                val scrollState = remember(path.last().folder?.id) {
+                    path.last().scrollState
                 }
                 val addToPlaylistDialogVisible by addToPlaylistDialogVisible.collectAsState()
                 val addToPlaylist by addToPlaylist.collectAsState()
 
                 Scaffold(
                     modifier = modifier,
-                    floatingActionButton = { ScrollToTopFloatingActionButton(lazyGridState) },
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) },
                     content = { paddingValues ->
                         Column(
                             modifier = Modifier.fillMaxSize().padding(paddingValues),
@@ -557,7 +557,7 @@ class Library(
                             Box(modifier = Modifier) {
                                 LazyVerticalGrid(
                                     modifier = Modifier.fillMaxSize().padding(16.dp),
-                                    state = lazyGridState,
+                                    state = scrollState,
                                     contentPadding = PaddingValues(vertical = 12.dp),
                                     horizontalArrangement = Arrangement.spacedBy(18.dp),
                                     verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -1415,7 +1415,7 @@ class Library(
                 val folders by folders.collectAsState()
                 val playlists by playlists.collectAsState()
                 val tracks by tracks.collectAsState()
-                val lazyGridState = remember(path.lastOrNull()?.folder?.id) {
+                val scrollState = remember(path.last().folder?.id) {
                     path.last().scrollState
                 }
                 val addToPlaylistDialogVisible by addToPlaylistDialogVisible.collectAsState()
@@ -1423,7 +1423,7 @@ class Library(
 
                 Scaffold(
                     modifier = modifier,
-                    floatingActionButton = { ScrollToTopFloatingActionButton(lazyGridState) },
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) },
                     content = { paddingValues ->
                         Column(
                             modifier = Modifier.fillMaxSize().padding(paddingValues),
@@ -1442,7 +1442,7 @@ class Library(
                             )
                             LazyVerticalGrid(
                                 modifier = Modifier.fillMaxSize().padding(12.dp),
-                                state = lazyGridState,
+                                state = scrollState,
                                 contentPadding = PaddingValues(vertical = 12.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
