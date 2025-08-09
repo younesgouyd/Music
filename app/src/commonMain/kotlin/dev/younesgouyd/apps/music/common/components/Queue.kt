@@ -32,21 +32,27 @@ class Queue(
     private val state: MutableStateFlow<QueueState> = MutableStateFlow(QueueState.Unavailable)
 
     init {
+        var scrollState = LazyListState()
+        var queue: List<QueueItem> = emptyList()
         coroutineScope.launch {
             mediaController.state.collectLatest { mediaControllerState ->
                 state.value = when (mediaControllerState) {
                     is MediaController.MediaControllerState.Unavailable -> QueueState.Unavailable
                     is MediaController.MediaControllerState.Loading -> QueueState.Loading
-                    is MediaController.MediaControllerState.Available -> QueueState.Available(
-                        enabled = mediaControllerState.enabled,
-                        queue = mediaControllerState.queue,
-                        queueItemIndex = mediaControllerState.queueItemIndex,
-                        queueSubItemIndex = mediaControllerState.queueSubItemIndex,
-                        scrollState = LazyListState(),
-                        onPlayQueueItem = mediaController::playQueueItem,
-                        onPlayQueueSubItem = mediaController::playTrackInQueue,
-                        onCloseClick = close
-                    )
+                    is MediaController.MediaControllerState.Available -> {
+                        scrollState = if (queue == mediaControllerState.queue) scrollState else LazyListState()
+                        queue = mediaControllerState.queue
+                        QueueState.Available(
+                            enabled = mediaControllerState.enabled,
+                            queue = mediaControllerState.queue,
+                            queueItemIndex = mediaControllerState.queueItemIndex,
+                            queueSubItemIndex = mediaControllerState.queueSubItemIndex,
+                            scrollState = scrollState,
+                            onPlayQueueItem = mediaController::playQueueItem,
+                            onPlayQueueSubItem = mediaController::playTrackInQueue,
+                            onCloseClick = close
+                        )
+                    }
                 }
             }
         }
@@ -131,7 +137,8 @@ class Queue(
                             contentPadding = PaddingValues(12.dp)
                         ) {
                             itemsIndexed(
-                                items = queue
+                                items = queue,
+                                key = { _, item -> "${item::class.simpleName}#${item.id}"}
                             ) { index: Int, queueItem: QueueItem ->
                                 when (queueItem) {
                                     is QueueItem.Track -> {

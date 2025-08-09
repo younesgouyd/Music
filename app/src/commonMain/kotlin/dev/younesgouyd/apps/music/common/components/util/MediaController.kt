@@ -608,8 +608,10 @@ class MediaController(
             enum class RepeatState { Off, List, Track }
 
             sealed class QueueItem {
+                abstract val id: Long
+
                 data class Track(
-                    val id: Long,
+                    override val id: Long,
                     val name: String,
                     val artists: List<Artist>,
                     val album: Album?,
@@ -631,7 +633,7 @@ class MediaController(
                 }
 
                 data class Playlist(
-                    val id: Long,
+                    override val id: Long,
                     val name: String,
                     val image: ByteArray?,
                     val items: List<Track>
@@ -640,7 +642,7 @@ class MediaController(
                 }
 
                 data class Album(
-                    val id: Long,
+                    override val id: Long,
                     val name: String,
                     val image: ByteArray?,
                     val releaseDate: String?,
