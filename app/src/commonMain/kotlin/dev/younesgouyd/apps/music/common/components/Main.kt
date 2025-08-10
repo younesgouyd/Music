@@ -20,9 +20,7 @@ import kotlinx.coroutines.flow.*
 
 class Main(
     private val repoStore: RepoStore,
-    mediaPlayer: MediaController.MediaPlayer,
-    private val isPlaying: MutableStateFlow<Boolean>,
-    private val timePositionChange: MutableStateFlow<Long>
+    mediaPlayer: MediaController.MediaPlayer
 ) : Component() {
     override val title: String = ""
     private val darkTheme: StateFlow<DarkThemeOptions> = repoStore.settingsRepo.getDarkThemeFlow().filterNotNull().stateIn(
@@ -31,14 +29,7 @@ class Main(
         initialValue = DarkThemeOptions.SystemDefault
     )
 
-    private val mediaController: MediaController = run {
-        MediaController(
-            mediaPlayer = mediaPlayer,
-            repoStore = repoStore,
-            isPlaying = isPlaying,
-            timePositionChange = timePositionChange
-        )
-    }
+    private val mediaController = MediaController(mediaPlayer = mediaPlayer, repoStore = repoStore)
 
     private val mainContent: MutableStateFlow<MainContent> = MutableStateFlow(MainContent.Content)
     @OptIn(ExperimentalCoroutinesApi::class)

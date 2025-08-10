@@ -15,14 +15,14 @@ import kotlinx.coroutines.sync.withLock
 
 class MediaController(
     private val mediaPlayer: MediaPlayer,
-    private val repoStore: RepoStore,
-    private val isPlaying: MutableStateFlow<Boolean>,
-    private val timePositionChange: MutableStateFlow<Long>
+    private val repoStore: RepoStore
 ) {
     private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val mutex = Mutex()
     private val _state: MutableStateFlow<MediaControllerState> = MutableStateFlow(MediaControllerState.Unavailable)
     private val enabled: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    private val isPlaying: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    private val timePositionChange: MutableStateFlow<Long> = MutableStateFlow(0)
 
     private val trackRepo: TrackRepo get() = repoStore.trackRepo
     private val artistRepo: ArtistRepo get() = repoStore.artistRepo
@@ -30,6 +30,18 @@ class MediaController(
     private val playlistRepo: PlaylistRepo get() = repoStore.playlistRepo
 
     val state: StateFlow<MediaControllerState> get() = _state.asStateFlow()
+
+    init {
+        mediaPlayer.registerEventListener(
+            object : MediaPlayer.EventListener() {
+                override fun onPlaying() { isPlaying.value = true }
+                override fun onPaused() { isPlaying.value = false }
+                override fun onStopped() { isPlaying.value = false }
+                override fun onTimePositionChange(time: Long) { timePositionChange.value = time }
+                override fun onFinished() { next() }
+            }
+        )
+    }
 
     fun playQueue(queue: List<QueueItemParameter>, queueItemIndex: Int = 0, queueSubItemIndex: Int = 0) {
         require(queue.isNotEmpty())
@@ -662,11 +674,20 @@ class MediaController(
     }
 
     abstract class MediaPlayer {
+        abstract fun registerEventListener(eventListener: EventListener)
         abstract fun setMedia(uri: String)
         abstract fun play()
         abstract fun pause()
         abstract fun stop()
         abstract fun setTime(time: Long)
         abstract fun release()
+
+        abstract class EventListener {
+            abstract fun onPlaying()
+            abstract fun onPaused()
+            abstract fun onStopped()
+            abstract fun onTimePositionChange(time: Long)
+            abstract fun onFinished()
+        }
     }
 }

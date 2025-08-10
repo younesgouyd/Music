@@ -62,45 +62,38 @@ object Application {
     private fun showContent() {
         currentComponent.update {
             it.clear()
-            val isPlaying: MutableStateFlow<Boolean> = MutableStateFlow(false)
-            val timePositionChange: MutableStateFlow<Long> = MutableStateFlow(0)
-            Main(
-                repoStore = repoStore,
-                mediaPlayer = MediaPlayer(
-                    isPlaying = isPlaying,
-                    timePositionChange = timePositionChange
-                ),
-                isPlaying = isPlaying,
-                timePositionChange = timePositionChange
-            )
+            Main(repoStore = repoStore, mediaPlayer = MediaPlayer())
         }
     }
 
-    private class MediaPlayer(
-        isPlaying: MutableStateFlow<Boolean>,
-        timePositionChange: MutableStateFlow<Long>
-    ) : MediaController.MediaPlayer() {
+    private class MediaPlayer() : MediaController.MediaPlayer() {
         private val vlcPlayer = AudioPlayerComponent().mediaPlayer()
 
         init {
             NativeDiscovery().discover()
+        }
+
+        override fun registerEventListener(eventListener: EventListener) {
             vlcPlayer.events().addMediaPlayerEventListener(
                 object : MediaPlayerEventAdapter() {
                     override fun playing(mediaPlayer: uk.co.caprica.vlcj.player.base.MediaPlayer?) {
-                        isPlaying.value = true
+                        eventListener.onPlaying()
                     }
 
                     override fun paused(mediaPlayer: uk.co.caprica.vlcj.player.base.MediaPlayer?) {
-                        isPlaying.value = false
+                        eventListener.onPaused()
                     }
 
                     override fun stopped(mediaPlayer: uk.co.caprica.vlcj.player.base.MediaPlayer?) {
-                        isPlaying.value = false
-                        timePositionChange.value = 0
+                        eventListener.onStopped()
                     }
 
                     override fun timeChanged(mediaPlayer: uk.co.caprica.vlcj.player.base.MediaPlayer?, newTime: Long) {
-                        timePositionChange.value = newTime
+                        eventListener.onTimePositionChange(newTime)
+                    }
+
+                    override fun finished(mediaPlayer: uk.co.caprica.vlcj.player.base.MediaPlayer?) {
+                        eventListener.onFinished()
                     }
                 }
             )

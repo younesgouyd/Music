@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
@@ -56,8 +57,6 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             currentComponent.update {
                 it.clear()
-                val isPlaying: MutableStateFlow<Boolean> = MutableStateFlow(false)
-                val timePositionChange: MutableStateFlow<Long> = MutableStateFlow(0)
                 Main(
                     repoStore = repoStore,
                     mediaPlayer = MediaPlayer(
@@ -65,35 +64,35 @@ class MainActivity : ComponentActivity() {
                             MediaController.Builder(this@MainActivity, sessionToken)
                                 .buildAsync()
                                 .get()
-                        },
-                        _isPlaying = isPlaying,
-                        timePositionChange = timePositionChange
-                    ),
-                    isPlaying = isPlaying,
-                    timePositionChange = timePositionChange
+                        }
+                    )
                 )
             }
         }
     }
 
     private class MediaPlayer(
-        private val media3Controller: MediaController,
-        _isPlaying: MutableStateFlow<Boolean>,
-        timePositionChange: MutableStateFlow<Long>
+        private val media3Controller: MediaController
     ) : dev.younesgouyd.apps.music.common.components.util.MediaController.MediaPlayer() {
-        init {
+        override fun registerEventListener(eventListener: EventListener) {
             media3Controller.addListener(
-                object : androidx.media3.common.Player.Listener {
+                object : Player.Listener {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
-                        _isPlaying.value = isPlaying
+                        eventListener.onPlaying()
                     }
 
                     override fun onPositionDiscontinuity(
-                        oldPosition: androidx.media3.common.Player.PositionInfo,
-                        newPosition: androidx.media3.common.Player.PositionInfo,
+                        oldPosition: Player.PositionInfo,
+                        newPosition: Player.PositionInfo,
                         reason: Int
                     ) {
-                        timePositionChange.value = newPosition.positionMs
+                        eventListener.onTimePositionChange(newPosition.positionMs)
+                    }
+
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        if (playbackState == Player.STATE_ENDED) {
+                            eventListener.onFinished()
+                        }
                     }
                 }
             )
