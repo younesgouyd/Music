@@ -17,7 +17,7 @@ class MediaController(
     private val mediaPlayer: MediaPlayer,
     private val repoStore: RepoStore
 ) {
-    private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val coroutineScope = CoroutineScope(Dispatchers.Main)
     private val mutex = Mutex()
     private val _state: MutableStateFlow<MediaControllerState> = MutableStateFlow(MediaControllerState.Unavailable)
     private val enabled: MutableStateFlow<Boolean> = MutableStateFlow(false)
