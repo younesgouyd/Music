@@ -37,6 +37,32 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+/*
+import tracks:
+    - importing:
+        - from system file picker:
+            - a new top-level folder is created with the name "<unique_sequential_number>_<datetime_formatted>_imported_from_system_file_picker".
+            - for each item:
+                - copy the file into the app's directory with the name "<unique_sequential_number>_local_<original_file_name>", discarding the extension.
+                - create a track referencing the file.
+                - set the track's properties (title, artist, album...) from the referenced file's metadata.
+                - place the track in the newly created folder by matching the referenced file's original system file path.
+        - from urls:
+            - if the url corresponds to a single item:
+                - a new top-level folder is created with the name "<unique_sequential_number>_<datetime_formatted>_imported_from_<url_domain_name>_single_item".
+                - copy the file into the app's directory with the name "<unique_sequential_number>_<url_domain_name>_<original_file_name>", discarding the extension.
+                - create a track referencing the file.
+                - set the track's properties (title, artist, album...) from the referenced file's metadata.
+                - place the track in the newly created folder.
+            - if the url corresponds to a list of items:
+                - a new top-level folder is created with the name "<unique_sequential_number>_<datetime_formatted>_imported_from_<url_domain_name>_playlist".
+                - for each item:
+                    - copy the file into the app's directory with the name "<unique_sequential_number>_<url_domain_name>_<original_file_name>", discarding the extension.
+                    - create a track referencing the file.
+                    - set the track's properties (title, artist, album...) from the referenced file's metadata.
+                    - place the track in the newly created folder.
+ */
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class Library(
     private val folderRepo: FolderRepo,

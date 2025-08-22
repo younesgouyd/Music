@@ -31,3 +31,10 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+*.iml
+/local.properties
+/keystore.properties
+/captures
+.externalNativeBuild
+/benchmark

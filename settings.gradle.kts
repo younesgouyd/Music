@@ -1,6 +1,7 @@
 rootProject.name = "Music"
 
-include(":app")
+include(":client")
+include(":server")
 
 pluginManagement {
     repositories {
@@ -25,6 +26,8 @@ dependencyResolutionManagement {
                 val kotlin = version("kotlin", "2.2.0")
                 val json = version("json", "1.9.0")
                 val coroutines = version("coroutines", "1.10.2")
+                val logback = version("logback", "1.5.18")
+                val ktor = version("ktor", "3.2.3")
                 val compose = version("compose.jetbrains", "1.8.2")
                 val android = object {
                     val agp = version("agp", "8.10.0")
@@ -38,6 +41,8 @@ dependencyResolutionManagement {
                 val mp3agic = version("mp3agic", "0.9.1")
             }
 
+            plugin("kotlin.jvm", "org.jetbrains.kotlin.jvm").versionRef(versions.kotlin)
+            plugin("kotlin.serialization", "org.jetbrains.kotlin.plugin.serialization").versionRef(versions.kotlin)
             plugin("kotlin.multiplatform", "org.jetbrains.kotlin.multiplatform").versionRef(versions.kotlin)
             plugin("composeMultiplatform", "org.jetbrains.compose").versionRef(versions.compose)
             plugin("composeCompiler", "org.jetbrains.kotlin.plugin.compose").versionRef(versions.kotlin)
@@ -57,6 +62,16 @@ dependencyResolutionManagement {
 
             library("vlcj", "uk.co.caprica", "vlcj").versionRef(versions.vlcj)
             library("mp3agic", "com.mpatric", "mp3agic").versionRef(versions.mp3agic)
+
+            library("logback", "ch.qos.logback", "logback-classic").versionRef(versions.logback)
+            library("ktor.server.core", "io.ktor", "ktor-server-core").versionRef(versions.ktor)
+            library("ktor.server.netty", "io.ktor", "ktor-server-netty").versionRef(versions.ktor)
+            library("ktor.server.logging", "io.ktor", "ktor-server-call-logging").versionRef(versions.ktor)
+            library("ktor.client.core", "io.ktor", "ktor-client-core").versionRef(versions.ktor)
+            library("ktor.client.cio", "io.ktor", "ktor-client-cio").versionRef(versions.ktor)
+            library("ktor.client.logging", "io.ktor", "ktor-client-logging").versionRef(versions.ktor)
+            library("ktor.client.contentNegotiation", "io.ktor", "ktor-client-content-negotiation").versionRef(versions.ktor)
+            library("ktor.serialization", "io.ktor", "ktor-serialization-kotlinx-json").versionRef(versions.ktor)
 
             library("android.coreKtx", "androidx.core", "core-ktx").versionRef(versions.android.coreKtx)
             library("android.appcompat", "androidx.appcompat", "appcompat").versionRef(versions.android.appcompat)
