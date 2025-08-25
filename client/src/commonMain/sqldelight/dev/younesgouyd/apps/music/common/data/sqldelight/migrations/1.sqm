@@ -15,22 +15,32 @@ CREATE TABLE album (
     update_datetime INTEGER NOT NULL
 );
 
+CREATE TABLE media_file (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    source_type TEXT NOT NULL, -- on of: Local, Internet
+    domain_name TEXT,
+    creation_datetime INTEGER NOT NULL,
+    update_datetime INTEGER NOT NULL,
+    CHECK (
+        (source_type = 'Local'   AND domain_name IS NULL)
+     OR (source_type = 'Internet' AND domain_name IS NOT NULL AND domain_name != '')
+    )
+);
+
 CREATE TABLE track (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     folder_id INTEGER NOT NULL REFERENCES folder(id) ON UPDATE CASCADE ON DELETE CASCADE,
     album_id INTEGER REFERENCES album(id) ON UPDATE CASCADE ON DELETE SET NULL,
-    audio_uri TEXT,
-    video_uri TEXT,
+    audio_media_file_id INTEGER REFERENCES media_file(id) ON UPDATE CASCADE ON DELETE SET NULL,
+    video_media_file_id INTEGER REFERENCES media_file(id) ON UPDATE CASCADE ON DELETE SET NULL,
     lyrics TEXT,
     album_track_number INTEGER,
     duration INTEGER NOT NULL,
     creation_datetime INTEGER NOT NULL,
     update_datetime INTEGER NOT NULL,
-    CHECK (
-        (audio_uri IS NOT NULL AND audio_uri != '')
-        OR (video_uri IS NOT NULL AND video_uri != '')
-    )
+    CHECK (audio_media_file_id IS NOT NULL OR video_media_file_id IS NOT NULL)
 );
 
 CREATE TABLE artist (

@@ -18,7 +18,8 @@ import kotlinx.coroutines.sync.withLock
 
 class MediaController(
     private val mediaPlayer: MediaPlayer,
-    private val repoStore: RepoStore
+    private val repoStore: RepoStore,
+    private val appDir: String
 ) {
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
     private val mutex = Mutex()
@@ -527,7 +528,7 @@ class MediaController(
                             )
                         }
                     },
-                    uri = dbTrack.audio_uri,
+                    uri = "file://$appDir/media/${dbTrack.audio_media_file_id}",
                     duration = dbTrack.duration
                 )
             }
@@ -554,7 +555,7 @@ class MediaController(
                                 image = dbAlbum.image,
                                 releaseDate = dbAlbum.release_date
                             ),
-                            uri = dbTrack.audio_uri,
+                            uri = "file://$appDir/media/${dbTrack.audio_media_file_id}",
                             duration = dbTrack.duration
                         )
                     }
@@ -586,7 +587,7 @@ class MediaController(
                                     )
                                 }
                             },
-                            uri = dbTrack.audio_uri,
+                            uri = "file://$appDir/media/${dbTrack.audio_media_file_id}",
                             duration = dbTrack.duration
                         )
                     }

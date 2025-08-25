@@ -15,6 +15,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import dev.younesgouyd.apps.music.common.components.Main
 import dev.younesgouyd.apps.music.common.components.SplashScreen
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     private lateinit var _repoStore: RepoStore
@@ -35,8 +37,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val driver = AndroidSqliteDriver(schema = YounesMusic.Schema, context = this, "younesmusic.db")
-        driver.execute(null, "PRAGMA foreign_keys = ON;", 0)
+
+        val mediaFolder = File(filesDir, "media")
+        if (!mediaFolder.exists()) {
+            mediaFolder.mkdir()
+        }
+
+        val driver = getDbDriver() // TODO (executes db statements!)
         _repoStore = RepoStore(dbDriver = driver, dataDirectory = this.filesDir.path)
         currentComponent = MutableStateFlow(
             SplashScreen(repoStore = repoStore, showContent = ::showContent)
@@ -65,7 +72,8 @@ class MainActivity : ComponentActivity() {
                                 .buildAsync()
                                 .get()
                         }
-                    )
+                    ),
+                    appDir = filesDir.toString()
                 )
             }
         }
@@ -122,5 +130,12 @@ class MainActivity : ComponentActivity() {
         override fun release() {
             media3Controller.release()
         }
+    }
+
+    private fun getDbDriver(): SqlDriver {
+        val dbFileName = "younesmusic.db"
+        val driver = AndroidSqliteDriver(schema = YounesMusic.Schema, context = this, dbFileName)
+        driver.execute(null, "PRAGMA foreign_keys = ON;", 0)
+        return driver
     }
 }

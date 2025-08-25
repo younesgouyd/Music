@@ -23,7 +23,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import dev.younesgouyd.apps.music.common.ImportFolderUseCase
 import dev.younesgouyd.apps.music.common.components.util.AdaptiveUi
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.components.util.SystemFilePicker
@@ -31,6 +30,7 @@ import dev.younesgouyd.apps.music.common.components.util.widgets.*
 import dev.younesgouyd.apps.music.common.data.repoes.*
 import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Folder
 import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Playlist
+import dev.younesgouyd.apps.music.common.usecases.ImportFolderUseCase
 import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -41,24 +41,27 @@ import kotlinx.coroutines.launch
 import tracks:
     - importing:
         - from system file picker:
-            - a new top-level folder is created with the name "<unique_sequential_number>_<datetime_formatted>_imported_from_system_file_picker".
+            - a new top-level folder is created with the name "<unix_time>_imported_from_system_file_picker".
             - for each item:
-                - copy the file into the app's directory with the name "<unique_sequential_number>_local_<original_file_name>", discarding the extension.
-                - create a track referencing the file.
+                - add a MediaFile record representing the media file
+                - copy the file into the app's directory with the name "<media_file_id>".
+                - create a track referencing the copied file.
                 - set the track's properties (title, artist, album...) from the referenced file's metadata.
                 - place the track in the newly created folder by matching the referenced file's original system file path.
         - from urls:
             - if the url corresponds to a single item:
-                - a new top-level folder is created with the name "<unique_sequential_number>_<datetime_formatted>_imported_from_<url_domain_name>_single_item".
-                - copy the file into the app's directory with the name "<unique_sequential_number>_<url_domain_name>_<original_file_name>", discarding the extension.
-                - create a track referencing the file.
+                - a new top-level folder is created with the name "<unix_time>_imported_from_<url_domain_name>_single_item".
+                - add a MediaFile record representing the media file
+                - copy the file into the app's directory with the name "<media_file_id>".
+                - create a track referencing the copied file.
                 - set the track's properties (title, artist, album...) from the referenced file's metadata.
                 - place the track in the newly created folder.
             - if the url corresponds to a list of items:
-                - a new top-level folder is created with the name "<unique_sequential_number>_<datetime_formatted>_imported_from_<url_domain_name>_playlist".
+                - a new top-level folder is created with the name "<unix_time>_imported_from_<url_domain_name>_playlist".
                 - for each item:
-                    - copy the file into the app's directory with the name "<unique_sequential_number>_<url_domain_name>_<original_file_name>", discarding the extension.
-                    - create a track referencing the file.
+                    - add a MediaFile record representing the media file
+                    - copy the file into the app's directory with the name "<media_file_id>".
+                    - create a track referencing the copied file.
                     - set the track's properties (title, artist, album...) from the referenced file's metadata.
                     - place the track in the newly created folder.
  */
@@ -160,8 +163,6 @@ class Library(
                         Models.Track(
                             id = dbTrack.id,
                             name = dbTrack.name,
-                            audioUri = dbTrack.audio_uri,
-                            videoUrl = dbTrack.video_uri,
                             artists = artistRepo.getTrackArtistsStatic(dbTrack.id).map {
                                 Models.Track.Artist(id = it.id, name = it.name)
                             },
@@ -181,9 +182,14 @@ class Library(
 
     @Composable
     override fun show(modifier: Modifier) {
-        var showSystemFilePicker: Boolean by remember { mutableStateOf(false) }
-        if (showSystemFilePicker) {
-            SystemFilePicker(::importFolder)
+        var showImportTypeDialog by remember { mutableStateOf(false) }
+        fun dismiss() { showImportTypeDialog = false }
+        if (showImportTypeDialog) {
+            Ui.Common.importFormDialog(
+                onFolderPicked = { dismiss(); importFolder(it) },
+                onUrlEntered = { dismiss(); importUrl(it) },
+                onDismiss = { showImportTypeDialog = false }
+            )
         }
 
         AdaptiveUi(
@@ -198,7 +204,7 @@ class Library(
                     tracks = tracks,
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible,
                     addToPlaylist = addToPlaylist.asStateFlow(),
-                    onImportFolderClick = { showSystemFilePicker = true },
+                    onImportFolderClick = { showImportTypeDialog = true },
                     onNewFolder = {
                         coroutineScope.launch {
                             folderRepo.add(
@@ -207,7 +213,6 @@ class Library(
                             )
                         }
                     },
-                    onNewTrack = ::addTrack,
                     onFolderClick = { currentFolder.value = it },
                     onAddFolderToPlaylistClick = ::showAddFolderToPlaylistDialog,
                     onAddFolderToQueueClick = ::addFolderToQueue,
@@ -217,11 +222,7 @@ class Library(
                     onAddPlaylistToPlaylistClick = ::showAddPlaylistToPlaylistDialog,
                     onAddPlaylistToQueueClick = {
                         mediaController.addToQueue(
-                            listOf(
-                                MediaController.QueueItemParameter.Playlist(
-                                    it
-                                )
-                            )
+                            listOf(MediaController.QueueItemParameter.Playlist(it))
                         )
                     },
                     onTrackClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
@@ -294,7 +295,7 @@ class Library(
                     tracks = tracks,
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible,
                     addToPlaylist = addToPlaylist.asStateFlow(),
-                    onImportFolderClick = { showSystemFilePicker = true },
+                    onImportFolderClick = { showImportTypeDialog = true },
                     onNewFolder = {
                         coroutineScope.launch {
                             folderRepo.add(
@@ -303,7 +304,6 @@ class Library(
                             )
                         }
                     },
-                    onNewTrack = ::addTrack,
                     onFolderClick = { currentFolder.value = it },
                     onAddFolderToPlaylistClick = ::showAddFolderToPlaylistDialog,
                     onAddFolderToQueueClick = ::addFolderToQueue,
@@ -313,11 +313,7 @@ class Library(
                     onAddPlaylistToPlaylistClick = ::showAddPlaylistToPlaylistDialog,
                     onAddPlaylistToQueueClick = {
                         mediaController.addToQueue(
-                            listOf(
-                                MediaController.QueueItemParameter.Playlist(
-                                    it
-                                )
-                            )
+                            listOf(MediaController.QueueItemParameter.Playlist(it))
                         )
                     },
                     onTrackClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
@@ -392,19 +388,8 @@ class Library(
         }
     }
 
-    private fun addTrack(name: String, audioUri: String?, videoUrl: String?, duration: Long) {
-        coroutineScope.launch {
-            trackRepo.add(
-                name = name,
-                folderId = currentFolder.value!!.id,
-                albumId = null,
-                audioUri = audioUri,
-                videoUrl = videoUrl,
-                lyrics = null,
-                albumTrackNumber = null,
-                duration = duration
-            )
-        }
+    private fun importUrl(url: String) {
+        TODO()
     }
 
     private fun playFolder(folderId: Long) {
@@ -452,7 +437,7 @@ class Library(
     private fun showAddFolderToPlaylistDialog(folderId: Long) {
         addToPlaylist.update {
             AddToPlaylist(
-                itemToAdd = dev.younesgouyd.apps.music.common.components.AddToPlaylist.Item.Folder(folderId),
+                itemToAdd = AddToPlaylist.Item.Folder(folderId),
                 playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
                 trackRepo = trackRepo,
                 albumRepo = albumRepo,
@@ -492,8 +477,6 @@ class Library(
         data class Track(
             val id: Long,
             val name: String,
-            val audioUri: String?,
-            val videoUrl: String?,
             val artists: List<Artist>,
             val album: Album?
         ) {
@@ -511,6 +494,84 @@ class Library(
     }
 
     private object Ui {
+        object Common {
+            @Composable
+            fun importFormDialog(
+                onFolderPicked: (uri: String) -> Unit,
+                onUrlEntered: (url: String) -> Unit,
+                onDismiss: () -> Unit
+            ) {
+                var showSystemFilePicker: Boolean by remember { mutableStateOf(false) }
+                val (url, setUrl) = remember { mutableStateOf("") }
+
+                Dialog(onDismissRequest = onDismiss ) {
+                    Surface(
+                        modifier = Modifier.width(500.dp),
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text("Select source type")
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.surfaceContainer
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text("Import from local folder")
+                                    Button(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        onClick = { showSystemFilePicker = true },
+                                        content = { Text("Open System File Picker") }
+                                    )
+                                }
+                            }
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.surfaceContainer
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text("Import from a url")
+                                    OutlinedTextField(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        label = { Text("Enter the URL of a song or a playlist") },
+                                        value = url,
+                                        onValueChange = setUrl
+                                    )
+                                    Button(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        onClick = {
+                                            if (url.isBlank()) {
+                                                TODO()
+                                            } else {
+                                                onUrlEntered(url)
+                                            }
+                                        },
+                                        content = { Text("Import from URL") }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                if (showSystemFilePicker) {
+                    SystemFilePicker(onFolderPicked)
+                }
+            }
+        }
         object Wide {
             @Composable
             fun Main(
@@ -525,7 +586,6 @@ class Library(
                 onNewFolder: (name: String) -> Unit,
                 addToPlaylistDialogVisible: StateFlow<Boolean>,
                 addToPlaylist: StateFlow<AddToPlaylist?>,
-                onNewTrack: (name: String, audioUrl: String?, videoUrl: String?, duration: Long) -> Unit,
                 onFolderClick: (Folder?) -> Unit,
                 onAddFolderToPlaylistClick: (id: Long) -> Unit,
                 onAddFolderToQueueClick: (id: Long) -> Unit,
@@ -577,8 +637,7 @@ class Library(
                                 path = path.mapNotNull { it.folder },
                                 onFolderClick = onFolderClick,
                                 onImportFolderClick = onImportFolderClick,
-                                onNewFolder = onNewFolder,
-                                onNewTrack = onNewTrack
+                                onNewFolder = onNewFolder
                             )
                             Box(modifier = Modifier) {
                                 LazyVerticalGrid(
@@ -661,13 +720,11 @@ class Library(
                 path: List<Folder>,
                 onFolderClick: (Folder?) -> Unit,
                 onImportFolderClick: () -> Unit,
-                onNewFolder: (name: String) -> Unit,
-                onNewTrack: (name: String, audioUrl: String?, videoUrl: String?, duration: Long) -> Unit
+                onNewFolder: (name: String) -> Unit
             ) {
                 val currentFolder by currentFolder.collectAsState()
                 val pathLazyListState = rememberLazyListState()
                 var newFolderFormVisible by remember { mutableStateOf(false) }
-                var newTrackFormVisible by remember { mutableStateOf(false) }
 
                 Row(
                     modifier = modifier,
@@ -736,20 +793,16 @@ class Library(
                             horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(
-                                onClick = onImportFolderClick,
-                                content = { Icon(Icons.Default.ImportExport, null) }
-                            )
+                            if (currentFolder == null) {
+                                IconButton(
+                                    onClick = onImportFolderClick,
+                                    content = { Icon(Icons.Default.ImportExport, null) }
+                                )
+                            }
                             IconButton(
                                 onClick = { newFolderFormVisible = true },
                                 content = { Icon(Icons.Default.CreateNewFolder, null) }
                             )
-                            if (currentFolder != null) {
-                                IconButton(
-                                    onClick = { newTrackFormVisible = true },
-                                    content = { Icon(Icons.Default.Audiotrack, null) }
-                                )
-                            }
                         }
                     }
                 }
@@ -759,17 +812,6 @@ class Library(
                         title = "New folder",
                         onDone = { onNewFolder(it); newFolderFormVisible = false },
                         onDismiss = { newFolderFormVisible = false }
-                    )
-                }
-
-                if (newTrackFormVisible) {
-                    TrackForm(
-                        title = "New Track",
-                        onDone = { name: String, audioUrl: String?, videoUrl: String?, duration: Long ->
-                            onNewTrack(name, audioUrl, videoUrl, duration)
-                            newTrackFormVisible = false
-                        },
-                        onDismiss = { newTrackFormVisible = false }
                     )
                 }
 
@@ -1297,104 +1339,6 @@ class Library(
                     }
                 }
             }
-
-            @Composable
-            private fun TrackForm(
-                title: String,
-                name: String = "",
-                onDone: (name: String, audioUrl: String?, videoUrl: String?, duration: Long) -> Unit,
-                onDismiss: () -> Unit
-            ) {
-                var name by remember { mutableStateOf(name) }
-                var audioUrl: String? by remember { mutableStateOf(null) }
-                var videoUrl: String? by remember { mutableStateOf(null) }
-                var duration: String? by remember { mutableStateOf(null) }
-                var durationError: Boolean? by remember { mutableStateOf(null) }
-
-                fun getFilePathFromSystemFilePicker(): String? {
-                    TODO()
-//                val fileDialog = FileDialog(null as Frame?, "Choose a file", FileDialog.LOAD)
-//                fileDialog.isVisible = true
-//                return fileDialog.file?.let { fileDialog.directory + it }
-                }
-
-                Dialog(onDismissRequest = onDismiss) {
-                    Surface(
-                        modifier = Modifier.width(500.dp),
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.background
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                                text = title,
-                                style = MaterialTheme.typography.headlineMedium,
-                                textAlign = TextAlign.Center
-                            )
-                            OutlinedTextField(
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Name") },
-                                value = name,
-                                onValueChange = { name = it },
-                                singleLine = true
-                            )
-                            OutlinedTextField(
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Audio File Path") },
-                                value = audioUrl ?: "",
-                                readOnly = true,
-                                onValueChange = {},
-                                singleLine = true,
-                                trailingIcon = {
-                                    IconButton(
-                                        content = { Icon(Icons.Default.AudioFile, null) },
-                                        onClick = { audioUrl = getFilePathFromSystemFilePicker() }
-                                    )
-                                }
-                            )
-                            OutlinedTextField(
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Video File Path") },
-                                value = videoUrl ?: "",
-                                readOnly = true,
-                                onValueChange = {},
-                                singleLine = true,
-                                trailingIcon = {
-                                    IconButton(
-                                        content = { Icon(Icons.Default.VideoFile, null) },
-                                        onClick = { videoUrl = getFilePathFromSystemFilePicker() }
-                                    )
-                                }
-                            )
-                            OutlinedTextField(
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Duration (in millis)") },
-                                value = duration ?: "",
-                                onValueChange = { duration = it },
-                                singleLine = true,
-                                isError = durationError ?: false,
-                                supportingText = if (durationError == true) { @Composable { Text("This field is required") } } else null
-                            )
-                            Button(
-                                content = { Text("Done") },
-                                modifier = Modifier.fillMaxWidth(),
-                                onClick = {
-                                    val dur = duration
-                                    if (dur == null) {
-                                        durationError = true
-                                    } else {
-                                        onDone(name, audioUrl, videoUrl, dur.toLong())
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-            }
         }
 
         object Compact {
@@ -1411,7 +1355,6 @@ class Library(
                 onNewFolder: (name: String) -> Unit,
                 addToPlaylistDialogVisible: StateFlow<Boolean>,
                 addToPlaylist: StateFlow<AddToPlaylist?>,
-                onNewTrack: (name: String, audioUrl: String?, videoUrl: String?, duration: Long) -> Unit,
                 onFolderClick: (Folder?) -> Unit,
                 onAddFolderToPlaylistClick: (id: Long) -> Unit,
                 onAddFolderToQueueClick: (id: Long) -> Unit,
@@ -1463,8 +1406,7 @@ class Library(
                                 path = path.mapNotNull { it.folder },
                                 onFolderClick = onFolderClick,
                                 onImportFolderClick = onImportFolderClick,
-                                onNewFolder = onNewFolder,
-                                onNewTrack = onNewTrack
+                                onNewFolder = onNewFolder
                             )
                             LazyVerticalGrid(
                                 modifier = Modifier.fillMaxSize().padding(12.dp),
@@ -1546,12 +1488,10 @@ class Library(
                 onFolderClick: (Folder?) -> Unit,
                 onImportFolderClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
-                onNewTrack: (name: String, audioUrl: String?, videoUrl: String?, duration: Long) -> Unit
             ) {
                 val currentFolder by currentFolder.collectAsState()
                 val pathLazyListState = rememberLazyListState()
                 var newFolderFormVisible by remember { mutableStateOf(false) }
-                var newTrackFormVisible by remember { mutableStateOf(false) }
 
                 Column(
                     modifier = modifier,
@@ -1625,20 +1565,16 @@ class Library(
                                 horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(
-                                    onClick = onImportFolderClick,
-                                    content = { Icon(Icons.Default.ImportExport, null) }
-                                )
+                                if (currentFolder == null) {
+                                    IconButton(
+                                        onClick = onImportFolderClick,
+                                        content = { Icon(Icons.Default.ImportExport, null) }
+                                    )
+                                }
                                 IconButton(
                                     onClick = { newFolderFormVisible = true },
                                     content = { Icon(Icons.Default.CreateNewFolder, null) }
                                 )
-                                if (currentFolder != null) {
-                                    IconButton(
-                                        onClick = { newTrackFormVisible = true },
-                                        content = { Icon(Icons.Default.Audiotrack, null) }
-                                    )
-                                }
                             }
                         }
                     }
@@ -1649,17 +1585,6 @@ class Library(
                         title = "New folder",
                         onDone = { onNewFolder(it); newFolderFormVisible = false },
                         onDismiss = { newFolderFormVisible = false }
-                    )
-                }
-
-                if (newTrackFormVisible) {
-                    TrackForm(
-                        title = "New Track",
-                        onDone = { name: String, audioUrl: String?, videoUrl: String?, duration: Long ->
-                            onNewTrack(name, audioUrl, videoUrl, duration)
-                            newTrackFormVisible = false
-                        },
-                        onDismiss = { newTrackFormVisible = false }
                     )
                 }
 
@@ -2145,104 +2070,6 @@ class Library(
                                 content = { Text("Done") },
                                 modifier = Modifier.fillMaxWidth(),
                                 onClick = { onDone(name) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            @Composable
-            private fun TrackForm(
-                title: String,
-                name: String = "",
-                onDone: (name: String, audioUrl: String?, videoUrl: String?, duration: Long) -> Unit,
-                onDismiss: () -> Unit
-            ) {
-                var name by remember { mutableStateOf(name) }
-                var audioUrl: String? by remember { mutableStateOf(null) }
-                var videoUrl: String? by remember { mutableStateOf(null) }
-                var duration: String? by remember { mutableStateOf(null) }
-                var durationError: Boolean? by remember { mutableStateOf(null) }
-
-                fun getFilePathFromSystemFilePicker(): String? {
-                    TODO()
-//                val fileDialog = FileDialog(null as Frame?, "Choose a file", FileDialog.LOAD)
-//                fileDialog.isVisible = true
-//                return fileDialog.file?.let { fileDialog.directory + it }
-                }
-
-                Dialog(onDismissRequest = onDismiss) {
-                    Surface(
-                        modifier = Modifier.width(500.dp),
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.background
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                                text = title,
-                                style = MaterialTheme.typography.headlineMedium,
-                                textAlign = TextAlign.Center
-                            )
-                            OutlinedTextField(
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Name") },
-                                value = name,
-                                onValueChange = { name = it },
-                                singleLine = true
-                            )
-                            OutlinedTextField(
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Audio File Path") },
-                                value = audioUrl ?: "",
-                                readOnly = true,
-                                onValueChange = {},
-                                singleLine = true,
-                                trailingIcon = {
-                                    IconButton(
-                                        content = { Icon(Icons.Default.AudioFile, null) },
-                                        onClick = { audioUrl = getFilePathFromSystemFilePicker() }
-                                    )
-                                }
-                            )
-                            OutlinedTextField(
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Video File Path") },
-                                value = videoUrl ?: "",
-                                readOnly = true,
-                                onValueChange = {},
-                                singleLine = true,
-                                trailingIcon = {
-                                    IconButton(
-                                        content = { Icon(Icons.Default.VideoFile, null) },
-                                        onClick = { videoUrl = getFilePathFromSystemFilePicker() }
-                                    )
-                                }
-                            )
-                            OutlinedTextField(
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Duration (in millis)") },
-                                value = duration ?: "",
-                                onValueChange = { duration = it },
-                                singleLine = true,
-                                isError = durationError ?: false,
-                                supportingText = if (durationError == true) { { Text("This field is required") } } else null
-                            )
-                            Button(
-                                content = { Text("Done") },
-                                modifier = Modifier.fillMaxWidth(),
-                                onClick = {
-                                    val dur = duration
-                                    if (dur == null) {
-                                        durationError = true
-                                    } else {
-                                        onDone(name, audioUrl, videoUrl, dur.toLong())
-                                    }
-                                }
                             )
                         }
                     }

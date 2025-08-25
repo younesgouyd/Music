@@ -29,7 +29,7 @@ class TrackRepo(private val queries: TrackQueries) {
         }
     }
 
-    suspend fun add(name: String, folderId: Long, albumId: Long?, audioUri: String?, videoUrl: String?, lyrics: String?, albumTrackNumber: Long?, duration: Long): Long {
+    suspend fun add(name: String, folderId: Long, albumId: Long?, audioMediaFileId: Long?, videoMediaFileId: Long?, lyrics: String?, albumTrackNumber: Long?, duration: Long): Long {
         require(name.isNotEmpty())
         return withContext(Dispatchers.IO) {
             val currentTime = System.currentTimeMillis()
@@ -37,8 +37,8 @@ class TrackRepo(private val queries: TrackQueries) {
                 name = name,
                 folder_id = folderId,
                 album_id = albumId,
-                audio_uri = audioUri,
-                video_uri = videoUrl,
+                audio_media_file_id = audioMediaFileId,
+                video_media_file_id = videoMediaFileId,
                 lyrics = lyrics,
                 album_track_number = albumTrackNumber,
                 duration = duration,
@@ -67,15 +67,15 @@ class TrackRepo(private val queries: TrackQueries) {
         }
     }
 
-    suspend fun updateAudioUri(id: Long, audioUri: String?) {
+    suspend fun updateAudioMediaFileId(id: Long, audioMediaFileId: Long?) {
         withContext(Dispatchers.IO) {
-            queries.updateAudioUri(audioUri, System.currentTimeMillis(), id)
+            queries.updateAudioMediaFileId(audioMediaFileId, System.currentTimeMillis(), id)
         }
     }
 
-    suspend fun updateVideoUri(id: Long, videoUrl: String?) {
+    suspend fun updateVideoMediaFileId(id: Long, videoMediaFileId: Long?) {
         withContext(Dispatchers.IO) {
-            queries.updateVideoUri(videoUrl, System.currentTimeMillis(), id)
+            queries.updateVideoMediaFileId(videoMediaFileId, System.currentTimeMillis(), id)
         }
     }
 

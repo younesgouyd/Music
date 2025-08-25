@@ -1,4 +1,4 @@
-package dev.younesgouyd.apps.music.common
+package dev.younesgouyd.apps.music.common.usecases
 
 import dev.younesgouyd.apps.music.common.data.RepoStore
 

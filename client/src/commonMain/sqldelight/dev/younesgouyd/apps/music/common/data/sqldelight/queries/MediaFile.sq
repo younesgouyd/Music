@@ -1,0 +1,10 @@
+get:
+SELECT * FROM media_file WHERE id = :id;
+
+add:
+INSERT INTO media_file (name, source_type, domain_name, creation_datetime, update_datetime)
+VALUES (:name, :source_type, :domain_name, :creation_datetime, :update_datetime)
+RETURNING id;
+
+delete:
+DELETE FROM artist WHERE id = :id;

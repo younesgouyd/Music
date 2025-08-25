@@ -1,4 +1,4 @@
-package dev.younesgouyd.apps.music.common
+package dev.younesgouyd.apps.music.common.usecases
 
 import android.content.Context
 import android.net.Uri
@@ -6,6 +6,9 @@ import android.provider.DocumentsContract
 import androidx.core.net.toUri
 import dev.younesgouyd.apps.music.android.Music
 import dev.younesgouyd.apps.music.common.data.RepoStore
+import dev.younesgouyd.apps.music.common.data.repoes.MediaFileRepo
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 actual class ImportFolderUseCase actual constructor(
@@ -13,15 +16,28 @@ actual class ImportFolderUseCase actual constructor(
     actual val saveMp3FileAsTrackUseCase: SaveMp3FileAsTrackUseCase
 ) {
     private val folderRepo get() = repoStore.folderRepo
+    private val mediaFileRepo get() = repoStore.mediaFileRepo
 
     actual suspend fun execute(uri: String) {
-        importFolder(uri.toUri())
+        withContext(Dispatchers.IO) {
+            importFolder(uri.toUri())
+        }
     }
 
     private suspend fun importFolder(uri: Uri) {
         fun getFileName(uri: Uri): String = uri.lastPathSegment?.substringAfterLast('/') ?: TODO()
-
         val context: Context = Music.instance.applicationContext
+        fun Uri.isHiddenFolder(): Boolean {
+            val projection = arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+            context.contentResolver.query(this, projection, null, null, null).use { cursor ->
+                if (cursor != null && cursor.moveToFirst()) {
+                    val name = cursor.getString(0)
+                    return name.startsWith(".")
+                }
+            }
+            return false
+        }
+
 
         suspend fun importFolder(folderUri: Uri, parent: Long?) {
             val folderName = getFileName(folderUri)
@@ -50,22 +66,22 @@ actual class ImportFolderUseCase actual constructor(
                     if (childDocumentId == folderDocumentId) continue
                     val childUri = DocumentsContract.buildDocumentUriUsingTree(folderUri, childDocumentId)
                     if (mimeType == DocumentsContract.Document.MIME_TYPE_DIR) {
-                        importFolder(childUri, parentId)
-                    } else if (mimeType == "audio/mpeg") {
-                        contentResolver.openInputStream(childUri)?.use { inputStream ->
-                            val tempFile = File.createTempFile(getFileName(childUri), ".mp3", context.cacheDir)
-                            tempFile.outputStream().use { output -> inputStream.copyTo(output) }
-                            try {
-                                saveMp3FileAsTrackUseCase.execute(tempFile, childUri.toString(), parentId)
-                            } finally {
-                                tempFile.delete()
-                            }
+                        if (!childUri.isHiddenFolder()) {
+                            importFolder(childUri, parentId)
                         }
+                    } else if (mimeType == "audio/mpeg") {
+                        val mediaFileId = mediaFileRepo.add(name = getFileName(childUri), sourceType = MediaFileRepo.SourceType.Local, domainName = null)
+                        val internalFile = File(context.filesDir, "media/$mediaFileId")
+                        internalFile.createNewFile().also { if (!it) { TODO() } }
+                        contentResolver.openInputStream(childUri)?.use { input ->
+                            internalFile.outputStream().use { output -> input.copyTo(output) }
+                        }
+                        saveMp3FileAsTrackUseCase.execute(internalFile, mediaFileId, parentId)
                     }
                 }
             }
         }
-
-        importFolder(uri, null)
+        val rootId: Long = folderRepo.add("${System.currentTimeMillis()}_imported_from_system_file_picker", null)
+        importFolder(uri, rootId)
     }
 }

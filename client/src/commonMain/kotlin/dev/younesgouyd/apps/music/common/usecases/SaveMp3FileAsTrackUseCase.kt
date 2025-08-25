@@ -1,4 +1,4 @@
-package dev.younesgouyd.apps.music.common
+package dev.younesgouyd.apps.music.common.usecases
 
 import com.mpatric.mp3agic.Mp3File
 import dev.younesgouyd.apps.music.common.data.RepoStore
@@ -12,7 +12,7 @@ class SaveMp3FileAsTrackUseCase(
     private val albumRepo get() = repoStore.albumRepo
     private val artistTrackCrossRefRepo get() = repoStore.artistTrackCrossRefRepo
 
-    suspend fun execute(file: File, uri: String, parentFolderId: Long) {
+    suspend fun execute(file: File, audioMediaFileId: Long, parentFolderId: Long) {
         val mp3file = Mp3File(file)
         var title: String? = null
         var albumTrackNumber: Long? = null
@@ -61,8 +61,8 @@ class SaveMp3FileAsTrackUseCase(
             name = if (!title.isNullOrEmpty()) title else file.name,
             folderId = parentFolderId,
             albumId = albumId,
-            audioUri = uri,
-            videoUrl = null,
+            audioMediaFileId = audioMediaFileId,
+            videoMediaFileId = null,
             lyrics = lyrics,
             albumTrackNumber = albumTrackNumber,
             duration = mp3file.lengthInMilliseconds

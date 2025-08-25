@@ -14,10 +14,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.common.ImportFolderUseCase
-import dev.younesgouyd.apps.music.common.SaveMp3FileAsTrackUseCase
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.data.RepoStore
+import dev.younesgouyd.apps.music.common.usecases.ImportFolderUseCase
+import dev.younesgouyd.apps.music.common.usecases.SaveMp3FileAsTrackUseCase
 import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow

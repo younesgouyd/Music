@@ -62,7 +62,7 @@ object Application {
     private fun showContent() {
         currentComponent.update {
             it.clear()
-            Main(repoStore = repoStore, mediaPlayer = MediaPlayer())
+            Main(repoStore = repoStore, mediaPlayer = MediaPlayer(), appDir = File("").absolutePath)
         }
     }
 

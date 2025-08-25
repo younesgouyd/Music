@@ -87,4 +87,31 @@ object Application {
             process.inputStream.bufferedReader().use { it.readText() }
         }
     }
+
+    private object Models {
+        // returns
+        // {
+        //    "result_id": "",
+        //    "type": "", // one of: single, list,
+        //    "items": [
+        //        {
+        //            "name": "",
+        //            "thumbnail": "" // base64 of the image
+        //        }
+        //    ]
+        // }
+        data class DownloadResponse(
+            val resultId: Int,
+            val domainName: String,
+            val type: Type,
+            val items: List<Item>
+        ) {
+            enum class Type { Single, List }
+
+            data class Item(
+                val name: String,
+                val thumbnail: String
+            )
+        }
+    }
 }
