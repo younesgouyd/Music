@@ -1,28 +1,31 @@
 package dev.younesgouyd.apps.music.common.components.util.widgets
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
-// todo - currently we can't add margin because the modifier is passed to the inner Box.
-//        this decision was made to control content padding, and content Alignment when Card's size is greater
-//        than its content.
 @Composable
 fun Item(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     contentAlignment: Alignment = Alignment.Center,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
     content: @Composable () -> Unit
 ) {
     if (onClick != null) {
         Card(
+            modifier = modifier,
             content = {
                 Box(
-                    modifier = modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize()
+                        .padding(contentPadding),
                     contentAlignment = contentAlignment,
                     content = { content() }
                 )
@@ -33,9 +36,11 @@ fun Item(
         )
     } else {
         Card(
+            modifier = modifier,
             content = {
                 Box(
-                    modifier = modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize()
+                        .padding(contentPadding),
                     contentAlignment = contentAlignment,
                     content = { content() }
                 )

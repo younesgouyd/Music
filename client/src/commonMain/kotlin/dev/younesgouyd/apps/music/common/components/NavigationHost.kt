@@ -16,8 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.data.RepoStore
-import dev.younesgouyd.apps.music.common.usecases.ImportFolderUseCase
-import dev.younesgouyd.apps.music.common.usecases.SaveMp3FileAsTrackUseCase
 import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,13 +26,15 @@ import kotlinx.coroutines.launch
 import java.util.*
 
 class NavigationHost(
+    private val toggleDrawerState: suspend () -> Unit,
     repoStore: RepoStore,
     mediaController: MediaController,
     startDestination: Destination,
-    private val toggleDrawerState: suspend () -> Unit
+    onImportFolder: (uri: String) -> Unit,
+    onImportUrl: (uri: String) -> Unit
 ) : Component() {
     override val title: String = ""
-    private val navController: NavigationController = NavigationController(repoStore, mediaController, startDestination)
+    private val navController: NavigationController = NavigationController(repoStore, mediaController, onImportFolder, onImportUrl, startDestination)
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
@@ -105,6 +105,8 @@ class NavigationHost(
     private class NavigationController(
         private val repoStore: RepoStore,
         private val mediaController: MediaController,
+        private val onImportFolder: (uri: String) -> Unit,
+        private val onImportUrl: (uri: String) -> Unit,
         startDestination: Destination
     ) {
         val inHome: StateFlow<Boolean>
@@ -183,7 +185,8 @@ class NavigationHost(
                         mediaController = mediaController,
                         showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
-                        importFolderUseCase = ImportFolderUseCase(repoStore, SaveMp3FileAsTrackUseCase(repoStore))
+                        onImportFolder = onImportFolder,
+                        onImportUrl = onImportUrl
                     )
                     is Destination.AlbumDetails -> AlbumDetails(
                         id = destination.albumId,

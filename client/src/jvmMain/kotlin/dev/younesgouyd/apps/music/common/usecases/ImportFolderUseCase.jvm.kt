@@ -1,7 +1,7 @@
 package dev.younesgouyd.apps.music.common.usecases
 
 import dev.younesgouyd.apps.music.common.data.RepoStore
-import dev.younesgouyd.apps.music.common.data.repoes.MediaFileRepo
+import dev.younesgouyd.apps.music.common.util.ImportSourceType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -33,7 +33,7 @@ actual class ImportFolderUseCase actual constructor(
                         importFolder(file, parent)
                     }
                 } else if (file.extension.lowercase() == "mp3") {
-                    val mediaFileId = mediaFileRepo.add(name = file.name, sourceType = MediaFileRepo.SourceType.Local, domainName = null)
+                    val mediaFileId = mediaFileRepo.add(name = file.name, importSourceType = ImportSourceType.Local, domainName = null)
                     val internalFile = File("./media/$mediaFileId")
                     file.copyTo(internalFile)
                     saveMp3FileAsTrackUseCase.execute(internalFile, mediaFileId, parent)

@@ -6,7 +6,7 @@ import android.provider.DocumentsContract
 import androidx.core.net.toUri
 import dev.younesgouyd.apps.music.android.Music
 import dev.younesgouyd.apps.music.common.data.RepoStore
-import dev.younesgouyd.apps.music.common.data.repoes.MediaFileRepo
+import dev.younesgouyd.apps.music.common.util.ImportSourceType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -70,7 +70,7 @@ actual class ImportFolderUseCase actual constructor(
                             importFolder(childUri, parentId)
                         }
                     } else if (mimeType == "audio/mpeg") {
-                        val mediaFileId = mediaFileRepo.add(name = getFileName(childUri), sourceType = MediaFileRepo.SourceType.Local, domainName = null)
+                        val mediaFileId = mediaFileRepo.add(name = getFileName(childUri), importSourceType = ImportSourceType.Local, domainName = null)
                         val internalFile = File(context.filesDir, "media/$mediaFileId")
                         internalFile.createNewFile().also { if (!it) { TODO() } }
                         contentResolver.openInputStream(childUri)?.use { input ->

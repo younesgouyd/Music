@@ -18,14 +18,10 @@ CREATE TABLE album (
 CREATE TABLE media_file (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    source_type TEXT NOT NULL, -- on of: Local, Internet
+    source_type TEXT NOT NULL,
     domain_name TEXT,
     creation_datetime INTEGER NOT NULL,
-    update_datetime INTEGER NOT NULL,
-    CHECK (
-        (source_type = 'Local'   AND domain_name IS NULL)
-     OR (source_type = 'Internet' AND domain_name IS NOT NULL AND domain_name != '')
-    )
+    update_datetime INTEGER NOT NULL
 );
 
 CREATE TABLE track (
@@ -75,4 +71,14 @@ CREATE TABLE playlist_track_cross_ref (
     creation_datetime INTEGER NOT NULL,
     update_datetime INTEGER NOT NULL,
     UNIQUE (playlist_id, track_id)
+);
+
+CREATE TABLE import_session (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    uri TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    domain_name TEXT,
+    state TEXT NOT NULL,
+    creation_datetime INTEGER NOT NULL,
+    update_datetime INTEGER NOT NULL
 );

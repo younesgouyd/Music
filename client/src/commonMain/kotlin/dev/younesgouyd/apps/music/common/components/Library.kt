@@ -30,7 +30,6 @@ import dev.younesgouyd.apps.music.common.components.util.widgets.*
 import dev.younesgouyd.apps.music.common.data.repoes.*
 import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Folder
 import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Playlist
-import dev.younesgouyd.apps.music.common.usecases.ImportFolderUseCase
 import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -77,7 +76,8 @@ class Library(
     private val mediaController: MediaController,
     private val showPlaylist: (id: Long) -> Unit,
     private val showArtistDetails: (id: Long) -> Unit,
-    private val importFolderUseCase: ImportFolderUseCase
+    private val onImportFolder: (uri: String) -> Unit,
+    private val onImportUrl: (uri: String) -> Unit
 ) : Component() {
     override val title: String = "Library"
     private val currentFolder: MutableStateFlow<Folder?> = MutableStateFlow(null)
@@ -186,8 +186,8 @@ class Library(
         fun dismiss() { showImportTypeDialog = false }
         if (showImportTypeDialog) {
             Ui.Common.importFormDialog(
-                onFolderPicked = { dismiss(); importFolder(it) },
-                onUrlEntered = { dismiss(); importUrl(it) },
+                onFolderPicked = { dismiss(); onImportFolder(it) },
+                onUrlEntered = { dismiss(); onImportUrl(it) },
                 onDismiss = { showImportTypeDialog = false }
             )
         }
@@ -380,16 +380,6 @@ class Library(
 
     override fun clear() {
         coroutineScope.cancel()
-    }
-
-    private fun importFolder(uri: String) {
-        coroutineScope.launch {
-            importFolderUseCase.execute(uri)
-        }
-    }
-
-    private fun importUrl(url: String) {
-        TODO()
     }
 
     private fun playFolder(folderId: Long) {

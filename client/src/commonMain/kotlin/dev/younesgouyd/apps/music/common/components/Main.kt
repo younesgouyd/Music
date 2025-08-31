@@ -9,14 +9,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.common.components.NavigationHost.Destination
 import dev.younesgouyd.apps.music.common.components.util.AdaptiveUi
+import dev.younesgouyd.apps.music.common.components.util.ImportService
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.data.RepoStore
+import dev.younesgouyd.apps.music.common.usecases.ImportFolderUseCase
+import dev.younesgouyd.apps.music.common.usecases.SaveMp3FileAsTrackUseCase
 import dev.younesgouyd.apps.music.common.util.Component
 import dev.younesgouyd.apps.music.common.util.DarkThemeOptions
+import dev.younesgouyd.apps.music.common.util.ImportSessionState
+import dev.younesgouyd.apps.music.common.util.ImportSourceType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 class Main(
     private val repoStore: RepoStore,
@@ -31,52 +39,59 @@ class Main(
     )
 
     private val mediaController = MediaController(mediaPlayer = mediaPlayer, repoStore = repoStore, appDir = appDir)
+    private val importService = ImportService(repoStore.importSessionRepo, ImportFolderUseCase(repoStore, SaveMp3FileAsTrackUseCase(repoStore)))
 
-    private val mainContent: MutableStateFlow<MainContent> = MutableStateFlow(MainContent.Content)
+    private val mainComponentType: MutableStateFlow<MainComponentType> = MutableStateFlow(MainComponentType.Content)
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val playerExpanded: StateFlow<Boolean> = mainContent.mapLatest {
-        it == MainContent.Player
+    private val playerExpanded: StateFlow<Boolean> = mainComponentType.mapLatest {
+        it == MainComponentType.Player
     }.stateIn(coroutineScope, started = SharingStarted.WhileSubscribed(), false)
+
+    private val imports: Component = Imports(repoStore.importSessionRepo)
+    private val settings: Component = Settings(repoStore)
+    private var navigationHost: NavigationHost = getNewNavHost(Destination.Library)
     private val miniPlayer = MiniPlayer(
         mediaController = mediaController,
         showAlbumDetails = {
-            navigationHost.value.navigateTo(NavigationHost.Destination.AlbumDetails(it))
+            mainComponent.value = navigationHost
+            navigationHost.navigateTo(NavigationHost.Destination.AlbumDetails(it))
         },
         showArtistDetails = {
-            navigationHost.value.navigateTo(NavigationHost.Destination.ArtistDetails(it))
+            mainComponent.value = navigationHost
+            navigationHost.navigateTo(NavigationHost.Destination.ArtistDetails(it))
         },
-        expand = { mainContent.value = MainContent.Player }
+        expand = { mainComponentType.value = MainComponentType.Player }
     )
     private val player: Component = Player(
         mediaController = mediaController,
         showAlbumDetails = {
-            navigationHost.value.navigateTo(NavigationHost.Destination.AlbumDetails(it))
-            mainContent.value = MainContent.Content
+            mainComponent.value = navigationHost
+            navigationHost.navigateTo(NavigationHost.Destination.AlbumDetails(it))
+            mainComponentType.value = MainComponentType.Content
         },
         showArtistDetails = {
-            navigationHost.value.navigateTo(NavigationHost.Destination.ArtistDetails(it))
-            mainContent.value = MainContent.Content
+            mainComponent.value = navigationHost
+            navigationHost.navigateTo(NavigationHost.Destination.ArtistDetails(it))
+            mainComponentType.value = MainComponentType.Content
         },
-        showQueue = { mainContent.value = MainContent.Queue },
-        minimizePlayer = { mainContent.value = MainContent.Content }
+        showQueue = { mainComponentType.value = MainComponentType.Queue },
+        minimizePlayer = { mainComponentType.value = MainComponentType.Content }
     )
     private val queue: Component = Queue(
         mediaController = mediaController,
-        close = { mainContent.value = MainContent.Player }
+        close = { mainComponentType.value = MainComponentType.Player }
     )
 
-
-    private val navigationHost: MutableStateFlow<NavigationHost> = MutableStateFlow(
-        NavigationHost(
-            repoStore = repoStore,
-            mediaController = mediaController,
-            startDestination = NavigationHost.Destination.Library,
-            toggleDrawerState = ::toggleDrawerState
-        )
-    )
+    private val mainComponent: MutableStateFlow<Component> = MutableStateFlow(navigationHost)
     private val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Library)
 
     private val drawerState: MutableStateFlow<DrawerState> = MutableStateFlow(DrawerState(initialValue = DrawerValue.Closed))
+    private val ongoingImportsCount: StateFlow<Long> = repoStore.importSessionRepo.getOngoingImportsCount()
+        .stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = 0)
+
+    init {
+        importService.start()
+    }
 
     @Composable
     override fun show(modifier: Modifier) {
@@ -87,14 +102,14 @@ class Main(
                 Ui.Wide.Main(
                     modifier = modifier,
                     darkTheme = darkTheme,
-                    navigationHost = navigationHost.asStateFlow(),
+                    mainComponent = mainComponent.asStateFlow(),
+                    ongoingImportsCount = ongoingImportsCount,
                     player = player,
                     miniPlayer = miniPlayer,
                     playerExpanded = playerExpanded,
                     queue = queue,
                     selectedNavigationDrawerItem = selectedNavigationDrawerItem.asStateFlow(),
                     drawerState = drawerState.asStateFlow(),
-                    onExpandPlayerClick = { mainContent.value = MainContent.Player },
                     onNavigationDrawerItemClick = ::handleNavigationDrawerItemClick
                 )
             },
@@ -102,14 +117,14 @@ class Main(
                 Ui.Compact.Main(
                     modifier = modifier,
                     darkTheme = darkTheme,
-                    mainContent = mainContent.asStateFlow(),
-                    navigationHost = navigationHost.asStateFlow(),
+                    mainComponentType = mainComponentType.asStateFlow(),
+                    mainComponent = mainComponent.asStateFlow(),
+                    ongoingImportsCount = ongoingImportsCount,
                     player = player,
                     miniPlayer = miniPlayer,
                     queue = queue,
                     selectedNavigationDrawerItem = selectedNavigationDrawerItem.asStateFlow(),
                     drawerState = drawerState.asStateFlow(),
-                    onExpandPlayerClick = { mainContent.value = MainContent.Player },
                     onNavigationDrawerItemClick = ::handleNavigationDrawerItemClick
                 )
             }
@@ -118,7 +133,10 @@ class Main(
 
     override fun clear() {
         mediaController.release()
-        navigationHost.value.clear()
+        runBlocking {
+            importService.stop()
+        }
+        navigationHost.clear()
         coroutineScope.cancel()
     }
 
@@ -130,22 +148,58 @@ class Main(
     }
 
     private fun handleNavigationDrawerItemClick(item: NavigationDrawerItems) {
-        navigationHost.update {
-            it.clear()
-            NavigationHost(
-                repoStore = repoStore,
-                mediaController = mediaController,
-                startDestination = when (item) {
-                    NavigationDrawerItems.Settings -> NavigationHost.Destination.Settings
-                    NavigationDrawerItems.Library -> NavigationHost.Destination.Library
-                    NavigationDrawerItems.Playlists -> NavigationHost.Destination.PlaylistList
-                    NavigationDrawerItems.Albums -> NavigationHost.Destination.AlbumList
-                    NavigationDrawerItems.Artists -> NavigationHost.Destination.ArtistList
-                },
-                toggleDrawerState = ::toggleDrawerState
+        when (item) {
+            NavigationDrawerItems.Settings -> {
+                mainComponent.value = settings
+            }
+            NavigationDrawerItems.Library -> {
+                navigationHost.clear()
+                navigationHost = getNewNavHost(Destination.Library)
+                mainComponent.value = navigationHost
+            }
+            NavigationDrawerItems.Playlists -> {
+                navigationHost.clear()
+                navigationHost = getNewNavHost(Destination.PlaylistList)
+                mainComponent.value = navigationHost
+            }
+            NavigationDrawerItems.Albums -> {
+                navigationHost.clear()
+                navigationHost = getNewNavHost(Destination.AlbumList)
+                mainComponent.value = navigationHost
+            }
+            NavigationDrawerItems.Artists -> {
+                navigationHost.clear()
+                navigationHost = getNewNavHost(Destination.ArtistList)
+                mainComponent.value = navigationHost
+            }
+            NavigationDrawerItems.Imports -> {
+                mainComponent.value = imports
+            }
+        }
+        mainComponentType.value = MainComponentType.Content
+        selectedNavigationDrawerItem.value = item
+    }
+
+    private fun getNewNavHost(startDestination: Destination): NavigationHost {
+        return NavigationHost(
+            toggleDrawerState = ::toggleDrawerState,
+            repoStore = repoStore,
+            mediaController = mediaController,
+            startDestination = startDestination,
+            onImportFolder = ::importFolder,
+            onImportUrl = { TODO() }
+        )
+    }
+
+    private fun importFolder(uri: String) {
+        coroutineScope.launch {
+            repoStore.importSessionRepo.add(
+                uri = uri,
+                importSourceType = ImportSourceType.Local,
+                domainName = null,
+                sessionState = ImportSessionState.Pending
             )
         }
-        selectedNavigationDrawerItem.value = item
     }
 
     private object Ui {
@@ -154,20 +208,21 @@ class Main(
             fun Main(
                 modifier: Modifier,
                 darkTheme: DarkThemeOptions,
-                navigationHost: StateFlow<Component>,
+                mainComponent: StateFlow<Component>,
+                ongoingImportsCount: StateFlow<Long>,
                 player: Component,
                 miniPlayer: Component,
                 queue: Component,
-                onExpandPlayerClick: () -> Unit,
                 playerExpanded: StateFlow<Boolean>,
                 selectedNavigationDrawerItem: StateFlow<NavigationDrawerItems>,
                 drawerState: StateFlow<DrawerState>,
                 onNavigationDrawerItemClick: (NavigationDrawerItems) -> Unit
             ) {
-                val navigationHost by navigationHost.collectAsState()
+                val mainComponent by mainComponent.collectAsState()
                 val drawerState by drawerState.collectAsState()
                 val playerExpanded by playerExpanded.collectAsState()
                 val selectedNavigationDrawerItem by selectedNavigationDrawerItem.collectAsState()
+                val ongoingImportsCount by ongoingImportsCount.collectAsState()
 
                 YounesMusicTheme(
                     darkTheme = darkTheme,
@@ -189,7 +244,12 @@ class Main(
                                                 NavigationDrawerItem(
                                                     label = { Text(it.label) },
                                                     selected = it == selectedNavigationDrawerItem,
-                                                    onClick = { onNavigationDrawerItemClick(it) }
+                                                    onClick = { onNavigationDrawerItemClick(it) },
+                                                    badge = if (it == NavigationDrawerItems.Imports && ongoingImportsCount > 0) {
+                                                        { Badge { Text(ongoingImportsCount.toString()) } }
+                                                    } else {
+                                                        null
+                                                    }
                                                 )
                                             }
                                         }
@@ -207,7 +267,7 @@ class Main(
                                             Row(
                                                 modifier = Modifier.fillMaxWidth().weight(weight = .8f)
                                             ) {
-                                                navigationHost.show(Modifier.weight(.7f))
+                                                mainComponent.show(Modifier.weight(.7f))
                                                 queue.show(Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp).weight(.3f))
                                             }
                                             miniPlayer.show(
@@ -245,20 +305,21 @@ class Main(
             fun Main(
                 modifier: Modifier,
                 darkTheme: DarkThemeOptions,
-                mainContent: StateFlow<MainContent>,
-                navigationHost: StateFlow<Component>,
+                mainComponentType: StateFlow<MainComponentType>,
+                mainComponent: StateFlow<Component>,
+                ongoingImportsCount: StateFlow<Long>,
                 player: Component,
                 miniPlayer: Component,
                 queue: Component,
-                onExpandPlayerClick: () -> Unit,
                 selectedNavigationDrawerItem: StateFlow<NavigationDrawerItems>,
                 drawerState: StateFlow<DrawerState>,
                 onNavigationDrawerItemClick: (NavigationDrawerItems) -> Unit
             ) {
-                val mainContent by mainContent.collectAsState()
-                val navigationHost by navigationHost.collectAsState()
+                val mainComponentType by mainComponentType.collectAsState()
+                val mainComponent by mainComponent.collectAsState()
                 val drawerState by drawerState.collectAsState()
                 val selectedNavigationDrawerItem by selectedNavigationDrawerItem.collectAsState()
+                val ongoingImportsCount by ongoingImportsCount.collectAsState()
 
                 YounesMusicTheme(
                     darkTheme = darkTheme,
@@ -280,7 +341,12 @@ class Main(
                                                 NavigationDrawerItem(
                                                     label = { Text(it.label) },
                                                     selected = it == selectedNavigationDrawerItem,
-                                                    onClick = { onNavigationDrawerItemClick(it) }
+                                                    onClick = { onNavigationDrawerItemClick(it) },
+                                                    badge = if (it == NavigationDrawerItems.Imports && ongoingImportsCount > 0) {
+                                                        { Badge { Text(ongoingImportsCount.toString()) } }
+                                                    } else {
+                                                        null
+                                                    }
                                                 )
                                             }
                                         }
@@ -292,13 +358,13 @@ class Main(
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        when (mainContent) {
-                                            MainContent.Content -> {
-                                                navigationHost.show(Modifier.fillMaxWidth().weight(weight = 0.88f))
+                                        when (mainComponentType) {
+                                            MainComponentType.Content -> {
+                                                mainComponent.show(Modifier.fillMaxWidth().weight(weight = 0.88f))
                                                 miniPlayer.show(modifier = Modifier.fillMaxWidth().weight(0.12f))
                                             }
-                                            MainContent.Player -> { player.show(Modifier.fillMaxSize()) }
-                                            MainContent.Queue -> { queue.show(Modifier.fillMaxSize()) }
+                                            MainComponentType.Player -> { player.show(Modifier.fillMaxSize()) }
+                                            MainComponentType.Queue -> { queue.show(Modifier.fillMaxSize()) }
                                         }
                                     }
                                 }
@@ -330,10 +396,11 @@ class Main(
         Library("Library"),
         Playlists("Playlists"),
         Albums("Albums"),
-        Artists("Artists")
+        Artists("Artists"),
+        Imports("Import")
     }
 
-    private enum class MainContent {
+    private enum class MainComponentType {
         Content, Player, Queue
     }
 }

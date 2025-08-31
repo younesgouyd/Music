@@ -19,6 +19,7 @@ class RepoStore(
     lateinit var playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo private set
     lateinit var trackRepo: TrackRepo private set
     lateinit var mediaFileRepo: MediaFileRepo private set
+    lateinit var importSessionRepo: ImportSessionRepo private set
 
     suspend fun init() {
         val database = YounesMusic(dbDriver)
@@ -31,6 +32,7 @@ class RepoStore(
         playlistTrackCrossRefRepo = PlaylistTrackCrossRefRepo(database.playlistTrackCrossRefQueries)
         trackRepo = TrackRepo(database.trackQueries)
         mediaFileRepo = MediaFileRepo(database.mediaFileQueries)
+        importSessionRepo = ImportSessionRepo(database.importSessionQueries)
 
         settingsRepo.init()
     }
