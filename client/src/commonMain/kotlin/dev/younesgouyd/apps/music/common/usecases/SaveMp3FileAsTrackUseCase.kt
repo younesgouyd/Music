@@ -12,7 +12,7 @@ class SaveMp3FileAsTrackUseCase(
     private val albumRepo get() = repoStore.albumRepo
     private val artistTrackCrossRefRepo get() = repoStore.artistTrackCrossRefRepo
 
-    suspend fun execute(file: File, audioMediaFileId: Long, parentFolderId: Long) {
+    suspend fun execute(file: File, folderId: Long): Long {
         val mp3file = Mp3File(file)
         var title: String? = null
         var albumTrackNumber: Long? = null
@@ -41,7 +41,7 @@ class SaveMp3FileAsTrackUseCase(
         }
         var artistId: Long? = null
         var albumId: Long? = null
-        if (!artist.isNullOrEmpty()) {
+        if (!artist.isNullOrEmpty()) { // TODO: artists tag may contain multiple artists separated by ";", "|", or some other separator
             val artists = artistRepo.getByName(artist)
             if (artists.isEmpty()) {
                 artistId = artistRepo.add(name = artist, image = null)
@@ -59,10 +59,8 @@ class SaveMp3FileAsTrackUseCase(
         }
         val trackId = trackRepo.add(
             name = if (!title.isNullOrEmpty()) title else file.name,
-            folderId = parentFolderId,
+            folderId = folderId,
             albumId = albumId,
-            audioMediaFileId = audioMediaFileId,
-            videoMediaFileId = null,
             lyrics = lyrics,
             albumTrackNumber = albumTrackNumber,
             duration = mp3file.lengthInMilliseconds
@@ -70,5 +68,6 @@ class SaveMp3FileAsTrackUseCase(
         if (artistId != null) {
             artistTrackCrossRefRepo.add(artistId, trackId)
         }
+        return trackId
     }
 }

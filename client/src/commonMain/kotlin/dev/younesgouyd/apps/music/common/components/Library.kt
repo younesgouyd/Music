@@ -27,6 +27,7 @@ import dev.younesgouyd.apps.music.common.components.util.AdaptiveUi
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.components.util.SystemFilePicker
 import dev.younesgouyd.apps.music.common.components.util.widgets.*
+import dev.younesgouyd.apps.music.common.data.Server
 import dev.younesgouyd.apps.music.common.data.repoes.*
 import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Folder
 import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Playlist
@@ -36,48 +37,19 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-/*
-import tracks:
-    - importing:
-        - from system file picker:
-            - a new top-level folder is created with the name "<unix_time>_imported_from_system_file_picker".
-            - for each item:
-                - add a MediaFile record representing the media file
-                - copy the file into the app's directory with the name "<media_file_id>".
-                - create a track referencing the copied file.
-                - set the track's properties (title, artist, album...) from the referenced file's metadata.
-                - place the track in the newly created folder by matching the referenced file's original system file path.
-        - from urls:
-            - if the url corresponds to a single item:
-                - a new top-level folder is created with the name "<unix_time>_imported_from_<url_domain_name>_single_item".
-                - add a MediaFile record representing the media file
-                - copy the file into the app's directory with the name "<media_file_id>".
-                - create a track referencing the copied file.
-                - set the track's properties (title, artist, album...) from the referenced file's metadata.
-                - place the track in the newly created folder.
-            - if the url corresponds to a list of items:
-                - a new top-level folder is created with the name "<unix_time>_imported_from_<url_domain_name>_playlist".
-                - for each item:
-                    - add a MediaFile record representing the media file
-                    - copy the file into the app's directory with the name "<media_file_id>".
-                    - create a track referencing the copied file.
-                    - set the track's properties (title, artist, album...) from the referenced file's metadata.
-                    - place the track in the newly created folder.
- */
-
 @OptIn(ExperimentalCoroutinesApi::class)
 class Library(
+    private val server: Server,
     private val folderRepo: FolderRepo,
     private val playlistRepo: PlaylistRepo,
     private val trackRepo: TrackRepo,
     private val albumRepo: AlbumRepo,
     private val artistRepo: ArtistRepo,
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
+    private val importSessionRepo: ImportSessionRepo,
     private val mediaController: MediaController,
     private val showPlaylist: (id: Long) -> Unit,
-    private val showArtistDetails: (id: Long) -> Unit,
-    private val onImportFolder: (uri: String) -> Unit,
-    private val onImportUrl: (uri: String) -> Unit
+    private val showArtistDetails: (id: Long) -> Unit
 ) : Component() {
     override val title: String = "Library"
     private val currentFolder: MutableStateFlow<Folder?> = MutableStateFlow(null)
@@ -90,8 +62,10 @@ class Library(
     private val loadingPlaylists: MutableStateFlow<Boolean>
     private val loadingTracks: MutableStateFlow<Boolean>
     private val importingFolder: MutableStateFlow<Boolean>
-    private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    private val addToPlaylistDialogVisible = MutableStateFlow(false)
+    private val inspectionDialogVisible = MutableStateFlow(false)
     private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
+    private val inspection: MutableStateFlow<Inspection?> = MutableStateFlow(null)
 
     init {
         loadingFolders = MutableStateFlow(true)
@@ -182,14 +156,29 @@ class Library(
 
     @Composable
     override fun show(modifier: Modifier) {
-        var showImportTypeDialog by remember { mutableStateOf(false) }
-        fun dismiss() { showImportTypeDialog = false }
-        if (showImportTypeDialog) {
+        val inspectionDialogVisible by inspectionDialogVisible.collectAsState()
+        val addToPlaylistDialogVisible by addToPlaylistDialogVisible.collectAsState()
+        var importTypeDialogVisible by remember { mutableStateOf(false) }
+        val inspection by inspection.collectAsState()
+        val addToPlaylist by addToPlaylist.collectAsState()
+        fun dismiss() { importTypeDialogVisible = false }
+        if (importTypeDialogVisible) {
             Ui.Common.importFormDialog(
-                onFolderPicked = { dismiss(); onImportFolder(it) },
-                onUrlEntered = { dismiss(); onImportUrl(it) },
-                onDismiss = { showImportTypeDialog = false }
+                onFolderPicked = { println("onFolderPicked"); dismiss(); importFolder(it) },
+                onUrlEntered = { dismiss(); showInspectionDialog(it) },
+                onDismiss = { importTypeDialogVisible = false }
             )
+        }
+        if (inspectionDialogVisible) {
+            Dialog(onDismissRequest = ::dismissInspectionDialog) {
+                inspection!!.show(Modifier)
+            }
+        }
+
+        if (addToPlaylistDialogVisible) {
+            Dialog(onDismissRequest = ::dismissAddToPlaylistDialog) {
+                addToPlaylist!!.show(Modifier)
+            }
         }
 
         AdaptiveUi(
@@ -202,9 +191,7 @@ class Library(
                     folders = folders,
                     playlists = playlists,
                     tracks = tracks,
-                    addToPlaylistDialogVisible = addToPlaylistDialogVisible,
-                    addToPlaylist = addToPlaylist.asStateFlow(),
-                    onImportFolderClick = { showImportTypeDialog = true },
+                    onImportClick = { importTypeDialogVisible = true },
                     onNewFolder = {
                         coroutineScope.launch {
                             folderRepo.add(
@@ -293,9 +280,7 @@ class Library(
                     folders = folders,
                     playlists = playlists,
                     tracks = tracks,
-                    addToPlaylistDialogVisible = addToPlaylistDialogVisible,
-                    addToPlaylist = addToPlaylist.asStateFlow(),
-                    onImportFolderClick = { showImportTypeDialog = true },
+                    onImportClick = { importTypeDialogVisible = true },
                     onNewFolder = {
                         coroutineScope.launch {
                             folderRepo.add(
@@ -382,6 +367,19 @@ class Library(
         coroutineScope.cancel()
     }
 
+    private fun importFolder(uri: String) {
+        println("--> ::importFolder")
+        coroutineScope.launch {
+            importSessionRepo.addLocalSession(uri)
+        }
+    }
+
+    private fun importUrl(url: String, items: Map<Long, String>) {
+        coroutineScope.launch {
+            importSessionRepo.addUrlSession(uri = url, items = items)
+        }
+    }
+
     private fun playFolder(folderId: Long) {
         suspend fun getFolderItems(_folderId: Long): List<MediaController.QueueItemParameter> {
             val tracks = trackRepo.getFolderTracksStatic(_folderId).map { dbTrack -> MediaController.QueueItemParameter.Track(dbTrack.id) }
@@ -406,7 +404,7 @@ class Library(
                 playlistRepo = playlistRepo
             )
         }
-        addToPlaylistDialogVisible.update { true }
+        addToPlaylistDialogVisible.value = false
     }
 
     private fun showAddPlaylistToPlaylistDialog(playlistId: Long) {
@@ -421,11 +419,12 @@ class Library(
                 playlistRepo = playlistRepo
             )
         }
-        addToPlaylistDialogVisible.update { true }
+        addToPlaylistDialogVisible.value = false
     }
 
     private fun showAddFolderToPlaylistDialog(folderId: Long) {
         addToPlaylist.update {
+            if (it != null) TODO()
             AddToPlaylist(
                 itemToAdd = AddToPlaylist.Item.Folder(folderId),
                 playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
@@ -436,7 +435,22 @@ class Library(
                 playlistRepo = playlistRepo
             )
         }
-        addToPlaylistDialogVisible.update { true }
+        addToPlaylistDialogVisible.value = false
+    }
+
+    private fun showInspectionDialog(url: String) {
+        inspection.update {
+            if (it != null) TODO()
+            Inspection(
+                server = server,
+                url = url,
+                onDone = {
+                    importUrl(url, it)
+                    dismissInspectionDialog()
+                }
+            )
+        }
+        inspectionDialogVisible.value = true
     }
 
     private fun addFolderToQueue(id: Long) {
@@ -456,7 +470,12 @@ class Library(
             return
         }
         addToPlaylistDialogVisible.update { false }
-        addToPlaylist.update { it?.clear(); null }
+        addToPlaylist.update { it!!.clear(); null }
+    }
+
+    private fun dismissInspectionDialog() {
+        inspectionDialogVisible.value = false
+        inspection.update { it!!.clear(); null }
     }
 
     private object Models {
@@ -562,6 +581,7 @@ class Library(
                 }
             }
         }
+
         object Wide {
             @Composable
             fun Main(
@@ -572,10 +592,8 @@ class Library(
                 folders: StateFlow<List<Folder>>,
                 playlists: StateFlow<List<Playlist>>,
                 tracks: StateFlow<List<Models.Track>>,
-                onImportFolderClick: () -> Unit,
+                onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
-                addToPlaylistDialogVisible: StateFlow<Boolean>,
-                addToPlaylist: StateFlow<AddToPlaylist?>,
                 onFolderClick: (Folder?) -> Unit,
                 onAddFolderToPlaylistClick: (id: Long) -> Unit,
                 onAddFolderToQueueClick: (id: Long) -> Unit,
@@ -608,9 +626,6 @@ class Library(
                 val scrollState = remember(path.last().folder?.id) {
                     path.last().scrollState
                 }
-                val addToPlaylistDialogVisible by addToPlaylistDialogVisible.collectAsState()
-                val addToPlaylist by addToPlaylist.collectAsState()
-
                 Scaffold(
                     modifier = modifier,
                     floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) },
@@ -626,7 +641,7 @@ class Library(
                                 currentFolder = currentFolder,
                                 path = path.mapNotNull { it.folder },
                                 onFolderClick = onFolderClick,
-                                onImportFolderClick = onImportFolderClick,
+                                onImportClick = onImportClick,
                                 onNewFolder = onNewFolder
                             )
                             Box(modifier = Modifier) {
@@ -695,12 +710,6 @@ class Library(
                         }
                     }
                 )
-
-                if (addToPlaylistDialogVisible) {
-                    Dialog(onDismissRequest = onDismissAddToPlaylistDialog) {
-                        addToPlaylist!!.show(Modifier)
-                    }
-                }
             }
 
             @Composable
@@ -709,7 +718,7 @@ class Library(
                 currentFolder: StateFlow<Folder?>,
                 path: List<Folder>,
                 onFolderClick: (Folder?) -> Unit,
-                onImportFolderClick: () -> Unit,
+                onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit
             ) {
                 val currentFolder by currentFolder.collectAsState()
@@ -785,7 +794,7 @@ class Library(
                         ) {
                             if (currentFolder == null) {
                                 IconButton(
-                                    onClick = onImportFolderClick,
+                                    onClick = onImportClick,
                                     content = { Icon(Icons.Default.ImportExport, null) }
                                 )
                             }
@@ -1209,40 +1218,58 @@ class Library(
 
                 if (showContextMenu) {
                     ItemContextMenu(
-                        item = Item(name = track.name, image = track.album?.image),
+                        item = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Image(
+                                    modifier = Modifier.size(64.dp),
+                                    data = track.album?.image
+                                )
+                                Text(
+                                    text = track.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        },
+                        options = {
+                            Option(
+                                label = "Delete",
+                                icon = Icons.Default.Delete,
+                                onClick = { showDeleteConfirmationDialog = true },
+                            )
+                            Option(
+                                label = "Rename",
+                                icon = Icons.Default.Edit,
+                                onClick = { showEditFormDialog = true },
+                            )
+                            Option(
+                                label = "Move to folder",
+                                icon = Icons.Default.Folder,
+                                onClick = { moveToFolderDialogVisible = true },
+                            )
+                            Option(
+                                label = "Add to playlist",
+                                icon = Icons.AutoMirrored.Default.PlaylistAdd,
+                                onClick = onAddToPlaylistClick,
+                            )
+                            Option(
+                                label = "Add to queue",
+                                icon = Icons.Default.AddToQueue,
+                                onClick = { onAddToQueueClick(); showContextMenu = false }
+                            )
+                            Option(
+                                label = "Play next",
+                                icon = Icons.Default.QueuePlayNext,
+                                onClick = { TODO() },
+                            )
+                        },
                         onDismiss = { showContextMenu = false }
-                    ) {
-                        Option(
-                            label = "Delete",
-                            icon = Icons.Default.Delete,
-                            onClick = { showDeleteConfirmationDialog = true },
-                        )
-                        Option(
-                            label = "Rename",
-                            icon = Icons.Default.Edit,
-                            onClick = { showEditFormDialog = true },
-                        )
-                        Option(
-                            label = "Move to folder",
-                            icon = Icons.Default.Folder,
-                            onClick = { moveToFolderDialogVisible = true },
-                        )
-                        Option(
-                            label = "Add to playlist",
-                            icon = Icons.AutoMirrored.Default.PlaylistAdd,
-                            onClick = onAddToPlaylistClick,
-                        )
-                        Option(
-                            label = "Add to queue",
-                            icon = Icons.Default.AddToQueue,
-                            onClick = { onAddToQueueClick(); showContextMenu = false }
-                        )
-                        Option(
-                            label = "Play next",
-                            icon = Icons.Default.QueuePlayNext,
-                            onClick = { TODO() },
-                        )
-                    }
+                    )
                 }
 
                 if (showDeleteConfirmationDialog) {
@@ -1341,10 +1368,8 @@ class Library(
                 folders: StateFlow<List<Folder>>,
                 playlists: StateFlow<List<Playlist>>,
                 tracks: StateFlow<List<Models.Track>>,
-                onImportFolderClick: () -> Unit,
+                onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
-                addToPlaylistDialogVisible: StateFlow<Boolean>,
-                addToPlaylist: StateFlow<AddToPlaylist?>,
                 onFolderClick: (Folder?) -> Unit,
                 onAddFolderToPlaylistClick: (id: Long) -> Unit,
                 onAddFolderToQueueClick: (id: Long) -> Unit,
@@ -1377,9 +1402,6 @@ class Library(
                 val scrollState = remember(path.last().folder?.id) {
                     path.last().scrollState
                 }
-                val addToPlaylistDialogVisible by addToPlaylistDialogVisible.collectAsState()
-                val addToPlaylist by addToPlaylist.collectAsState()
-
                 Scaffold(
                     modifier = modifier,
                     floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) },
@@ -1395,7 +1417,7 @@ class Library(
                                 currentFolder = currentFolder,
                                 path = path.mapNotNull { it.folder },
                                 onFolderClick = onFolderClick,
-                                onImportFolderClick = onImportFolderClick,
+                                onImportClick = onImportClick,
                                 onNewFolder = onNewFolder
                             )
                             LazyVerticalGrid(
@@ -1462,12 +1484,6 @@ class Library(
                         }
                     }
                 )
-
-                if (addToPlaylistDialogVisible) {
-                    Dialog(onDismissRequest = onDismissAddToPlaylistDialog) {
-                        addToPlaylist!!.show(Modifier)
-                    }
-                }
             }
 
             @Composable
@@ -1476,7 +1492,7 @@ class Library(
                 currentFolder: StateFlow<Folder?>,
                 path: List<Folder>,
                 onFolderClick: (Folder?) -> Unit,
-                onImportFolderClick: () -> Unit,
+                onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
             ) {
                 val currentFolder by currentFolder.collectAsState()
@@ -1557,7 +1573,7 @@ class Library(
                             ) {
                                 if (currentFolder == null) {
                                     IconButton(
-                                        onClick = onImportFolderClick,
+                                        onClick = onImportClick,
                                         content = { Icon(Icons.Default.ImportExport, null) }
                                     )
                                 }
@@ -1945,40 +1961,58 @@ class Library(
 
                 if (showContextMenu) {
                     ItemContextMenu(
-                        item = Item(name = track.name, image = track.album?.image),
+                        item = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Image(
+                                    modifier = Modifier.size(64.dp),
+                                    data = track.album?.image
+                                )
+                                Text(
+                                    text = track.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        },
+                        options = {
+                            Option(
+                                label = "Delete",
+                                icon = Icons.Default.Delete,
+                                onClick = { showDeleteConfirmationDialog = true },
+                            )
+                            Option(
+                                label = "Rename",
+                                icon = Icons.Default.Edit,
+                                onClick = { showEditFormDialog = true },
+                            )
+                            Option(
+                                label = "Move to folder",
+                                icon = Icons.Default.Folder,
+                                onClick = { moveToFolderDialogVisible = true },
+                            )
+                            Option(
+                                label = "Add to playlist",
+                                icon = Icons.AutoMirrored.Default.PlaylistAdd,
+                                onClick = onAddToPlaylistClick,
+                            )
+                            Option(
+                                label = "Add to queue",
+                                icon = Icons.Default.AddToQueue,
+                                onClick = { onAddToQueueClick(); showContextMenu = false }
+                            )
+                            Option(
+                                label = "Play next",
+                                icon = Icons.Default.QueuePlayNext,
+                                onClick = { TODO() },
+                            )
+                        },
                         onDismiss = { showContextMenu = false }
-                    ) {
-                        Option(
-                            label = "Delete",
-                            icon = Icons.Default.Delete,
-                            onClick = { showDeleteConfirmationDialog = true },
-                        )
-                        Option(
-                            label = "Rename",
-                            icon = Icons.Default.Edit,
-                            onClick = { showEditFormDialog = true },
-                        )
-                        Option(
-                            label = "Move to folder",
-                            icon = Icons.Default.Folder,
-                            onClick = { moveToFolderDialogVisible = true },
-                        )
-                        Option(
-                            label = "Add to playlist",
-                            icon = Icons.AutoMirrored.Default.PlaylistAdd,
-                            onClick = onAddToPlaylistClick,
-                        )
-                        Option(
-                            label = "Add to queue",
-                            icon = Icons.Default.AddToQueue,
-                            onClick = { onAddToQueueClick(); showContextMenu = false }
-                        )
-                        Option(
-                            label = "Play next",
-                            icon = Icons.Default.QueuePlayNext,
-                            onClick = { TODO() },
-                        )
-                    }
+                    )
                 }
 
                 if (showDeleteConfirmationDialog) {

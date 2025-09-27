@@ -11,7 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.common.data.RepoStore
+import dev.younesgouyd.apps.music.common.data.repoes.SettingsRepo
 import dev.younesgouyd.apps.music.common.util.Component
 import dev.younesgouyd.apps.music.common.util.DarkThemeOptions
 import kotlinx.coroutines.cancel
@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class Settings(
-    private val repoStore: RepoStore
+    private val settingsRepo: SettingsRepo
 ) : Component() {
     override val title: String = "Settings"
     private val state: MutableStateFlow<SettingsState> = MutableStateFlow(SettingsState.Loading)
@@ -28,14 +28,13 @@ class Settings(
         coroutineScope.launch {
             state.update {
                 SettingsState.Loaded(
-                    darkTheme = repoStore.settingsRepo.getDarkThemeFlow().stateIn(
-                        scope = coroutineScope,
-                        started = SharingStarted.WhileSubscribed(),
-                        initialValue = null
-                    ),
-                    onDarkThemeChange = {
-                        coroutineScope.launch { repoStore.settingsRepo.updateDarkTheme(it) }
-                    }
+                    darkTheme = settingsRepo.getDarkTheme()
+                        .map {
+                            it?.value_?.let { DarkThemeOptions.valueOf(it) }
+                        }.stateIn(coroutineScope),
+                    serverAddress = settingsRepo.getServerAddress().map { it?.value_ }.stateIn(coroutineScope),
+                    onDarkThemeChange = ::updateDarkTheme,
+                    onServerAddressChange = ::updateServerAddress
                 )
             }
         }
@@ -52,12 +51,26 @@ class Settings(
         coroutineScope.cancel()
     }
 
+    private fun updateDarkTheme(newValue: DarkThemeOptions) {
+        coroutineScope.launch {
+            settingsRepo.updateDarkTheme(newValue)
+        }
+    }
+
+    private fun updateServerAddress(newValue: String?) {
+        coroutineScope.launch {
+            settingsRepo.updateServerAddress(newValue)
+        }
+    }
+
     private sealed class SettingsState {
         data object Loading : SettingsState()
 
         data class Loaded(
             val darkTheme: StateFlow<DarkThemeOptions?>,
-            val onDarkThemeChange: (DarkThemeOptions) -> Unit
+            val serverAddress: StateFlow<String?>,
+            val onDarkThemeChange: (DarkThemeOptions) -> Unit,
+            val onServerAddressChange: (String) -> Unit
         ) : SettingsState()
     }
 
@@ -74,6 +87,7 @@ class Settings(
         private fun Settings(modifier: Modifier, loaded: SettingsState.Loaded) {
             val scrollState = rememberScrollState()
             val darkTheme by loaded.darkTheme.collectAsState()
+            val serverAddress by loaded.serverAddress.collectAsState()
 
             Column(
                 modifier = modifier.fillMaxWidth().verticalScroll(scrollState),
@@ -84,6 +98,11 @@ class Settings(
                     modifier = Modifier.fillMaxWidth(),
                     selectedOption = darkTheme,
                     onDarkThemeChange = loaded.onDarkThemeChange
+                )
+                ServerAddress(
+                    modifier = Modifier.fillMaxWidth(),
+                    serverAddress = serverAddress,
+                    onServerAddressChange = loaded.onServerAddressChange
                 )
             }
         }
@@ -132,6 +151,20 @@ class Settings(
                     }
                 }
             }
+        }
+
+        @Composable
+        private fun ServerAddress(
+            modifier: Modifier = Modifier,
+            serverAddress: String?,
+            onServerAddressChange: (String) -> Unit
+        ) {
+            OutlinedTextField(
+                modifier = modifier,
+                value = serverAddress ?: "",
+                onValueChange = onServerAddressChange,
+                singleLine = true
+            )
         }
     }
 }

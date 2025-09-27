@@ -1,0 +1,25 @@
+initDarkTheme:
+INSERT INTO setting (name, value, creation_datetime, update_datetime)
+VALUES ('dark_theme', :value, :creation_datetime, :update_datetime);
+
+initServerAddress:
+INSERT INTO setting (name, value, creation_datetime, update_datetime)
+VALUES ('server_address', :value, :creation_datetime, :update_datetime);
+
+getDarkTheme:
+SELECT * FROM setting WHERE name = 'dark_theme';
+
+getServerAddress:
+SELECT * FROM setting WHERE name = 'server_address';
+
+updateDarkTheme:
+UPDATE setting
+SET value = :value,
+    update_datetime = :update_datetime
+WHERE name = 'dark_theme';
+
+updateServerAddress:
+UPDATE setting
+SET value = :value,
+    update_datetime = :update_datetime
+WHERE name = 'server_address';

@@ -296,7 +296,11 @@ class Player(
                 onNextClick: () -> Unit
             ) {
                 fun <T> linearAnimation(duration: Int): TweenSpec<T> = tween(durationMillis = duration, easing = LinearEasing)
-                fun durationMillisFormatted(time: Long): String = time.milliseconds.toComponents { minutes, seconds, _ -> minutes.toString().padStart(2, '0') + ":" + seconds.toString().padStart(2, '0') }
+                fun durationMillisFormatted(time: Long?): String {
+                    return time?.milliseconds?.toComponents { minutes, seconds, _ ->
+                        minutes.toString().padStart(2, '0') + ":" + seconds.toString().padStart(2, '0')
+                    } ?: "??:??"
+                }
 
                 val enabled by enabled.collectAsState()
                 val isPlaying by isPlaying.collectAsState()
@@ -319,7 +323,7 @@ class Player(
                         isInteracting = isUserInteracting
                     )
                     Text(
-                        text = "${durationMillisFormatted((animatedPosition.value * track.duration).toLong())}/${formattedDuration}",
+                        text = "${durationMillisFormatted(track.duration?.let { (animatedPosition.value * it) }?.toLong())}/${formattedDuration}",
                         style = MaterialTheme.typography.labelMedium
                     )
                     Row(
@@ -399,17 +403,22 @@ class Player(
                 }
 
                 LaunchedEffect(isPlaying) {
-                    if (isPlaying) {
-                        val remaining = 1f - animatedPosition.value
-                        val remainingDuration = (remaining * track.duration).toInt()
-                        animatedPosition.animateTo(targetValue = 1f, animationSpec = linearAnimation(remainingDuration))
-                    } else {
-                        animatedPosition.stop()
+                    if (track.duration != null) {
+                        if (isPlaying) {
+                            val remaining = 1f - animatedPosition.value
+                            val remainingDuration = (remaining * track.duration).toInt()
+                            animatedPosition.animateTo(
+                                targetValue = 1f,
+                                animationSpec = linearAnimation(remainingDuration)
+                            )
+                        } else {
+                            animatedPosition.stop()
+                        }
                     }
                 }
 
                 LaunchedEffect(timePositionChange) {
-                    if (!isUserInteracting.value) {
+                    if (!isUserInteracting.value && track.duration != null) {
                         animatedPosition.stop()
                         animatedPosition.snapTo(timePositionChange.toFloat() / track.duration.toFloat())
                         if (isPlaying) {
@@ -426,7 +435,7 @@ class Player(
             @Composable
             private fun PlaybackSlider(
                 modifier: Modifier = Modifier,
-                duration: Long,
+                duration: Long?,
                 animatedPosition: Animatable<Float, AnimationVector1D>,
                 enabled: Boolean,
                 onSeek: (Long) -> Unit,
@@ -435,19 +444,28 @@ class Player(
                 var sliderPosition by remember { mutableFloatStateOf(0f) }
                 val sliderValue = if (isInteracting.value) sliderPosition else animatedPosition.value
 
-                Slider(
-                    modifier = modifier,
-                    enabled = enabled,
-                    value = sliderValue,
-                    onValueChange = { newValue ->
-                        isInteracting.value = true
-                        sliderPosition = newValue
-                    },
-                    onValueChangeFinished = {
-                        isInteracting.value = false
-                        onSeek((sliderPosition * duration).toLong())
-                    }
-                )
+                if (duration == null) {
+                    Slider(
+                        modifier = modifier,
+                        enabled = enabled,
+                        value = sliderValue,
+                        onValueChange = {}
+                    )
+                } else {
+                    Slider(
+                        modifier = modifier,
+                        enabled = enabled,
+                        value = sliderValue,
+                        onValueChange = { newValue ->
+                            isInteracting.value = true
+                            sliderPosition = newValue
+                        },
+                        onValueChangeFinished = {
+                            isInteracting.value = false
+                            onSeek((sliderPosition * duration).toLong())
+                        }
+                    )
+                }
             }
         }
 
@@ -625,7 +643,11 @@ class Player(
                 onNextClick: () -> Unit
             ) {
                 fun <T> linearAnimation(duration: Int): TweenSpec<T> = tween(durationMillis = duration, easing = LinearEasing)
-                fun durationMillisFormatted(time: Long): String = time.milliseconds.toComponents { minutes, seconds, _ -> minutes.toString().padStart(2, '0') + ":" + seconds.toString().padStart(2, '0') }
+                fun durationMillisFormatted(time: Long?): String {
+                    return time?.milliseconds?.toComponents { minutes, seconds, _ ->
+                        minutes.toString().padStart(2, '0') + ":" + seconds.toString().padStart(2, '0')
+                    } ?: "??:??"
+                }
 
                 val enabled by enabled.collectAsState()
                 val isPlaying by isPlaying.collectAsState()
@@ -658,7 +680,7 @@ class Player(
                         isInteracting = isUserInteracting
                     )
                     Text(
-                        text = "${durationMillisFormatted((animatedPosition.value * track.duration).toLong())}/${formattedDuration}",
+                        text = "${durationMillisFormatted(track.duration?.let { (animatedPosition.value * it) }?.toLong())}/${formattedDuration}",
                         style = MaterialTheme.typography.labelMedium
                     )
                     Row(
@@ -738,17 +760,22 @@ class Player(
                 }
 
                 LaunchedEffect(isPlaying) {
-                    if (isPlaying) {
-                        val remaining = 1f - animatedPosition.value
-                        val remainingDuration = (remaining * track.duration).toInt()
-                        animatedPosition.animateTo(targetValue = 1f, animationSpec = linearAnimation(remainingDuration))
-                    } else {
-                        animatedPosition.stop()
+                    if (track.duration != null) {
+                        if (isPlaying) {
+                            val remaining = 1f - animatedPosition.value
+                            val remainingDuration = (remaining * track.duration).toInt()
+                            animatedPosition.animateTo(
+                                targetValue = 1f,
+                                animationSpec = linearAnimation(remainingDuration)
+                            )
+                        } else {
+                            animatedPosition.stop()
+                        }
                     }
                 }
 
                 LaunchedEffect(timePositionChange) {
-                    if (!isUserInteracting.value) {
+                    if (!isUserInteracting.value && track.duration != null) {
                         animatedPosition.stop()
                         animatedPosition.snapTo(timePositionChange.toFloat() / track.duration.toFloat())
                         if (isPlaying) {
@@ -765,7 +792,7 @@ class Player(
             @Composable
             private fun PlaybackSlider(
                 modifier: Modifier = Modifier,
-                duration: Long,
+                duration: Long?,
                 animatedPosition: Animatable<Float, AnimationVector1D>,
                 enabled: Boolean,
                 onSeek: (Long) -> Unit,
@@ -774,19 +801,28 @@ class Player(
                 var sliderPosition by remember { mutableFloatStateOf(0f) }
                 val sliderValue = if (isInteracting.value) sliderPosition else animatedPosition.value
 
-                Slider(
-                    modifier = modifier,
-                    enabled = enabled,
-                    value = sliderValue,
-                    onValueChange = { newValue ->
-                        isInteracting.value = true
-                        sliderPosition = newValue
-                    },
-                    onValueChangeFinished = {
-                        isInteracting.value = false
-                        onSeek((sliderPosition * duration).toLong())
-                    }
-                )
+                if (duration == null) {
+                    Slider(
+                        modifier = modifier,
+                        enabled = enabled,
+                        value = sliderValue,
+                        onValueChange = {}
+                    )
+                } else {
+                    Slider(
+                        modifier = modifier,
+                        enabled = enabled,
+                        value = sliderValue,
+                        onValueChange = { newValue ->
+                            isInteracting.value = true
+                            sliderPosition = newValue
+                        },
+                        onValueChangeFinished = {
+                            isInteracting.value = false
+                            onSeek((sliderPosition * duration).toLong())
+                        }
+                    )
+                }
             }
         }
     }

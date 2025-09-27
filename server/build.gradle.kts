@@ -11,15 +11,16 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":common"))
     implementation(libs.coroutines.core)
-    implementation(libs.logback)
-
-    implementation(libs.ktor.server.core)
-    implementation(libs.ktor.server.netty)
-    implementation(libs.ktor.server.logging)
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.logging)
-    implementation(libs.ktor.client.cio)
-    implementation(libs.ktor.client.contentNegotiation)
+    implementation(libs.slf4j)
+    implementation(libs.log4j.core)
+    implementation(libs.log4j.slf4jImpl)
+    implementation(libs.logback.jvm)
     implementation(libs.ktor.serialization)
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.engine)
+    implementation(libs.ktor.server.logging)
+    implementation(libs.ktor.server.contentNegotiation)
+    implementation(libs.ktor.server.sse)
 }

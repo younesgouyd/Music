@@ -9,21 +9,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.common.components.NavigationHost.Destination
 import dev.younesgouyd.apps.music.common.components.util.AdaptiveUi
 import dev.younesgouyd.apps.music.common.components.util.ImportService
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.usecases.ImportFolderUseCase
+import dev.younesgouyd.apps.music.common.usecases.SaveAudioFileAsTrackUseCase
 import dev.younesgouyd.apps.music.common.usecases.SaveMp3FileAsTrackUseCase
 import dev.younesgouyd.apps.music.common.util.Component
 import dev.younesgouyd.apps.music.common.util.DarkThemeOptions
-import dev.younesgouyd.apps.music.common.util.ImportSessionState
-import dev.younesgouyd.apps.music.common.util.ImportSourceType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 class Main(
@@ -32,14 +29,27 @@ class Main(
     appDir: String
 ) : Component() {
     override val title: String = ""
-    private val darkTheme: StateFlow<DarkThemeOptions> = repoStore.settingsRepo.getDarkThemeFlow().filterNotNull().stateIn(
-        scope = coroutineScope,
-        started = SharingStarted.WhileSubscribed(),
-        initialValue = DarkThemeOptions.SystemDefault
-    )
+    private val darkTheme: StateFlow<DarkThemeOptions> = repoStore.settingsRepo.getDarkTheme()
+        .map {
+            it?.value_?.let {
+                DarkThemeOptions.valueOf(it)
+            } ?: DarkThemeOptions.SystemDefault
+        }.stateIn(
+            scope = coroutineScope,
+            started = SharingStarted.WhileSubscribed(),
+            initialValue = DarkThemeOptions.SystemDefault
+        )
 
     private val mediaController = MediaController(mediaPlayer = mediaPlayer, repoStore = repoStore, appDir = appDir)
-    private val importService = ImportService(repoStore.importSessionRepo, ImportFolderUseCase(repoStore, SaveMp3FileAsTrackUseCase(repoStore)))
+    private val importService = ImportService(
+        server = repoStore.server,
+        repo = repoStore.importSessionRepo,
+        importFolderUseCase = ImportFolderUseCase(
+            repoStore = repoStore,
+            saveAudioFileAsTrackUseCase = SaveAudioFileAsTrackUseCase(repoStore),
+            saveMp3FileAsTrackUseCase = SaveMp3FileAsTrackUseCase(repoStore)
+        )
+    )
 
     private val mainComponentType: MutableStateFlow<MainComponentType> = MutableStateFlow(MainComponentType.Content)
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -48,8 +58,8 @@ class Main(
     }.stateIn(coroutineScope, started = SharingStarted.WhileSubscribed(), false)
 
     private val imports: Component = Imports(repoStore.importSessionRepo)
-    private val settings: Component = Settings(repoStore)
-    private var navigationHost: NavigationHost = getNewNavHost(Destination.Library)
+    private val settings: Component = Settings(repoStore.settingsRepo)
+    private var navigationHost: NavigationHost = getNewNavHost(NavigationHost.Destination.Library)
     private val miniPlayer = MiniPlayer(
         mediaController = mediaController,
         showAlbumDetails = {
@@ -154,22 +164,22 @@ class Main(
             }
             NavigationDrawerItems.Library -> {
                 navigationHost.clear()
-                navigationHost = getNewNavHost(Destination.Library)
+                navigationHost = getNewNavHost(NavigationHost.Destination.Library)
                 mainComponent.value = navigationHost
             }
             NavigationDrawerItems.Playlists -> {
                 navigationHost.clear()
-                navigationHost = getNewNavHost(Destination.PlaylistList)
+                navigationHost = getNewNavHost(NavigationHost.Destination.PlaylistList)
                 mainComponent.value = navigationHost
             }
             NavigationDrawerItems.Albums -> {
                 navigationHost.clear()
-                navigationHost = getNewNavHost(Destination.AlbumList)
+                navigationHost = getNewNavHost(NavigationHost.Destination.AlbumList)
                 mainComponent.value = navigationHost
             }
             NavigationDrawerItems.Artists -> {
                 navigationHost.clear()
-                navigationHost = getNewNavHost(Destination.ArtistList)
+                navigationHost = getNewNavHost(NavigationHost.Destination.ArtistList)
                 mainComponent.value = navigationHost
             }
             NavigationDrawerItems.Imports -> {
@@ -180,26 +190,13 @@ class Main(
         selectedNavigationDrawerItem.value = item
     }
 
-    private fun getNewNavHost(startDestination: Destination): NavigationHost {
+    private fun getNewNavHost(startDestination: NavigationHost.Destination): NavigationHost {
         return NavigationHost(
             toggleDrawerState = ::toggleDrawerState,
             repoStore = repoStore,
             mediaController = mediaController,
             startDestination = startDestination,
-            onImportFolder = ::importFolder,
-            onImportUrl = { TODO() }
         )
-    }
-
-    private fun importFolder(uri: String) {
-        coroutineScope.launch {
-            repoStore.importSessionRepo.add(
-                uri = uri,
-                importSourceType = ImportSourceType.Local,
-                domainName = null,
-                sessionState = ImportSessionState.Pending
-            )
-        }
     }
 
     private object Ui {

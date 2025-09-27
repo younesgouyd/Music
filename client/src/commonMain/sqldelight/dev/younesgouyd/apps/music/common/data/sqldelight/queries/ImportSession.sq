@@ -14,8 +14,9 @@ getOngoingImportsCount:
 SELECT COUNT(*) FROM import_session WHERE state IN ('Pending', 'Started');
 
 add:
-INSERT INTO import_session (uri, source_type, domain_name, state, creation_datetime, update_datetime)
-VALUES (:uri, :source_type, :domain_name, :state, :creation_datetime, :update_datetime);
+INSERT INTO import_session (uri, source_type, state, creation_datetime, update_datetime)
+VALUES (:uri, :source_type, :state, :creation_datetime, :update_datetime)
+RETURNING id;
 
 updateState:
 UPDATE import_session

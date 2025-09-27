@@ -1,0 +1,7 @@
+getImportSessionItems:
+SELECT * FROM import_session_item
+WHERE import_session_id = :import_session_id;
+
+add:
+INSERT INTO import_session_item (item_id, url, import_session_id, creation_datetime)
+VALUES (:item_id, :url, :import_session_id, :creation_datetime);

@@ -88,7 +88,7 @@ class AddToPlaylist(
         val state by state.collectAsState()
 
         Ui.Main(
-            modifier = modifier,
+            modifier = modifier.size(width = 500.dp, height = 600.dp),
             state = state
         )
     }
@@ -235,7 +235,7 @@ class AddToPlaylist(
 
             if (!adding) {
                 Surface(
-                    modifier = modifier.size(width = 500.dp, height = 600.dp),
+                    modifier = modifier,
                     shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.background
                 ) {

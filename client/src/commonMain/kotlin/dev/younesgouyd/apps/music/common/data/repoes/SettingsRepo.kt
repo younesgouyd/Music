@@ -1,80 +1,63 @@
 package dev.younesgouyd.apps.music.common.data.repoes
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToOneOrNull
+import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Setting
+import dev.younesgouyd.apps.music.common.data.sqldelight.queries.SettingQueries
 import dev.younesgouyd.apps.music.common.util.DarkThemeOptions
-import dev.younesgouyd.apps.music.common.util.FileManager
-import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.serialization.json.*
-import java.util.*
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.withContext
 
-class SettingsRepo(private val fileManager: FileManager) {
-    companion object {
-        private const val DARK_THEME_TAG = "dark_theme"
-    }
-
-    private val darkThemeCallbacks: MutableList<Callback> = mutableListOf()
-
+class SettingsRepo(
+    private val queries: SettingQueries
+) {
     suspend fun init() {
-        fileManager.init()
-        val value = getDarkTheme()
-        if (value == null) {
-            updateDarkTheme(DarkThemeOptions.SystemDefault)
+        val darkTheme = getDarkTheme().firstOrNull()
+        if (darkTheme == null) {
+            val currentTime = System.currentTimeMillis()
+            queries.initDarkTheme(
+                value = DarkThemeOptions.SystemDefault.name,
+                creation_datetime = currentTime,
+                update_datetime = currentTime
+            )
+        }
+        val address = getServerAddress().firstOrNull()
+        if (address == null) {
+            val currentTime = System.currentTimeMillis()
+            queries.initServerAddress(
+                value = "http://0.0.0.0:8080/Music",
+                creation_datetime = currentTime,
+                update_datetime = currentTime
+            )
         }
     }
 
-    fun getDarkThemeFlow(): Flow<DarkThemeOptions?> {
-        fun <T> MutableCollection<T>.removeIfCompat(predicate: (T) -> Boolean) {
-            val iterator = this.iterator()
-            while (iterator.hasNext()) {
-                if (predicate(iterator.next())) {
-                    iterator.remove()
-                }
-            }
-        }
-        return callbackFlow {
-            val callback = object : Callback() {
-                override suspend fun onNewValue(value: DarkThemeOptions?) {
-                    send(value)
-                }
-            }
-            darkThemeCallbacks += callback
-            callback.onNewValue(getDarkTheme())
-            awaitClose {
-                darkThemeCallbacks.removeIfCompat { it.id == callback.id }
-            }
-        }
+    fun getDarkTheme(): Flow<Setting?> {
+        return queries.getDarkTheme()
+            .asFlow()
+            .mapToOneOrNull(Dispatchers.IO)
     }
 
     suspend fun updateDarkTheme(theme: DarkThemeOptions) {
-        val data: String = fileManager.getData()
-        val result = buildJsonObject {
-            for ((key, value) in Json.parseToJsonElement(data).jsonObject) {
-                put(key, value)
-            }
-            put(DARK_THEME_TAG, JsonPrimitive(theme.name))
-        }.toString()
-        fileManager.save(result)
-        for (callback in darkThemeCallbacks) {
-            callback.onNewValue(getDarkTheme())
+        withContext(Dispatchers.IO) {
+            queries.updateDarkTheme(value = theme.name, System.currentTimeMillis())
         }
     }
 
-    private suspend fun getDarkTheme(): DarkThemeOptions? {
-        val data = fileManager.getData()
-        val json = Json.parseToJsonElement(data).jsonObject
-        val value = json[DARK_THEME_TAG]?.jsonPrimitive?.contentOrNull ?: return null
-        return when (value) {
-            DarkThemeOptions.SystemDefault.name -> DarkThemeOptions.SystemDefault
-            DarkThemeOptions.Enabled.name -> DarkThemeOptions.Enabled
-            DarkThemeOptions.Disabled.name -> DarkThemeOptions.Disabled
-            else -> TODO()
-        }
+    fun getServerAddress(): Flow<Setting?> {
+        return queries.getServerAddress()
+            .asFlow()
+            .mapToOneOrNull(Dispatchers.IO)
     }
 
-    private abstract class Callback {
-        val id: UUID = UUID.randomUUID()
-
-        abstract suspend fun onNewValue(value: DarkThemeOptions?)
+    suspend fun updateServerAddress(address: String?) {
+        withContext(Dispatchers.IO) {
+            queries.updateServerAddress(
+                value = if (address.isNullOrBlank()) null else address.trim(),
+                update_datetime =System.currentTimeMillis()
+            )
+        }
     }
 }

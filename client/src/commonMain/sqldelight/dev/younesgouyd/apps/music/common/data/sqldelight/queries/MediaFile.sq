@@ -1,10 +1,7 @@
-get:
-SELECT * FROM media_file WHERE id = :id;
+getTrackMediaFiles:
+SELECT * FROM media_file WHERE track_id = :track_id;
 
 add:
-INSERT INTO media_file (name, source_type, domain_name, creation_datetime, update_datetime)
-VALUES (:name, :source_type, :domain_name, :creation_datetime, :update_datetime)
+INSERT INTO media_file (name, track_id, source_uri, source_webpage_url, source_type, creation_datetime)
+VALUES ( :name, :track_id, :source_uri, :source_webpage_url, :source_type, :creation_datetime)
 RETURNING id;
-
-delete:
-DELETE FROM artist WHERE id = :id;

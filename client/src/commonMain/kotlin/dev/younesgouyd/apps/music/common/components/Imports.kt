@@ -16,7 +16,6 @@ import dev.younesgouyd.apps.music.common.components.util.widgets.Item
 import dev.younesgouyd.apps.music.common.data.repoes.ImportSessionRepo
 import dev.younesgouyd.apps.music.common.util.Component
 import dev.younesgouyd.apps.music.common.util.ImportSessionState
-import dev.younesgouyd.apps.music.common.util.ImportSourceType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,28 +43,20 @@ class Imports(
         )
         coroutineScope.launch {
             state.value = ImportsState.Loaded(
-                imports = importSessionRepo.getAll().mapLatest { dbList ->
-                    dbList.map { dbItem ->
-                        ImportsState.Loaded.Import(
-                            id = dbItem.id,
-                            uri = dbItem.uri,
-                            sourceType = ImportSourceType.valueOf(dbItem.source_type),
-                            domainName = dbItem.domain_name,
-                            state = ImportSessionState.valueOf(dbItem.state),
-                            creationDatetime = Instant.fromEpochMilliseconds(dbItem.creation_datetime).toString()
-                        )
-                    }.sortedWith { a, b ->
-                        // first sort by state
-                        val orderCmp = customOrder[a.state]!!.compareTo(customOrder[b.state]!!)
-                        if (orderCmp != 0) return@sortedWith orderCmp
+                imports = importSessionRepo.getAll()
+                    .mapLatest { list ->
+                        list.sortedWith { a, b ->
+                            // first sort by state
+                            val orderCmp = customOrder[a.state]!!.compareTo(customOrder[b.state]!!)
+                            if (orderCmp != 0) return@sortedWith orderCmp
 
-                        // then by creationDatetime depending on state
-                        return@sortedWith when (a.state) {
-                            ImportSessionState.Pending -> a.creationDatetime.compareTo(b.creationDatetime) // ASC
-                            else -> b.creationDatetime.compareTo(a.creationDatetime) // DESC
+                            // then by creationDatetime depending on state
+                            return@sortedWith when (a.state) {
+                                ImportSessionState.Pending -> a.creationDatetime.compareTo(b.creationDatetime) // ASC
+                                else -> b.creationDatetime.compareTo(a.creationDatetime) // DESC
+                            }
                         }
-                    }
-                }.stateIn(coroutineScope),
+                    }.stateIn(coroutineScope),
                 scrollState = LazyListState(),
                 onCancelImportClick = {
                     coroutineScope.launch {
@@ -97,20 +88,11 @@ class Imports(
         data object Loading : ImportsState()
 
         data class Loaded(
-            val imports: StateFlow<List<Import>>,
+            val imports: StateFlow<List<ImportSessionRepo.ImportSession>>,
             val scrollState: LazyListState,
             val onCancelImportClick: (Long) -> Unit,
             val onDeleteImportClick: (Long) -> Unit
-        ) : ImportsState() {
-            data class Import(
-                val id: Long,
-                val uri: String,
-                val sourceType: ImportSourceType,
-                val domainName: String?,
-                val state: ImportSessionState,
-                val creationDatetime: String
-            )
-        }
+        ) : ImportsState()
     }
 
     private object Ui {
@@ -136,7 +118,7 @@ class Imports(
         @Composable
         private fun Main(
             modifier: Modifier,
-            imports: StateFlow<List<ImportsState.Loaded.Import>>,
+            imports: StateFlow<List<ImportSessionRepo.ImportSession>>,
             scrollState: LazyListState,
             onCancelImportClick: (Long) -> Unit,
             onDeleteImportClick: (Long) -> Unit
@@ -170,7 +152,7 @@ class Imports(
         @Composable
         private fun ImportItem(
             modifier: Modifier = Modifier,
-            import: ImportsState.Loaded.Import,
+            import: ImportSessionRepo.ImportSession,
             onCancelClick: () -> Unit,
             onDeleteClick: () -> Unit
         ) {
@@ -186,9 +168,6 @@ class Imports(
                     Text("Session: ${import.id}")
                     Text(import.uri)
                     Text(import.sourceType.name)
-                    if (import.sourceType == ImportSourceType.Internet) {
-                        Text(import.domainName!!)
-                    }
                     Text(
                         text = import.state.name,
                         color = when (import.state) {
@@ -199,7 +178,7 @@ class Imports(
                             ImportSessionState.Failed -> MaterialTheme.colorScheme.error
                         }
                     )
-                    Text(import.creationDatetime)
+                    Text(Instant.fromEpochMilliseconds(import.creationDatetime).toString())
                     if (import.state == ImportSessionState.Started) {
                         LinearProgressIndicator(
                             modifier = Modifier.fillMaxWidth()

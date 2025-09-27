@@ -43,7 +43,7 @@ class Music : Application() {
         }
 
         val driver = getDbDriver() // TODO (executes db statements!)
-        val repoStore = RepoStore(dbDriver = driver, dataDirectory = this.filesDir.path)
+        val repoStore = RepoStore(dbDriver = driver, applicationScope = coroutineScope)
         currentComponent = MutableStateFlow(
             SplashScreen(
                 repoStore = repoStore,

@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.sqldelight)
@@ -30,12 +31,21 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
+                implementation(project(":common"))
                 implementation(libs.json)
                 implementation(libs.coroutines.core)
                 implementation(compose.material3)
                 implementation(compose.materialIconsExtended)
                 implementation(libs.sqldelight.coroutines)
                 implementation(libs.mp3agic)
+                implementation(libs.tika)
+                implementation(libs.slf4j)
+                implementation(libs.ktor.serialization)
+                implementation(libs.ktor.client.core)
+                implementation(libs.ktor.client.engine)
+                implementation(libs.ktor.client.logging)
+                implementation(libs.ktor.client.contentNegotiation)
+                implementation(libs.ktor.client.core)
             }
         }
         jvmMain {
@@ -45,8 +55,8 @@ kotlin {
                     exclude("org.jetbrains.compose.material") // todo
                 }
                 implementation(libs.sqldelight.sqliteDriver)
-                implementation(libs.json)
                 implementation(libs.vlcj)
+                implementation(libs.logback.jvm)
             }
         }
         androidMain {
@@ -60,6 +70,7 @@ kotlin {
                 implementation(libs.android.media3.common)
                 implementation(libs.android.media3.exoplayer)
                 implementation(libs.android.media3.session)
+                implementation(libs.logback.android)
             }
         }
     }

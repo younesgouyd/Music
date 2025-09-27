@@ -1,3 +1,11 @@
+CREATE TABLE setting (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    value TEXT,
+    creation_datetime INTEGER NOT NULL,
+    update_datetime INTEGER NOT NULL
+);
+
 CREATE TABLE folder (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -15,28 +23,26 @@ CREATE TABLE album (
     update_datetime INTEGER NOT NULL
 );
 
-CREATE TABLE media_file (
-    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    source_type TEXT NOT NULL,
-    domain_name TEXT,
-    creation_datetime INTEGER NOT NULL,
-    update_datetime INTEGER NOT NULL
-);
-
 CREATE TABLE track (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     folder_id INTEGER NOT NULL REFERENCES folder(id) ON UPDATE CASCADE ON DELETE CASCADE,
     album_id INTEGER REFERENCES album(id) ON UPDATE CASCADE ON DELETE SET NULL,
-    audio_media_file_id INTEGER REFERENCES media_file(id) ON UPDATE CASCADE ON DELETE SET NULL,
-    video_media_file_id INTEGER REFERENCES media_file(id) ON UPDATE CASCADE ON DELETE SET NULL,
     lyrics TEXT,
     album_track_number INTEGER,
-    duration INTEGER NOT NULL,
+    duration INTEGER,
     creation_datetime INTEGER NOT NULL,
-    update_datetime INTEGER NOT NULL,
-    CHECK (audio_media_file_id IS NOT NULL OR video_media_file_id IS NOT NULL)
+    update_datetime INTEGER NOT NULL
+);
+
+CREATE TABLE media_file (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    track_id INTEGER NOT NULL REFERENCES track(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    source_uri TEXT NOT NULL,
+    source_webpage_url TEXT,
+    source_type TEXT NOT NULL,
+    creation_datetime INTEGER NOT NULL
 );
 
 CREATE TABLE artist (
@@ -77,8 +83,16 @@ CREATE TABLE import_session (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     uri TEXT NOT NULL,
     source_type TEXT NOT NULL,
-    domain_name TEXT,
     state TEXT NOT NULL,
     creation_datetime INTEGER NOT NULL,
     update_datetime INTEGER NOT NULL
+);
+
+CREATE TABLE import_session_item (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    item_id INTEGER NOT NULL,
+    url TEXT NOT NULL,
+    import_session_id INTEGER NOT NULL REFERENCES import_session(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    creation_datetime INTEGER NOT NULL,
+    UNIQUE (item_id, import_session_id)
 );

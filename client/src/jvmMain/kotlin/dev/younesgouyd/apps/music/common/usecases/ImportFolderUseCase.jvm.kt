@@ -1,46 +1,108 @@
 package dev.younesgouyd.apps.music.common.usecases
 
+import dev.younesgouyd.apps.music.common.Inspection
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.util.ImportSourceType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.URI
+import kotlin.io.path.toPath
 
 actual class ImportFolderUseCase actual constructor(
     actual val repoStore: RepoStore,
+    actual val saveAudioFileAsTrackUseCase: SaveAudioFileAsTrackUseCase,
     actual val saveMp3FileAsTrackUseCase: SaveMp3FileAsTrackUseCase
 ) {
+    private val mediaDir = File("media").also { it.mkdir() }
     private val folderRepo get() = repoStore.folderRepo
     private val mediaFileRepo get() = repoStore.mediaFileRepo
 
-    actual suspend fun execute(uri: String) {
-        withContext(Dispatchers.IO) {
-            val file = File(URI.create(uri))
-            if (!file.isDirectory) {
-                TODO()
-            }
-            importFolder(file)
+    actual suspend fun execute(import: Import): Boolean {
+        return withContext(Dispatchers.IO) {
+            importFolder(import)
+            true // TODO
         }
     }
 
-    private suspend fun importFolder(folder: File) {
-        suspend fun importFolder(folder: File, parent: Long?) {
-            val parent: Long = folderRepo.add(folder.name, parent)
-            for (file in folder.listFiles()!!) {
-                if (file.isDirectory) {
-                    if (!file.isHidden) {
-                        importFolder(file, parent)
-                    }
-                } else if (file.extension.lowercase() == "mp3") {
-                    val mediaFileId = mediaFileRepo.add(name = file.name, importSourceType = ImportSourceType.Local, domainName = null)
-                    val internalFile = File("./media/$mediaFileId")
-                    file.copyTo(internalFile)
-                    saveMp3FileAsTrackUseCase.execute(internalFile, mediaFileId, parent)
+    private suspend fun importFolder(import: Import) {
+        val rootId: Long = folderRepo.add("${System.currentTimeMillis()}_imported_from_system_file_picker", null)
+        importFolder(import, URI(import.folderUri).toPath().toFile(), rootId)
+    }
+
+    private suspend fun importFolder(import: Import, folder: File, parent: Long?) {
+        val parent: Long = folderRepo.add(folder.name, parent)
+        for (file in folder.listFiles()!!) {
+            if (file.isDirectory) {
+                if (!file.isHidden) {
+                    importFolder(import, file, parent)
                 }
+            } else if (file.isAudioFile()) {
+                val mediaFileId: Long = when (import) {
+                    is Import.Local -> importFileLocal(import = import, sourceFile = file, folderId = parent)
+                    is Import.Internet -> importFileInternet(import = import, sourceFile = file, folderId = parent)
+                }
+                val internalFile = File(mediaDir, mediaFileId.toString())
+                file.copyTo(internalFile)
             }
         }
-        val rootId: Long = folderRepo.add("${System.currentTimeMillis()}_imported_from_system_file_picker", null)
-        importFolder(folder, rootId)
+    }
+
+    private suspend fun importFileLocal(
+        import: Import.Local,
+        sourceFile: File,
+        folderId: Long
+    ): Long {
+        val trackId: Long = if (sourceFile.extension.lowercase() == "mp3") {
+            saveMp3FileAsTrackUseCase.execute(
+                file = sourceFile,
+                folderId = folderId
+            )
+        } else {
+            saveAudioFileAsTrackUseCase.execute(
+                folderId = folderId,
+                title = sourceFile.name, // TODO
+                durationSeconds = null,
+                artists = emptyList(),
+                album = null,
+                releaseYear = null,
+                albumTrackNumber = null,
+                lyrics = null,
+                albumImage = null
+            )
+        }
+        return mediaFileRepo.add(
+            name = sourceFile.name,
+            trackId = trackId,
+            sourceUri = import.folderUri,
+            sourceWebpageUrl = null,
+            sourceType = ImportSourceType.Local
+        )
+    }
+
+    private suspend fun importFileInternet(
+        import: Import.Internet,
+        sourceFile: File,
+        folderId: Long
+    ): Long {
+        val inspection: Inspection.Item = import.items.find { it.id == sourceFile.name.toLong() }!!
+        val trackId = saveAudioFileAsTrackUseCase.execute(
+            folderId = folderId,
+            title = inspection.title,
+            durationSeconds = inspection.duration?.toLong(),
+            artists = inspection.artists,
+            album = inspection.album,
+            releaseYear = null, // TODO
+            albumTrackNumber = null, // TODO
+            lyrics = null, // TODO
+            albumImage = null // TODO
+        )
+        return mediaFileRepo.add(
+            name = sourceFile.name,
+            trackId = trackId,
+            sourceUri = import.url,
+            sourceWebpageUrl = inspection.url,
+            sourceType = ImportSourceType.Internet
+        )
     }
 }

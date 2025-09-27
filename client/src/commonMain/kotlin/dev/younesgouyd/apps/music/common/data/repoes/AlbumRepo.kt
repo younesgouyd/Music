@@ -28,6 +28,18 @@ class AlbumRepo(private val queries: AlbumQueries) {
         }
     }
 
+    fun getArtistAlbums(artistId: Long): Flow<List<Album>> {
+        return queries.getArtistAlbums(artistId)
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+    }
+
+    suspend fun getByName(name: String): List<Album> {
+        return withContext(Dispatchers.IO) {
+            queries.getByName(name).executeAsList()
+        }
+    }
+
     suspend fun add(name: String, image: ByteArray?, releaseDate: String?): Long {
         require(name.isNotEmpty())
         return withContext(Dispatchers.IO) {
@@ -64,18 +76,6 @@ class AlbumRepo(private val queries: AlbumQueries) {
     suspend fun delete(id: Long) {
         withContext(Dispatchers.IO) {
             queries.delete(id)
-        }
-    }
-
-    fun getArtistAlbums(artistId: Long): Flow<List<Album>> {
-        return queries.getArtistAlbums(artistId)
-            .asFlow()
-            .mapToList(Dispatchers.IO)
-    }
-
-    suspend fun getByName(name: String): List<Album> {
-        return withContext(Dispatchers.IO) {
-            queries.getByName(name).executeAsList()
         }
     }
 }

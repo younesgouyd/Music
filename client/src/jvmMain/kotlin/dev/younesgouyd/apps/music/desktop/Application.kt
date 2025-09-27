@@ -13,6 +13,9 @@ import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.data.sqldelight.YounesMusic
 import dev.younesgouyd.apps.music.common.util.Component
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
@@ -22,6 +25,7 @@ import java.io.File
 import java.util.*
 
 object Application {
+    private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val repoStore: RepoStore
     private val currentComponent: MutableStateFlow<Component>
 
@@ -35,7 +39,7 @@ object Application {
             file.createNewFile()
             YounesMusic.Schema.create(driver)
         }
-        repoStore = RepoStore(dbDriver = driver, dataDirectory = "./")
+        repoStore = RepoStore(dbDriver = driver, applicationScope = coroutineScope)
         currentComponent = MutableStateFlow(
             SplashScreen(
                 repoStore = repoStore,

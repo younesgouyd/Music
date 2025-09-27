@@ -2,6 +2,7 @@ rootProject.name = "Music"
 
 include(":client")
 include(":server")
+include(":common")
 
 pluginManagement {
     repositories {
@@ -26,7 +27,12 @@ dependencyResolutionManagement {
                 val kotlin = version("kotlin", "2.2.0")
                 val json = version("json", "1.9.0")
                 val coroutines = version("coroutines", "1.10.2")
-                val logback = version("logback", "1.5.18")
+                val slf4j = version("slf4j", "2.0.17")
+                val log4j = version("log4j", "2.25.1")
+                val logback = object {
+                    val jvm = version("logback.jvm", "1.5.18")
+                    val android = version("logback.android", "3.0.0")
+                }
                 val ktor = version("ktor", "3.2.3")
                 val compose = version("compose.jetbrains", "1.8.2")
                 val android = object {
@@ -39,6 +45,7 @@ dependencyResolutionManagement {
                 val sqldelight = version("sqldelight", "2.1.0")
                 val vlcj = version("vlcj", "4.11.0")
                 val mp3agic = version("mp3agic", "0.9.1")
+                val tika = version("tika", "3.2.3")
             }
 
             plugin("kotlin.jvm", "org.jetbrains.kotlin.jvm").versionRef(versions.kotlin)
@@ -62,16 +69,24 @@ dependencyResolutionManagement {
 
             library("vlcj", "uk.co.caprica", "vlcj").versionRef(versions.vlcj)
             library("mp3agic", "com.mpatric", "mp3agic").versionRef(versions.mp3agic)
+            library("tika", "org.apache.tika", "tika-core").versionRef(versions.tika)
 
-            library("logback", "ch.qos.logback", "logback-classic").versionRef(versions.logback)
+            library("slf4j", "org.slf4j", "slf4j-api").versionRef(versions.slf4j)
+            library("log4j.core", "org.apache.logging.log4j", "log4j-core").versionRef(versions.log4j)
+            library("log4j.slf4jImpl", "org.apache.logging.log4j", "log4j-slf4j-impl").versionRef(versions.log4j)
+            library("logback.jvm", "ch.qos.logback", "logback-classic").versionRef(versions.logback.jvm)
+            library("logback.android", "com.github.tony19", "logback-android").versionRef(versions.logback.android)
+
+            library("ktor.serialization", "io.ktor", "ktor-serialization-kotlinx-json").versionRef(versions.ktor)
             library("ktor.server.core", "io.ktor", "ktor-server-core").versionRef(versions.ktor)
-            library("ktor.server.netty", "io.ktor", "ktor-server-netty").versionRef(versions.ktor)
+            library("ktor.server.engine", "io.ktor", "ktor-server-cio").versionRef(versions.ktor)
             library("ktor.server.logging", "io.ktor", "ktor-server-call-logging").versionRef(versions.ktor)
+            library("ktor.server.contentNegotiation", "io.ktor", "ktor-server-content-negotiation").versionRef(versions.ktor)
+            library("ktor.server.sse", "io.ktor", "ktor-server-sse").versionRef(versions.ktor)
             library("ktor.client.core", "io.ktor", "ktor-client-core").versionRef(versions.ktor)
-            library("ktor.client.cio", "io.ktor", "ktor-client-cio").versionRef(versions.ktor)
+            library("ktor.client.engine", "io.ktor", "ktor-client-cio").versionRef(versions.ktor)
             library("ktor.client.logging", "io.ktor", "ktor-client-logging").versionRef(versions.ktor)
             library("ktor.client.contentNegotiation", "io.ktor", "ktor-client-content-negotiation").versionRef(versions.ktor)
-            library("ktor.serialization", "io.ktor", "ktor-serialization-kotlinx-json").versionRef(versions.ktor)
 
             library("android.coreKtx", "androidx.core", "core-ktx").versionRef(versions.android.coreKtx)
             library("android.appcompat", "androidx.appcompat", "appcompat").versionRef(versions.android.appcompat)

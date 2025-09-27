@@ -56,6 +56,31 @@ fun ItemContextMenu(
 }
 
 @Composable
+fun ItemContextMenu(
+    item: @Composable ColumnScope.() -> Unit,
+    options: @Composable ColumnScope.() -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.width(400.dp),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surfaceContainer
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Top
+            ) {
+                item()
+                options()
+                Box(Modifier)
+            }
+        }
+    }
+}
+
+@Composable
 fun ColumnScope.Option(
     label: String,
     icon: ImageVector,

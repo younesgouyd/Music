@@ -29,12 +29,10 @@ class NavigationHost(
     private val toggleDrawerState: suspend () -> Unit,
     repoStore: RepoStore,
     mediaController: MediaController,
-    startDestination: Destination,
-    onImportFolder: (uri: String) -> Unit,
-    onImportUrl: (uri: String) -> Unit
+    startDestination: Destination
 ) : Component() {
     override val title: String = ""
-    private val navController: NavigationController = NavigationController(repoStore, mediaController, onImportFolder, onImportUrl, startDestination)
+    private val navController = NavigationController(repoStore, mediaController, startDestination)
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
@@ -85,8 +83,6 @@ class NavigationHost(
     }
 
     sealed class Destination {
-        data object Settings : Destination()
-
         data object Library : Destination()
 
         data object PlaylistList : Destination()
@@ -105,8 +101,6 @@ class NavigationHost(
     private class NavigationController(
         private val repoStore: RepoStore,
         private val mediaController: MediaController,
-        private val onImportFolder: (uri: String) -> Unit,
-        private val onImportUrl: (uri: String) -> Unit,
         startDestination: Destination
     ) {
         val inHome: StateFlow<Boolean>
@@ -174,19 +168,18 @@ class NavigationHost(
         private inner class DestinationFactory {
             fun get(destination: Destination): Component {
                 return when (destination) {
-                    is Destination.Settings -> Settings(repoStore)
                     is Destination.Library -> Library(
+                        server = repoStore.server,
                         folderRepo = repoStore.folderRepo,
                         playlistRepo = repoStore.playlistRepo,
                         trackRepo = repoStore.trackRepo,
                         albumRepo = repoStore.albumRepo,
                         artistRepo = repoStore.artistRepo,
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
+                        importSessionRepo = repoStore.importSessionRepo,
                         mediaController = mediaController,
                         showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },
-                        showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
-                        onImportFolder = onImportFolder,
-                        onImportUrl = onImportUrl
+                        showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
                     )
                     is Destination.AlbumDetails -> AlbumDetails(
                         id = destination.albumId,

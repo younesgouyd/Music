@@ -5,6 +5,7 @@ import dev.younesgouyd.apps.music.common.data.repoes.AlbumRepo
 import dev.younesgouyd.apps.music.common.data.repoes.ArtistRepo
 import dev.younesgouyd.apps.music.common.data.repoes.PlaylistRepo
 import dev.younesgouyd.apps.music.common.data.repoes.TrackRepo
+import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Media_file
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -504,6 +505,10 @@ class MediaController(
         }
     }
 
+    private suspend fun getMediaFile(trackId: Long): Media_file {
+        return repoStore.mediaFileRepo.getAnyStatic(trackId)
+    }
+
     private suspend fun QueueItemParameter.toModel(): MediaControllerState.Available.QueueItem {
         return when (this) {
             is QueueItemParameter.Track -> trackRepo.getStatic(this.id)!!.let { dbTrack ->
@@ -528,7 +533,7 @@ class MediaController(
                             )
                         }
                     },
-                    uri = "file://$appDir/media/${dbTrack.audio_media_file_id}",
+                    uri = "file://$appDir/media/${getMediaFile(dbTrack.id).id}",
                     duration = dbTrack.duration
                 )
             }
@@ -555,7 +560,7 @@ class MediaController(
                                 image = dbAlbum.image,
                                 releaseDate = dbAlbum.release_date
                             ),
-                            uri = "file://$appDir/media/${dbTrack.audio_media_file_id}",
+                            uri = "file://$appDir/media/${getMediaFile(dbTrack.id)}",
                             duration = dbTrack.duration
                         )
                     }
@@ -587,7 +592,7 @@ class MediaController(
                                     )
                                 }
                             },
-                            uri = "file://$appDir/media/${dbTrack.audio_media_file_id}",
+                            uri = "file://$appDir/media/${getMediaFile(dbTrack.id)}",
                             duration = dbTrack.duration
                         )
                     }
@@ -632,7 +637,7 @@ class MediaController(
                     val artists: List<Artist>,
                     val album: Album?,
                     val uri: String?,
-                    val duration: Long
+                    val duration: Long?
                 ) : QueueItem() {
                     data class Artist(
                         val id: Long,
