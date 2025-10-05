@@ -1,63 +1,49 @@
 package dev.younesgouyd.apps.music.common.data.repoes
 
-import app.cash.sqldelight.coroutines.asFlow
-import app.cash.sqldelight.coroutines.mapToOneOrNull
-import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Setting
-import dev.younesgouyd.apps.music.common.data.sqldelight.queries.SettingQueries
+import dev.younesgouyd.apps.music.common.data.room.entities.Setting
+import dev.younesgouyd.apps.music.common.data.room.entities.SettingDao
 import dev.younesgouyd.apps.music.common.util.DarkThemeOptions
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 
 class SettingsRepo(
-    private val queries: SettingQueries
+    private val dao: SettingDao
 ) {
     suspend fun init() {
-        val darkTheme = getDarkTheme().firstOrNull()
+        val darkTheme = getDarkTheme().first()
         if (darkTheme == null) {
             val currentTime = System.currentTimeMillis()
-            queries.initDarkTheme(
-                value = DarkThemeOptions.SystemDefault.name,
-                creation_datetime = currentTime,
-                update_datetime = currentTime
+            dao.initDarkTheme(
+                creationDatetime = currentTime,
+                updateDatetime = currentTime
             )
         }
-        val address = getServerAddress().firstOrNull()
+        val address = getServerAddress().first()
         if (address == null) {
             val currentTime = System.currentTimeMillis()
-            queries.initServerAddress(
-                value = "http://0.0.0.0:8080/Music",
-                creation_datetime = currentTime,
-                update_datetime = currentTime
+            dao.initServerAddress(
+                creationDatetime = currentTime,
+                updateDatetime = currentTime
             )
         }
     }
 
     fun getDarkTheme(): Flow<Setting?> {
-        return queries.getDarkTheme()
-            .asFlow()
-            .mapToOneOrNull(Dispatchers.IO)
+        return dao.getDarkTheme()
     }
 
     suspend fun updateDarkTheme(theme: DarkThemeOptions) {
-        withContext(Dispatchers.IO) {
-            queries.updateDarkTheme(value = theme.name, System.currentTimeMillis())
-        }
+        dao.updateDarkTheme(darkTheme = theme, System.currentTimeMillis())
     }
 
     fun getServerAddress(): Flow<Setting?> {
-        return queries.getServerAddress()
-            .asFlow()
-            .mapToOneOrNull(Dispatchers.IO)
+        return dao.getServerAddress()
     }
 
     suspend fun updateServerAddress(address: String?) {
-        withContext(Dispatchers.IO) {
-            queries.updateServerAddress(
-                value = if (address.isNullOrBlank()) null else address.trim(),
-                update_datetime =System.currentTimeMillis()
-            )
-        }
+        dao.updateServerAddress(
+            address = if (address.isNullOrBlank()) null else address.trim(),
+            updateDatetime = System.currentTimeMillis()
+        )
     }
 }

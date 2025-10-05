@@ -8,8 +8,6 @@ import dev.younesgouyd.apps.music.android.Music
 import dev.younesgouyd.apps.music.common.Inspection
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.util.ImportSourceType
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.File
 
 actual class ImportFolderUseCase actual constructor(
@@ -24,15 +22,9 @@ actual class ImportFolderUseCase actual constructor(
     private val mediaFileRepo get() = repoStore.mediaFileRepo
 
     actual suspend fun execute(import: Import): Boolean {
-        return withContext(Dispatchers.IO) {
-            importFolder(import)
-            true // TODO
-        }
-    }
-
-    private suspend fun importFolder(import: Import) {
         val rootId: Long = folderRepo.add("${System.currentTimeMillis()}_imported_from_system_file_picker", null)
         importFolder(import, import.folderUri.toUri(), rootId)
+        return true // TODO
     }
 
     private suspend fun importFolder(import: Import, folderUri: Uri, parent: Long?) {

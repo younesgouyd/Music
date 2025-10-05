@@ -3,8 +3,6 @@ package dev.younesgouyd.apps.music.common.usecases
 import dev.younesgouyd.apps.music.common.Inspection
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.util.ImportSourceType
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.URI
 import kotlin.io.path.toPath
@@ -19,15 +17,13 @@ actual class ImportFolderUseCase actual constructor(
     private val mediaFileRepo get() = repoStore.mediaFileRepo
 
     actual suspend fun execute(import: Import): Boolean {
-        return withContext(Dispatchers.IO) {
-            importFolder(import)
-            true // TODO
+        val sourceType = when (import) {
+            is Import.Local -> "system_file_picker"
+            is Import.Internet -> "internet"
         }
-    }
-
-    private suspend fun importFolder(import: Import) {
-        val rootId: Long = folderRepo.add("${System.currentTimeMillis()}_imported_from_system_file_picker", null)
+        val rootId: Long = folderRepo.add("${System.currentTimeMillis()}_imported_from_$sourceType", null)
         importFolder(import, URI(import.folderUri).toPath().toFile(), rootId)
+        return true // TODO
     }
 
     private suspend fun importFolder(import: Import, folder: File, parent: Long?) {

@@ -30,9 +30,9 @@ class Settings(
                 SettingsState.Loaded(
                     darkTheme = settingsRepo.getDarkTheme()
                         .map {
-                            it?.value_?.let { DarkThemeOptions.valueOf(it) }
+                            it!!.value?.let { DarkThemeOptions.valueOf(it) }
                         }.stateIn(coroutineScope),
-                    serverAddress = settingsRepo.getServerAddress().map { it?.value_ }.stateIn(coroutineScope),
+                    serverAddress = settingsRepo.getServerAddress().map { it!!.value }.stateIn(coroutineScope),
                     onDarkThemeChange = ::updateDarkTheme,
                     onServerAddressChange = ::updateServerAddress
                 )

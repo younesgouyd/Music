@@ -29,8 +29,8 @@ import dev.younesgouyd.apps.music.common.components.util.SystemFilePicker
 import dev.younesgouyd.apps.music.common.components.util.widgets.*
 import dev.younesgouyd.apps.music.common.data.Server
 import dev.younesgouyd.apps.music.common.data.repoes.*
-import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Folder
-import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Playlist
+import dev.younesgouyd.apps.music.common.data.room.entities.Folder
+import dev.younesgouyd.apps.music.common.data.room.entities.Playlist
 import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -104,9 +104,9 @@ class Library(
             }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = list)
 
-        folders = currentFolder.flatMapLatest {
+        folders = currentFolder.flatMapLatest { currentFolderId ->
             loadingFolders.value = true
-            folderRepo.getSubfolders(it?.id).also {
+            folderRepo.getSubfolders(currentFolderId?.id).also {
                 loadingFolders.value = false
             }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
@@ -137,11 +137,11 @@ class Library(
                         Models.Track(
                             id = dbTrack.id,
                             name = dbTrack.name,
-                            artists = artistRepo.getTrackArtistsStatic(dbTrack.id).map {
+                            artists = artistRepo.getTrackArtists(dbTrack.id).first().map {
                                 Models.Track.Artist(id = it.id, name = it.name)
                             },
-                            album = dbTrack.album_id?.let {
-                                albumRepo.getStatic(it)?.let { dbAlbum ->
+                            album = dbTrack.albumId?.let {
+                                albumRepo.get(it).first().let { dbAlbum ->
                                     Models.Track.Album(id = dbAlbum.id, name = dbAlbum.name, image = dbAlbum.image)
                                 }
                             }
@@ -164,7 +164,7 @@ class Library(
         fun dismiss() { importTypeDialogVisible = false }
         if (importTypeDialogVisible) {
             Ui.Common.importFormDialog(
-                onFolderPicked = { println("onFolderPicked"); dismiss(); importFolder(it) },
+                onFolderPicked = { dismiss(); importFolder(it) },
                 onUrlEntered = { dismiss(); showInspectionDialog(it) },
                 onDismiss = { importTypeDialogVisible = false }
             )
@@ -244,7 +244,6 @@ class Library(
                             )
                         }
                     },
-                    loadFolders = folderRepo::getSubfoldersStatic,
                     onMoveFolderToFolder = { id: Long, folderId: Long ->
                         coroutineScope.launch {
                             folderRepo.updateParentFolderId(
@@ -333,7 +332,6 @@ class Library(
                             )
                         }
                     },
-                    loadFolders = folderRepo::getSubfoldersStatic,
                     onMoveFolderToFolder = { id: Long, folderId: Long ->
                         coroutineScope.launch {
                             folderRepo.updateParentFolderId(
@@ -368,7 +366,6 @@ class Library(
     }
 
     private fun importFolder(uri: String) {
-        println("--> ::importFolder")
         coroutineScope.launch {
             importSessionRepo.addLocalSession(uri)
         }
@@ -382,9 +379,9 @@ class Library(
 
     private fun playFolder(folderId: Long) {
         suspend fun getFolderItems(_folderId: Long): List<MediaController.QueueItemParameter> {
-            val tracks = trackRepo.getFolderTracksStatic(_folderId).map { dbTrack -> MediaController.QueueItemParameter.Track(dbTrack.id) }
-            val playlists = playlistRepo.getFolderPlaylistsStatic(_folderId).map { dbPlaylist -> MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
-            return tracks + playlists + folderRepo.getSubfoldersStatic(_folderId).flatMap { getFolderItems(it.id) }
+            val tracks = trackRepo.getFolderTracks(_folderId).first().map { dbTrack -> MediaController.QueueItemParameter.Track(dbTrack.id) }
+            val playlists = playlistRepo.getFolderPlaylists(_folderId).first().map { dbPlaylist -> MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
+            return tracks + playlists + folderRepo.getSubfolders(_folderId).first().flatMap { getFolderItems(it.id) }
         }
         coroutineScope.launch {
             val queue = getFolderItems(folderId)
@@ -455,9 +452,9 @@ class Library(
 
     private fun addFolderToQueue(id: Long) {
         suspend fun getFolderItems(_id: Long): List<MediaController.QueueItemParameter> {
-            val tracks = trackRepo.getFolderTracksStatic(_id).map { dbTrack -> MediaController.QueueItemParameter.Track(dbTrack.id) }
-            val playlists = playlistRepo.getFolderPlaylistsStatic(_id).map { dbPlaylist -> MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
-            return tracks + playlists + folderRepo.getSubfoldersStatic(_id).flatMap { getFolderItems(it.id) }
+            val tracks = trackRepo.getFolderTracks(_id).first().map { dbTrack -> MediaController.QueueItemParameter.Track(dbTrack.id) }
+            val playlists = playlistRepo.getFolderPlaylists(_id).first().map { dbPlaylist -> MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
+            return tracks + playlists + folderRepo.getSubfolders(_id).first().flatMap { getFolderItems(it.id) }
         }
         coroutineScope.launch {
             val queue = getFolderItems(id)
@@ -613,7 +610,6 @@ class Library(
                 onAddTrackToQueue: (id: Long) -> Unit,
                 onDismissAddToPlaylistDialog: () -> Unit,
                 onRenameTrack: (id: Long, name: String) -> Unit,
-                loadFolders: suspend (parentFolderId: Long?) -> List<Folder>,
                 onMoveFolderToFolder: (id: Long, folderId: Long) -> Unit,
                 onMoveTrackToFolder: (id: Long, folderId: Long) -> Unit,
                 onMovePlaylistToFolder: (id: Long, folderId: Long) -> Unit
@@ -662,7 +658,6 @@ class Library(
                                             onPlayClick = { onPlayFolder(folder.id) },
                                             onRenameClick = { onRenameFolder(folder.id, it) },
                                             onDeleteClick = { onDeleteFolder(folder.id) },
-                                            loadFolders = loadFolders,
                                             onMoveToFolder = { onMoveFolderToFolder(folder.id, it) }
                                         )
                                     }
@@ -675,7 +670,6 @@ class Library(
                                             onAddToQueueClick = { onAddPlaylistToQueueClick(playlist.id) },
                                             onRenameClick = { onRenamePlaylist(playlist.id, it) },
                                             onDeleteClick = { onDeletePlaylist(playlist.id) },
-                                            loadFolders = loadFolders,
                                             onMoveToFolder = { onMovePlaylistToFolder(playlist.id, it) }
                                         )
                                     }
@@ -688,7 +682,6 @@ class Library(
                                             onDeleteClick = { onDeleteTrack(track.id) },
                                             onAddToQueueClick = { onAddTrackToQueue(track.id) },
                                             onRenameClick = { onRenameTrack(track.id, it) },
-                                            loadFolders = loadFolders,
                                             onMoveToFolder = { onMoveTrackToFolder(track.id, it) }
                                         )
                                     }
@@ -829,13 +822,11 @@ class Library(
                 onPlayClick: () -> Unit,
                 onRenameClick: (name: String) -> Unit,
                 onDeleteClick: () -> Unit,
-                loadFolders: suspend (parentFolderId: Long?) -> List<Folder>,
                 onMoveToFolder: (id: Long) -> Unit
             ) {
                 var showContextMenu by remember { mutableStateOf(false) }
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
-                var moveToFolderDialogVisible by remember { mutableStateOf(false) }
 
                 Item(
                     modifier = modifier,
@@ -908,7 +899,7 @@ class Library(
                         Option(
                             label = "Move to folder",
                             icon = Icons.Default.Folder,
-                            onClick = { moveToFolderDialogVisible = true },
+                            onClick = { TODO() }
                         )
                         Option(
                             label = "Add to playlist",
@@ -952,24 +943,6 @@ class Library(
                         }
                     )
                 }
-
-                if (moveToFolderDialogVisible) {
-                    MoveToFolderDialog(
-                        itemToMove = ItemToMove(
-                            id = folder.id,
-                            name = folder.name,
-                            image = null, // TODO
-                            typeLabel = "Folder"
-                        ),
-                        loadFolders = loadFolders,
-                        onMoveToFolder = {
-                            moveToFolderDialogVisible = false
-                            showContextMenu = false
-                            onMoveToFolder(it)
-                        },
-                        onDismissRequest = { moveToFolderDialogVisible = false }
-                    )
-                }
             }
 
             @Composable
@@ -982,13 +955,11 @@ class Library(
                 onAddToQueueClick: () -> Unit,
                 onRenameClick: (name: String) -> Unit,
                 onDeleteClick: () -> Unit,
-                loadFolders: suspend (parentFolderId: Long?) -> List<Folder>,
                 onMoveToFolder: (id: Long) -> Unit
             ) {
                 var showContextMenu by remember { mutableStateOf(false) }
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
-                var moveToFolderDialogVisible by remember { mutableStateOf(false) }
 
                 Item(
                     modifier = modifier,
@@ -1057,7 +1028,7 @@ class Library(
                         Option(
                             label = "Move to folder",
                             icon = Icons.Default.Folder,
-                            onClick = { moveToFolderDialogVisible = true },
+                            onClick = { TODO() }
                         )
                         Option(
                             label = "Add to playlist",
@@ -1101,24 +1072,6 @@ class Library(
                         }
                     )
                 }
-
-                if (moveToFolderDialogVisible) {
-                    MoveToFolderDialog(
-                        itemToMove = ItemToMove(
-                            id = playlist.id,
-                            name = playlist.name,
-                            image = playlist.image,
-                            typeLabel = "Playlist"
-                        ),
-                        loadFolders = loadFolders,
-                        onMoveToFolder = {
-                            moveToFolderDialogVisible = false
-                            showContextMenu = false
-                            onMoveToFolder(it)
-                        },
-                        onDismissRequest = { moveToFolderDialogVisible = false }
-                    )
-                }
             }
 
             @Composable
@@ -1131,13 +1084,11 @@ class Library(
                 onDeleteClick: () -> Unit,
                 onAddToQueueClick: () -> Unit,
                 onRenameClick: (name: String) -> Unit,
-                loadFolders: suspend (parentFolderId: Long?) -> List<Folder>,
                 onMoveToFolder: (id: Long) -> Unit
             ) {
                 var showContextMenu by remember { mutableStateOf(false) }
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
-                var moveToFolderDialogVisible by remember { mutableStateOf(false) }
 
                 Item(modifier = modifier, onClick = onClick) {
                     Column(
@@ -1250,7 +1201,7 @@ class Library(
                             Option(
                                 label = "Move to folder",
                                 icon = Icons.Default.Folder,
-                                onClick = { moveToFolderDialogVisible = true },
+                                onClick = { TODO() }
                             )
                             Option(
                                 label = "Add to playlist",
@@ -1290,24 +1241,6 @@ class Library(
                         name = track.name,
                         onDone = { onRenameClick(it); showEditFormDialog = false },
                         onDismiss = { showEditFormDialog = false }
-                    )
-                }
-
-                if (moveToFolderDialogVisible) {
-                    MoveToFolderDialog(
-                        itemToMove = ItemToMove(
-                            id = track.id,
-                            name = track.name,
-                            image = track.album?.image,
-                            typeLabel = "Track"
-                        ),
-                        loadFolders = loadFolders,
-                        onMoveToFolder = {
-                            moveToFolderDialogVisible = false
-                            showContextMenu = false
-                            onMoveToFolder(it)
-                        },
-                        onDismissRequest = { moveToFolderDialogVisible = false }
                     )
                 }
             }
@@ -1389,7 +1322,6 @@ class Library(
                 onAddTrackToQueue: (id: Long) -> Unit,
                 onDismissAddToPlaylistDialog: () -> Unit,
                 onRenameTrack: (id: Long, name: String) -> Unit,
-                loadFolders: suspend (parentFolderId: Long?) -> List<Folder>,
                 onMoveFolderToFolder: (id: Long, folderId: Long) -> Unit,
                 onMoveTrackToFolder: (id: Long, folderId: Long) -> Unit,
                 onMovePlaylistToFolder: (id: Long, folderId: Long) -> Unit
@@ -1437,7 +1369,6 @@ class Library(
                                         onPlayClick = { onPlayFolder(folder.id) },
                                         onRenameClick = { onRenameFolder(folder.id, it) },
                                         onDeleteClick = { onDeleteFolder(folder.id) },
-                                        loadFolders = loadFolders,
                                         onMoveToFolder = { onMoveFolderToFolder(folder.id, it) }
                                     )
                                 }
@@ -1450,7 +1381,6 @@ class Library(
                                         onAddToQueueClick = { onAddPlaylistToQueueClick(playlist.id) },
                                         onRenameClick = { onRenamePlaylist(playlist.id, it) },
                                         onDeleteClick = { onDeletePlaylist(playlist.id) },
-                                        loadFolders = loadFolders,
                                         onMoveToFolder = { onMovePlaylistToFolder(playlist.id, it) }
                                     )
                                 }
@@ -1463,7 +1393,6 @@ class Library(
                                         onDeleteClick = { onDeleteTrack(track.id) },
                                         onAddToQueueClick = { onAddTrackToQueue(track.id) },
                                         onRenameClick = { onRenameTrack(track.id, it) },
-                                        loadFolders = loadFolders,
                                         onMoveToFolder = { onMoveTrackToFolder(track.id, it) }
                                     )
                                 }
@@ -1609,13 +1538,11 @@ class Library(
                 onPlayClick: () -> Unit,
                 onRenameClick: (name: String) -> Unit,
                 onDeleteClick: () -> Unit,
-                loadFolders: suspend (parentFolderId: Long?) -> List<Folder>,
                 onMoveToFolder: (id: Long) -> Unit
             ) {
                 var showContextMenu by remember { mutableStateOf(false) }
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
-                var moveToFolderDialogVisible by remember { mutableStateOf(false) }
 
                 Item(
                     modifier = modifier.combinedClickable(
@@ -1680,7 +1607,7 @@ class Library(
                         Option(
                             label = "Move to folder",
                             icon = Icons.Default.Folder,
-                            onClick = { moveToFolderDialogVisible = true },
+                            onClick = { TODO() }
                         )
                         Option(
                             label = "Add to playlist",
@@ -1724,24 +1651,6 @@ class Library(
                         }
                     )
                 }
-
-                if (moveToFolderDialogVisible) {
-                    MoveToFolderDialog(
-                        itemToMove = ItemToMove(
-                            id = folder.id,
-                            name = folder.name,
-                            image = null, // TODO
-                            typeLabel = "Folder"
-                        ),
-                        loadFolders = loadFolders,
-                        onMoveToFolder = {
-                            moveToFolderDialogVisible = false
-                            showContextMenu = false
-                            onMoveToFolder(it)
-                        },
-                        onDismissRequest = { moveToFolderDialogVisible = false }
-                    )
-                }
             }
 
             @Composable
@@ -1754,13 +1663,11 @@ class Library(
                 onAddToQueueClick: () -> Unit,
                 onRenameClick: (name: String) -> Unit,
                 onDeleteClick: () -> Unit,
-                loadFolders: suspend (parentFolderId: Long?) -> List<Folder>,
                 onMoveToFolder: (id: Long) -> Unit
             ) {
                 var showContextMenu by remember { mutableStateOf(false) }
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
-                var moveToFolderDialogVisible by remember { mutableStateOf(false) }
 
                 Item(
                     modifier = modifier.combinedClickable(
@@ -1821,7 +1728,7 @@ class Library(
                         Option(
                             label = "Move to folder",
                             icon = Icons.Default.Folder,
-                            onClick = { moveToFolderDialogVisible = true },
+                            onClick = { TODO() }
                         )
                         Option(
                             label = "Add to playlist",
@@ -1865,24 +1772,6 @@ class Library(
                         }
                     )
                 }
-
-                if (moveToFolderDialogVisible) {
-                    MoveToFolderDialog(
-                        itemToMove = ItemToMove(
-                            id = playlist.id,
-                            name = playlist.name,
-                            image = playlist.image,
-                            typeLabel = "Playlist"
-                        ),
-                        loadFolders = loadFolders,
-                        onMoveToFolder = {
-                            moveToFolderDialogVisible = false
-                            showContextMenu = false
-                            onMoveToFolder(it)
-                        },
-                        onDismissRequest = { moveToFolderDialogVisible = false }
-                    )
-                }
             }
 
             @Composable
@@ -1895,13 +1784,11 @@ class Library(
                 onDeleteClick: () -> Unit,
                 onAddToQueueClick: () -> Unit,
                 onRenameClick: (name: String) -> Unit,
-                loadFolders: suspend (parentFolderId: Long?) -> List<Folder>,
                 onMoveToFolder: (id: Long) -> Unit
             ) {
                 var showContextMenu by remember { mutableStateOf(false) }
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
-                var moveToFolderDialogVisible by remember { mutableStateOf(false) }
 
                 Item(
                     modifier = modifier.combinedClickable(
@@ -1993,7 +1880,7 @@ class Library(
                             Option(
                                 label = "Move to folder",
                                 icon = Icons.Default.Folder,
-                                onClick = { moveToFolderDialogVisible = true },
+                                onClick = { TODO() }
                             )
                             Option(
                                 label = "Add to playlist",
@@ -2033,24 +1920,6 @@ class Library(
                         name = track.name,
                         onDone = { onRenameClick(it); showEditFormDialog = false },
                         onDismiss = { showEditFormDialog = false }
-                    )
-                }
-
-                if (moveToFolderDialogVisible) {
-                    MoveToFolderDialog(
-                        itemToMove = ItemToMove(
-                            id = track.id,
-                            name = track.name,
-                            image = track.album?.image,
-                            typeLabel = "Track"
-                        ),
-                        loadFolders = loadFolders,
-                        onMoveToFolder = {
-                            moveToFolderDialogVisible = false
-                            showContextMenu = false
-                            onMoveToFolder(it)
-                        },
-                        onDismissRequest = { moveToFolderDialogVisible = false }
                     )
                 }
             }

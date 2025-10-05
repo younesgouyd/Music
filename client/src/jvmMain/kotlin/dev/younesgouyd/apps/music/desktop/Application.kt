@@ -6,12 +6,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.*
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import androidx.room.Room
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import dev.younesgouyd.apps.music.common.components.Main
 import dev.younesgouyd.apps.music.common.components.SplashScreen
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.data.RepoStore
-import dev.younesgouyd.apps.music.common.data.sqldelight.YounesMusic
+import dev.younesgouyd.apps.music.common.data.room.AppDatabase
 import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +23,6 @@ import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
 import uk.co.caprica.vlcj.player.component.AudioPlayerComponent
 import java.io.File
-import java.util.*
 
 object Application {
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -30,16 +30,19 @@ object Application {
     private val currentComponent: MutableStateFlow<Component>
 
     init {
-        val driver = JdbcSqliteDriver(
-            url = "jdbc:sqlite:younesmusic.db",
-            properties = Properties().apply { put("foreign_keys", "true") }
+        repoStore = RepoStore(
+            applicationScope = coroutineScope,
+            database = run {
+                val file = File("younesmusic.db")
+                if (!file.exists()) {
+                    file.createNewFile()
+                }
+                Room.databaseBuilder<AppDatabase>(name = file.absolutePath,)
+                    .setDriver(BundledSQLiteDriver())
+                    .setQueryCoroutineContext(Dispatchers.IO)
+                    .build()
+            }
         )
-        val file = File("younesmusic.db")
-        if (!file.exists()) {
-            file.createNewFile()
-            YounesMusic.Schema.create(driver)
-        }
-        repoStore = RepoStore(dbDriver = driver, applicationScope = coroutineScope)
         currentComponent = MutableStateFlow(
             SplashScreen(
                 repoStore = repoStore,

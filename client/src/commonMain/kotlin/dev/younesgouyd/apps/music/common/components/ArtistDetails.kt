@@ -62,8 +62,8 @@ class ArtistDetails(
                                 id = dbAlbum.id,
                                 name = dbAlbum.name,
                                 image = dbAlbum.image,
-                                releaseDate = dbAlbum.release_date,
-                                artists = artistRepo.getAlbumArtistsStatic(dbAlbum.id).map { dbArtist ->
+                                releaseDate = dbAlbum.releaseDate,
+                                artists = artistRepo.getAlbumArtists(dbAlbum.id).first().map { dbArtist ->
                                     ArtistDetailsState.Loaded.Artist.Album.Artist(
                                         id = dbArtist.id,
                                         name = dbArtist.name

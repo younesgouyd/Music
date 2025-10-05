@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.common.components.util.widgets.Item
 import dev.younesgouyd.apps.music.common.data.repoes.ImportSessionRepo
+import dev.younesgouyd.apps.music.common.data.room.entities.ImportSessionWithItems
 import dev.younesgouyd.apps.music.common.util.Component
 import dev.younesgouyd.apps.music.common.util.ImportSessionState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -47,13 +48,13 @@ class Imports(
                     .mapLatest { list ->
                         list.sortedWith { a, b ->
                             // first sort by state
-                            val orderCmp = customOrder[a.state]!!.compareTo(customOrder[b.state]!!)
+                            val orderCmp = customOrder[a.importSession.state]!!.compareTo(customOrder[b.importSession.state]!!)
                             if (orderCmp != 0) return@sortedWith orderCmp
 
-                            // then by creationDatetime depending on state
-                            return@sortedWith when (a.state) {
-                                ImportSessionState.Pending -> a.creationDatetime.compareTo(b.creationDatetime) // ASC
-                                else -> b.creationDatetime.compareTo(a.creationDatetime) // DESC
+                            // then by creationDatetime
+                            return@sortedWith when (a.importSession.state) {
+                                ImportSessionState.Pending -> a.importSession.creationDatetime.compareTo(b.importSession.creationDatetime) // ASC
+                                else -> b.importSession.creationDatetime.compareTo(a.importSession.creationDatetime) // DESC
                             }
                         }
                     }.stateIn(coroutineScope),
@@ -88,7 +89,7 @@ class Imports(
         data object Loading : ImportsState()
 
         data class Loaded(
-            val imports: StateFlow<List<ImportSessionRepo.ImportSession>>,
+            val imports: StateFlow<List<ImportSessionWithItems>>,
             val scrollState: LazyListState,
             val onCancelImportClick: (Long) -> Unit,
             val onDeleteImportClick: (Long) -> Unit
@@ -118,7 +119,7 @@ class Imports(
         @Composable
         private fun Main(
             modifier: Modifier,
-            imports: StateFlow<List<ImportSessionRepo.ImportSession>>,
+            imports: StateFlow<List<ImportSessionWithItems>>,
             scrollState: LazyListState,
             onCancelImportClick: (Long) -> Unit,
             onDeleteImportClick: (Long) -> Unit
@@ -141,8 +142,8 @@ class Imports(
                         ImportItem(
                             modifier = Modifier.fillMaxWidth(),
                             import = item,
-                            onCancelClick = { onCancelImportClick(item.id) },
-                            onDeleteClick = { onDeleteImportClick(item.id) }
+                            onCancelClick = { onCancelImportClick(item.importSession.id) },
+                            onDeleteClick = { onDeleteImportClick(item.importSession.id) }
                         )
                     }
                 }
@@ -152,7 +153,7 @@ class Imports(
         @Composable
         private fun ImportItem(
             modifier: Modifier = Modifier,
-            import: ImportSessionRepo.ImportSession,
+            import: ImportSessionWithItems,
             onCancelClick: () -> Unit,
             onDeleteClick: () -> Unit
         ) {
@@ -165,12 +166,12 @@ class Imports(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Session: ${import.id}")
-                    Text(import.uri)
-                    Text(import.sourceType.name)
+                    Text("Session: ${import.importSession.id}")
+                    Text(import.importSession.uri)
+                    Text(import.importSession.sourceType.name)
                     Text(
-                        text = import.state.name,
-                        color = when (import.state) {
+                        text = import.importSession.state.name,
+                        color = when (import.importSession.state) {
                             ImportSessionState.Pending -> Color.Unspecified
                             ImportSessionState.Started -> Color.Unspecified
                             ImportSessionState.Completed -> Color(0xFF4CAF50)
@@ -178,8 +179,8 @@ class Imports(
                             ImportSessionState.Failed -> MaterialTheme.colorScheme.error
                         }
                     )
-                    Text(Instant.fromEpochMilliseconds(import.creationDatetime).toString())
-                    if (import.state == ImportSessionState.Started) {
+                    Text(Instant.fromEpochMilliseconds(import.importSession.creationDatetime).toString())
+                    if (import.importSession.state == ImportSessionState.Started) {
                         LinearProgressIndicator(
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -189,7 +190,7 @@ class Imports(
                         horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = Alignment.End),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (import.state == ImportSessionState.Started) {
+                        if (import.importSession.state == ImportSessionState.Started) {
                             TextButton(
                                 onClick = onCancelClick,
                                 content = { Text("Cancel") }

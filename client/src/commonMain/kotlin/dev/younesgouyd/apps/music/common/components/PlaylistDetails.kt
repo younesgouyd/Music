@@ -65,14 +65,14 @@ class PlaylistDetails(
                             PlaylistDetailsState.Loaded.Track(
                                 id = dbTrack.id,
                                 name = dbTrack.name,
-                                artists = artistRepo.getTrackArtistsStatic(dbTrack.id).map { dbArtist ->
+                                artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
                                     PlaylistDetailsState.Loaded.Track.Artist(
                                         id = dbArtist.id,
                                         name = dbArtist.name
                                     )
                                 },
-                                album = dbTrack.album_id?.let {
-                                    albumRepo.getStatic(it)!!.let { dbAlbum ->
+                                album = dbTrack.albumId?.let {
+                                    albumRepo.get(it).first().let { dbAlbum ->
                                         PlaylistDetailsState.Loaded.Track.Album(
                                             id = dbAlbum.id,
                                             name = dbAlbum.name,
@@ -80,7 +80,7 @@ class PlaylistDetails(
                                         )
                                     }
                                 },
-                                addedAt = formatAddedAt(dbTrack.added_at)
+                                addedAt = formatAddedAt(TODO())
                             )
                         }
                     }.stateIn(coroutineScope),
@@ -126,7 +126,7 @@ class PlaylistDetails(
 
     private fun playTrack(id: Long) {
         coroutineScope.launch {
-            val tracks = trackRepo.getPlaylistTracksStatic(this@PlaylistDetails.id)
+            val tracks = trackRepo.getPlaylistTracks(this@PlaylistDetails.id).first()
             val index = tracks.indexOfFirst { it.id == id }
             mediaController.playQueue(
                 queue = listOf(MediaController.QueueItemParameter.Playlist(this@PlaylistDetails.id)),

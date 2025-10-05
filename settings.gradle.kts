@@ -27,6 +27,9 @@ dependencyResolutionManagement {
                 val kotlin = version("kotlin", "2.2.0")
                 val json = version("json", "1.9.0")
                 val coroutines = version("coroutines", "1.10.2")
+                val room = version("room", "2.8.1")
+                val sqlite = version("sqlite", "2.6.1")
+                val ksp = version("ksp", "2.2.0-2.0.2")
                 val slf4j = version("slf4j", "2.0.17")
                 val log4j = version("log4j", "2.25.1")
                 val logback = object {
@@ -42,7 +45,6 @@ dependencyResolutionManagement {
                     val activity = version("android.activity", "1.10.1")
                     val media3 = version("android.media3", "1.7.1")
                 }
-                val sqldelight = version("sqldelight", "2.1.0")
                 val vlcj = version("vlcj", "4.11.0")
                 val mp3agic = version("mp3agic", "0.9.1")
                 val tika = version("tika", "3.2.3")
@@ -53,7 +55,8 @@ dependencyResolutionManagement {
             plugin("kotlin.multiplatform", "org.jetbrains.kotlin.multiplatform").versionRef(versions.kotlin)
             plugin("composeMultiplatform", "org.jetbrains.compose").versionRef(versions.compose)
             plugin("composeCompiler", "org.jetbrains.kotlin.plugin.compose").versionRef(versions.kotlin)
-            plugin("sqldelight", "app.cash.sqldelight").versionRef(versions.sqldelight)
+            plugin("ksp", "com.google.devtools.ksp").versionRef(versions.ksp)
+            plugin("room", "androidx.room").versionRef(versions.room)
             plugin("androidApplication", "com.android.application").versionRef(versions.android.agp)
 
             library("json", "org.jetbrains.kotlinx", "kotlinx-serialization-json").versionRef(versions.json)
@@ -62,10 +65,10 @@ dependencyResolutionManagement {
             library("coroutines.desktop", "org.jetbrains.kotlinx", "kotlinx-coroutines-swing").versionRef(versions.coroutines)
             library("coroutines.android", "org.jetbrains.kotlinx", "kotlinx-coroutines-android").versionRef(versions.coroutines)
 
-            library("sqldelight.sqliteDialect", "app.cash.sqldelight", "sqlite-3-38-dialect").versionRef(versions.sqldelight)
-            library("sqldelight.coroutines", "app.cash.sqldelight", "coroutines-extensions").versionRef(versions.sqldelight)
-            library("sqldelight.sqliteDriver", "app.cash.sqldelight", "sqlite-driver").versionRef(versions.sqldelight)
-            library("sqldelight.androidDriver", "app.cash.sqldelight", "android-driver").versionRef(versions.sqldelight)
+            library("room.runtime", "androidx.room", "room-runtime").versionRef(versions.room)
+            library("room.compiler", "androidx.room", "room-compiler").versionRef(versions.room)
+            library("sqlite.jvm", "androidx.sqlite", "sqlite-bundled-jvm").versionRef(versions.sqlite)
+            library("sqlite.android", "androidx.sqlite", "sqlite-bundled").versionRef(versions.sqlite)
 
             library("vlcj", "uk.co.caprica", "vlcj").versionRef(versions.vlcj)
             library("mp3agic", "com.mpatric", "mp3agic").versionRef(versions.mp3agic)

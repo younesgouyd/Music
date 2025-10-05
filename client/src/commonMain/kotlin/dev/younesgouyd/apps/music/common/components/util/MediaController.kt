@@ -5,14 +5,11 @@ import dev.younesgouyd.apps.music.common.data.repoes.AlbumRepo
 import dev.younesgouyd.apps.music.common.data.repoes.ArtistRepo
 import dev.younesgouyd.apps.music.common.data.repoes.PlaylistRepo
 import dev.younesgouyd.apps.music.common.data.repoes.TrackRepo
-import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Media_file
+import dev.younesgouyd.apps.music.common.data.room.entities.MediaFile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -505,17 +502,17 @@ class MediaController(
         }
     }
 
-    private suspend fun getMediaFile(trackId: Long): Media_file {
-        return repoStore.mediaFileRepo.getAnyStatic(trackId)
+    private suspend fun getMediaFile(trackId: Long): MediaFile {
+        return repoStore.mediaFileRepo.getAny(trackId).first()
     }
 
     private suspend fun QueueItemParameter.toModel(): MediaControllerState.Available.QueueItem {
         return when (this) {
-            is QueueItemParameter.Track -> trackRepo.getStatic(this.id)!!.let { dbTrack ->
+            is QueueItemParameter.Track -> trackRepo.get(this.id).first().let { dbTrack ->
                 MediaControllerState.Available.QueueItem.Track(
                     id = dbTrack.id,
                     name = dbTrack.name,
-                    artists = artistRepo.getTrackArtistsStatic(this.id)
+                    artists = artistRepo.getTrackArtists(this.id).first()
                         .map { dbArtist ->
                             MediaControllerState.Available.QueueItem.Track.Artist(
                                 id = dbArtist.id,
@@ -523,31 +520,31 @@ class MediaController(
                                 image = dbArtist.image
                             )
                         },
-                    album = dbTrack.album_id?.let {
-                        albumRepo.getStatic(it)!!.let { dbAlbum ->
+                    album = dbTrack.albumId?.let {
+                        albumRepo.get(it).first().let { dbAlbum ->
                             MediaControllerState.Available.QueueItem.Track.Album(
                                 id = dbAlbum.id,
                                 name = dbAlbum.name,
                                 image = dbAlbum.image,
-                                releaseDate = dbAlbum.release_date
+                                releaseDate = dbAlbum.releaseDate
                             )
                         }
                     },
                     uri = "file://$appDir/media/${getMediaFile(dbTrack.id).id}",
-                    duration = dbTrack.duration
+                    durationMillis = dbTrack.durationMillis
                 )
             }
-            is QueueItemParameter.Album -> albumRepo.getStatic(this.id)!!.let { dbAlbum ->
+            is QueueItemParameter.Album -> albumRepo.get(this.id).first().let { dbAlbum ->
                 MediaControllerState.Available.QueueItem.Album(
                     id = dbAlbum.id,
                     name = dbAlbum.name,
                     image = dbAlbum.image,
-                    releaseDate = dbAlbum.release_date,
-                    items = trackRepo.getAlbumTracksStatic(dbAlbum.id).map { dbTrack ->
+                    releaseDate = dbAlbum.releaseDate,
+                    items = trackRepo.getAlbumTracks(dbAlbum.id).first().map { dbTrack ->
                         MediaControllerState.Available.QueueItem.Track(
                             id = dbTrack.id,
                             name = dbTrack.name,
-                            artists = artistRepo.getTrackArtistsStatic(dbTrack.id).map { dbArtist ->
+                            artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
                                 MediaControllerState.Available.QueueItem.Track.Artist(
                                     id = dbArtist.id,
                                     name = dbArtist.name,
@@ -558,42 +555,42 @@ class MediaController(
                                 id = dbAlbum.id,
                                 name = dbAlbum.name,
                                 image = dbAlbum.image,
-                                releaseDate = dbAlbum.release_date
+                                releaseDate = dbAlbum.releaseDate
                             ),
                             uri = "file://$appDir/media/${getMediaFile(dbTrack.id)}",
-                            duration = dbTrack.duration
+                            durationMillis = dbTrack.durationMillis
                         )
                     }
                 )
             }
-            is QueueItemParameter.Playlist -> playlistRepo.getStatic(this.id)!!.let { dbPlaylist ->
+            is QueueItemParameter.Playlist -> playlistRepo.get(this.id).first().let { dbPlaylist ->
                 MediaControllerState.Available.QueueItem.Playlist(
                     id = dbPlaylist.id,
                     name = dbPlaylist.name,
                     image = dbPlaylist.image,
-                    items = trackRepo.getPlaylistTracksStatic(dbPlaylist.id).map { dbTrack ->
+                    items = trackRepo.getPlaylistTracks(dbPlaylist.id).first().map { dbTrack ->
                         MediaControllerState.Available.QueueItem.Track(
                             id = dbTrack.id,
                             name = dbTrack.name,
-                            artists = artistRepo.getTrackArtistsStatic(dbTrack.id).map { dbArtist ->
+                            artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
                                 MediaControllerState.Available.QueueItem.Track.Artist(
                                     id = dbArtist.id,
                                     name = dbArtist.name,
                                     image = dbArtist.image
                                 )
                             },
-                            album = dbTrack.album_id?.let {
-                                albumRepo.getStatic(it)!!.let { dbAlbum ->
+                            album = dbTrack.albumId?.let {
+                                albumRepo.get(it).first().let { dbAlbum ->
                                     MediaControllerState.Available.QueueItem.Track.Album(
                                         id = dbAlbum.id,
                                         name = dbAlbum.name,
                                         image = dbAlbum.image,
-                                        releaseDate = dbAlbum.release_date
+                                        releaseDate = dbAlbum.releaseDate
                                     )
                                 }
                             },
                             uri = "file://$appDir/media/${getMediaFile(dbTrack.id)}",
-                            duration = dbTrack.duration
+                            durationMillis = dbTrack.durationMillis
                         )
                     }
                 )
@@ -637,7 +634,7 @@ class MediaController(
                     val artists: List<Artist>,
                     val album: Album?,
                     val uri: String?,
-                    val duration: Long?
+                    val durationMillis: Long?
                 ) : QueueItem() {
                     data class Artist(
                         val id: Long,

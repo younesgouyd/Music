@@ -9,8 +9,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.common.ImportService
 import dev.younesgouyd.apps.music.common.components.util.AdaptiveUi
-import dev.younesgouyd.apps.music.common.components.util.ImportService
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.usecases.ImportFolderUseCase
@@ -31,7 +31,7 @@ class Main(
     override val title: String = ""
     private val darkTheme: StateFlow<DarkThemeOptions> = repoStore.settingsRepo.getDarkTheme()
         .map {
-            it?.value_?.let {
+            it!!.value?.let {
                 DarkThemeOptions.valueOf(it)
             } ?: DarkThemeOptions.SystemDefault
         }.stateIn(

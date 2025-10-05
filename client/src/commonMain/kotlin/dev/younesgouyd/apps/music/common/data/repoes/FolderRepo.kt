@@ -1,78 +1,51 @@
 package dev.younesgouyd.apps.music.common.data.repoes
 
-import app.cash.sqldelight.coroutines.asFlow
-import app.cash.sqldelight.coroutines.mapToList
-import app.cash.sqldelight.coroutines.mapToOne
-import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Folder
-import dev.younesgouyd.apps.music.common.data.sqldelight.queries.FolderQueries
-import kotlinx.coroutines.Dispatchers
+import dev.younesgouyd.apps.music.common.data.room.entities.Folder
+import dev.younesgouyd.apps.music.common.data.room.entities.FolderDao
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.withContext
 
-class FolderRepo(private val queries: FolderQueries) {
+class FolderRepo(private val dao: FolderDao) {
     fun getAll(): Flow<List<Folder>> {
-        return queries.getAll()
-            .asFlow()
-            .mapToList(Dispatchers.IO)
+        return dao.getAll()
     }
 
     fun get(id: Long): Flow<Folder> {
-        return queries.get(id)
-            .asFlow()
-            .mapToOne(Dispatchers.IO)
-    }
-
-    suspend fun getStatic(id: Long): Folder? {
-        return withContext(Dispatchers.IO) {
-            queries.get(id).executeAsOneOrNull()
-        }
+        return dao.get(id)
     }
 
     fun getSubfolders(id: Long?): Flow<List<Folder>> {
-        return queries.getSubfolders(id)
-            .asFlow()
-            .mapToList(Dispatchers.IO)
-    }
-
-    suspend fun getSubfoldersStatic(id: Long?): List<Folder> {
-        return withContext(Dispatchers.IO) {
-            queries.getSubfolders(id).executeAsList()
+        return if (id == null) {
+            dao.getRoot()
+        } else {
+            dao.getSubfolders(id)
         }
     }
 
     suspend fun add(name: String, parentFolderId: Long?): Long {
         require(name.isNotEmpty())
-        return withContext(Dispatchers.IO) {
-            val currentTime = System.currentTimeMillis()
-            queries.add(
-                name = name,
-                parentFolderId = parentFolderId,
-                creation_datetime = currentTime,
-                update_datetime = currentTime
-            ).executeAsOne()
-        }
+        val currentTime = System.currentTimeMillis()
+        return dao.add(
+            name = name,
+            parentFolderId = parentFolderId,
+            creationDatetime = currentTime,
+            updateDatetime = currentTime
+        )
     }
 
     suspend fun updateName(id: Long, name: String) {
         require(name.isNotEmpty())
-        withContext(Dispatchers.IO) {
-            queries.updateName(name, System.currentTimeMillis(), id)
-        }
+        dao.updateName(name, System.currentTimeMillis(), id)
     }
 
     suspend fun updateParentFolderId(id: Long, parentFolderId: Long?) {
-        withContext(Dispatchers.IO) {
-            queries.updateParentFolderId(
-                parent_folder_id = parentFolderId,
-                update_datetime = System.currentTimeMillis(),
-                id = id
-            )
-        }
+        dao.updateParentFolderId(
+            parentFolderId = parentFolderId,
+            updateDatetime = System.currentTimeMillis(),
+            id = id
+        )
     }
 
     suspend fun delete(id: Long) {
-        withContext(Dispatchers.IO) {
-            queries.delete(id)
-        }
+        dao.delete(id)
     }
 }

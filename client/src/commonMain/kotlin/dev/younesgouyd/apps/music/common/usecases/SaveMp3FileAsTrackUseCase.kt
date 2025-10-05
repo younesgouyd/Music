@@ -2,6 +2,7 @@ package dev.younesgouyd.apps.music.common.usecases
 
 import com.mpatric.mp3agic.Mp3File
 import dev.younesgouyd.apps.music.common.data.RepoStore
+import kotlinx.coroutines.flow.first
 import java.io.File
 
 class SaveMp3FileAsTrackUseCase(
@@ -15,7 +16,7 @@ class SaveMp3FileAsTrackUseCase(
     suspend fun execute(file: File, folderId: Long): Long {
         val mp3file = Mp3File(file)
         var title: String? = null
-        var albumTrackNumber: Long? = null
+        var albumTrackNumber: Int? = null
         var artist: String? = null
         var album: String? = null
         var lyrics: String? = null
@@ -25,7 +26,7 @@ class SaveMp3FileAsTrackUseCase(
             val id3 = mp3file.id3v2Tag
             val albumImageData = id3.albumImage
             title = id3.title
-            albumTrackNumber = id3.track?.toLongOrNull()
+            albumTrackNumber = id3.track?.toIntOrNull()
             artist = id3.artist
             album = id3.album
             year = id3.year
@@ -34,7 +35,7 @@ class SaveMp3FileAsTrackUseCase(
         } else if (mp3file.hasId3v1Tag()) {
             val id3 = mp3file.id3v1Tag
             title = id3.title
-            albumTrackNumber = id3.track?.toLongOrNull()
+            albumTrackNumber = id3.track?.toIntOrNull()
             artist = id3.artist
             album = id3.album
             year = id3.year
@@ -42,7 +43,7 @@ class SaveMp3FileAsTrackUseCase(
         var artistId: Long? = null
         var albumId: Long? = null
         if (!artist.isNullOrEmpty()) { // TODO: artists tag may contain multiple artists separated by ";", "|", or some other separator
-            val artists = artistRepo.getByName(artist)
+            val artists = artistRepo.getByName(artist).first()
             if (artists.isEmpty()) {
                 artistId = artistRepo.add(name = artist, image = null)
             } else if (artists.size == 1) {
@@ -50,7 +51,7 @@ class SaveMp3FileAsTrackUseCase(
             }
         }
         if (!album.isNullOrEmpty()) {
-            val albums = albumRepo.getByName(album)
+            val albums = albumRepo.getByName(album).first()
             if (albums.isEmpty()) {
                 albumId = albumRepo.add(name = album, image = albumImage, releaseDate = year)
             } else if (albums.size == 1) {
@@ -63,7 +64,7 @@ class SaveMp3FileAsTrackUseCase(
             albumId = albumId,
             lyrics = lyrics,
             albumTrackNumber = albumTrackNumber,
-            duration = mp3file.lengthInMilliseconds
+            durationMillis = mp3file.lengthInMilliseconds
         )
         if (artistId != null) {
             artistTrackCrossRefRepo.add(artistId, trackId)

@@ -1,81 +1,52 @@
 package dev.younesgouyd.apps.music.common.data.repoes
 
-import app.cash.sqldelight.coroutines.asFlow
-import app.cash.sqldelight.coroutines.mapToList
-import app.cash.sqldelight.coroutines.mapToOne
-import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Album
-import dev.younesgouyd.apps.music.common.data.sqldelight.queries.AlbumQueries
-import kotlinx.coroutines.Dispatchers
+import dev.younesgouyd.apps.music.common.data.room.entities.Album
+import dev.younesgouyd.apps.music.common.data.room.entities.AlbumDao
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.withContext
 
-class AlbumRepo(private val queries: AlbumQueries) {
+class AlbumRepo(private val dao: AlbumDao) {
     fun getAll(): Flow<List<Album>> {
-        return queries.getAll()
-            .asFlow()
-            .mapToList(Dispatchers.IO)
+        return dao.getAll()
     }
 
     fun get(id: Long): Flow<Album> {
-        return queries.get(id)
-            .asFlow()
-            .mapToOne(Dispatchers.IO)
-    }
-
-    suspend fun getStatic(id: Long): Album? {
-        return withContext(Dispatchers.IO) {
-            queries.get(id).executeAsOneOrNull()
-        }
+        return dao.get(id)
     }
 
     fun getArtistAlbums(artistId: Long): Flow<List<Album>> {
-        return queries.getArtistAlbums(artistId)
-            .asFlow()
-            .mapToList(Dispatchers.IO)
+        return dao.getArtistAlbums(artistId)
     }
 
-    suspend fun getByName(name: String): List<Album> {
-        return withContext(Dispatchers.IO) {
-            queries.getByName(name).executeAsList()
-        }
+    fun getByName(name: String): Flow<List<Album>> {
+        return dao.getByName(name)
     }
 
     suspend fun add(name: String, image: ByteArray?, releaseDate: String?): Long {
         require(name.isNotEmpty())
-        return withContext(Dispatchers.IO) {
-            val currentTime = System.currentTimeMillis()
-            queries.add(
-                name = name,
-                image = image,
-                release_date = releaseDate,
-                creation_datetime = currentTime,
-                update_datetime = currentTime
-            ).executeAsOne()
-        }
+        val currentTime = System.currentTimeMillis()
+        return dao.add(
+            name = name,
+            image = image,
+            releaseDate = releaseDate,
+            creationDatetime = currentTime,
+            updateDatetime = currentTime
+        )
     }
 
     suspend fun updateName(id: Long, name: String) {
         require(name.isNotEmpty())
-        withContext(Dispatchers.IO) {
-            queries.updateName(name, System.currentTimeMillis(), id)
-        }
+        dao.updateName(name, System.currentTimeMillis(), id)
     }
 
     suspend fun updateImage(id: Long, image: ByteArray?) {
-        withContext(Dispatchers.IO) {
-            queries.updateImage(image, System.currentTimeMillis(), id)
-        }
+        dao.updateImage(image, System.currentTimeMillis(), id)
     }
 
     suspend fun updateReleaseDate(id: Long, releaseDate: String?) {
-        withContext(Dispatchers.IO) {
-            queries.updateReleaseDate(releaseDate, System.currentTimeMillis(), id)
-        }
+        dao.updateReleaseDate(releaseDate, System.currentTimeMillis(), id)
     }
 
     suspend fun delete(id: Long) {
-        withContext(Dispatchers.IO) {
-            queries.delete(id)
-        }
+        dao.delete(id)
     }
 }

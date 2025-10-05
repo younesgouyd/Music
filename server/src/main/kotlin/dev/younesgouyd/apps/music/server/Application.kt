@@ -30,9 +30,11 @@ object Application {
                     "Status: $status, HTTP method: $httpMethod, User agent: $userAgent"
                 }
             }
-            install(ContentNegotiation) { json(
-                Json { ignoreUnknownKeys = true }
-            ) }
+            install(ContentNegotiation) {
+                json(
+                    Json { ignoreUnknownKeys = true }
+                )
+            }
             install(SSE)
             configureRouting()
         }.start(wait = true)

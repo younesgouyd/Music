@@ -1,7 +1,0 @@
-getTrackMediaFiles:
-SELECT * FROM media_file WHERE track_id = :track_id;
-
-add:
-INSERT INTO media_file (name, track_id, source_uri, source_webpage_url, source_type, creation_datetime)
-VALUES ( :name, :track_id, :source_uri, :source_webpage_url, :source_type, :creation_datetime)
-RETURNING id;

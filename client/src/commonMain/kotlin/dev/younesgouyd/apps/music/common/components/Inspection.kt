@@ -104,10 +104,12 @@ class Inspection(
             modifier: Modifier,
             state: InspectionState
         ) {
-            when (state) {
-                is InspectionState.Loading -> Text(modifier = modifier, text = "Loading...")
-                is InspectionState.Loaded -> Main(modifier = modifier, state = state)
-                is InspectionState.Error -> Text(modifier = modifier, text = "Something went wrong.")
+            Surface {
+                when (state) {
+                    is InspectionState.Loading -> Text(modifier = modifier, text = "Loading...")
+                    is InspectionState.Loaded -> Main(modifier = modifier, state = state)
+                    is InspectionState.Error -> Text(modifier = modifier, text = "Something went wrong.")
+                }
             }
         }
 

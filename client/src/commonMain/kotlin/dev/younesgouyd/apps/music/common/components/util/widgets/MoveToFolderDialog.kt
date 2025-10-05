@@ -19,7 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Folder
+import dev.younesgouyd.apps.music.common.data.room.entities.Folder
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 

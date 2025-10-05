@@ -1,15 +1,14 @@
 package dev.younesgouyd.apps.music.common.data
 
-import app.cash.sqldelight.db.SqlDriver
 import dev.younesgouyd.apps.music.common.data.repoes.*
-import dev.younesgouyd.apps.music.common.data.sqldelight.YounesMusic
+import dev.younesgouyd.apps.music.common.data.room.AppDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 class RepoStore(
     private val applicationScope: CoroutineScope,
-    private val dbDriver: SqlDriver
+    private val database: AppDatabase
 ) {
     lateinit var server: Server private set
     lateinit var settingsRepo: SettingsRepo private set
@@ -24,23 +23,19 @@ class RepoStore(
     lateinit var importSessionRepo: ImportSessionRepo private set
 
     suspend fun init() {
-        val database = YounesMusic(dbDriver)
-        settingsRepo = SettingsRepo(queries = database.settingQueries)
-        folderRepo = FolderRepo(database.folderQueries)
-        albumRepo = AlbumRepo(database.albumQueries)
-        artistRepo = ArtistRepo(database.artistQueries)
-        artistTrackCrossRefRepo = ArtistTrackCrossRefRepo(database.artistTrackCrossRefQueries)
-        playlistRepo = PlaylistRepo(database.playlistQueries)
-        playlistTrackCrossRefRepo = PlaylistTrackCrossRefRepo(database.playlistTrackCrossRefQueries)
-        trackRepo = TrackRepo(database.trackQueries)
-        mediaFileRepo = MediaFileRepo(database.mediaFileQueries)
-        importSessionRepo = ImportSessionRepo(
-            queries = database.importSessionQueries,
-            itemQueries = database.importSessionItemQueries
-        )
+        settingsRepo = SettingsRepo(database.settingDao())
+        folderRepo = FolderRepo(database.folderDao())
+        albumRepo = AlbumRepo(database.albumDao())
+        artistRepo = ArtistRepo(database.artistDao())
+        artistTrackCrossRefRepo = ArtistTrackCrossRefRepo(database.artistTrackCrossRefDao())
+        playlistRepo = PlaylistRepo(database.playlistDao())
+        playlistTrackCrossRefRepo = PlaylistTrackCrossRefRepo(database.playlistTrackCrossRefDao())
+        trackRepo = TrackRepo(database.trackDao())
+        mediaFileRepo = MediaFileRepo(database.mediaFileDao())
+        importSessionRepo = ImportSessionRepo(database.importSessionDao())
 
         settingsRepo.init()
 
-        server = Server(settingsRepo.getServerAddress().map { it?.value_ }.stateIn(applicationScope))
+        server = Server(settingsRepo.getServerAddress().map { it!!.value }.stateIn(applicationScope))
     }
 }

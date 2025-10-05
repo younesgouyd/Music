@@ -306,7 +306,7 @@ class Player(
                 val isPlaying by isPlaying.collectAsState()
                 val timePositionChange by timePositionChange.collectAsState()
                 val animatedPosition = remember { Animatable(0f) }
-                val formattedDuration = remember(track.duration) { durationMillisFormatted(track.duration) }
+                val formattedDuration = remember(track.durationMillis) { durationMillisFormatted(track.durationMillis) }
                 val isUserInteracting = remember { mutableStateOf(false) }
 
                 Column(
@@ -317,13 +317,13 @@ class Player(
                     PlaybackSlider(
                         modifier = Modifier.fillMaxWidth().padding(8.dp),
                         enabled = enabled,
-                        duration = track.duration,
+                        duration = track.durationMillis,
                         animatedPosition = animatedPosition,
                         onSeek = onValueChange,
                         isInteracting = isUserInteracting
                     )
                     Text(
-                        text = "${durationMillisFormatted(track.duration?.let { (animatedPosition.value * it) }?.toLong())}/${formattedDuration}",
+                        text = "${durationMillisFormatted(track.durationMillis?.let { (animatedPosition.value * it) }?.toLong())}/${formattedDuration}",
                         style = MaterialTheme.typography.labelMedium
                     )
                     Row(
@@ -403,10 +403,10 @@ class Player(
                 }
 
                 LaunchedEffect(isPlaying) {
-                    if (track.duration != null) {
+                    if (track.durationMillis != null) {
                         if (isPlaying) {
                             val remaining = 1f - animatedPosition.value
-                            val remainingDuration = (remaining * track.duration).toInt()
+                            val remainingDuration = (remaining * track.durationMillis).toInt()
                             animatedPosition.animateTo(
                                 targetValue = 1f,
                                 animationSpec = linearAnimation(remainingDuration)
@@ -418,11 +418,11 @@ class Player(
                 }
 
                 LaunchedEffect(timePositionChange) {
-                    if (!isUserInteracting.value && track.duration != null) {
+                    if (!isUserInteracting.value && track.durationMillis != null) {
                         animatedPosition.stop()
-                        animatedPosition.snapTo(timePositionChange.toFloat() / track.duration.toFloat())
+                        animatedPosition.snapTo(timePositionChange.toFloat() / track.durationMillis.toFloat())
                         if (isPlaying) {
-                            val remaining = track.duration - timePositionChange
+                            val remaining = track.durationMillis - timePositionChange
                             animatedPosition.animateTo(
                                 targetValue = 1f,
                                 animationSpec = linearAnimation(remaining.toInt())
@@ -653,7 +653,7 @@ class Player(
                 val isPlaying by isPlaying.collectAsState()
                 val timePositionChange by timePositionChange.collectAsState()
                 val animatedPosition = remember { Animatable(0f) }
-                val formattedDuration = remember(track.duration) { durationMillisFormatted(track.duration) }
+                val formattedDuration = remember(track.durationMillis) { durationMillisFormatted(track.durationMillis) }
                 val isUserInteracting = remember { mutableStateOf(false) }
 
                 Column(
@@ -674,13 +674,13 @@ class Player(
                     PlaybackSlider(
                         modifier = Modifier.fillMaxWidth().padding(8.dp),
                         enabled = enabled,
-                        duration = track.duration,
+                        duration = track.durationMillis,
                         animatedPosition = animatedPosition,
                         onSeek = onValueChange,
                         isInteracting = isUserInteracting
                     )
                     Text(
-                        text = "${durationMillisFormatted(track.duration?.let { (animatedPosition.value * it) }?.toLong())}/${formattedDuration}",
+                        text = "${durationMillisFormatted(track.durationMillis?.let { (animatedPosition.value * it) }?.toLong())}/${formattedDuration}",
                         style = MaterialTheme.typography.labelMedium
                     )
                     Row(
@@ -760,10 +760,10 @@ class Player(
                 }
 
                 LaunchedEffect(isPlaying) {
-                    if (track.duration != null) {
+                    if (track.durationMillis != null) {
                         if (isPlaying) {
                             val remaining = 1f - animatedPosition.value
-                            val remainingDuration = (remaining * track.duration).toInt()
+                            val remainingDuration = (remaining * track.durationMillis).toInt()
                             animatedPosition.animateTo(
                                 targetValue = 1f,
                                 animationSpec = linearAnimation(remainingDuration)
@@ -775,11 +775,11 @@ class Player(
                 }
 
                 LaunchedEffect(timePositionChange) {
-                    if (!isUserInteracting.value && track.duration != null) {
+                    if (!isUserInteracting.value && track.durationMillis != null) {
                         animatedPosition.stop()
-                        animatedPosition.snapTo(timePositionChange.toFloat() / track.duration.toFloat())
+                        animatedPosition.snapTo(timePositionChange.toFloat() / track.durationMillis.toFloat())
                         if (isPlaying) {
-                            val remaining = track.duration - timePositionChange
+                            val remaining = track.durationMillis - timePositionChange
                             animatedPosition.animateTo(
                                 targetValue = 1f,
                                 animationSpec = linearAnimation(remaining.toInt())

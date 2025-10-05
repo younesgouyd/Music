@@ -25,10 +25,7 @@ class Server(private val serverAddress: StateFlow<String?>) {
         install(ContentNegotiation) { json() }
         install(SSE)
         install(HttpTimeout) {
-            this.requestTimeoutMillis = 60_000
-        }
-        engine {
-            requestTimeout = 60_000
+            this.requestTimeoutMillis = 120_000
         }
     }
     private val tempDir = File("temp").also { it.mkdir() }

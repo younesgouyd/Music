@@ -9,11 +9,11 @@ data class Inspection(
     @Serializable
     data class Item(
         val id: Long,
+        val url: String,
         val title: String,
         val thumbnail: String?, // url
         val artists: List<String>,
         val duration: Int?, // seconds
-        val album: String?,
-        val url: String
+        val album: String?
     )
 }

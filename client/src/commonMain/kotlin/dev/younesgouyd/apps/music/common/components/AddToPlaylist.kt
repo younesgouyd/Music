@@ -16,8 +16,7 @@ import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.common.components.util.widgets.Image
 import dev.younesgouyd.apps.music.common.components.util.widgets.Item
 import dev.younesgouyd.apps.music.common.data.repoes.*
-import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Track
-import dev.younesgouyd.apps.music.common.data.sqldelight.queries.GetPlaylistTracks
+import dev.younesgouyd.apps.music.common.data.room.entities.Track
 import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -44,25 +43,25 @@ class AddToPlaylist(
                 AddToPlaylistState.Loaded(
                     adding = _adding.asStateFlow(),
                     itemToAdd = when (itemToAdd) {
-                        is Item.Track -> trackRepo.getStatic(itemToAdd.id)!!.let { dbTrack ->
+                        is Item.Track -> trackRepo.get(itemToAdd.id).first().let { dbTrack ->
                             AddToPlaylistState.Loaded.ItemToAdd.Track(
                                 name = dbTrack.name,
-                                image = dbTrack.album_id?.let { albumRepo.getStatic(it)!!.image }
+                                image = dbTrack.albumId?.let { albumRepo.get(it).first().image }
                             )
                         }
-                        is Item.Album -> albumRepo.getStatic(itemToAdd.id)!!.let { dbAlbum ->
+                        is Item.Album -> albumRepo.get(itemToAdd.id).first().let { dbAlbum ->
                             AddToPlaylistState.Loaded.ItemToAdd.Album(
                                 name = dbAlbum.name,
                                 image = dbAlbum.image
                             )
                         }
-                        is Item.Playlist -> playlistRepo.getStatic(itemToAdd.id)!!.let { dbPlaylist ->
+                        is Item.Playlist -> playlistRepo.get(itemToAdd.id).first().let { dbPlaylist ->
                             AddToPlaylistState.Loaded.ItemToAdd.Playlist(
                                 name = dbPlaylist.name,
                                 image = dbPlaylist.image
                             )
                         }
-                        is Item.Folder -> folderRepo.getStatic(itemToAdd.id)!!.let { dbFolder ->
+                        is Item.Folder -> folderRepo.get(itemToAdd.id).first().let { dbFolder ->
                             AddToPlaylistState.Loaded.ItemToAdd.Folder(
                                 name = dbFolder.name
                             )
@@ -106,24 +105,24 @@ class AddToPlaylist(
             }
             when (itemToAdd) {
                 is Item.Track -> {
-                    val exists = playlistTrackCrossRefRepo.getStatic(playlistId, itemToAdd.id) != null
+                    val exists = playlistTrackCrossRefRepo.get(playlistId, itemToAdd.id).first() != null
                     if (!exists) {
                         playlistTrackCrossRefRepo.add(playlistId, itemToAdd.id)
                     }
                 }
                 is Item.Album -> {
-                    val tracks: List<Track> = trackRepo.getAlbumTracksStatic(itemToAdd.id)
+                    val tracks: List<Track> = trackRepo.getAlbumTracks(itemToAdd.id).first()
                     for (track in tracks) {
-                        val exists = playlistTrackCrossRefRepo.getStatic(playlistId, track.id) != null
+                        val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
                         if (!exists) {
                             playlistTrackCrossRefRepo.add(playlistId, track.id)
                         }
                     }
                 }
                 is Item.Playlist -> {
-                    val tracks: List<GetPlaylistTracks> = trackRepo.getPlaylistTracksStatic(itemToAdd.id)
+                    val tracks: List<Track> = trackRepo.getPlaylistTracks(itemToAdd.id).first()
                     for (track in tracks) {
-                        val exists = playlistTrackCrossRefRepo.getStatic(playlistId, track.id) != null
+                        val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
                         if (!exists) {
                             playlistTrackCrossRefRepo.add(playlistId, track.id)
                         }
@@ -131,14 +130,14 @@ class AddToPlaylist(
                 }
                 is Item.Folder -> {
                     suspend fun addFolderToPlaylist(folderId: Long) {
-                        val tracks: List<Track> = trackRepo.getFolderTracksStatic(folderId)
+                        val tracks: List<Track> = trackRepo.getFolderTracks(folderId).first()
                         for (track in tracks) {
-                            val exists = playlistTrackCrossRefRepo.getStatic(playlistId, track.id) != null
+                            val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
                             if (!exists) {
                                 playlistTrackCrossRefRepo.add(playlistId, track.id)
                             }
                         }
-                        val subfolders = folderRepo.getSubfoldersStatic(folderId)
+                        val subfolders = folderRepo.getSubfolders(folderId).first()
                         for (subfolder in subfolders) {
                             addFolderToPlaylist(subfolder.id)
                         }

@@ -1,6 +1,7 @@
 package dev.younesgouyd.apps.music.common.usecases
 
 import dev.younesgouyd.apps.music.common.data.RepoStore
+import kotlinx.coroutines.flow.first
 
 class SaveAudioFileAsTrackUseCase(
     private val repoStore: RepoStore
@@ -17,7 +18,7 @@ class SaveAudioFileAsTrackUseCase(
         artists: List<String>,
         album: String?,
         releaseYear: Int?,
-        albumTrackNumber: Long?,
+        albumTrackNumber: Int?,
         lyrics: String?,
         albumImage: ByteArray?
     ): Long {
@@ -34,7 +35,7 @@ class SaveAudioFileAsTrackUseCase(
             albumId = albumId,
             lyrics = lyrics,
             albumTrackNumber = albumTrackNumber,
-            duration = durationSeconds
+            durationMillis = durationSeconds
         )
         for (artistId in artistIds) {
             artistTrackCrossRefRepo.add(artistId, trackId)
@@ -45,7 +46,7 @@ class SaveAudioFileAsTrackUseCase(
     private suspend fun saveArtists(artists: List<String>): List<Long> {
         return buildList {
             for (artist in artists) {
-                val dbArtists = artistRepo.getByName(artist)
+                val dbArtists = artistRepo.getByName(artist).first()
                 val artistId = if (dbArtists.isEmpty()) {
                     artistRepo.add(name = artist, image = null)
                 } else {
@@ -61,7 +62,7 @@ class SaveAudioFileAsTrackUseCase(
     }
 
     private suspend fun saveAlbum(album: String, albumImage: ByteArray?, releaseYear: String?): Long {
-        val dbAlbums = albumRepo.getByName(album)
+        val dbAlbums = albumRepo.getByName(album).first()
         return if (dbAlbums.isEmpty()) {
             albumRepo.add(name = album, image = albumImage, releaseYear)
         } else {

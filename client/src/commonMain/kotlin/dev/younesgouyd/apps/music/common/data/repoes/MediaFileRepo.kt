@@ -1,18 +1,14 @@
 package dev.younesgouyd.apps.music.common.data.repoes
 
-import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Media_file
-import dev.younesgouyd.apps.music.common.data.sqldelight.queries.MediaFileQueries
+import dev.younesgouyd.apps.music.common.data.room.entities.MediaFile
+import dev.younesgouyd.apps.music.common.data.room.entities.MediaFileDao
 import dev.younesgouyd.apps.music.common.util.ImportSourceType
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
-class MediaFileRepo(private val queries: MediaFileQueries) {
-    suspend fun getAnyStatic(id: Long): Media_file {
-        return withContext(Dispatchers.IO) {
-            queries.getTrackMediaFiles(id)
-                .executeAsList()
-                .first()
-        }
+class MediaFileRepo(private val dao: MediaFileDao) {
+    fun getAny(id: Long): Flow<MediaFile> {
+        return dao.getTrackMediaFiles(id).map { it.first() }
     }
 
     suspend fun add(
@@ -22,15 +18,15 @@ class MediaFileRepo(private val queries: MediaFileQueries) {
         sourceWebpageUrl: String?,
         sourceType: ImportSourceType
     ): Long {
-        return withContext(Dispatchers.IO) {
-            queries.add(
-                name = name,
-                track_id = trackId,
-                source_uri = sourceUri,
-                source_webpage_url = sourceWebpageUrl,
-                source_type = sourceType.name,
-                creation_datetime = System.currentTimeMillis()
-            ).executeAsOne()
-        }
+        val currentTime = System.currentTimeMillis()
+        return dao.add(
+            name = name,
+            trackId = trackId,
+            sourceUri = sourceUri,
+            sourceWebpageUrl = sourceWebpageUrl,
+            sourceType = sourceType,
+            creationDatetime = currentTime,
+            updateDatetime = currentTime
+        )
     }
 }

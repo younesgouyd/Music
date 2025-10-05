@@ -3,7 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeMultiplatform)
-    alias(libs.plugins.sqldelight)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.room)
     alias(libs.plugins.androidApplication)
 }
 
@@ -36,7 +37,7 @@ kotlin {
                 implementation(libs.coroutines.core)
                 implementation(compose.material3)
                 implementation(compose.materialIconsExtended)
-                implementation(libs.sqldelight.coroutines)
+                implementation(libs.room.runtime)
                 implementation(libs.mp3agic)
                 implementation(libs.tika)
                 implementation(libs.slf4j)
@@ -50,23 +51,23 @@ kotlin {
         }
         jvmMain {
             dependencies {
+                implementation(libs.sqlite.jvm)
                 implementation(libs.coroutines.desktop)
                 implementation(compose.desktop.currentOs) {
                     exclude("org.jetbrains.compose.material") // todo
                 }
-                implementation(libs.sqldelight.sqliteDriver)
                 implementation(libs.vlcj)
                 implementation(libs.logback.jvm)
             }
         }
         androidMain {
             dependencies {
+                implementation(libs.sqlite.android)
                 implementation(libs.coroutines.android)
                 implementation(libs.android.coreKtx)
                 implementation(libs.android.appcompat)
                 implementation(libs.android.activityKtx)
                 implementation(libs.android.activityCompose)
-                implementation(libs.sqldelight.androidDriver)
                 implementation(libs.android.media3.common)
                 implementation(libs.android.media3.exoplayer)
                 implementation(libs.android.media3.session)
@@ -76,14 +77,13 @@ kotlin {
     }
 }
 
-sqldelight {
-    databases {
-        create("YounesMusic") {
-            deriveSchemaFromMigrations.set(true)
-            dialect(libs.sqldelight.sqliteDialect)
-            packageName.set("dev.younesgouyd.apps.music.common.data.sqldelight")
-        }
-    }
+dependencies {
+    add("kspAndroid", libs.room.compiler)
+    add("kspJvm", libs.room.compiler)
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 //compose.desktop {
@@ -103,7 +103,7 @@ android {
     compileSdk = 35
     defaultConfig {
         applicationId = "dev.younesgouyd.apps.music.android"
-        minSdk = 21
+        minSdk = 23
         targetSdk = 35
         versionCode = 1
         versionName = "0.1"
@@ -117,12 +117,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_22
         targetCompatibility = JavaVersion.VERSION_22
     }
-//    buildFeatures {
-//        compose = true
-//    }
-//    composeOptions {
-//        kotlinCompilerExtensionVersion = libs.versions.kotlin.get()
-//    }
 
     packaging.resources {
         // Multiple dependency bring these files in. Exclude them to enable

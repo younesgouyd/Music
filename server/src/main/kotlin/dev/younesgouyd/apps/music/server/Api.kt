@@ -16,6 +16,8 @@ object Api {
     private val tempDir = File("temp").also { it.mkdir() }
     private val mediaDir = File(tempDir, "media").also { it.mkdir() }
     private val resultDir = File(tempDir, "result").also { it.mkdir() }
+    private val ytDlpOutput = File(tempDir, "yt-dlp_output")
+    private val ytDlpErrorOutput = File(tempDir, "yt-dlp_error_output")
     private var inspection: Inspection? = null
     private var selectedItems: List<Inspection.Item> = emptyList()
 
@@ -30,12 +32,12 @@ object Api {
                 playlist.entries.filterNotNull().mapIndexed { index, it ->
                     Inspection.Item(
                         id = (index + 1).toLong(),
+                        url = it.webpageUrl,
                         title = it.title,
                         thumbnail = it.thumbnail,
                         artists = it.artists,
                         duration = it.duration,
-                        album = it.album,
-                        url = it.webpageUrl
+                        album = it.album
                     )
                 }
             } else {
@@ -117,15 +119,17 @@ object Api {
             println("::runCommand | args: ${args.joinToString(" ")}")
             val process = ProcessBuilder("yt-dlp", *args)
                 .redirectErrorStream(false)
+                .redirectOutput(ytDlpOutput)
+                .redirectError(ytDlpErrorOutput)
                 .start()
             println("::runCommand | waiting for command to finish...")
             val exitCode = process.waitFor()
             println("::runCommand | command finished with exitCode: $exitCode")
             if (exitCode != 0) {
-                val errorMsg = process.errorStream.bufferedReader().readText()
+                val errorMsg = ytDlpErrorOutput.readText()
                 throw RuntimeException("yt-dlp failed: $errorMsg")
             }
-            process.inputStream.bufferedReader().use { it.readText() }
+            ytDlpOutput.readText()
         }
     }
 

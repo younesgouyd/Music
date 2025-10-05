@@ -55,14 +55,14 @@ class AlbumDetails(
                         Album(
                             id = dbAlbum.id,
                             name = dbAlbum.name,
-                            artists = artistRepo.getAlbumArtistsStatic(dbAlbum.id).map { dbArtist ->
+                            artists = artistRepo.getAlbumArtists(dbAlbum.id).first().map { dbArtist ->
                                 Album.Artist(
                                     id = dbArtist.id,
                                     name = dbArtist.name
                                 )
                             },
                             image = dbAlbum.image,
-                            releaseDate = dbAlbum.release_date
+                            releaseDate = dbAlbum.releaseDate
                         )
                     }.stateIn(coroutineScope),
                     tracks = trackRepo.getAlbumTracks(id).mapLatest { list ->
@@ -70,7 +70,7 @@ class AlbumDetails(
                             Album.Track(
                                 id = dbTrack.id,
                                 name = dbTrack.name,
-                                artists = artistRepo.getTrackArtistsStatic(dbTrack.id).map { dbArtist ->
+                                artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
                                     Album.Track.Artist(
                                         id = dbArtist.id,
                                         name = dbArtist.name
@@ -119,7 +119,7 @@ class AlbumDetails(
 
     private fun playTrack(id: Long) {
         coroutineScope.launch {
-            val tracks = trackRepo.getAlbumTracksStatic(this@AlbumDetails.id)
+            val tracks = trackRepo.getAlbumTracks(this@AlbumDetails.id).first()
             val index = tracks.indexOfFirst { it.id == id }
             mediaController.playQueue(
                 queue = listOf(MediaController.QueueItemParameter.Album(this@AlbumDetails.id)),
@@ -132,7 +132,7 @@ class AlbumDetails(
     private fun showAddToPlaylistDialog() {
         addToPlaylist.update {
             AddToPlaylist(
-                itemToAdd = dev.younesgouyd.apps.music.common.components.AddToPlaylist.Item.Album(id),
+                itemToAdd = AddToPlaylist.Item.Album(id),
                 playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
                 trackRepo = trackRepo,
                 albumRepo = albumRepo,
@@ -151,7 +151,7 @@ class AlbumDetails(
     fun showAddTrackToPlaylistDialog(trackId: Long) {
         addToPlaylist.update {
             AddToPlaylist(
-                itemToAdd = dev.younesgouyd.apps.music.common.components.AddToPlaylist.Item.Track(trackId),
+                itemToAdd = AddToPlaylist.Item.Track(trackId),
                 playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
                 trackRepo = trackRepo,
                 albumRepo = albumRepo,

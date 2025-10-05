@@ -161,7 +161,7 @@ class MiniPlayer(
                 val isPlaying by isPlaying.collectAsState()
                 val timePositionChange by timePositionChange.collectAsState()
                 val animatedPosition = remember { Animatable(0f) }
-                val formattedDuration = remember(currentTrack.duration) { durationMillisFormatted(currentTrack.duration) }
+                val formattedDuration = remember(currentTrack.durationMillis) { durationMillisFormatted(currentTrack.durationMillis) }
                 val isUserInteracting = remember { mutableStateOf(false) }
 
                 Surface(
@@ -303,13 +303,13 @@ class MiniPlayer(
                                 PlaybackSlider(
                                     modifier = Modifier.weight(1f),
                                     enabled = enabled,
-                                    duration = currentTrack.duration,
+                                    duration = currentTrack.durationMillis,
                                     animatedPosition = animatedPosition,
                                     onSeek = onValueChange,
                                     isInteracting = isUserInteracting
                                 )
                                 Text(
-                                    text = "${durationMillisFormatted(currentTrack.duration?.let { (animatedPosition.value * it) }?.toLong())}/${formattedDuration}",
+                                    text = "${durationMillisFormatted(currentTrack.durationMillis?.let { (animatedPosition.value * it) }?.toLong())}/${formattedDuration}",
                                     style = MaterialTheme.typography.labelMedium
                                 )
                             }
@@ -319,10 +319,10 @@ class MiniPlayer(
                 }
 
                 LaunchedEffect(isPlaying) {
-                    if (currentTrack.duration != null) {
+                    if (currentTrack.durationMillis != null) {
                         if (isPlaying) {
                             val remaining = 1f - animatedPosition.value
-                            val remainingDuration = (remaining * currentTrack.duration).toInt()
+                            val remainingDuration = (remaining * currentTrack.durationMillis).toInt()
                             animatedPosition.animateTo(
                                 targetValue = 1f,
                                 animationSpec = linearAnimation(remainingDuration)
@@ -334,13 +334,13 @@ class MiniPlayer(
                 }
 
                 LaunchedEffect(timePositionChange) {
-                    if (!isUserInteracting.value && currentTrack.duration != null) {
+                    if (!isUserInteracting.value && currentTrack.durationMillis != null) {
                         animatedPosition.stop()
                         animatedPosition.snapTo(
-                            timePositionChange.toFloat() / currentTrack.duration.toFloat().toFloat()
+                            timePositionChange.toFloat() / currentTrack.durationMillis.toFloat().toFloat()
                         )
                         if (isPlaying) {
-                            val remaining = currentTrack.duration - timePositionChange
+                            val remaining = currentTrack.durationMillis - timePositionChange
                             animatedPosition.animateTo(
                                 targetValue = 1f,
                                 animationSpec = linearAnimation(remaining.toInt())
@@ -426,7 +426,7 @@ class MiniPlayer(
                 val isPlaying by isPlaying.collectAsState()
                 val timePositionChange by timePositionChange.collectAsState()
                 val animatedPosition = remember { Animatable(0f) }
-                val formattedDuration = remember(currentTrack.duration) { durationMillisFormatted(currentTrack.duration) }
+                val formattedDuration = remember(currentTrack.durationMillis) { durationMillisFormatted(currentTrack.durationMillis) }
 
                 Surface(
                     modifier = modifier,
@@ -474,7 +474,7 @@ class MiniPlayer(
                                     }
                                 }
                                 Text(
-                                    text = "${durationMillisFormatted(currentTrack.duration?.let { (animatedPosition.value * it) }?.toLong())}/${formattedDuration}",
+                                    text = "${durationMillisFormatted(currentTrack.durationMillis?.let { (animatedPosition.value * it) }?.toLong())}/${formattedDuration}",
                                     style = MaterialTheme.typography.labelMedium
                                 )
                             }
@@ -488,10 +488,10 @@ class MiniPlayer(
                 }
 
                 LaunchedEffect(isPlaying) {
-                    if (currentTrack.duration != null) {
+                    if (currentTrack.durationMillis != null) {
                         if (isPlaying) {
                             val remaining = 1f - animatedPosition.value
-                            val remainingDuration = (remaining * currentTrack.duration).toInt()
+                            val remainingDuration = (remaining * currentTrack.durationMillis).toInt()
                             animatedPosition.animateTo(
                                 targetValue = 1f,
                                 animationSpec = linearAnimation(remainingDuration)
@@ -503,11 +503,11 @@ class MiniPlayer(
                 }
 
                 LaunchedEffect(timePositionChange) {
-                    if (currentTrack.duration != null) {
+                    if (currentTrack.durationMillis != null) {
                         animatedPosition.stop()
-                        animatedPosition.snapTo(timePositionChange.toFloat() / currentTrack.duration.toFloat())
+                        animatedPosition.snapTo(timePositionChange.toFloat() / currentTrack.durationMillis.toFloat())
                         if (isPlaying) {
-                            val remaining = currentTrack.duration - timePositionChange
+                            val remaining = currentTrack.durationMillis - timePositionChange
                             animatedPosition.animateTo(
                                 targetValue = 1f,
                                 animationSpec = linearAnimation(remaining.toInt())

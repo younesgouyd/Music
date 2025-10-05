@@ -1,9 +1,9 @@
-package dev.younesgouyd.apps.music.common.components.util
+package dev.younesgouyd.apps.music.common
 
-import dev.younesgouyd.apps.music.common.Inspection
 import dev.younesgouyd.apps.music.common.data.Server
 import dev.younesgouyd.apps.music.common.data.repoes.ImportSessionRepo
-import dev.younesgouyd.apps.music.common.json
+import dev.younesgouyd.apps.music.common.data.room.entities.ImportSession
+import dev.younesgouyd.apps.music.common.data.room.entities.ImportSessionWithItems
 import dev.younesgouyd.apps.music.common.usecases.Import
 import dev.younesgouyd.apps.music.common.usecases.ImportFolderUseCase
 import dev.younesgouyd.apps.music.common.util.ImportSessionState
@@ -21,25 +21,28 @@ class ImportService(
 ) {
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var started: Boolean = false
-    @Volatile private var currentSessionId: Long? = null
-    @Volatile private var importJob: Job? = null
+    @Volatile
+    private var currentSessionId: Long? = null
+    @Volatile
+    private var importJob: Job? = null
 
     fun start() {
         if (started) return
         else started = true
         println("starting ImportService")
         coroutineScope.launch {
-            repo.getOldestPending().collect { session ->
-                if (session == null) {
+            repo.getOldestPending().collect { sessionWithItems ->
+                if (sessionWithItems == null) {
                     return@collect
                 }
+                val session: ImportSession = sessionWithItems.importSession
                 if (currentSessionId == session.id) {
                     println("session ${session.id} was already started")
                     return@collect
                 }
                 repo.updateState(session.id, ImportSessionState.Started)
                 currentSessionId = session.id
-                val sessionState = repo.get(session.id).map { it.state }
+                val sessionState = repo.get(session.id).map { it.importSession.state }
                 launch {
                     sessionState.collect { state ->
                         when (state) {
@@ -49,7 +52,7 @@ class ImportService(
                                 }
                                 importJob = launch {
                                     try {
-                                        if (import(session)) {
+                                        if (import(sessionWithItems)) {
                                             repo.updateState(session.id, ImportSessionState.Completed)
                                         } else {
                                             repo.updateState(session.id, ImportSessionState.Failed)
@@ -104,18 +107,18 @@ class ImportService(
         }
     }
 
-    private suspend fun import(session: ImportSessionRepo.ImportSession): Boolean {
+    private suspend fun import(session: ImportSessionWithItems): Boolean {
         return withContext(Dispatchers.IO) {
-            println("Working on session ${session.id}")
-            when (session.sourceType) {
+            println("Working on session ${session.importSession.id}")
+            when (session.importSession.sourceType) {
                 ImportSourceType.Local -> importLocal(session)
                 ImportSourceType.Internet -> importInternet(session)
             }
         }
     }
 
-    private suspend fun importInternet(session: ImportSessionRepo.ImportSession): Boolean {
-        val result: String = server.download(session.items.map { it.id }).first()
+    private suspend fun importInternet(session: ImportSessionWithItems): Boolean {
+        val result: String = server.download(session.items.map { it.itemId }).first()
         return when (result) {
             "error" -> false
             "completed" -> {
@@ -123,9 +126,11 @@ class ImportService(
                 importFolderUseCase.execute(
                     Import.Internet(
                         folderUri = folder.toURI().toString(),
-                        url = session.uri,
+                        url = session.importSession.uri,
                         items = json.decodeFromString<List<Inspection.Item>>(
-                            File(folder, "index.json").readText()
+                            withContext(Dispatchers.IO) {
+                                File(folder, "index.json").readText()
+                            }
                         )
                     )
                 )
@@ -134,9 +139,9 @@ class ImportService(
         }
     }
 
-    private suspend fun importLocal(session: ImportSessionRepo.ImportSession): Boolean {
+    private suspend fun importLocal(session: ImportSessionWithItems): Boolean {
         return importFolderUseCase.execute(
-            Import.Local(session.uri)
+            Import.Local(session.importSession.uri)
         )
     }
 

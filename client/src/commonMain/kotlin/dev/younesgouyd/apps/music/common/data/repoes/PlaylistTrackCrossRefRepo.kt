@@ -1,32 +1,25 @@
 package dev.younesgouyd.apps.music.common.data.repoes
 
-import dev.younesgouyd.apps.music.common.data.sqldelight.migrations.Playlist_track_cross_ref
-import dev.younesgouyd.apps.music.common.data.sqldelight.queries.PlaylistTrackCrossRefQueries
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import dev.younesgouyd.apps.music.common.data.room.entities.PlaylistTrackCrossRef
+import dev.younesgouyd.apps.music.common.data.room.entities.PlaylistTrackCrossRefDao
+import kotlinx.coroutines.flow.Flow
 
-class PlaylistTrackCrossRefRepo(private val queries: PlaylistTrackCrossRefQueries) {
+class PlaylistTrackCrossRefRepo(private val dao: PlaylistTrackCrossRefDao) {
     suspend fun add(playlistId: Long, trackId: Long) {
-        withContext(Dispatchers.IO) {
-            val currentTime = System.currentTimeMillis()
-            queries.add(
-                playlist_id = playlistId,
-                track_id = trackId,
-                creation_datetime = currentTime,
-                update_datetime = currentTime
-            )
-        }
+        val currentTime = System.currentTimeMillis()
+        dao.add(
+            playlistId = playlistId,
+            trackId = trackId,
+            creationDatetime = currentTime,
+            updateDatetime = currentTime
+        )
+    }
+
+    fun get(playlistId: Long, trackId: Long): Flow<PlaylistTrackCrossRef?> {
+        return dao.get(playlistId, trackId)
     }
 
     suspend fun delete(playlistId: Long, trackId: Long) {
-        withContext(Dispatchers.IO) {
-            queries.delete(playlistId, trackId)
-        }
-    }
-
-    suspend fun getStatic(playlistId: Long, trackId: Long): Playlist_track_cross_ref? {
-        return withContext(Dispatchers.IO) {
-            queries.get(playlistId, trackId).executeAsOneOrNull()
-        }
+        dao.delete(playlistId, trackId)
     }
 }
