@@ -1,4 +1,4 @@
-package dev.younesgouyd.apps.music.common.components.util.widgets
+package dev.younesgouyd.apps.music.common.components.util.compose.widgets
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*

@@ -1,4 +1,4 @@
-package dev.younesgouyd.apps.music.common.components.util
+package dev.younesgouyd.apps.music.common.components.util.compose
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect

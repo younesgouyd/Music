@@ -4,6 +4,7 @@ import com.mpatric.mp3agic.Mp3File
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import kotlinx.coroutines.flow.first
 import java.io.File
+import kotlin.time.Duration.Companion.milliseconds
 
 class SaveMp3FileAsTrackUseCase(
     private val repoStore: RepoStore
@@ -64,7 +65,7 @@ class SaveMp3FileAsTrackUseCase(
             albumId = albumId,
             lyrics = lyrics,
             albumTrackNumber = albumTrackNumber,
-            durationMillis = mp3file.lengthInMilliseconds
+            duration = mp3file.lengthInMilliseconds.milliseconds
         )
         if (artistId != null) {
             artistTrackCrossRefRepo.add(artistId, trackId)

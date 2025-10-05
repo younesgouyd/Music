@@ -16,8 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.common.Inspection
-import dev.younesgouyd.apps.music.common.components.util.widgets.Image
-import dev.younesgouyd.apps.music.common.components.util.widgets.Item
+import dev.younesgouyd.apps.music.common.components.util.compose.widgets.Image
+import dev.younesgouyd.apps.music.common.components.util.compose.widgets.Item
 import dev.younesgouyd.apps.music.common.data.Server
 import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.cancel

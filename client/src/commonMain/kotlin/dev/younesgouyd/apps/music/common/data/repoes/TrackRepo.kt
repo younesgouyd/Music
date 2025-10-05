@@ -3,6 +3,7 @@ package dev.younesgouyd.apps.music.common.data.repoes
 import dev.younesgouyd.apps.music.common.data.room.entities.Track
 import dev.younesgouyd.apps.music.common.data.room.entities.TrackDao
 import kotlinx.coroutines.flow.Flow
+import kotlin.time.Duration
 
 class TrackRepo(private val dao: TrackDao) {
     fun getAll(): Flow<List<Track>> {
@@ -29,7 +30,7 @@ class TrackRepo(private val dao: TrackDao) {
         return dao.getPlaylistTracks(playlistId)
     }
 
-    suspend fun add(name: String, folderId: Long, albumId: Long?, lyrics: String?, albumTrackNumber: Int?, durationMillis: Long?): Long {
+    suspend fun add(name: String, folderId: Long, albumId: Long?, lyrics: String?, albumTrackNumber: Int?, duration: Duration?): Long {
         require(name.isNotEmpty())
         val currentTime = System.currentTimeMillis()
         return dao.add(
@@ -38,7 +39,7 @@ class TrackRepo(private val dao: TrackDao) {
             albumId = albumId,
             lyrics = lyrics,
             albumTrackNumber = albumTrackNumber,
-            durationMillis = durationMillis,
+            durationMillis = duration?.inWholeMilliseconds,
             creationDatetime = currentTime,
             updateDatetime = currentTime
         )

@@ -10,8 +10,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.common.ImportService
-import dev.younesgouyd.apps.music.common.components.util.AdaptiveUi
 import dev.younesgouyd.apps.music.common.components.util.MediaController
+import dev.younesgouyd.apps.music.common.components.util.compose.AdaptiveUi
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.usecases.ImportFolderUseCase
 import dev.younesgouyd.apps.music.common.usecases.SaveAudioFileAsTrackUseCase

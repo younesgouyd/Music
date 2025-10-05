@@ -1,5 +1,6 @@
-package dev.younesgouyd.apps.music.common.components.util.widgets
+package dev.younesgouyd.apps.music.common.components.util.compose.widgets
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
@@ -42,7 +43,7 @@ fun Image(
             true -> LoadingImage(modifier)
             false -> {
                 image?.let {
-                    androidx.compose.foundation.Image(
+                    Image(
                         modifier = modifier,
                         bitmap = it,
                         contentDescription = null,
@@ -80,7 +81,7 @@ fun Image(
             true -> LoadingImage(modifier)
             false -> {
                 image?.let {
-                    androidx.compose.foundation.Image(
+                    Image(
                         modifier = modifier,
                         bitmap = it,
                         contentDescription = null,
@@ -112,7 +113,7 @@ private fun BrokenImage(
         modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
-        androidx.compose.foundation.Image(
+        Image(
             imageVector = Icons.Default.BrokenImage,
             contentDescription = null
         )

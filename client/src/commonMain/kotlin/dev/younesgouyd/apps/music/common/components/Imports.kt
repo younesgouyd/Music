@@ -12,7 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.common.components.util.widgets.Item
+import dev.younesgouyd.apps.music.common.components.util.compose.widgets.Item
 import dev.younesgouyd.apps.music.common.data.repoes.ImportSessionRepo
 import dev.younesgouyd.apps.music.common.data.room.entities.ImportSessionWithItems
 import dev.younesgouyd.apps.music.common.util.Component

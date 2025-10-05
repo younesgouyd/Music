@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 class MediaController(
     private val mediaPlayer: MediaPlayer,
@@ -24,7 +26,7 @@ class MediaController(
     private val _state: MutableStateFlow<MediaControllerState> = MutableStateFlow(MediaControllerState.Unavailable)
     private val enabled: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val isPlaying: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    private val timePositionChange: MutableStateFlow<Long> = MutableStateFlow(0)
+    private val timePositionChange: MutableStateFlow<Duration> = MutableStateFlow(0.milliseconds)
 
     private val trackRepo: TrackRepo get() = repoStore.trackRepo
     private val artistRepo: ArtistRepo get() = repoStore.artistRepo
@@ -39,7 +41,7 @@ class MediaController(
                 override fun onPlaying() { isPlaying.value = true }
                 override fun onPaused() { isPlaying.value = false }
                 override fun onStopped() { isPlaying.value = false }
-                override fun onTimePositionChange(time: Long) { timePositionChange.value = time }
+                override fun onTimePositionChange(time: Duration) { timePositionChange.value = time }
                 override fun onFinished() { next() }
             }
         )
@@ -74,7 +76,7 @@ class MediaController(
                                 }
                                 if (currentTrack.uri != null) {
                                     mediaPlayer.setMedia(currentTrack.uri)
-                                    timePositionChange.value = 0
+                                    timePositionChange.value = 0.milliseconds
                                     mediaPlayer.play()
                                     isPlaying.value = true
                                 } else {
@@ -150,7 +152,7 @@ class MediaController(
         }
     }
 
-    fun seek(position: Long) {
+    fun seek(position: Duration) {
         coroutineScope.launch {
             mutex.withLock {
                 this@MediaController.enabled.value = false
@@ -223,7 +225,7 @@ class MediaController(
                             if (wasPlaying == null) { TODO() }
                             if (newTrack.uri != null) {
                                 mediaPlayer.setMedia(newTrack.uri)
-                                timePositionChange.value = 0
+                                timePositionChange.value = 0.milliseconds
                                 if (wasPlaying) {
                                     mediaPlayer.play()
                                 }
@@ -321,7 +323,7 @@ class MediaController(
                             if (wasPlaying == null) TODO()
                             if (newTrack.uri != null) {
                                 mediaPlayer.setMedia(newTrack.uri)
-                                timePositionChange.value = 0
+                                timePositionChange.value = 0.milliseconds
                                 if (wasPlaying) { mediaPlayer.play() }
                             }
                             isPlaying.value = wasPlaying
@@ -386,7 +388,7 @@ class MediaController(
                                 }
                                 if (currentTrack.uri != null) {
                                     mediaPlayer.setMedia(currentTrack.uri)
-                                    timePositionChange.value = 0
+                                    timePositionChange.value = 0.milliseconds
                                 } else {
                                     TODO()
                                 }
@@ -440,7 +442,7 @@ class MediaController(
                                 }
                                 if (newTrack.uri != null) {
                                     mediaPlayer.setMedia(newTrack.uri)
-                                    timePositionChange.value = 0
+                                    timePositionChange.value = 0.milliseconds
                                     mediaPlayer.play()
                                     isPlaying.value = true
                                 }
@@ -485,7 +487,7 @@ class MediaController(
                                 }
                                 if (newTrack.uri != null) {
                                     mediaPlayer.setMedia(newTrack.uri)
-                                    timePositionChange.value = 0
+                                    timePositionChange.value = 0.milliseconds
                                     mediaPlayer.play()
                                     isPlaying.value = true
                                 }
@@ -531,7 +533,7 @@ class MediaController(
                         }
                     },
                     uri = "file://$appDir/media/${getMediaFile(dbTrack.id).id}",
-                    durationMillis = dbTrack.durationMillis
+                    duration = dbTrack.duration
                 )
             }
             is QueueItemParameter.Album -> albumRepo.get(this.id).first().let { dbAlbum ->
@@ -558,7 +560,7 @@ class MediaController(
                                 releaseDate = dbAlbum.releaseDate
                             ),
                             uri = "file://$appDir/media/${getMediaFile(dbTrack.id)}",
-                            durationMillis = dbTrack.durationMillis
+                            duration = dbTrack.duration
                         )
                     }
                 )
@@ -590,7 +592,7 @@ class MediaController(
                                 }
                             },
                             uri = "file://$appDir/media/${getMediaFile(dbTrack.id)}",
-                            durationMillis = dbTrack.durationMillis
+                            duration = dbTrack.duration
                         )
                     }
                 )
@@ -613,11 +615,11 @@ class MediaController(
             val queue: List<QueueItem>,
             val queueItemIndex: Int,
             val queueSubItemIndex: Int,
-            val timePositionChange: StateFlow<Long>,
+            val timePositionChange: StateFlow<Duration>,
             val isPlaying: StateFlow<Boolean>,
             val repeatState: RepeatState
         ) : MediaControllerState() {
-            val currentTrack: QueueItem.Track get() = when (val result = queue[queueItemIndex]) {
+            val track: QueueItem.Track get() = when (val result = queue[queueItemIndex]) {
                 is QueueItem.Track -> result
                 is QueueItem.Playlist -> result.items[queueSubItemIndex]
                 is QueueItem.Album -> result.items[queueSubItemIndex]
@@ -634,7 +636,7 @@ class MediaController(
                     val artists: List<Artist>,
                     val album: Album?,
                     val uri: String?,
-                    val durationMillis: Long?
+                    val duration: Duration?
                 ) : QueueItem() {
                     data class Artist(
                         val id: Long,
@@ -685,14 +687,14 @@ class MediaController(
         abstract fun play()
         abstract fun pause()
         abstract fun stop()
-        abstract fun setTime(time: Long)
+        abstract fun setTime(time: Duration)
         abstract fun release()
 
         abstract class EventListener {
             abstract fun onPlaying()
             abstract fun onPaused()
             abstract fun onStopped()
-            abstract fun onTimePositionChange(time: Long)
+            abstract fun onTimePositionChange(time: Duration)
             abstract fun onFinished()
         }
     }

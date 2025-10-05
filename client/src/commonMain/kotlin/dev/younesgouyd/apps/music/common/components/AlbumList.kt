@@ -20,9 +20,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import dev.younesgouyd.apps.music.common.components.util.AdaptiveUi
 import dev.younesgouyd.apps.music.common.components.util.MediaController
-import dev.younesgouyd.apps.music.common.components.util.widgets.*
+import dev.younesgouyd.apps.music.common.components.util.compose.AdaptiveUi
+import dev.younesgouyd.apps.music.common.components.util.compose.widgets.*
 import dev.younesgouyd.apps.music.common.data.repoes.*
 import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -243,7 +243,7 @@ class AlbumList(
             ) {
                 var showContextMenu by remember { mutableStateOf(false) }
 
-                Item(
+                dev.younesgouyd.apps.music.common.components.util.compose.widgets.Item(
                     modifier = modifier,
                     onClick = onClick,
                 ) {
@@ -448,7 +448,10 @@ class AlbumList(
                         )
                         LazyRow(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp, alignment = Alignment.CenterHorizontally),
+                            horizontalArrangement = Arrangement.spacedBy(
+                                4.dp,
+                                alignment = Alignment.CenterHorizontally
+                            ),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             items(items = album.artists) { artist ->

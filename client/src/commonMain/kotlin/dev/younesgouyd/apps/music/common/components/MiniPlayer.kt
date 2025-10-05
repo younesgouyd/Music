@@ -1,6 +1,6 @@
 package dev.younesgouyd.apps.music.common.components
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -14,17 +14,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.common.components.util.AdaptiveUi
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.components.util.MediaController.MediaControllerState.Available.QueueItem
 import dev.younesgouyd.apps.music.common.components.util.MediaController.MediaControllerState.Available.RepeatState
-import dev.younesgouyd.apps.music.common.components.util.widgets.Image
+import dev.younesgouyd.apps.music.common.components.util.compose.AdaptiveUi
+import dev.younesgouyd.apps.music.common.components.util.compose.PlaybackSlider
+import dev.younesgouyd.apps.music.common.components.util.compose.formatted
+import dev.younesgouyd.apps.music.common.components.util.compose.linearAnimation
+import dev.younesgouyd.apps.music.common.components.util.compose.widgets.Image
 import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 class MiniPlayer(
@@ -47,11 +51,11 @@ class MiniPlayer(
                         timePositionChange = mediaControllerState.timePositionChange,
                         isPlaying = mediaControllerState.isPlaying,
                         repeatState = mediaControllerState.repeatState,
-                        currentTrack = mediaControllerState.currentTrack,
+                        track = mediaControllerState.track,
                         onClick = expand,
                         onAlbumClick = showAlbumDetails,
                         onArtistClick = showArtistDetails,
-                        onValueChange = mediaController::seek,
+                        onTimeChange = mediaController::seek,
                         onPreviousClick = mediaController::previous,
                         onPlayClick = mediaController::play,
                         onPauseClick = mediaController::pause,
@@ -84,14 +88,14 @@ class MiniPlayer(
 
         data class Available(
             val enabled: StateFlow<Boolean>,
-            val timePositionChange: StateFlow<Long>,
+            val timePositionChange: StateFlow<Duration>,
             val isPlaying: StateFlow<Boolean>,
             val repeatState: RepeatState,
-            val currentTrack: QueueItem.Track,
+            val track: QueueItem.Track,
             val onClick: () -> Unit,
             val onAlbumClick: (Long) -> Unit,
             val onArtistClick: (Long) -> Unit,
-            val onValueChange: (Long) -> Unit,
+            val onTimeChange: (Duration) -> Unit,
             val onPreviousClick: () -> Unit,
             val onPlayClick: () -> Unit,
             val onPauseClick: () -> Unit,
@@ -101,6 +105,9 @@ class MiniPlayer(
     }
 
     private object Ui {
+        private object Common {
+        }
+
         object Wide {
             @Composable
             fun Main(modifier: Modifier = Modifier, state: MiniPlayerState) {
@@ -119,11 +126,11 @@ class MiniPlayer(
                     timePositionChange = state.timePositionChange,
                     isPlaying = state.isPlaying,
                     repeatState = state.repeatState,
-                    currentTrack = state.currentTrack,
+                    track = state.track,
                     onClick = state.onClick,
                     onAlbumClick = state.onAlbumClick,
                     onArtistClick = state.onArtistClick,
-                    onValueChange = state.onValueChange,
+                    onTimeChange = state.onTimeChange,
                     onPreviousClick = state.onPreviousClick,
                     onPlayClick = state.onPlayClick,
                     onPauseClick = state.onPauseClick,
@@ -136,32 +143,25 @@ class MiniPlayer(
             private fun Main(
                 modifier: Modifier = Modifier,
                 enabled: StateFlow<Boolean>,
-                currentTrack: QueueItem.Track,
-                timePositionChange: StateFlow<Long>,
+                track: QueueItem.Track,
+                timePositionChange: StateFlow<Duration>,
                 isPlaying : StateFlow<Boolean>,
                 repeatState: RepeatState,
                 onClick: () -> Unit,
                 onAlbumClick: (Long) -> Unit,
                 onArtistClick: (Long) -> Unit,
-                onValueChange: (Long) -> Unit,
+                onTimeChange: (Duration) -> Unit,
                 onPreviousClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onPauseClick: () -> Unit,
                 onNextClick: () -> Unit,
                 onRepeatClick: () -> Unit
             ) {
-                fun <T> linearAnimation(duration: Int): TweenSpec<T> = tween(durationMillis = duration, easing = LinearEasing)
-                fun durationMillisFormatted(time: Long?): String {
-                    return time?.milliseconds?.toComponents { minutes, seconds, _ ->
-                        minutes.toString().padStart(2, '0') + ":" + seconds.toString().padStart(2, '0')
-                    } ?: "??:??"
-                }
-
                 val enabled by enabled.collectAsState()
                 val isPlaying by isPlaying.collectAsState()
                 val timePositionChange by timePositionChange.collectAsState()
                 val animatedPosition = remember { Animatable(0f) }
-                val formattedDuration = remember(currentTrack.durationMillis) { durationMillisFormatted(currentTrack.durationMillis) }
+                val formattedDuration = remember(track.duration) { track.duration.formatted() }
                 val isUserInteracting = remember { mutableStateOf(false) }
 
                 Surface(
@@ -177,7 +177,7 @@ class MiniPlayer(
                     ) {
                         Image(
                             modifier = Modifier.fillMaxHeight(),
-                            data = currentTrack.album?.image,
+                            data = track.album?.image,
                             contentScale = ContentScale.FillHeight
                         )
                         Column(
@@ -186,7 +186,7 @@ class MiniPlayer(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = currentTrack.name,
+                                text = track.name,
                                 style = MaterialTheme.typography.headlineMedium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -199,21 +199,21 @@ class MiniPlayer(
                                     ) {
                                         Icon(Icons.Default.Album, null)
                                         Text(
-                                            text = currentTrack.album?.name ?: "",
+                                            text = track.album?.name ?: "",
                                             style = MaterialTheme.typography.labelMedium,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
                                     }
                                 },
-                                onClick = { currentTrack.album?.let { onAlbumClick(it.id) } }
+                                onClick = { track.album?.let { onAlbumClick(it.id) } }
                             )
                             LazyRow(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                items(currentTrack.artists) { artist ->
+                                items(track.artists) { artist ->
                                     TextButton(
                                         content = {
                                             Row(
@@ -303,13 +303,13 @@ class MiniPlayer(
                                 PlaybackSlider(
                                     modifier = Modifier.weight(1f),
                                     enabled = enabled,
-                                    duration = currentTrack.durationMillis,
+                                    duration = track.duration,
                                     animatedPosition = animatedPosition,
-                                    onSeek = onValueChange,
+                                    onSeek = onTimeChange,
                                     isInteracting = isUserInteracting
                                 )
                                 Text(
-                                    text = "${durationMillisFormatted(currentTrack.durationMillis?.let { (animatedPosition.value * it) }?.toLong())}/${formattedDuration}",
+                                    text = "${track.duration?.inWholeMilliseconds?.let { (animatedPosition.value * it) }?.toLong()?.milliseconds.formatted()}/${formattedDuration}",
                                     style = MaterialTheme.typography.labelMedium
                                 )
                             }
@@ -319,10 +319,10 @@ class MiniPlayer(
                 }
 
                 LaunchedEffect(isPlaying) {
-                    if (currentTrack.durationMillis != null) {
+                    if (track.duration != null) {
                         if (isPlaying) {
                             val remaining = 1f - animatedPosition.value
-                            val remainingDuration = (remaining * currentTrack.durationMillis).toInt()
+                            val remainingDuration: Duration = (remaining * track.duration.inWholeMilliseconds).toLong().milliseconds
                             animatedPosition.animateTo(
                                 targetValue = 1f,
                                 animationSpec = linearAnimation(remainingDuration)
@@ -334,55 +334,18 @@ class MiniPlayer(
                 }
 
                 LaunchedEffect(timePositionChange) {
-                    if (!isUserInteracting.value && currentTrack.durationMillis != null) {
+                    if (!isUserInteracting.value && track.duration != null) {
                         animatedPosition.stop()
                         animatedPosition.snapTo(
-                            timePositionChange.toFloat() / currentTrack.durationMillis.toFloat().toFloat()
+                            timePositionChange.inWholeMilliseconds.toFloat() / track.duration.inWholeMilliseconds.toFloat()
                         )
                         if (isPlaying) {
-                            val remaining = currentTrack.durationMillis - timePositionChange
                             animatedPosition.animateTo(
                                 targetValue = 1f,
-                                animationSpec = linearAnimation(remaining.toInt())
+                                animationSpec = linearAnimation(track.duration - timePositionChange)
                             )
                         }
                     }
-                }
-            }
-
-            @Composable
-            fun PlaybackSlider(
-                modifier: Modifier = Modifier,
-                duration: Long?,
-                animatedPosition: Animatable<Float, AnimationVector1D>,
-                enabled: Boolean,
-                onSeek: (Long) -> Unit,
-                isInteracting: MutableState<Boolean>
-            ) {
-                var sliderPosition by remember { mutableFloatStateOf(0f) }
-                val sliderValue = if (isInteracting.value) sliderPosition else animatedPosition.value
-
-                if (duration == null) {
-                    Slider(
-                        modifier = modifier,
-                        enabled = enabled,
-                        value = sliderValue,
-                        onValueChange = {}
-                    )
-                } else {
-                    Slider(
-                        modifier = modifier,
-                        enabled = enabled,
-                        value = sliderValue,
-                        onValueChange = { newValue ->
-                            isInteracting.value = true
-                            sliderPosition = newValue
-                        },
-                        onValueChangeFinished = {
-                            isInteracting.value = false
-                            onSeek((sliderPosition * duration).toLong())
-                        }
-                    )
                 }
             }
         }
@@ -401,7 +364,7 @@ class MiniPlayer(
             private fun Main(modifier: Modifier = Modifier, state: MiniPlayerState.Available) {
                 Main(
                     modifier =  modifier,
-                    currentTrack = state.currentTrack,
+                    track = state.track,
                     timePositionChange = state.timePositionChange,
                     isPlaying = state.isPlaying,
                     onClick = state.onClick
@@ -411,22 +374,15 @@ class MiniPlayer(
             @Composable
             private fun Main(
                 modifier: Modifier = Modifier,
-                currentTrack: QueueItem.Track,
-                timePositionChange: StateFlow<Long>,
+                track: QueueItem.Track,
+                timePositionChange: StateFlow<Duration>,
                 isPlaying: StateFlow<Boolean>,
                 onClick: () -> Unit
             ) {
-                fun <T> linearAnimation(duration: Int): TweenSpec<T> = tween(durationMillis = duration, easing = LinearEasing)
-                fun durationMillisFormatted(time: Long?): String {
-                    return time?.milliseconds?.toComponents { minutes, seconds, _ ->
-                        minutes.toString().padStart(2, '0') + ":" + seconds.toString().padStart(2, '0')
-                    } ?: "??:??"
-                }
-
                 val isPlaying by isPlaying.collectAsState()
                 val timePositionChange by timePositionChange.collectAsState()
                 val animatedPosition = remember { Animatable(0f) }
-                val formattedDuration = remember(currentTrack.durationMillis) { durationMillisFormatted(currentTrack.durationMillis) }
+                val formattedDuration = remember(track.duration) { track.duration.formatted() }
 
                 Surface(
                     modifier = modifier,
@@ -439,7 +395,7 @@ class MiniPlayer(
                     ) {
                         Image(
                             modifier = Modifier.fillMaxHeight(),
-                            data = currentTrack.album?.image,
+                            data = track.album?.image,
                             contentScale = ContentScale.FillHeight
                         )
                         Column(
@@ -448,7 +404,7 @@ class MiniPlayer(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = currentTrack.name,
+                                text = track.name,
                                 style = MaterialTheme.typography.titleMedium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -458,7 +414,7 @@ class MiniPlayer(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                currentTrack.artists.firstOrNull()?.let { artist ->
+                                track.artists.firstOrNull()?.let { artist ->
                                     Row(
                                         modifier = Modifier.weight(1f),
                                         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -474,7 +430,7 @@ class MiniPlayer(
                                     }
                                 }
                                 Text(
-                                    text = "${durationMillisFormatted(currentTrack.durationMillis?.let { (animatedPosition.value * it) }?.toLong())}/${formattedDuration}",
+                                    text = "${track.duration?.inWholeMilliseconds?.let { (animatedPosition.value * it) }?.toLong()?.milliseconds.formatted()}/${formattedDuration}",
                                     style = MaterialTheme.typography.labelMedium
                                 )
                             }
@@ -488,10 +444,10 @@ class MiniPlayer(
                 }
 
                 LaunchedEffect(isPlaying) {
-                    if (currentTrack.durationMillis != null) {
+                    if (track.duration != null) {
                         if (isPlaying) {
                             val remaining = 1f - animatedPosition.value
-                            val remainingDuration = (remaining * currentTrack.durationMillis).toInt()
+                            val remainingDuration = (remaining * track.duration.inWholeMilliseconds).toLong().milliseconds
                             animatedPosition.animateTo(
                                 targetValue = 1f,
                                 animationSpec = linearAnimation(remainingDuration)
@@ -503,14 +459,13 @@ class MiniPlayer(
                 }
 
                 LaunchedEffect(timePositionChange) {
-                    if (currentTrack.durationMillis != null) {
+                    if (track.duration != null) {
                         animatedPosition.stop()
-                        animatedPosition.snapTo(timePositionChange.toFloat() / currentTrack.durationMillis.toFloat())
+                        animatedPosition.snapTo(timePositionChange.inWholeMilliseconds.toFloat() / track.duration.inWholeMilliseconds.toFloat())
                         if (isPlaying) {
-                            val remaining = currentTrack.durationMillis - timePositionChange
                             animatedPosition.animateTo(
                                 targetValue = 1f,
-                                animationSpec = linearAnimation(remaining.toInt())
+                                animationSpec = linearAnimation(track.duration - timePositionChange)
                             )
                         }
                     }

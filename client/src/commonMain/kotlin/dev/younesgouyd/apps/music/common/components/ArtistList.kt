@@ -17,10 +17,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.common.components.util.AdaptiveUi
-import dev.younesgouyd.apps.music.common.components.util.widgets.Image
-import dev.younesgouyd.apps.music.common.components.util.widgets.Item
-import dev.younesgouyd.apps.music.common.components.util.widgets.ScrollToTopFloatingActionButton
+import dev.younesgouyd.apps.music.common.components.util.compose.AdaptiveUi
+import dev.younesgouyd.apps.music.common.components.util.compose.widgets.Image
+import dev.younesgouyd.apps.music.common.components.util.compose.widgets.Item
+import dev.younesgouyd.apps.music.common.components.util.compose.widgets.ScrollToTopFloatingActionButton
 import dev.younesgouyd.apps.music.common.data.repoes.ArtistRepo
 import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi

@@ -2,6 +2,7 @@ package dev.younesgouyd.apps.music.common.usecases
 
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import kotlinx.coroutines.flow.first
+import kotlin.time.Duration
 
 class SaveAudioFileAsTrackUseCase(
     private val repoStore: RepoStore
@@ -14,7 +15,7 @@ class SaveAudioFileAsTrackUseCase(
     suspend fun execute(
         folderId: Long,
         title: String,
-        durationSeconds: Long?,
+        duration: Duration?,
         artists: List<String>,
         album: String?,
         releaseYear: Int?,
@@ -35,7 +36,7 @@ class SaveAudioFileAsTrackUseCase(
             albumId = albumId,
             lyrics = lyrics,
             albumTrackNumber = albumTrackNumber,
-            durationMillis = durationSeconds
+            duration = duration
         )
         for (artistId in artistIds) {
             artistTrackCrossRefRepo.add(artistId, trackId)

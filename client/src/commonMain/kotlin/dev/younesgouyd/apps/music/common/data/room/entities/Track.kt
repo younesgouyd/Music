@@ -2,6 +2,8 @@ package dev.younesgouyd.apps.music.common.data.room.entities
 
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 @Entity(
     foreignKeys = [
@@ -32,7 +34,9 @@ data class Track(
     val durationMillis: Long?,
     val creationDatetime: Long,
     val updateDatetime: Long
-)
+) {
+    val duration: Duration? get() = durationMillis?.milliseconds
+}
 
 @Dao
 interface TrackDao {

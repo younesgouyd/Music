@@ -23,6 +23,8 @@ import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
 import uk.co.caprica.vlcj.player.component.AudioPlayerComponent
 import java.io.File
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 object Application {
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -96,7 +98,7 @@ object Application {
                     }
 
                     override fun timeChanged(mediaPlayer: uk.co.caprica.vlcj.player.base.MediaPlayer?, newTime: Long) {
-                        eventListener.onTimePositionChange(newTime)
+                        eventListener.onTimePositionChange(newTime.milliseconds)
                     }
 
                     override fun finished(mediaPlayer: uk.co.caprica.vlcj.player.base.MediaPlayer?) {
@@ -110,7 +112,7 @@ object Application {
         override fun play() { vlcPlayer.controls().play() }
         override fun pause() { vlcPlayer.controls().pause() }
         override fun stop() { vlcPlayer.controls().stop() }
-        override fun setTime(time: Long) { vlcPlayer.controls().setTime(time) }
+        override fun setTime(time: Duration) { vlcPlayer.controls().setTime(time.inWholeMilliseconds) }
         override fun release() { vlcPlayer.release() }
     }
 }

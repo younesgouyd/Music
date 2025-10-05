@@ -118,7 +118,6 @@ object Api {
         return withContext(Dispatchers.IO) {
             println("::runCommand | args: ${args.joinToString(" ")}")
             val process = ProcessBuilder("yt-dlp", *args)
-                .redirectErrorStream(false)
                 .redirectOutput(ytDlpOutput)
                 .redirectError(ytDlpErrorOutput)
                 .start()

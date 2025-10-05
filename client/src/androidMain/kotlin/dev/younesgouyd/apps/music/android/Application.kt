@@ -22,6 +22,8 @@ import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 class Music : Application() {
     companion object {
@@ -99,7 +101,7 @@ class Music : Application() {
                         newPosition: Player.PositionInfo,
                         reason: Int
                     ) {
-                        eventListener.onTimePositionChange(newPosition.positionMs)
+                        eventListener.onTimePositionChange(newPosition.positionMs.milliseconds)
                     }
 
                     override fun onPlaybackStateChanged(playbackState: Int) {
@@ -128,8 +130,8 @@ class Music : Application() {
             media3Controller.stop()
         }
 
-        override fun setTime(time: Long) {
-            media3Controller.seekTo(time)
+        override fun setTime(time: Duration) {
+            media3Controller.seekTo(time.inWholeMilliseconds)
         }
 
         override fun release() {

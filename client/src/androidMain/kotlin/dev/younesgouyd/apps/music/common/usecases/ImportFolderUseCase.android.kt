@@ -9,6 +9,7 @@ import dev.younesgouyd.apps.music.common.Inspection
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import dev.younesgouyd.apps.music.common.util.ImportSourceType
 import java.io.File
+import kotlin.time.Duration.Companion.seconds
 
 actual class ImportFolderUseCase actual constructor(
     actual val repoStore: RepoStore,
@@ -90,7 +91,7 @@ actual class ImportFolderUseCase actual constructor(
             saveAudioFileAsTrackUseCase.execute(
                 folderId = folderId,
                 title = sourceFile.name, // TODO
-                durationSeconds = null,
+                duration = null,
                 artists = emptyList(),
                 album = null,
                 releaseYear = null,
@@ -117,7 +118,7 @@ actual class ImportFolderUseCase actual constructor(
         val trackId = saveAudioFileAsTrackUseCase.execute(
             folderId = folderId,
             title = inspection.title,
-            durationSeconds = inspection.duration?.toLong(),
+            duration = inspection.duration?.seconds,
             artists = inspection.artists,
             album = inspection.album,
             releaseYear = null, // TODO

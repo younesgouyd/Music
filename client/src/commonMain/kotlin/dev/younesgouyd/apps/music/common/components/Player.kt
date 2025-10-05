@@ -1,6 +1,6 @@
 package dev.younesgouyd.apps.music.common.components
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -14,17 +14,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.common.components.util.AdaptiveUi
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.components.util.MediaController.MediaControllerState.Available.QueueItem
 import dev.younesgouyd.apps.music.common.components.util.MediaController.MediaControllerState.Available.RepeatState
-import dev.younesgouyd.apps.music.common.components.util.widgets.Image
+import dev.younesgouyd.apps.music.common.components.util.compose.AdaptiveUi
+import dev.younesgouyd.apps.music.common.components.util.compose.PlaybackSlider
+import dev.younesgouyd.apps.music.common.components.util.compose.formatted
+import dev.younesgouyd.apps.music.common.components.util.compose.linearAnimation
+import dev.younesgouyd.apps.music.common.components.util.compose.widgets.Image
 import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 class Player(
@@ -51,11 +55,11 @@ class Player(
                         timePositionChange = mediaControllerState.timePositionChange,
                         isPlaying = mediaControllerState.isPlaying,
                         repeatState = mediaControllerState.repeatState,
-                        currentTrack = mediaControllerState.currentTrack,
+                        track = mediaControllerState.track,
                         onAlbumClick = showAlbumDetails,
                         onArtistClick = showArtistDetails,
                         onShowQueueClick = showQueue,
-                        onValueChange = mediaController::seek,
+                        onTimeChange = mediaController::seek,
                         onPreviousClick = mediaController::previous,
                         onPlayClick = mediaController::play,
                         onPauseClick = mediaController::pause,
@@ -94,14 +98,14 @@ class Player(
             val queue: List<QueueItem>,
             val queueItemIndex: Int,
             val queueSubItemIndex: Int,
-            val timePositionChange: StateFlow<Long>,
+            val timePositionChange: StateFlow<Duration>,
             val isPlaying: StateFlow<Boolean>,
             val repeatState: RepeatState,
-            val currentTrack: QueueItem.Track,
+            val track: QueueItem.Track,
             val onAlbumClick: (Long) -> Unit,
             val onArtistClick: (Long) -> Unit,
             val onShowQueueClick: () -> Unit,
-            val onValueChange: (Long) -> Unit,
+            val onTimeChange: (Duration) -> Unit,
             val onPreviousClick: () -> Unit,
             val onPlayClick: () -> Unit,
             val onPauseClick: () -> Unit,
@@ -129,13 +133,13 @@ class Player(
                 Main(
                     modifier =  modifier,
                     enabled = state.enabled,
-                    currentTrack = state.currentTrack,
+                    track = state.track,
                     timePositionChange = state.timePositionChange,
                     isPlaying = state.isPlaying,
                     onMinimizeClick = state.onMinimizeClick,
                     onAlbumClick = state.onAlbumClick,
                     onArtistClick = state.onArtistClick,
-                    onValueChange = state.onValueChange,
+                    onTimeChange = state.onTimeChange,
                     onPreviousClick = state.onPreviousClick,
                     onPlayClick = state.onPlayClick,
                     onPauseClick = state.onPauseClick,
@@ -147,13 +151,13 @@ class Player(
             private fun Main(
                 modifier: Modifier = Modifier,
                 enabled: StateFlow<Boolean>,
-                currentTrack: MediaController.MediaControllerState.Available.QueueItem.Track,
-                timePositionChange: StateFlow<Long>,
+                track: QueueItem.Track,
+                timePositionChange: StateFlow<Duration>,
                 isPlaying: StateFlow<Boolean>,
                 onMinimizeClick: () -> Unit,
                 onAlbumClick: (Long) -> Unit,
                 onArtistClick: (Long) -> Unit,
-                onValueChange: (Long) -> Unit,
+                onTimeChange: (Duration) -> Unit,
                 onPreviousClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onPauseClick: () -> Unit,
@@ -176,12 +180,12 @@ class Player(
                         ) {
                             Image(
                                 modifier = Modifier.fillMaxWidth(0.4f),
-                                data = currentTrack.album?.image,
+                                data = track.album?.image,
                                 contentScale = ContentScale.FillWidth
                             )
                             TrackInfo(
                                 modifier = Modifier.weight(1f),
-                                track = currentTrack,
+                                track = track,
                                 onAlbumClick = onAlbumClick,
                                 onArtistClick = onArtistClick
                             )
@@ -205,10 +209,10 @@ class Player(
                         PlaybackControls(
                             modifier = Modifier.fillMaxWidth(),
                             enabled = enabled,
-                            track = currentTrack,
+                            track = track,
                             isPlaying = isPlaying,
                             timePositionChange = timePositionChange,
-                            onValueChange = onValueChange,
+                            onTimeChange = onTimeChange,
                             onPreviousClick = onPreviousClick,
                             onPlayClick = onPlayClick,
                             onPauseClick = onPauseClick,
@@ -286,27 +290,20 @@ class Player(
             private fun PlaybackControls(
                 modifier: Modifier,
                 enabled: StateFlow<Boolean>,
-                track: MediaController.MediaControllerState.Available.QueueItem.Track,
+                track: QueueItem.Track,
                 isPlaying: StateFlow<Boolean>,
-                timePositionChange: StateFlow<Long>,
-                onValueChange: (Long) -> Unit,
+                timePositionChange: StateFlow<Duration>,
+                onTimeChange: (Duration) -> Unit,
                 onPreviousClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onPauseClick: () -> Unit,
                 onNextClick: () -> Unit
             ) {
-                fun <T> linearAnimation(duration: Int): TweenSpec<T> = tween(durationMillis = duration, easing = LinearEasing)
-                fun durationMillisFormatted(time: Long?): String {
-                    return time?.milliseconds?.toComponents { minutes, seconds, _ ->
-                        minutes.toString().padStart(2, '0') + ":" + seconds.toString().padStart(2, '0')
-                    } ?: "??:??"
-                }
-
                 val enabled by enabled.collectAsState()
                 val isPlaying by isPlaying.collectAsState()
                 val timePositionChange by timePositionChange.collectAsState()
                 val animatedPosition = remember { Animatable(0f) }
-                val formattedDuration = remember(track.durationMillis) { durationMillisFormatted(track.durationMillis) }
+                val formattedDuration = remember(track.duration) { track.duration.formatted() }
                 val isUserInteracting = remember { mutableStateOf(false) }
 
                 Column(
@@ -317,13 +314,13 @@ class Player(
                     PlaybackSlider(
                         modifier = Modifier.fillMaxWidth().padding(8.dp),
                         enabled = enabled,
-                        duration = track.durationMillis,
+                        duration = track.duration,
                         animatedPosition = animatedPosition,
-                        onSeek = onValueChange,
+                        onSeek = onTimeChange,
                         isInteracting = isUserInteracting
                     )
                     Text(
-                        text = "${durationMillisFormatted(track.durationMillis?.let { (animatedPosition.value * it) }?.toLong())}/${formattedDuration}",
+                        text = "${track.duration?.inWholeMilliseconds?.let { (animatedPosition.value * it) }?.toLong()?.milliseconds.formatted()}/${formattedDuration}",
                         style = MaterialTheme.typography.labelMedium
                     )
                     Row(
@@ -403,10 +400,10 @@ class Player(
                 }
 
                 LaunchedEffect(isPlaying) {
-                    if (track.durationMillis != null) {
+                    if (track.duration != null) {
                         if (isPlaying) {
                             val remaining = 1f - animatedPosition.value
-                            val remainingDuration = (remaining * track.durationMillis).toInt()
+                            val remainingDuration: Duration = (remaining * track.duration.inWholeMilliseconds).toLong().milliseconds
                             animatedPosition.animateTo(
                                 targetValue = 1f,
                                 animationSpec = linearAnimation(remainingDuration)
@@ -418,53 +415,18 @@ class Player(
                 }
 
                 LaunchedEffect(timePositionChange) {
-                    if (!isUserInteracting.value && track.durationMillis != null) {
+                    if (!isUserInteracting.value && track.duration != null) {
                         animatedPosition.stop()
-                        animatedPosition.snapTo(timePositionChange.toFloat() / track.durationMillis.toFloat())
+                        animatedPosition.snapTo(
+                            timePositionChange.inWholeMilliseconds.toFloat() / track.duration.inWholeMilliseconds.toFloat()
+                        )
                         if (isPlaying) {
-                            val remaining = track.durationMillis - timePositionChange
                             animatedPosition.animateTo(
                                 targetValue = 1f,
-                                animationSpec = linearAnimation(remaining.toInt())
+                                animationSpec = linearAnimation(track.duration - timePositionChange)
                             )
                         }
                     }
-                }
-            }
-
-            @Composable
-            private fun PlaybackSlider(
-                modifier: Modifier = Modifier,
-                duration: Long?,
-                animatedPosition: Animatable<Float, AnimationVector1D>,
-                enabled: Boolean,
-                onSeek: (Long) -> Unit,
-                isInteracting: MutableState<Boolean>
-            ) {
-                var sliderPosition by remember { mutableFloatStateOf(0f) }
-                val sliderValue = if (isInteracting.value) sliderPosition else animatedPosition.value
-
-                if (duration == null) {
-                    Slider(
-                        modifier = modifier,
-                        enabled = enabled,
-                        value = sliderValue,
-                        onValueChange = {}
-                    )
-                } else {
-                    Slider(
-                        modifier = modifier,
-                        enabled = enabled,
-                        value = sliderValue,
-                        onValueChange = { newValue ->
-                            isInteracting.value = true
-                            sliderPosition = newValue
-                        },
-                        onValueChangeFinished = {
-                            isInteracting.value = false
-                            onSeek((sliderPosition * duration).toLong())
-                        }
-                    )
                 }
             }
         }
@@ -484,13 +446,13 @@ class Player(
                 Main(
                     modifier =  modifier,
                     enabled = state.enabled,
-                    currentTrack = state.currentTrack,
+                    track = state.track,
                     timePositionChange = state.timePositionChange,
                     isPlaying = state.isPlaying,
                     onAlbumClick = state.onAlbumClick,
                     onArtistClick = state.onArtistClick,
                     onShowQueueClick = state.onShowQueueClick,
-                    onValueChange = state.onValueChange,
+                    onTimeChange = state.onTimeChange,
                     onPreviousClick = state.onPreviousClick,
                     onPlayClick = state.onPlayClick,
                     onPauseClick = state.onPauseClick,
@@ -503,13 +465,13 @@ class Player(
             private fun Main(
                 modifier: Modifier = Modifier,
                 enabled: StateFlow<Boolean>,
-                currentTrack: MediaController.MediaControllerState.Available.QueueItem.Track,
-                timePositionChange: StateFlow<Long>,
+                track: QueueItem.Track,
+                timePositionChange: StateFlow<Duration>,
                 isPlaying: StateFlow<Boolean>,
                 onShowQueueClick: () -> Unit,
                 onAlbumClick: (Long) -> Unit,
                 onArtistClick: (Long) -> Unit,
-                onValueChange: (Long) -> Unit,
+                onTimeChange: (Duration) -> Unit,
                 onPreviousClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onPauseClick: () -> Unit,
@@ -528,23 +490,23 @@ class Player(
                     ) {
                         Image(
                             modifier = Modifier.fillMaxWidth(),
-                            data = currentTrack.album?.image,
+                            data = track.album?.image,
                             contentScale = ContentScale.FillWidth
                         )
                         TrackInfo(
                             modifier = Modifier.fillMaxWidth(),
-                            track = currentTrack,
+                            track = track,
                             onAlbumClick = onAlbumClick,
                             onArtistClick = onArtistClick
                         )
                         PlaybackControls(
                             modifier = Modifier.fillMaxWidth(),
                             enabled = enabled,
-                            track = currentTrack,
+                            track = track,
                             isPlaying = isPlaying,
                             timePositionChange = timePositionChange,
                             onShowQueueClick = onShowQueueClick,
-                            onValueChange = onValueChange,
+                            onTimeChange = onTimeChange,
                             onPreviousClick = onPreviousClick,
                             onPlayClick = onPlayClick,
                             onPauseClick = onPauseClick,
@@ -569,7 +531,7 @@ class Player(
             @Composable
             private fun TrackInfo(
                 modifier: Modifier,
-                track: MediaController.MediaControllerState.Available.QueueItem.Track,
+                track: QueueItem.Track,
                 onAlbumClick: (Long) -> Unit,
                 onArtistClick: (Long) -> Unit
             ) {
@@ -632,28 +594,21 @@ class Player(
             private fun PlaybackControls(
                 modifier: Modifier,
                 enabled: StateFlow<Boolean>,
-                track: MediaController.MediaControllerState.Available.QueueItem.Track,
+                track: QueueItem.Track,
                 isPlaying: StateFlow<Boolean>,
-                timePositionChange: StateFlow<Long>,
+                timePositionChange: StateFlow<Duration>,
                 onShowQueueClick: () -> Unit,
-                onValueChange: (Long) -> Unit,
+                onTimeChange: (Duration) -> Unit,
                 onPreviousClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onPauseClick: () -> Unit,
                 onNextClick: () -> Unit
             ) {
-                fun <T> linearAnimation(duration: Int): TweenSpec<T> = tween(durationMillis = duration, easing = LinearEasing)
-                fun durationMillisFormatted(time: Long?): String {
-                    return time?.milliseconds?.toComponents { minutes, seconds, _ ->
-                        minutes.toString().padStart(2, '0') + ":" + seconds.toString().padStart(2, '0')
-                    } ?: "??:??"
-                }
-
                 val enabled by enabled.collectAsState()
                 val isPlaying by isPlaying.collectAsState()
                 val timePositionChange by timePositionChange.collectAsState()
                 val animatedPosition = remember { Animatable(0f) }
-                val formattedDuration = remember(track.durationMillis) { durationMillisFormatted(track.durationMillis) }
+                val formattedDuration = remember(track.duration) { track.duration.formatted() }
                 val isUserInteracting = remember { mutableStateOf(false) }
 
                 Column(
@@ -674,13 +629,13 @@ class Player(
                     PlaybackSlider(
                         modifier = Modifier.fillMaxWidth().padding(8.dp),
                         enabled = enabled,
-                        duration = track.durationMillis,
+                        duration = track.duration,
                         animatedPosition = animatedPosition,
-                        onSeek = onValueChange,
+                        onSeek = onTimeChange,
                         isInteracting = isUserInteracting
                     )
                     Text(
-                        text = "${durationMillisFormatted(track.durationMillis?.let { (animatedPosition.value * it) }?.toLong())}/${formattedDuration}",
+                        text = "${track.duration?.inWholeMilliseconds?.let { (animatedPosition.value * it) }?.toLong()?.milliseconds.formatted()}/${formattedDuration}",
                         style = MaterialTheme.typography.labelMedium
                     )
                     Row(
@@ -760,10 +715,10 @@ class Player(
                 }
 
                 LaunchedEffect(isPlaying) {
-                    if (track.durationMillis != null) {
+                    if (track.duration != null) {
                         if (isPlaying) {
                             val remaining = 1f - animatedPosition.value
-                            val remainingDuration = (remaining * track.durationMillis).toInt()
+                            val remainingDuration: Duration = (remaining * track.duration.inWholeMilliseconds).toLong().milliseconds
                             animatedPosition.animateTo(
                                 targetValue = 1f,
                                 animationSpec = linearAnimation(remainingDuration)
@@ -775,53 +730,18 @@ class Player(
                 }
 
                 LaunchedEffect(timePositionChange) {
-                    if (!isUserInteracting.value && track.durationMillis != null) {
+                    if (!isUserInteracting.value && track.duration != null) {
                         animatedPosition.stop()
-                        animatedPosition.snapTo(timePositionChange.toFloat() / track.durationMillis.toFloat())
+                        animatedPosition.snapTo(
+                            timePositionChange.inWholeMilliseconds.toFloat() / track.duration.inWholeMilliseconds.toFloat()
+                        )
                         if (isPlaying) {
-                            val remaining = track.durationMillis - timePositionChange
                             animatedPosition.animateTo(
                                 targetValue = 1f,
-                                animationSpec = linearAnimation(remaining.toInt())
+                                animationSpec = linearAnimation(track.duration - timePositionChange)
                             )
                         }
                     }
-                }
-            }
-
-            @Composable
-            private fun PlaybackSlider(
-                modifier: Modifier = Modifier,
-                duration: Long?,
-                animatedPosition: Animatable<Float, AnimationVector1D>,
-                enabled: Boolean,
-                onSeek: (Long) -> Unit,
-                isInteracting: MutableState<Boolean>
-            ) {
-                var sliderPosition by remember { mutableFloatStateOf(0f) }
-                val sliderValue = if (isInteracting.value) sliderPosition else animatedPosition.value
-
-                if (duration == null) {
-                    Slider(
-                        modifier = modifier,
-                        enabled = enabled,
-                        value = sliderValue,
-                        onValueChange = {}
-                    )
-                } else {
-                    Slider(
-                        modifier = modifier,
-                        enabled = enabled,
-                        value = sliderValue,
-                        onValueChange = { newValue ->
-                            isInteracting.value = true
-                            sliderPosition = newValue
-                        },
-                        onValueChangeFinished = {
-                            isInteracting.value = false
-                            onSeek((sliderPosition * duration).toLong())
-                        }
-                    )
                 }
             }
         }
