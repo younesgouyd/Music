@@ -96,6 +96,10 @@ class NavigationHost(
         data object AlbumList : Destination()
 
         data class AlbumDetails(val albumId: Long) : Destination()
+
+        data object ImportList : Destination()
+
+        data class ImportDetails(val importId: Long) : Destination()
     }
 
     private class NavigationController(
@@ -176,7 +180,7 @@ class NavigationHost(
                         albumRepo = repoStore.albumRepo,
                         artistRepo = repoStore.artistRepo,
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
-                        importSessionRepo = repoStore.importSessionRepo,
+                        importSessionWithItemsRepo = repoStore.importSessionWithItemsRepo,
                         mediaController = mediaController,
                         showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
@@ -239,6 +243,15 @@ class NavigationHost(
                         albumRepo = repoStore.albumRepo,
                         mediaController = mediaController,
                         showPlaylistDetails = { navigateTo(Destination.PlaylistDetails(it)) }
+                    )
+                    is Destination.ImportList -> ImportList(
+                        importSessionRepo = repoStore.importSessionRepo,
+                        showImportDetails = { navigateTo(Destination.ImportDetails(it)) }
+                    )
+                    is Destination.ImportDetails -> ImportDetails(
+                        id = destination.importId,
+                        importSessionRepo = repoStore.importSessionRepo,
+                        importSessionItemRepo = repoStore.importSessionItemRepo
                     )
                 }
             }

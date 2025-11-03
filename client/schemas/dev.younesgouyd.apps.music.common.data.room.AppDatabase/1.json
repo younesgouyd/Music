@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "2f8236c3a0b9a614bbb01a18f990bca0",
+    "identityHash": "f52ec0a6e4fb8d0810db4b89919bdddb",
     "entities": [
       {
         "tableName": "Album",
@@ -225,7 +225,7 @@
       },
       {
         "tableName": "ImportSession",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uri` TEXT NOT NULL, `sourceType` TEXT NOT NULL, `state` TEXT NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uri` TEXT NOT NULL, `sourceType` TEXT NOT NULL, `inspection` TEXT NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -246,8 +246,8 @@
             "notNull": true
           },
           {
-            "fieldPath": "state",
-            "columnName": "state",
+            "fieldPath": "inspection",
+            "columnName": "inspection",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -273,17 +273,11 @@
       },
       {
         "tableName": "ImportSessionItem",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `itemId` INTEGER NOT NULL, `uri` TEXT NOT NULL, `importSessionId` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`importSessionId`) REFERENCES `ImportSession`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uri` TEXT NOT NULL, `importSessionId` INTEGER NOT NULL, `state` TEXT NOT NULL, `inspection` TEXT NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`importSessionId`) REFERENCES `ImportSession`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
             "columnName": "id",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "itemId",
-            "columnName": "itemId",
             "affinity": "INTEGER",
             "notNull": true
           },
@@ -297,6 +291,18 @@
             "fieldPath": "importSessionId",
             "columnName": "importSessionId",
             "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "inspection",
+            "columnName": "inspection",
+            "affinity": "TEXT",
             "notNull": true
           },
           {
@@ -318,18 +324,6 @@
             "id"
           ]
         },
-        "indices": [
-          {
-            "name": "index_ImportSessionItem_itemId_importSessionId",
-            "unique": true,
-            "columnNames": [
-              "itemId",
-              "importSessionId"
-            ],
-            "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_ImportSessionItem_itemId_importSessionId` ON `${TABLE_NAME}` (`itemId`, `importSessionId`)"
-          }
-        ],
         "foreignKeys": [
           {
             "table": "ImportSession",
@@ -346,18 +340,12 @@
       },
       {
         "tableName": "MediaFile",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `trackId` INTEGER NOT NULL, `sourceUri` TEXT NOT NULL, `sourceWebpageUrl` TEXT, `sourceType` TEXT NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`trackId`) REFERENCES `Track`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `trackId` INTEGER NOT NULL, `importSessionItemId` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`trackId`) REFERENCES `Track`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`importSessionItemId`) REFERENCES `ImportSessionItem`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
             "columnName": "id",
             "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "name",
-            "columnName": "name",
-            "affinity": "TEXT",
             "notNull": true
           },
           {
@@ -367,20 +355,9 @@
             "notNull": true
           },
           {
-            "fieldPath": "sourceUri",
-            "columnName": "sourceUri",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "sourceWebpageUrl",
-            "columnName": "sourceWebpageUrl",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "sourceType",
-            "columnName": "sourceType",
-            "affinity": "TEXT",
+            "fieldPath": "importSessionItemId",
+            "columnName": "importSessionItemId",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
@@ -409,6 +386,17 @@
             "onUpdate": "CASCADE",
             "columns": [
               "trackId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "ImportSessionItem",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "importSessionItemId"
             ],
             "referencedColumns": [
               "id"
@@ -607,7 +595,7 @@
       },
       {
         "tableName": "Track",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `folderId` INTEGER NOT NULL, `albumId` INTEGER, `lyrics` TEXT, `albumTrackNumber` INTEGER, `durationMillis` INTEGER, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`albumId`) REFERENCES `Album`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `folderId` INTEGER, `albumId` INTEGER, `lyrics` TEXT, `albumTrackNumber` INTEGER, `durationMillis` INTEGER, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`albumId`) REFERENCES `Album`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -624,8 +612,7 @@
           {
             "fieldPath": "folderId",
             "columnName": "folderId",
-            "affinity": "INTEGER",
-            "notNull": true
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "albumId",
@@ -694,7 +681,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2f8236c3a0b9a614bbb01a18f990bca0')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f52ec0a6e4fb8d0810db4b89919bdddb')"
     ]
   }
 }

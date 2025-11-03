@@ -39,6 +39,7 @@ class Music : Application() {
         instance = this
 
         val repoStore = RepoStore(
+            appDir = filesDir,
             applicationScope = coroutineScope,
             database = run {
                 val appContext = this.applicationContext
@@ -66,8 +67,7 @@ class Music : Application() {
                                             .buildAsync()
                                             .get()
                                     }
-                                ),
-                                appDir = filesDir.toString()
+                                )
                             )
                         }
                     }

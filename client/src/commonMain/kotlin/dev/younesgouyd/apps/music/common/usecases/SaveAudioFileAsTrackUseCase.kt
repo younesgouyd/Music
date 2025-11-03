@@ -13,9 +13,9 @@ class SaveAudioFileAsTrackUseCase(
     private val artistTrackCrossRefRepo get() = repoStore.artistTrackCrossRefRepo
 
     suspend fun execute(
-        folderId: Long,
+        folderId: Long?,
         title: String,
-        duration: Duration?,
+        duration: Duration,
         artists: List<String>,
         album: String?,
         releaseYear: Int?,

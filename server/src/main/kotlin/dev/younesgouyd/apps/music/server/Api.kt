@@ -1,117 +1,99 @@
 package dev.younesgouyd.apps.music.server
 
+import dev.younesgouyd.apps.music.common.Base64String
 import dev.younesgouyd.apps.music.common.Inspection
-import dev.younesgouyd.apps.music.common.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.Json
 import java.io.File
-import java.io.FileOutputStream
-import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
+import java.net.URI
+import kotlin.io.encoding.Base64
+import kotlin.time.Duration.Companion.seconds
 
 object Api {
     private val tempDir = File("temp").also { it.mkdir() }
-    private val mediaDir = File(tempDir, "media").also { it.mkdir() }
-    private val resultDir = File(tempDir, "result").also { it.mkdir() }
+    private val downloadDir = File(tempDir, "download").also { it.mkdir() }
     private val ytDlpOutput = File(tempDir, "yt-dlp_output")
     private val ytDlpErrorOutput = File(tempDir, "yt-dlp_error_output")
-    private var inspection: Inspection? = null
-    private var selectedItems: List<Inspection.Item> = emptyList()
+    private val ytDlpSerializer = Json { ignoreUnknownKeys = true }
 
-    suspend fun inspect(url: String): Inspection {
-        inspection = null
+    suspend fun inspect(url: String): Inspection.Webpage {
         val commandResponse = runCommand("--dump-single-json", "--quiet", "--no-warnings", "--simulate", url)
         println("::inspect | commandResponse: $commandResponse")
-        val ytDlpType = json.decodeFromString<YtDlpModels.Type>(commandResponse)
-        val ret = Inspection(
-            items = if (ytDlpType.type == "playlist") {
-                val playlist = json.decodeFromString<YtDlpModels.Playlist>(commandResponse)
-                playlist.entries.filterNotNull().mapIndexed { index, it ->
-                    Inspection.Item(
-                        id = (index + 1).toLong(),
-                        url = it.webpageUrl,
-                        title = it.title,
-                        thumbnail = it.thumbnail,
+        val ytDlpType = ytDlpSerializer.decodeFromString<YtDlpModels.Type>(commandResponse)
+        return if (ytDlpType.type == "playlist") {
+            val playlist = ytDlpSerializer.decodeFromString<YtDlpModels.Playlist>(commandResponse)
+            Inspection.Webpage(
+                container = Inspection.ContainerInspection.Webpage(
+                    uri = url,
+                    title = playlist.title.ifBlank { TODO() },
+                    description = playlist.description?.nullIfBlank(),
+                    thumbnail = playlist.thumbnails
+                        .filter { !it.url.contains("maxresdefault") }
+                        .maxBy { it.width * it.height }
+                        .url
+                        .let { downloadThumbnail(it) },
+                ),
+                items = playlist.entries.filterNotNull().mapIndexed { index, it ->
+                    Inspection.ItemInspection.InternetTrack(
+                        uri = it.webpageUrl.ifBlank { TODO() },
+                        title = it.title.ifBlank { TODO() },
+                        durationMilliseconds = it.duration?.seconds?.inWholeMilliseconds ?: TODO(),
                         artists = it.artists,
-                        duration = it.duration,
-                        album = it.album
+                        album = it.album?.nullIfBlank(),
+                        id = (index + 1).toLong(),
+                        thumbnail = it.thumbnail?.nullIfBlank()?.let { downloadThumbnail(it) }
                     )
                 }
-            } else {
-                val single = json.decodeFromString<YtDlpModels.Single>(commandResponse)
-                listOf(
-                    Inspection.Item(
-                        id = 1,
-                        title = single.title,
-                        thumbnail = single.thumbnail,
+            )
+        } else {
+            val single = ytDlpSerializer.decodeFromString<YtDlpModels.Single>(commandResponse)
+            val title = single.title.ifBlank { TODO() }
+            val thumbnail: Base64String? = single.thumbnail?.nullIfBlank()?.let { downloadThumbnail(it) }
+            Inspection.Webpage(
+                container = Inspection.ContainerInspection.Webpage(
+                    uri = url,
+                    title = title,
+                    description = null,
+                    thumbnail = thumbnail
+                ),
+                items = listOf(
+                    Inspection.ItemInspection.InternetTrack(
+                        uri = single.webpageUrl.ifBlank { TODO() },
+                        title = title,
+                        durationMilliseconds = single.duration?.seconds?.inWholeMilliseconds ?: TODO(),
                         artists = single.artists,
-                        duration = single.duration,
-                        album = single.album,
-                        url = single.webpageUrl
+                        album = single.album?.nullIfBlank(),
+                        id = 1,
+                        thumbnail = thumbnail
                     )
                 )
-            }
-        )
-        inspection = ret
-        return ret
-    }
-
-    suspend fun download(items: List<Long>) {
-        withContext(Dispatchers.IO) {
-            selectedItems = emptyList()
-            val index = File(tempDir, "index.json")
-            index.delete()
-            for (file in mediaDir.listFiles().orEmpty()) {
-                file.deleteRecursively()
-            }
-            selectedItems = inspection!!.items.filter { it.id in items }
-
-            val json = json.encodeToJsonElement(selectedItems)
-            println("::download | encoded selected items: $json")
-            index.writeText(json.toString())
-
-            for (item in selectedItems) { // TODO
-                val outputPath = "${mediaDir.absolutePath}/${item.id}"
-                val commandResponse = runCommand(
-                    "--extract-audio",
-                    "--output", outputPath,
-                    item.url
-                )
-                println("::download | command response for $item: \n$commandResponse")
-            }
+            )
         }
     }
 
-    suspend fun getResult(): File {
-        println("--> ::getResult")
+    suspend fun download(url: String) {
         return withContext(Dispatchers.IO) {
-            for (file in resultDir.listFiles().orEmpty()) {
-                file.deleteRecursively()
+            downloadDir.listFiles().orEmpty().forEach {
+                it.delete()
             }
-            val zipFile = File(resultDir, "media.zip")
-            println("::getResult | creating the zip")
-            ZipOutputStream(FileOutputStream(zipFile)).use { zipOut ->
-                // index.json
-                zipOut.putNextEntry(ZipEntry("index.json"))
-                File(tempDir, "index.json").inputStream().use {
-                    it.copyTo(zipOut)
-                }
-                zipOut.closeEntry()
-                // media folder
-                zipOut.putNextEntry(ZipEntry("media/"))
-                zipOut.closeEntry()
-                for (file in mediaDir.listFiles()) { // media files
-                    check(file.isFile)
-                    zipOut.putNextEntry(ZipEntry("media/${file.nameWithoutExtension}"))
-                    file.inputStream().use { it.copyTo(zipOut) }
-                    zipOut.closeEntry()
-                }
-            }
-            zipFile
+            val outputPath = "${downloadDir.absolutePath}/temp"
+            val commandResponse = runCommand(
+                "--extract-audio",
+                "--audio-format", "mp3",
+                "--output", outputPath,
+                url
+            )
+            println("::download | command response for $url: \n$commandResponse")
         }
+    }
+
+    fun getResult(): File {
+        val downloads = downloadDir.listFiles().orEmpty()
+        if (downloads.isEmpty() || downloads.size > 1) { TODO() }
+        return downloads[0]
     }
 
     private suspend fun runCommand(vararg args: String): String {
@@ -126,10 +108,21 @@ object Api {
             println("::runCommand | command finished with exitCode: $exitCode")
             if (exitCode != 0) {
                 val errorMsg = ytDlpErrorOutput.readText()
-                throw RuntimeException("yt-dlp failed: $errorMsg")
+                throw Exception("yt-dlp failed: $errorMsg")
             }
             ytDlpOutput.readText()
         }
+    }
+
+    private suspend fun downloadThumbnail(url: String): Base64String {
+        return withContext(Dispatchers.IO) {
+            val bytes = URI(url).toURL().readBytes()
+            Base64.encode(bytes)
+        }
+    }
+
+    private fun String.nullIfBlank(): String? {
+        return this.ifBlank { null }
     }
 
     private object YtDlpModels {
@@ -157,16 +150,24 @@ object Api {
         data class Playlist(
             val id: String,
             val title: String,
-            @SerialName("playlist_count")
-            val playlistCount: Int?,
+            val description: String?,
+            val thumbnails: List<Thumbnail>,
             val entries: List<Entry?>
         ) {
+            @Serializable
+            data class Thumbnail(
+                val url: String,
+                val height: Int,
+                val width: Int,
+                val id: String
+            )
+
             @Serializable
             data class Entry(
                 val id: String,
                 val title: String,
                 val thumbnail: String?,
-                val duration: Int?,
+                val duration: Int?, // TODO: confirm if this is always in seconds
                 @SerialName("webpage_url")
                 val webpageUrl: String,
                 val album: String? = null,

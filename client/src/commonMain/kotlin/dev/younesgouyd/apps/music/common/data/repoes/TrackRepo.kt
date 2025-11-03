@@ -22,15 +22,22 @@ class TrackRepo(private val dao: TrackDao) {
         return dao.getArtistTracks(artistId)
     }
 
-    fun getFolderTracks(folderId: Long): Flow<List<Track>> {
-        return dao.getFolderTracks(folderId)
+    fun getFolderTracks(folderId: Long?): Flow<List<Track>> {
+        return if (folderId != null) dao.getFolderTracks(folderId) else dao.getRootFolderTracks()
     }
 
     fun getPlaylistTracks(playlistId: Long): Flow<List<Track>> {
         return dao.getPlaylistTracks(playlistId)
     }
 
-    suspend fun add(name: String, folderId: Long, albumId: Long?, lyrics: String?, albumTrackNumber: Int?, duration: Duration?): Long {
+    suspend fun add(
+        name: String,
+        folderId: Long?,
+        albumId: Long?,
+        lyrics: String?,
+        albumTrackNumber: Int?,
+        duration: Duration
+    ): Long {
         require(name.isNotEmpty())
         val currentTime = System.currentTimeMillis()
         return dao.add(
@@ -39,7 +46,7 @@ class TrackRepo(private val dao: TrackDao) {
             albumId = albumId,
             lyrics = lyrics,
             albumTrackNumber = albumTrackNumber,
-            durationMillis = duration?.inWholeMilliseconds,
+            durationMillis = duration.inWholeMilliseconds,
             creationDatetime = currentTime,
             updateDatetime = currentTime
         )

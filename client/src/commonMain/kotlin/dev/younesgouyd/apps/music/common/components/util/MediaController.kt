@@ -1,11 +1,7 @@
 package dev.younesgouyd.apps.music.common.components.util
 
 import dev.younesgouyd.apps.music.common.data.RepoStore
-import dev.younesgouyd.apps.music.common.data.repoes.AlbumRepo
-import dev.younesgouyd.apps.music.common.data.repoes.ArtistRepo
-import dev.younesgouyd.apps.music.common.data.repoes.PlaylistRepo
-import dev.younesgouyd.apps.music.common.data.repoes.TrackRepo
-import dev.younesgouyd.apps.music.common.data.room.entities.MediaFile
+import dev.younesgouyd.apps.music.common.data.repoes.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -18,8 +14,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class MediaController(
     private val mediaPlayer: MediaPlayer,
-    private val repoStore: RepoStore,
-    private val appDir: String
+    private val repoStore: RepoStore
 ) {
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
     private val mutex = Mutex()
@@ -28,6 +23,7 @@ class MediaController(
     private val isPlaying: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val timePositionChange: MutableStateFlow<Duration> = MutableStateFlow(0.milliseconds)
 
+    private val mediaFileRepo: MediaFileRepo get() = repoStore.mediaFileRepo
     private val trackRepo: TrackRepo get() = repoStore.trackRepo
     private val artistRepo: ArtistRepo get() = repoStore.artistRepo
     private val albumRepo: AlbumRepo get() = repoStore.albumRepo
@@ -504,10 +500,6 @@ class MediaController(
         }
     }
 
-    private suspend fun getMediaFile(trackId: Long): MediaFile {
-        return repoStore.mediaFileRepo.getAny(trackId).first()
-    }
-
     private suspend fun QueueItemParameter.toModel(): MediaControllerState.Available.QueueItem {
         return when (this) {
             is QueueItemParameter.Track -> trackRepo.get(this.id).first().let { dbTrack ->
@@ -532,7 +524,7 @@ class MediaController(
                             )
                         }
                     },
-                    uri = "file://$appDir/media/${getMediaFile(dbTrack.id).id}",
+                    uri = mediaFileRepo.getMediaFileUri(dbTrack.id),
                     duration = dbTrack.duration
                 )
             }
@@ -559,7 +551,7 @@ class MediaController(
                                 image = dbAlbum.image,
                                 releaseDate = dbAlbum.releaseDate
                             ),
-                            uri = "file://$appDir/media/${getMediaFile(dbTrack.id)}",
+                            uri = mediaFileRepo.getMediaFileUri(dbTrack.id),
                             duration = dbTrack.duration
                         )
                     }
@@ -591,7 +583,7 @@ class MediaController(
                                     )
                                 }
                             },
-                            uri = "file://$appDir/media/${getMediaFile(dbTrack.id)}",
+                            uri = mediaFileRepo.getMediaFileUri(dbTrack.id),
                             duration = dbTrack.duration
                         )
                     }

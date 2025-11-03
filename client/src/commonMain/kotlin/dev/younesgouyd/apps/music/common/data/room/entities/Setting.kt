@@ -29,7 +29,7 @@ interface SettingDao {
         values ('dark_theme', :darkTheme, :creationDatetime, :updateDatetime)
     """)
     suspend fun initDarkTheme(
-        darkTheme: DarkThemeOptions = DarkThemeOptions.SystemDefault,
+        darkTheme: DarkThemeOptions = DarkThemeOptions.Enabled,
         creationDatetime: Long,
         updateDatetime: Long
     )

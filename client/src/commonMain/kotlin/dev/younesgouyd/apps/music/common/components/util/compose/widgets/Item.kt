@@ -2,8 +2,8 @@ package dev.younesgouyd.apps.music.common.components.util.compose.widgets
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.Composable
@@ -24,7 +24,7 @@ fun Item(
             modifier = modifier,
             content = {
                 Box(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.wrapContentSize()
                         .padding(contentPadding),
                     contentAlignment = contentAlignment,
                     content = { content() }
@@ -39,7 +39,7 @@ fun Item(
             modifier = modifier,
             content = {
                 Box(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.wrapContentSize()
                         .padding(contentPadding),
                     contentAlignment = contentAlignment,
                     content = { content() }

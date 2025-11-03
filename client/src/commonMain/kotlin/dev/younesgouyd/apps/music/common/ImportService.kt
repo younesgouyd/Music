@@ -1,23 +1,21 @@
 package dev.younesgouyd.apps.music.common
 
-import dev.younesgouyd.apps.music.common.data.Server
+import dev.younesgouyd.apps.music.common.data.repoes.ImportSessionItemRepo
 import dev.younesgouyd.apps.music.common.data.repoes.ImportSessionRepo
 import dev.younesgouyd.apps.music.common.data.room.entities.ImportSession
-import dev.younesgouyd.apps.music.common.data.room.entities.ImportSessionWithItems
-import dev.younesgouyd.apps.music.common.usecases.Import
-import dev.younesgouyd.apps.music.common.usecases.ImportFolderUseCase
-import dev.younesgouyd.apps.music.common.util.ImportSessionState
-import dev.younesgouyd.apps.music.common.util.ImportSourceType
+import dev.younesgouyd.apps.music.common.data.room.entities.ImportSessionItem
+import dev.younesgouyd.apps.music.common.usecases.ImportFromInternetUseCase
+import dev.younesgouyd.apps.music.common.usecases.ImportLocalFileUseCase
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import java.io.File
 import kotlin.concurrent.Volatile
 
 class ImportService(
-    private val server: Server,
-    private val repo: ImportSessionRepo,
-    private val importFolderUseCase: ImportFolderUseCase
+    private val importSessionRepo: ImportSessionRepo,
+    private val importSessionItemRepo: ImportSessionItemRepo,
+    private val importLocalFileUseCase: ImportLocalFileUseCase,
+    private val importFromInternetUseCase: ImportFromInternetUseCase
 ) {
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var started: Boolean = false
@@ -27,67 +25,76 @@ class ImportService(
     private var importJob: Job? = null
 
     fun start() {
-        if (started) return
-        else started = true
+        if (started) {
+            TODO()
+        } else {
+            started = true
+        }
         println("starting ImportService")
         coroutineScope.launch {
-            repo.getOldestPending().collect { sessionWithItems ->
-                if (sessionWithItems == null) {
+            importSessionItemRepo.getOldestPending().collect { session ->
+                if (session == null) {
                     return@collect
                 }
-                val session: ImportSession = sessionWithItems.importSession
                 if (currentSessionId == session.id) {
-                    println("session ${session.id} was already started")
+                    println("Session item ${session.id} was already started")
                     return@collect
                 }
-                repo.updateState(session.id, ImportSessionState.Started)
+                importSessionItemRepo.updateState(session.id, ImportSessionItem.State.InProgress)
                 currentSessionId = session.id
-                val sessionState = repo.get(session.id).map { it.importSession.state }
+                val sessionState = importSessionItemRepo.get(session.id).map { it.state }
                 launch {
                     sessionState.collect { state ->
                         when (state) {
-                            ImportSessionState.Started -> {
+                            ImportSessionItem.State.Nonselected -> {
+                                println("Session item ${session.id} Nonselected → NotImplementedError")
+                                TODO()
+                            }
+                            ImportSessionItem.State.Pending -> {
+                                println("Session item ${session.id} Pending → NotImplementedError")
+                                TODO()
+                            }
+                            ImportSessionItem.State.InProgress -> {
                                 if (importJob != null) {
                                     return@collect
                                 }
                                 importJob = launch {
                                     try {
-                                        if (import(sessionWithItems)) {
-                                            repo.updateState(session.id, ImportSessionState.Completed)
-                                        } else {
-                                            repo.updateState(session.id, ImportSessionState.Failed)
-                                        }
+                                        val success = import(
+                                            session = importSessionRepo.get(session.importSessionId).first(),
+                                            item = session
+                                        )
+                                        importSessionItemRepo.updateState(
+                                            id = session.id,
+                                            state = if (success) ImportSessionItem.State.Completed else ImportSessionItem.State.Failed
+                                        )
                                     } catch (cancellation: CancellationException) {
                                         if (cancellation.cause == IntendedCancellation) {
-                                            println("import work for session ${session.id} was cancelled as intended")
+                                            println("import work for Session item ${session.id} was cancelled as intended")
                                         } else {
                                             cancellation.printStackTrace()
                                             TODO()
                                         }
                                     } catch (e: Exception) {
-                                        repo.updateState(session.id, ImportSessionState.Failed)
+                                        importSessionItemRepo.updateState(session.id, ImportSessionItem.State.Failed)
                                         e.printStackTrace()
                                     }
                                 }
                             }
-                            ImportSessionState.Pending -> {
-                                println("Session ${session.id} Pending → NotImplementedError")
-                                TODO()
-                            }
-                            ImportSessionState.Completed -> {
-                                println("Session ${session.id} Completed → stopping")
+                            ImportSessionItem.State.Completed -> {
+                                println("Session item ${session.id} Completed → stopping")
                                 currentSessionId = null
                                 importJob = null
                                 cancel(message = "IntendedCancellation", cause = IntendedCancellation)
                             }
-                            ImportSessionState.Cancelled -> {
-                                println("Session ${session.id} Cancelled → stopping")
+                            ImportSessionItem.State.Cancelled -> {
+                                println("Session item ${session.id} Cancelled → stopping")
                                 currentSessionId = null
                                 importJob = null
                                 cancel(message = "IntendedCancellation", cause = IntendedCancellation)
                             }
-                            ImportSessionState.Failed -> {
-                                println("Session ${session.id} Failed → stopping")
+                            ImportSessionItem.State.Failed -> {
+                                println("Session item ${session.id} Failed → stopping")
                                 currentSessionId = null
                                 importJob = null
                                 cancel(message = "IntendedCancellation", cause = IntendedCancellation)
@@ -103,49 +110,27 @@ class ImportService(
         println("stopping ImportService")
         coroutineScope.cancel(message = "IntendedCancellation", cause = IntendedCancellation)
         if (currentSessionId != null) {
-            repo.updateState(currentSessionId!!, ImportSessionState.Failed)
+            importSessionItemRepo.updateState(currentSessionId!!, ImportSessionItem.State.Failed)
         }
     }
 
-    private suspend fun import(session: ImportSessionWithItems): Boolean {
+    private suspend fun import(session: ImportSession, item: ImportSessionItem): Boolean {
         return withContext(Dispatchers.IO) {
-            println("Working on session ${session.importSession.id}")
-            when (session.importSession.sourceType) {
-                ImportSourceType.Local -> importLocal(session)
-                ImportSourceType.Internet -> importInternet(session)
-            }
-        }
-    }
-
-    private suspend fun importInternet(session: ImportSessionWithItems): Boolean {
-        val result: String = server.download(session.items.map { it.itemId }).first()
-        return when (result) {
-            "error" -> false
-            "completed" -> {
-                val folder = server.getResult()
-                importFolderUseCase.execute(
-                    Import.Internet(
-                        folderUri = folder.toURI().toString(),
-                        url = session.importSession.uri,
-                        items = json.decodeFromString<List<Inspection.Item>>(
-                            withContext(Dispatchers.IO) {
-                                File(folder, "index.json").readText()
-                            }
-                        )
-                    )
+            println("Working on session ${session.id} item ${item.id}")
+            when (session.sourceType) {
+                ImportSession.SourceType.Local -> importLocalFileUseCase.execute(
+                    inspection = item.inspection as Inspection.ItemInspection.LocalFileTrack, // TODO
+                    importSessionItemId = item.id
+                )
+                ImportSession.SourceType.Internet -> importFromInternetUseCase.execute(
+                    inspection = item.inspection as Inspection.ItemInspection.InternetTrack, // TODO
+                    importSessionItemId = item.id
                 )
             }
-            else -> TODO()
         }
     }
 
-    private suspend fun importLocal(session: ImportSessionWithItems): Boolean {
-        return importFolderUseCase.execute(
-            Import.Local(session.importSession.uri)
-        )
-    }
-
-    private object IntendedCancellation : Throwable() {
+    private object IntendedCancellation : Throwable(null, null, false, false) {
         private fun readResolve(): Any = IntendedCancellation // TODO (this was recommended by ide)
     }
 }

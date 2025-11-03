@@ -30,16 +30,19 @@ object Application {
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val repoStore: RepoStore
     private val currentComponent: MutableStateFlow<Component>
+    private val appDir = File("younesmusicdata").also { it.mkdir() }
+    private val dbDir = File(appDir, "db").also { it.mkdir() }
 
     init {
         repoStore = RepoStore(
+            appDir = appDir, // TODO
             applicationScope = coroutineScope,
             database = run {
-                val file = File("younesmusic.db")
+                val file = File(dbDir, "younesmusic.db")
                 if (!file.exists()) {
                     file.createNewFile()
                 }
-                Room.databaseBuilder<AppDatabase>(name = file.absolutePath,)
+                Room.databaseBuilder<AppDatabase>(name = file.absolutePath)
                     .setDriver(BundledSQLiteDriver())
                     .setQueryCoroutineContext(Dispatchers.IO)
                     .build()
@@ -71,7 +74,7 @@ object Application {
     private fun showContent() {
         currentComponent.update {
             it.clear()
-            Main(repoStore = repoStore, mediaPlayer = MediaPlayer(), appDir = File("").absolutePath)
+            Main(repoStore = repoStore, mediaPlayer = MediaPlayer())
         }
     }
 
@@ -108,7 +111,10 @@ object Application {
             )
         }
 
-        override fun setMedia(uri: String) { stop(); vlcPlayer.media().startPaused(uri) }
+        override fun setMedia(uri: String) {
+            stop()
+            vlcPlayer.media().startPaused(uri)
+        }
         override fun play() { vlcPlayer.controls().play() }
         override fun pause() { vlcPlayer.controls().pause() }
         override fun stop() { vlcPlayer.controls().stop() }

@@ -1,6 +1,7 @@
 package dev.younesgouyd.apps.music.server
 
 import dev.younesgouyd.apps.music.common.Inspection
+import dev.younesgouyd.apps.music.common.json
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -14,7 +15,6 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.sse.*
 import io.ktor.sse.*
-import kotlinx.serialization.json.Json
 import org.slf4j.event.Level
 import java.io.File
 
@@ -31,9 +31,7 @@ object Application {
                 }
             }
             install(ContentNegotiation) {
-                json(
-                    Json { ignoreUnknownKeys = true }
-                )
+                json(json)
             }
             install(SSE)
             configureRouting()
@@ -50,8 +48,8 @@ object Application {
                         return@get
                     }
                     try {
-                        val result: Inspection = Api.inspect(url)
-                        call.respond<Inspection>(result)
+                        val result: Inspection.Webpage = Api.inspect(url)
+                        call.respond<Inspection.Webpage>(result)
                     } catch (e: Exception) {
                         e.printStackTrace()
                         call.respond(HttpStatusCode.InternalServerError)
@@ -59,17 +57,13 @@ object Application {
                 }
 
                 sse("/download") {
-                    val items = call.receive<List<Long>>()
-                    if (items.isEmpty()) {
+                    val url = call.request.queryParameters["url"]
+                    if (url.isNullOrBlank()) {
                         call.respond(HttpStatusCode.BadRequest)
                         return@sse
                     }
-                    println("received these items:")
-                    for (item in items) {
-                        println("item: $item")
-                    }
                     try {
-                        Api.download(items)
+                        Api.download(url)
                         send(ServerSentEvent(event = "completed"))
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -79,12 +73,12 @@ object Application {
                 }
 
                 get("/getResult") {
-                    val zipFile: File = Api.getResult()
+                    val file: File = Api.getResult()
                     call.response.header(
                         name = "Content-Disposition",
-                        value = "attachment; filename=\"result.zip\""
+                        value = "attachment; filename=\"temp\""
                     )
-                    call.respondFile(zipFile)
+                    call.respondFile(file)
                 }
             }
         }

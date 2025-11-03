@@ -13,9 +13,9 @@ import dev.younesgouyd.apps.music.common.ImportService
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.components.util.compose.AdaptiveUi
 import dev.younesgouyd.apps.music.common.data.RepoStore
-import dev.younesgouyd.apps.music.common.usecases.ImportFolderUseCase
+import dev.younesgouyd.apps.music.common.usecases.ImportFromInternetUseCase
+import dev.younesgouyd.apps.music.common.usecases.ImportLocalFileUseCase
 import dev.younesgouyd.apps.music.common.usecases.SaveAudioFileAsTrackUseCase
-import dev.younesgouyd.apps.music.common.usecases.SaveMp3FileAsTrackUseCase
 import dev.younesgouyd.apps.music.common.util.Component
 import dev.younesgouyd.apps.music.common.util.DarkThemeOptions
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,8 +25,7 @@ import kotlinx.coroutines.runBlocking
 
 class Main(
     private val repoStore: RepoStore,
-    mediaPlayer: MediaController.MediaPlayer,
-    appDir: String
+    mediaPlayer: MediaController.MediaPlayer
 ) : Component() {
     override val title: String = ""
     private val darkTheme: StateFlow<DarkThemeOptions> = repoStore.settingsRepo.getDarkTheme()
@@ -40,16 +39,23 @@ class Main(
             initialValue = DarkThemeOptions.SystemDefault
         )
 
-    private val mediaController = MediaController(mediaPlayer = mediaPlayer, repoStore = repoStore, appDir = appDir)
-    private val importService = ImportService(
-        server = repoStore.server,
-        repo = repoStore.importSessionRepo,
-        importFolderUseCase = ImportFolderUseCase(
-            repoStore = repoStore,
-            saveAudioFileAsTrackUseCase = SaveAudioFileAsTrackUseCase(repoStore),
-            saveMp3FileAsTrackUseCase = SaveMp3FileAsTrackUseCase(repoStore)
+    private val mediaController = MediaController(mediaPlayer = mediaPlayer, repoStore = repoStore)
+    private val importService: ImportService = run {
+        val saveAudioFileAsTrackUseCase = SaveAudioFileAsTrackUseCase(repoStore)
+        ImportService(
+            importSessionRepo = repoStore.importSessionRepo,
+            importSessionItemRepo = repoStore.importSessionItemRepo,
+            importLocalFileUseCase = ImportLocalFileUseCase(
+                mediaFileRepo = repoStore.mediaFileRepo,
+                saveAudioFileAsTrackUseCase = saveAudioFileAsTrackUseCase
+            ),
+            importFromInternetUseCase = ImportFromInternetUseCase(
+                mediaFileRepo = repoStore.mediaFileRepo,
+                server = repoStore.server,
+                saveAudioFileAsTrackUseCase = saveAudioFileAsTrackUseCase
+            )
         )
-    )
+    }
 
     private val mainComponentType: MutableStateFlow<MainComponentType> = MutableStateFlow(MainComponentType.Content)
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -57,7 +63,6 @@ class Main(
         it == MainComponentType.Player
     }.stateIn(coroutineScope, started = SharingStarted.WhileSubscribed(), false)
 
-    private val imports: Component = Imports(repoStore.importSessionRepo)
     private val settings: Component = Settings(repoStore.settingsRepo)
     private var navigationHost: NavigationHost = getNewNavHost(NavigationHost.Destination.Library)
     private val miniPlayer = MiniPlayer(
@@ -96,8 +101,6 @@ class Main(
     private val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Library)
 
     private val drawerState: MutableStateFlow<DrawerState> = MutableStateFlow(DrawerState(initialValue = DrawerValue.Closed))
-    private val ongoingImportsCount: StateFlow<Long> = repoStore.importSessionRepo.getOngoingImportsCount()
-        .stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = 0)
 
     init {
         importService.start()
@@ -113,7 +116,6 @@ class Main(
                     modifier = modifier,
                     darkTheme = darkTheme,
                     mainComponent = mainComponent.asStateFlow(),
-                    ongoingImportsCount = ongoingImportsCount,
                     player = player,
                     miniPlayer = miniPlayer,
                     playerExpanded = playerExpanded,
@@ -129,7 +131,6 @@ class Main(
                     darkTheme = darkTheme,
                     mainComponentType = mainComponentType.asStateFlow(),
                     mainComponent = mainComponent.asStateFlow(),
-                    ongoingImportsCount = ongoingImportsCount,
                     player = player,
                     miniPlayer = miniPlayer,
                     queue = queue,
@@ -183,7 +184,9 @@ class Main(
                 mainComponent.value = navigationHost
             }
             NavigationDrawerItems.Imports -> {
-                mainComponent.value = imports
+                navigationHost.clear()
+                navigationHost = getNewNavHost(NavigationHost.Destination.ImportList)
+                mainComponent.value = navigationHost
             }
         }
         mainComponentType.value = MainComponentType.Content
@@ -206,7 +209,6 @@ class Main(
                 modifier: Modifier,
                 darkTheme: DarkThemeOptions,
                 mainComponent: StateFlow<Component>,
-                ongoingImportsCount: StateFlow<Long>,
                 player: Component,
                 miniPlayer: Component,
                 queue: Component,
@@ -219,7 +221,6 @@ class Main(
                 val drawerState by drawerState.collectAsState()
                 val playerExpanded by playerExpanded.collectAsState()
                 val selectedNavigationDrawerItem by selectedNavigationDrawerItem.collectAsState()
-                val ongoingImportsCount by ongoingImportsCount.collectAsState()
 
                 YounesMusicTheme(
                     darkTheme = darkTheme,
@@ -241,12 +242,7 @@ class Main(
                                                 NavigationDrawerItem(
                                                     label = { Text(it.label) },
                                                     selected = it == selectedNavigationDrawerItem,
-                                                    onClick = { onNavigationDrawerItemClick(it) },
-                                                    badge = if (it == NavigationDrawerItems.Imports && ongoingImportsCount > 0) {
-                                                        { Badge { Text(ongoingImportsCount.toString()) } }
-                                                    } else {
-                                                        null
-                                                    }
+                                                    onClick = { onNavigationDrawerItemClick(it) }
                                                 )
                                             }
                                         }
@@ -304,7 +300,6 @@ class Main(
                 darkTheme: DarkThemeOptions,
                 mainComponentType: StateFlow<MainComponentType>,
                 mainComponent: StateFlow<Component>,
-                ongoingImportsCount: StateFlow<Long>,
                 player: Component,
                 miniPlayer: Component,
                 queue: Component,
@@ -316,7 +311,6 @@ class Main(
                 val mainComponent by mainComponent.collectAsState()
                 val drawerState by drawerState.collectAsState()
                 val selectedNavigationDrawerItem by selectedNavigationDrawerItem.collectAsState()
-                val ongoingImportsCount by ongoingImportsCount.collectAsState()
 
                 YounesMusicTheme(
                     darkTheme = darkTheme,
@@ -338,12 +332,7 @@ class Main(
                                                 NavigationDrawerItem(
                                                     label = { Text(it.label) },
                                                     selected = it == selectedNavigationDrawerItem,
-                                                    onClick = { onNavigationDrawerItemClick(it) },
-                                                    badge = if (it == NavigationDrawerItems.Imports && ongoingImportsCount > 0) {
-                                                        { Badge { Text(ongoingImportsCount.toString()) } }
-                                                    } else {
-                                                        null
-                                                    }
+                                                    onClick = { onNavigationDrawerItemClick(it) }
                                                 )
                                             }
                                         }
@@ -394,7 +383,7 @@ class Main(
         Playlists("Playlists"),
         Albums("Albums"),
         Artists("Artists"),
-        Imports("Import")
+        Imports("Imports")
     }
 
     private enum class MainComponentType {

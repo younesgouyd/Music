@@ -38,9 +38,18 @@ fun <T> linearAnimation(duration: Duration): TweenSpec<T> {
 }
 
 fun Duration?.formatted(): String {
-    return this?.toComponents { minutes, seconds, _ ->
-        minutes.toString().padStart(2, '0') + ":" + seconds.toString().padStart(2, '0')
-    } ?: "??:??"
+    if (this == null) {
+        return "??:??"
+    }
+    return this.toComponents { hours: Long, minutes: Int, seconds: Int, _: Int ->
+        StringBuilder()
+            .append(hours.toString().padStart(2, '0'))
+            .append(":")
+            .append(minutes.toString().padStart(2, '0'))
+            .append(":")
+            .append(seconds.toString().padStart(2, '0'))
+            .toString()
+    }
 }
 
 @Composable

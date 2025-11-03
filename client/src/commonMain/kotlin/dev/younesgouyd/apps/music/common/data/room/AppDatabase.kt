@@ -1,9 +1,6 @@
 package dev.younesgouyd.apps.music.common.data.room
 
-import androidx.room.ConstructedBy
-import androidx.room.Database
-import androidx.room.RoomDatabase
-import androidx.room.RoomDatabaseConstructor
+import androidx.room.*
 import dev.younesgouyd.apps.music.common.data.room.entities.*
 
 @Database(
@@ -22,6 +19,7 @@ import dev.younesgouyd.apps.music.common.data.room.entities.*
     ],
     version = 1
 )
+@TypeConverters(Converters::class)
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun albumDao(): AlbumDao
@@ -29,6 +27,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun artistTrackCrossRefDao(): ArtistTrackCrossRefDao
     abstract fun folderDao(): FolderDao
     abstract fun importSessionDao(): ImportSessionDao
+    abstract fun importSessionItemDao(): ImportSessionItemDao
+    abstract fun importSessionWithItemsDao(): ImportSessionWithItemsDao
     abstract fun mediaFileDao(): MediaFileDao
     abstract fun playlistDao(): PlaylistDao
     abstract fun playlistTrackCrossRefDao(): PlaylistTrackCrossRefDao
@@ -36,7 +36,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun trackDao(): TrackDao
 }
 
-@Suppress("KotlinNoActualForExpect")
+@Suppress("NO_ACTUAL_FOR_EXPECT")
 expect object AppDatabaseConstructor : RoomDatabaseConstructor<AppDatabase> {
     override fun initialize(): AppDatabase
 }

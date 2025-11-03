@@ -13,9 +13,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.common.Inspection
+import dev.younesgouyd.apps.music.common.components.util.compose.formatted
 import dev.younesgouyd.apps.music.common.components.util.compose.widgets.Image
 import dev.younesgouyd.apps.music.common.components.util.compose.widgets.Item
 import dev.younesgouyd.apps.music.common.data.Server
@@ -23,11 +25,11 @@ import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.seconds
+import kotlin.io.encoding.Base64
 
 class Inspection(
     private val server: Server,
-    private val onDone: (Map<Long, String>) -> Unit,
+    private val onDone: (Inspection.Webpage, selected: List<Long>) -> Unit,
     url: String
 ) : Component() {
     override val title: String = "Inspection"
@@ -37,7 +39,7 @@ class Inspection(
     init {
         coroutineScope.launch {
             state.value = try {
-                val inspection = server.inspect(url)
+                val inspection: Inspection.Webpage = server.inspect(url)
                 InspectionState.Loaded(
                     inspection = inspection,
                     selectedItems = selectedItems,
@@ -55,11 +57,7 @@ class Inspection(
                     },
                     onUnselectAllClick = { selectedItems.clear() },
                     onDone = {
-                        onDone(
-                            selectedItems.associateWith { selectedId ->
-                                inspection.items.find { it.id == selectedId }!!.url
-                            }
-                        )
+                        onDone(inspection, selectedItems.toList())
                     }
                 )
             } catch (e: Exception) {
@@ -87,7 +85,7 @@ class Inspection(
         data object Loading : InspectionState()
 
         data class Loaded(
-            val inspection: Inspection,
+            val inspection: Inspection.Webpage,
             val selectedItems: List<Long>,
             val onItemClick: (Long) -> Unit,
             val onSelectAllClick: () -> Unit,
@@ -120,7 +118,7 @@ class Inspection(
         ) {
             Main(
                 modifier = modifier,
-                items = state.inspection.items,
+                inspection = state.inspection,
                 selectedItems = state.selectedItems,
                 onItemClick = state.onItemClick,
                 onSelectAllClick = state.onSelectAllClick,
@@ -132,7 +130,7 @@ class Inspection(
         @Composable
         private fun Main(
             modifier: Modifier,
-            items: List<Inspection.Item>,
+            inspection: Inspection.Webpage,
             selectedItems: List<Long>,
             onItemClick: (Long) -> Unit,
             onSelectAllClick: () -> Unit,
@@ -144,61 +142,95 @@ class Inspection(
                 shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.background
             ) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
+                Column(
+                    modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    stickyHeader {
-                        Surface {
-                            Column {
-                                Button(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    onClick = onDone,
-                                    content = { Text("Done") }
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                        text = "Inspection",
+                        style = MaterialTheme.typography.headlineMedium,
+                        textAlign = TextAlign.Center
+                    )
+                    PlaylistInfo(
+                        modifier = Modifier.fillMaxWidth(),
+                        playlist = inspection.container
+                    )
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onDone,
+                        content = { Text("Done") }
+                    )
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            if (selectedItems.size == inspection.items.size) {
+                                onUnselectAllClick()
+                            } else {
+                                onSelectAllClick()
+                            }
+                        },
+                        content = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = selectedItems.size == inspection.items.size,
+                                    onCheckedChange = null
                                 )
-                                TextButton(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    onClick = {
-                                        if (selectedItems.size == items.size) {
-                                            onUnselectAllClick()
-                                        } else {
-                                            onSelectAllClick()
-                                        }
-                                    },
-                                    content = {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Checkbox(
-                                                checked = selectedItems.size == items.size,
-                                                onCheckedChange = null
-                                            )
-                                            Text("Select all")
-                                        }
-                                    }
-                                )
+                                Text("Select all")
                             }
                         }
-                    }
-                    items(items = items) { item ->
-                        Item(
-                            modifier = Modifier.fillMaxWidth(),
-                            item = item,
-                            selected = selectedItems.any { it == item.id },
-                            onClick = { onItemClick(item.id) }
-                        )
+                    )
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(items = inspection.items) { item ->
+                            Track(
+                                modifier = Modifier.fillMaxWidth(),
+                                itemInspection = item,
+                                selected = selectedItems.any { it == item.id },
+                                onClick = { onItemClick(item.id) }
+                            )
+                        }
                     }
                 }
             }
         }
 
         @Composable
-        private fun Item(
+        private fun PlaylistInfo(
             modifier: Modifier,
-            item: Inspection.Item,
+            playlist: Inspection.ContainerInspection.Webpage
+        ) {
+            Row(
+                modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    modifier = Modifier.size(64.dp),
+                    data = playlist.thumbnail?.let { Base64.decode(it) }
+                )
+                Text(
+                    text = playlist.title.orEmpty(),
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        @Composable
+        private fun Track(
+            modifier: Modifier,
+            itemInspection: Inspection.ItemInspection.InternetTrack,
             selected: Boolean,
             onClick: () -> Unit
         ) {
@@ -218,16 +250,17 @@ class Inspection(
                     )
                     Image(
                         modifier = Modifier.size(64.dp),
-                        url = item.thumbnail
+                        data = itemInspection.thumbnail?.let { Base64.decode(it) }
+
                     )
                     Column(
                         modifier = Modifier.weight(1f),
                         horizontalAlignment = Alignment.Start,
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(item.title)
+                        Text(itemInspection.title)
                         Text(
-                            text = ""+item.album,
+                            text = ""+itemInspection.album,
                             style = MaterialTheme.typography.labelMedium
                         )
                         LazyRow(
@@ -235,7 +268,7 @@ class Inspection(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            items(item.artists) { artist ->
+                            items(itemInspection.artists) { artist ->
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     verticalAlignment = Alignment.CenterVertically
@@ -251,7 +284,7 @@ class Inspection(
                             }
                         }
                         Text(
-                            text = ""+item.duration?.seconds?.toComponents { minutes: Long, seconds: Int, _: Int -> "$minutes:$seconds" },
+                            text = itemInspection.duration.formatted(),
                             style = MaterialTheme.typography.labelMedium
                         )
                     }

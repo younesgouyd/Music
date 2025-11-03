@@ -20,41 +20,41 @@ import java.time.Instant
 
 typealias ImageUrl = String
 
-@Composable
-fun Image(
-    modifier: Modifier = Modifier,
-    url: ImageUrl?,
-    contentScale: ContentScale = ContentScale.Fit,
-    alignment: Alignment = Alignment.Center
-) {
-    var loading by remember { mutableStateOf(true) }
-    var image by remember { mutableStateOf<ImageBitmap?>(null) }
-
-    if (url == null) {
-        BrokenImage(modifier)
-    } else {
-        LaunchedEffect(url) {
-            loading = true
-            image = Cache.get(url)
-            loading = false
-        }
-
-        when (loading) {
-            true -> LoadingImage(modifier)
-            false -> {
-                image?.let {
-                    Image(
-                        modifier = modifier,
-                        bitmap = it,
-                        contentDescription = null,
-                        contentScale = contentScale,
-                        alignment = alignment
-                    )
-                } ?: BrokenImage(modifier)
-            }
-        }
-    }
-}
+//@Composable
+//fun Image(
+//    modifier: Modifier = Modifier,
+//    url: ImageUrl?,
+//    contentScale: ContentScale = ContentScale.Fit,
+//    alignment: Alignment = Alignment.Center
+//) {
+//    var loading by remember { mutableStateOf(true) }
+//    var image by remember { mutableStateOf<ImageBitmap?>(null) }
+//
+//    if (url == null) {
+//        BrokenImage(modifier)
+//    } else {
+//        LaunchedEffect(url) {
+//            loading = true
+//            image = Cache.get(url)
+//            loading = false
+//        }
+//
+//        when (loading) {
+//            true -> LoadingImage(modifier)
+//            false -> {
+//                image?.let {
+//                    Image(
+//                        modifier = modifier,
+//                        bitmap = it,
+//                        contentDescription = null,
+//                        contentScale = contentScale,
+//                        alignment = alignment
+//                    )
+//                } ?: BrokenImage(modifier)
+//            }
+//        }
+//    }
+//}
 
 @Composable
 fun Image(

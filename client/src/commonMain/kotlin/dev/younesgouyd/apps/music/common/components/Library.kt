@@ -31,6 +31,7 @@ import dev.younesgouyd.apps.music.common.data.Server
 import dev.younesgouyd.apps.music.common.data.repoes.*
 import dev.younesgouyd.apps.music.common.data.room.entities.Folder
 import dev.younesgouyd.apps.music.common.data.room.entities.Playlist
+import dev.younesgouyd.apps.music.common.scanFolder
 import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -46,7 +47,7 @@ class Library(
     private val albumRepo: AlbumRepo,
     private val artistRepo: ArtistRepo,
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
-    private val importSessionRepo: ImportSessionRepo,
+    private val importSessionWithItemsRepo: ImportSessionWithItemsRepo,
     private val mediaController: MediaController,
     private val showPlaylist: (id: Long) -> Unit,
     private val showArtistDetails: (id: Long) -> Unit
@@ -113,10 +114,9 @@ class Library(
 
         playlists = currentFolder.flatMapLatest { currentFolder ->
             flow {
-                emit(emptyList())
                 loadingPlaylists.value = true
-                playlistRepo.getFolderPlaylists(currentFolder?.id).collect { playlist ->
-                    emit(playlist)
+                playlistRepo.getFolderPlaylists(currentFolder?.id).collect { playlists ->
+                    emit(playlists)
                     loadingPlaylists.value = false
                 }
                 loadingPlaylists.value = false
@@ -124,31 +124,26 @@ class Library(
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
 
         tracks = currentFolder.flatMapLatest { currentFolder ->
-            if (currentFolder == null) {
-                loadingTracks.value = true
-                flowOf(emptyList<Models.Track>())
-                    .also {
-                        loadingTracks.value = false
-                    }
-            } else {
-                trackRepo.getFolderTracks(currentFolder.id).mapLatest { tracks ->
+            flow {
+                trackRepo.getFolderTracks(currentFolder?.id).collect { tracks ->
                     loadingTracks.value = true
-                    val result = tracks.map { dbTrack ->
-                        Models.Track(
-                            id = dbTrack.id,
-                            name = dbTrack.name,
-                            artists = artistRepo.getTrackArtists(dbTrack.id).first().map {
-                                Models.Track.Artist(id = it.id, name = it.name)
-                            },
-                            album = dbTrack.albumId?.let {
-                                albumRepo.get(it).first().let { dbAlbum ->
-                                    Models.Track.Album(id = dbAlbum.id, name = dbAlbum.name, image = dbAlbum.image)
+                    emit(
+                        tracks.map { dbTrack ->
+                            Models.Track(
+                                id = dbTrack.id,
+                                name = dbTrack.name,
+                                artists = artistRepo.getTrackArtists(dbTrack.id).first().map {
+                                    Models.Track.Artist(id = it.id, name = it.name)
+                                },
+                                album = dbTrack.albumId?.let {
+                                    albumRepo.get(it).first().let { dbAlbum ->
+                                        Models.Track.Album(id = dbAlbum.id, name = dbAlbum.name, image = dbAlbum.image)
+                                    }
                                 }
-                            }
-                        )
-                    }
+                            )
+                        }
+                    )
                     loadingTracks.value = false
-                    result
                 }
             }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
@@ -159,28 +154,54 @@ class Library(
         val inspectionDialogVisible by inspectionDialogVisible.collectAsState()
         val addToPlaylistDialogVisible by addToPlaylistDialogVisible.collectAsState()
         var importTypeDialogVisible by remember { mutableStateOf(false) }
+        var preparingImportDialogVisible by remember { mutableStateOf(false) }
+        val coroutineScope = rememberCoroutineScope()
         val inspection by inspection.collectAsState()
         val addToPlaylist by addToPlaylist.collectAsState()
-        fun dismiss() { importTypeDialogVisible = false }
+
         if (importTypeDialogVisible) {
-            Ui.Common.importFormDialog(
-                onFolderPicked = { dismiss(); importFolder(it) },
-                onUrlEntered = { dismiss(); showInspectionDialog(it) },
+            Ui.Common.ImportFormDialog(
+                onFolderPicked = {
+                    coroutineScope.launch {
+                        importTypeDialogVisible = false
+                        preparingImportDialogVisible = true
+                        importFolder(it)
+                        preparingImportDialogVisible = false
+                    }
+                },
+                onUrlEntered = {
+                    importTypeDialogVisible = false
+                    showInspectionDialog(it)
+                },
                 onDismiss = { importTypeDialogVisible = false }
             )
+        }
+        if (preparingImportDialogVisible) {
+            Dialog(onDismissRequest = {}) {
+                Surface(
+                    modifier = Modifier.size(500.dp),
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Please wait, preparing import...")
+                    }
+                }
+            }
         }
         if (inspectionDialogVisible) {
             Dialog(onDismissRequest = ::dismissInspectionDialog) {
                 inspection!!.show(Modifier)
             }
         }
-
         if (addToPlaylistDialogVisible) {
             Dialog(onDismissRequest = ::dismissAddToPlaylistDialog) {
                 addToPlaylist!!.show(Modifier)
             }
         }
-
         AdaptiveUi(
             wide = {
                 Ui.Wide.Main(
@@ -365,15 +386,19 @@ class Library(
         coroutineScope.cancel()
     }
 
-    private fun importFolder(uri: String) {
-        coroutineScope.launch {
-            importSessionRepo.addLocalSession(uri)
-        }
+    private suspend fun importFolder(uri: String) {
+        val items = scanFolder(uri)
+        importSessionWithItemsRepo.addLocalSession(
+            inspection = dev.younesgouyd.apps.music.common.Inspection.Folder(
+                container = dev.younesgouyd.apps.music.common.Inspection.ContainerInspection.Folder(uri = uri),
+                items = items
+            )
+        )
     }
 
-    private fun importUrl(url: String, items: Map<Long, String>) {
+    private fun importUrl(url: String, inspection: dev.younesgouyd.apps.music.common.Inspection.Webpage, selected: List<Long>) {
         coroutineScope.launch {
-            importSessionRepo.addUrlSession(uri = url, items = items)
+            importSessionWithItemsRepo.addUrlSession(url, inspection, selected)
         }
     }
 
@@ -441,8 +466,8 @@ class Library(
             Inspection(
                 server = server,
                 url = url,
-                onDone = {
-                    importUrl(url, it)
+                onDone = { inspection, selected ->
+                    importUrl(url, inspection, selected)
                     dismissInspectionDialog()
                 }
             )
@@ -502,7 +527,7 @@ class Library(
     private object Ui {
         object Common {
             @Composable
-            fun importFormDialog(
+            fun ImportFormDialog(
                 onFolderPicked: (uri: String) -> Unit,
                 onUrlEntered: (url: String) -> Unit,
                 onDismiss: () -> Unit
@@ -1095,7 +1120,7 @@ class Library(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        dev.younesgouyd.apps.music.common.components.util.compose.widgets.Image(
+                        Image(
                             modifier = Modifier.aspectRatio(1f),
                             data = track.album?.image,
                             contentScale = ContentScale.FillWidth,

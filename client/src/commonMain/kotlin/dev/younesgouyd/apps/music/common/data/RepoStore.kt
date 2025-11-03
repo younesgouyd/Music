@@ -5,11 +5,14 @@ import dev.younesgouyd.apps.music.common.data.room.AppDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import java.io.File
 
 class RepoStore(
+    private val appDir: File,
     private val applicationScope: CoroutineScope,
     private val database: AppDatabase
 ) {
+    lateinit var fileManager: FileManager private set
     lateinit var server: Server private set
     lateinit var settingsRepo: SettingsRepo private set
     lateinit var albumRepo: AlbumRepo private set
@@ -21,8 +24,11 @@ class RepoStore(
     lateinit var trackRepo: TrackRepo private set
     lateinit var mediaFileRepo: MediaFileRepo private set
     lateinit var importSessionRepo: ImportSessionRepo private set
+    lateinit var importSessionItemRepo: ImportSessionItemRepo private set
+    lateinit var importSessionWithItemsRepo: ImportSessionWithItemsRepo
 
     suspend fun init() {
+        fileManager = FileManager(appDir)
         settingsRepo = SettingsRepo(database.settingDao())
         folderRepo = FolderRepo(database.folderDao())
         albumRepo = AlbumRepo(database.albumDao())
@@ -31,11 +37,18 @@ class RepoStore(
         playlistRepo = PlaylistRepo(database.playlistDao())
         playlistTrackCrossRefRepo = PlaylistTrackCrossRefRepo(database.playlistTrackCrossRefDao())
         trackRepo = TrackRepo(database.trackDao())
-        mediaFileRepo = MediaFileRepo(database.mediaFileDao())
+        mediaFileRepo = MediaFileRepo(
+            dao = database.mediaFileDao(),
+            fileManager = fileManager
+        )
         importSessionRepo = ImportSessionRepo(database.importSessionDao())
+        importSessionItemRepo = ImportSessionItemRepo(database.importSessionItemDao())
+        importSessionWithItemsRepo = ImportSessionWithItemsRepo(database.importSessionWithItemsDao())
 
         settingsRepo.init()
 
-        server = Server(settingsRepo.getServerAddress().map { it!!.value }.stateIn(applicationScope))
+        server = Server(
+            serverAddress = settingsRepo.getServerAddress().map { it!!.value }.stateIn(applicationScope),
+        )
     }
 }

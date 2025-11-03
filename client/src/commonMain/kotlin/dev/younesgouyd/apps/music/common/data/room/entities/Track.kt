@@ -27,7 +27,7 @@ data class Track(
     @PrimaryKey(autoGenerate = true)
     val id: Long,
     val name: String,
-    val folderId: Long,
+    val folderId: Long?,
     val albumId: Long?,
     val lyrics: String?,
     val albumTrackNumber: Int?,
@@ -60,6 +60,9 @@ interface TrackDao {
     @Query("select * from track where folderId = :folderId")
     fun getFolderTracks(folderId: Long): Flow<List<Track>>
 
+    @Query("select * from track where folderId is null")
+    fun getRootFolderTracks(): Flow<List<Track>>
+
     @Query("""
         select t.*
         from track t
@@ -76,11 +79,11 @@ interface TrackDao {
     )
     suspend fun add(
         name: String,
-        folderId: Long,
+        folderId: Long?,
         albumId: Long?,
         lyrics: String?,
         albumTrackNumber: Int?,
-        durationMillis: Long?,
+        durationMillis: Long,
         creationDatetime: Long,
         updateDatetime: Long
     ): Long
