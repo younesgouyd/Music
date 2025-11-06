@@ -12,9 +12,11 @@ import io.ktor.client.plugins.sse.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.serialization.kotlinx.json.*
+import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
+import java.io.InputStream
 
 class Server(
     private val serverAddress: StateFlow<String?>
@@ -49,8 +51,10 @@ class Server(
         }
     }
 
-    suspend fun getResult(): ByteArray {
-        return client.get("${getAddress()}/getResult").bodyAsBytes()
+    suspend fun getResult(): InputStream {
+        return client.get("${getAddress()}/getResult")
+            .bodyAsChannel()
+            .toInputStream()
     }
 
     private fun getAddress(): String {

@@ -4,6 +4,7 @@ import dev.younesgouyd.apps.music.common.data.FileManager
 import dev.younesgouyd.apps.music.common.data.room.entities.MediaFileDao
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.io.InputStream
 
 class MediaFileRepo(
     private val dao: MediaFileDao,
@@ -19,7 +20,7 @@ class MediaFileRepo(
             .toString()
     }
 
-    suspend fun add(trackId: Long, importSessionItemId: Long, data: ByteArray): Long {
+    suspend fun add(trackId: Long, importSessionItemId: Long, data: InputStream): Long {
         val currentTime = System.currentTimeMillis()
         val id = dao.add(
             trackId = trackId,

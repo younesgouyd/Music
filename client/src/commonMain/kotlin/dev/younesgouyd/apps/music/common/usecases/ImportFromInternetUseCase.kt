@@ -4,6 +4,7 @@ import dev.younesgouyd.apps.music.common.Inspection
 import dev.younesgouyd.apps.music.common.data.Server
 import dev.younesgouyd.apps.music.common.data.repoes.MediaFileRepo
 import kotlinx.coroutines.flow.first
+import java.io.InputStream
 import kotlin.io.encoding.Base64
 
 class ImportFromInternetUseCase(
@@ -16,12 +17,13 @@ class ImportFromInternetUseCase(
         return when (result) {
             "error" -> false
             "completed" -> {
-                val data = server.getResult()
-                import(
-                    inspection = inspection,
-                    importSessionItemId = importSessionItemId,
-                    data = data
-                )
+                server.getResult().use {
+                    import(
+                        inspection = inspection,
+                        importSessionItemId = importSessionItemId,
+                        data = it
+                    )
+                }
                 return true // TODO
             }
             else -> TODO()
@@ -31,7 +33,7 @@ class ImportFromInternetUseCase(
     private suspend fun import(
         inspection: Inspection.ItemInspection.InternetTrack,
         importSessionItemId: Long,
-        data: ByteArray
+        data: InputStream
     ) {
         val trackId = saveAudioFileAsTrackUseCase.execute(
             folderId = null,

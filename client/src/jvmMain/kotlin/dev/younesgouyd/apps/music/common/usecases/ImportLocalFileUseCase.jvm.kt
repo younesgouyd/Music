@@ -2,8 +2,7 @@ package dev.younesgouyd.apps.music.common.usecases
 
 import dev.younesgouyd.apps.music.common.Inspection
 import dev.younesgouyd.apps.music.common.data.repoes.MediaFileRepo
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import java.io.InputStream
 import java.net.URI
 import kotlin.io.encoding.Base64
 import kotlin.io.path.toPath
@@ -16,21 +15,23 @@ actual class ImportLocalFileUseCase actual constructor(
     actual val saveAudioFileAsTrackUseCase: SaveAudioFileAsTrackUseCase = saveAudioFileAsTrackUseCase
 
     actual suspend fun execute(inspection: Inspection.ItemInspection.LocalFileTrack, importSessionItemId: Long): Boolean {
-        val data = withContext(Dispatchers.IO) {
-            URI(inspection.uri).toPath().toFile().readBytes()
-        }
-        import(
-            inspection = inspection,
-            importSessionItemId = importSessionItemId,
-            data = data
-        )
+        URI(inspection.uri)
+            .toPath()
+            .toFile()
+            .inputStream().use {
+                import(
+                    inspection = inspection,
+                    importSessionItemId = importSessionItemId,
+                    data = it
+                )
+            }
         return true
     }
 
     private suspend fun import(
         inspection: Inspection.ItemInspection.LocalFileTrack,
         importSessionItemId: Long,
-        data: ByteArray
+        data: InputStream
     ) {
         val trackId = saveAudioFileAsTrackUseCase.execute(
             folderId = null,

@@ -3,15 +3,18 @@ package dev.younesgouyd.apps.music.common.data
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.InputStream
 
 class FileManager(
     appDir: File
 ) {
     val mediaDir = File(appDir, "media").also { it.mkdir() }
 
-    suspend fun saveMediaFile(data: ByteArray, id: Long) {
+    suspend fun saveMediaFile(data: InputStream, id: Long) {
         withContext(Dispatchers.IO) {
-            File(mediaDir, id.toString()).writeBytes(data)
+            File(mediaDir, id.toString())
+                .outputStream()
+                .use { fileStream -> data.copyTo(fileStream) }
         }
     }
 
