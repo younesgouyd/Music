@@ -1,3 +1,4 @@
+- support importing playlists with url
 - prevent duplicate tracks
 - update date and creation date in daos
 - define typealias for IDs
