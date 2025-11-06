@@ -1,0 +1,45 @@
+- prevent duplicate tracks
+- update date and creation date in daos
+- define typealias for IDs
+- make material3 theme parametrable in settings
+- delete non-referenced files
+- find the most precise way to represent time: check: https://en.wikipedia.org/wiki/Unix_time
+- create Detect Duplicates Component
+- make app compatible with Android 10
+- implement android events (back navigation, configuration changes... etc)
+- implement play next (add to the queue items of the desired queue after the current index)
+- remember the scroll position of lists
+- implement tags
+- implement genres
+- implement lyrics feature
+- implement sorting playlists/albums/folders
+- issue: data is not being updated on the screen
+- verify not null assertions (!!)
+
+done:
+- fix library not loading items correctly: when a new item is saved in db, it is not reflected in the UI. the RETURNING clause is preventing sqldelight to not invaldate data changes
+- fix next queue items not automatically playing
+- preserve scroll position of lists when navigating away from their screen
+- use KMP, implement adaptive ui, and some cleanup
+- implement queue for android
+- remove some unnecessary dependencies
+- in android, fix navigating to ArtistDetails from Player
+- in MediaController::playQueue, remove redundant/unnecessary checks for empty queue
+- rename url properties to uri
+- use one navigation host for all navigation drawer items
+- implement Player page
+- instead of using WhileSubscribed flow collection strategy. check if we can collect inside the component scope instead. like in AlbumDetails.
+- UI adjustements
+- update dependencies
+- set actions consistently throughout the app
+- + move items to folder
+- + add playlist to queue
+- make items of different types in Library distinguishable
+- implement unimplemented actions and hide context menu when an action is performed
+- revise playerController
+- when a track in a playlist/album is played, a queue containing all adjacent items should be created and the playback should start from the selected item
+- next should not start playback if it is already pause
+- should provide observable playback state for time slider
+- make actions appear consistently throughout the app
+- set the appropriate surface color throughout the app
+- executeAsOne() to executeAsOneOrNull()
