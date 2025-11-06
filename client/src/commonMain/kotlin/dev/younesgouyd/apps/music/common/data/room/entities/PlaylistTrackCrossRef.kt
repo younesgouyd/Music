@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.Flow
             onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
-            entity = Artist::class,
+            entity = Track::class,
             parentColumns = ["id"],
             childColumns = ["trackId"],
             onUpdate = ForeignKey.CASCADE,

@@ -2,6 +2,8 @@ package dev.younesgouyd.apps.music.common
 
 import dev.younesgouyd.apps.music.common.data.repoes.ImportSessionItemRepo
 import dev.younesgouyd.apps.music.common.data.repoes.ImportSessionRepo
+import dev.younesgouyd.apps.music.common.data.repoes.PlaylistRepo
+import dev.younesgouyd.apps.music.common.data.repoes.PlaylistTrackCrossRefRepo
 import dev.younesgouyd.apps.music.common.data.room.entities.ImportSession
 import dev.younesgouyd.apps.music.common.data.room.entities.ImportSessionItem
 import dev.younesgouyd.apps.music.common.usecases.ImportFromInternetUseCase
@@ -10,10 +12,13 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlin.concurrent.Volatile
+import kotlin.io.encoding.Base64
 
 class ImportService(
     private val importSessionRepo: ImportSessionRepo,
     private val importSessionItemRepo: ImportSessionItemRepo,
+    private val playlistRepo: PlaylistRepo,
+    private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     private val importLocalFileUseCase: ImportLocalFileUseCase,
     private val importFromInternetUseCase: ImportFromInternetUseCase
 ) {
@@ -60,13 +65,9 @@ class ImportService(
                                 }
                                 importJob = launch {
                                     try {
-                                        val success = import(
+                                        import(
                                             session = importSessionRepo.get(session.importSessionId).first(),
                                             item = session
-                                        )
-                                        importSessionItemRepo.updateState(
-                                            id = session.id,
-                                            state = if (success) ImportSessionItem.State.Completed else ImportSessionItem.State.Failed
                                         )
                                     } catch (cancellation: CancellationException) {
                                         if (cancellation.cause == IntendedCancellation) {
@@ -114,18 +115,40 @@ class ImportService(
         }
     }
 
-    private suspend fun import(session: ImportSession, item: ImportSessionItem): Boolean {
-        return withContext(Dispatchers.IO) {
+    private suspend fun import(session: ImportSession, item: ImportSessionItem) {
+        withContext(Dispatchers.IO) {
             println("Working on session ${session.id} item ${item.id}")
-            when (session.sourceType) {
-                ImportSession.SourceType.Local -> importLocalFileUseCase.execute(
-                    inspection = item.inspection as Inspection.ItemInspection.LocalFileTrack, // TODO
-                    importSessionItemId = item.id
-                )
-                ImportSession.SourceType.Internet -> importFromInternetUseCase.execute(
-                    inspection = item.inspection as Inspection.ItemInspection.InternetTrack, // TODO
-                    importSessionItemId = item.id
-                )
+            val playlistName: String
+            val playlistImg: ByteArray?
+            val trackId = when (session.sourceType) {
+                ImportSession.SourceType.Local -> {
+                    playlistName = "from import ${session.id}"
+                    playlistImg = null
+                    importLocalFileUseCase.execute(
+                        inspection = item.inspection as Inspection.ItemInspection.LocalFileTrack, // TODO
+                        importSessionItemId = item.id
+                    )
+                }
+                ImportSession.SourceType.Internet -> {
+                    val container = (session.inspection as Inspection.ContainerInspection.Webpage)
+                    playlistName = container.title ?: "from import ${session.id}"
+                    playlistImg = container.thumbnail?.let { Base64.decode(it) }
+                    importFromInternetUseCase.execute(
+                        inspection = item.inspection as Inspection.ItemInspection.InternetTrack, // TODO
+                        importSessionItemId = item.id
+                    )
+                }
+            }
+            val state = if (trackId != null) ImportSessionItem.State.Completed else ImportSessionItem.State.Failed
+            importSessionItemRepo.updateState(
+                id = item.id,
+                state = state
+            )
+            if (trackId != null) {
+                val playlist = playlistRepo.getImportSessionPlaylist(session.id).first()
+                val playlistId: Long = playlist?.id
+                    ?: playlistRepo.add(name = playlistName, folderId = null, image = playlistImg, importSessionId = session.id, importUri = session.uri)
+                playlistTrackCrossRefRepo.add(playlistId, trackId)
             }
         }
     }

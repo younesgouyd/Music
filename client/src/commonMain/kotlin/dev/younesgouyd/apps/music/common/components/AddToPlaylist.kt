@@ -101,7 +101,13 @@ class AddToPlaylist(
             _adding.update { true }
             val playlistId = when (playlistToAddTo) {
                 is AddToPlaylistState.Loaded.PlaylistToAddTo.Id -> playlistToAddTo.value
-                is AddToPlaylistState.Loaded.PlaylistToAddTo.New -> playlistRepo.add(name = playlistToAddTo.name, folderId = null, image = null)
+                is AddToPlaylistState.Loaded.PlaylistToAddTo.New -> playlistRepo.add(
+                    name = playlistToAddTo.name,
+                    folderId = null,
+                    image = null,
+                    importSessionId = null,
+                    importUri = null
+                )
             }
             when (itemToAdd) {
                 is Item.Track -> {

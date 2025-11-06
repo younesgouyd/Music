@@ -161,7 +161,8 @@ class Inspection(
                     Button(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = onDone,
-                        content = { Text("Done") }
+                        content = { Text("Done") },
+                        enabled = selectedItems.isNotEmpty()
                     )
                     TextButton(
                         modifier = Modifier.fillMaxWidth(),

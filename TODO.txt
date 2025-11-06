@@ -1,5 +1,6 @@
-- support importing playlists with url
-- prevent duplicate tracks
+- save yt-dlp inspection response in client
+- implement export and re-importing from the export
+- remove album feature (to be re-implemented later)
 - update date and creation date in daos
 - define typealias for IDs
 - make material3 theme parametrable in settings
@@ -9,15 +10,16 @@
 - make app compatible with Android 10
 - implement android events (back navigation, configuration changes... etc)
 - implement play next (add to the queue items of the desired queue after the current index)
-- remember the scroll position of lists
 - implement tags
 - implement genres
-- implement lyrics feature
+- implement showing and editing lyrics
 - implement sorting playlists/albums/folders
-- issue: data is not being updated on the screen
 - verify not null assertions (!!)
 
 done:
+- automatically create a playlist for every import
+- remember the scroll position of lists
+- issue: data is not being updated on the screen
 - fix library not loading items correctly: when a new item is saved in db, it is not reflected in the UI. the RETURNING clause is preventing sqldelight to not invaldate data changes
 - fix next queue items not automatically playing
 - preserve scroll position of lists when navigating away from their screen

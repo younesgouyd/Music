@@ -13,21 +13,23 @@ class PlaylistRepo(private val dao: PlaylistDao) {
         return dao.get(id)
     }
 
+    fun getImportSessionPlaylist(importSessionId: Long): Flow<Playlist?> {
+        return dao.getImportSessionPlaylist(importSessionId)
+    }
+
     fun getFolderPlaylists(folderId: Long?): Flow<List<Playlist>> {
         return dao.getFolderPlaylists(folderId)
     }
 
-    fun getTrackPlaylists(trackId: Long): Flow<List<Playlist>> {
-        return dao.getTrackPlaylists(trackId)
-    }
-
-    suspend fun add(name: String, folderId: Long?, image: ByteArray?): Long {
+    suspend fun add(name: String, folderId: Long?, image: ByteArray?, importSessionId: Long?, importUri: String?): Long {
         require(name.isNotEmpty())
         val currentTime = System.currentTimeMillis()
         return dao.add(
             name = name,
             folderId = folderId,
             image = image,
+            importSessionId = importSessionId,
+            importUri = importUri,
             creationDatetime = currentTime,
             updateDatetime = currentTime
         )

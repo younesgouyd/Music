@@ -41,6 +41,7 @@ class PlaylistDetails(
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     private val folderRepo: FolderRepo,
     private val mediaController: MediaController,
+    showImport: (id: Long) -> Unit,
     showArtistDetails: (id: Long) -> Unit,
     showAlbumDetails: (id: Long) -> Unit
 ) : Component() {
@@ -57,7 +58,9 @@ class PlaylistDetails(
                         PlaylistDetailsState.Loaded.Playlist(
                             id = dbPlaylist.id,
                             name = dbPlaylist.name,
-                            image = dbPlaylist.image
+                            image = dbPlaylist.image,
+                            importUri = dbPlaylist.importUri,
+                            onImportClick = { dbPlaylist.importSessionId?.let { showImport(it) } }
                         )
                     }.stateIn(coroutineScope),
                     tracks = trackRepo.getPlaylistTracks(id).mapLatest {
@@ -79,8 +82,7 @@ class PlaylistDetails(
                                             image = dbAlbum.image
                                         )
                                     }
-                                },
-                                addedAt = formatAddedAt(TODO())
+                                }
                             )
                         }
                     }.stateIn(coroutineScope),
@@ -207,15 +209,16 @@ class PlaylistDetails(
             data class Playlist(
                 val id: Long,
                 val name: String,
-                val image: ByteArray?
+                val image: ByteArray?,
+                val importUri: String?,
+                val onImportClick: () -> Unit
             )
 
             data class Track(
                 val id: Long,
                 val name: String,
                 val artists: List<Artist>,
-                val album: Album?,
-                val addedAt: String
+                val album: Album?
             ) {
                 data class Artist(
                     val id: Long,
@@ -370,6 +373,12 @@ class PlaylistDetails(
                             style = MaterialTheme.typography.displayMedium,
                             textAlign = TextAlign.Center
                         )
+                        if (playlist.importUri != null) {
+                            TextButton(
+                                content = { Text("from: ${playlist.importUri}") },
+                                onClick = playlist.onImportClick
+                            )
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(space = 12.dp, alignment = Alignment.CenterHorizontally),
@@ -423,9 +432,11 @@ class PlaylistDetails(
 
             @Composable
             private fun TracksHeader(modifier: Modifier = Modifier) {
-                Surface {
+                Surface(
+                    modifier = modifier
+                ) {
                     Row(
-                        modifier = modifier,
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Start,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -565,7 +576,7 @@ class PlaylistDetails(
                     // added at
                     Box(modifier = Modifier.fillMaxSize().weight(ADDED_AT_WEIGHT), contentAlignment = Alignment.Center) {
                         Text(
-                            text = track.addedAt,
+                            text = "????-??-?? ??:??", // TODO
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -684,10 +695,7 @@ class PlaylistDetails(
                                 item {
                                     PlaylistInfo(
                                         modifier = Modifier.fillMaxWidth(),
-                                        playlist = playlist,
-                                        onPlayClick = onPlayClick,
-                                        onAddToQueueClick = onAddToQueueClick,
-                                        onAddToPlaylistClick = onAddToPlaylistClick
+                                        playlist = playlist
                                     )
                                 }
                                 item {
@@ -702,12 +710,15 @@ class PlaylistDetails(
                                     Spacer(Modifier.size(8.dp))
                                 }
                                 stickyHeader {
-                                    Text(
+                                    Surface(
                                         modifier = Modifier.fillMaxWidth(),
-                                        text = "Tracks",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        textAlign = TextAlign.Start
-                                    )
+                                    ) {
+                                        Text(
+                                            text = "Tracks",
+                                            style = MaterialTheme.typography.titleLarge,
+                                            textAlign = TextAlign.Start
+                                        )
+                                    }
                                     HorizontalDivider()
                                 }
                                 items(items = items) { track ->
@@ -734,10 +745,7 @@ class PlaylistDetails(
             @Composable
             private fun PlaylistInfo(
                 modifier: Modifier,
-                playlist: PlaylistDetailsState.Loaded.Playlist,
-                onPlayClick: () -> Unit,
-                onAddToQueueClick: () -> Unit,
-                onAddToPlaylistClick: () -> Unit
+                playlist: PlaylistDetailsState.Loaded.Playlist
             ) {
                 Column(
                     modifier = modifier,
@@ -756,6 +764,12 @@ class PlaylistDetails(
                         textAlign = TextAlign.Center,
                         overflow = TextOverflow.Ellipsis
                     )
+                    if (playlist.importUri != null) {
+                        TextButton(
+                            content = { Text("from: ${playlist.importUri}") },
+                            onClick = playlist.onImportClick
+                        )
+                    }
                 }
             }
 

@@ -12,19 +12,18 @@ class ImportFromInternetUseCase(
     val server: Server,
     val saveAudioFileAsTrackUseCase: SaveAudioFileAsTrackUseCase
 ) {
-    suspend fun execute(inspection: Inspection.ItemInspection.InternetTrack, importSessionItemId: Long): Boolean {
+    suspend fun execute(inspection: Inspection.ItemInspection.InternetTrack, importSessionItemId: Long): Long? {
         val result: String = server.download(inspection.uri).first()
         return when (result) {
-            "error" -> false
+            "error" -> null
             "completed" -> {
                 server.getResult().use {
-                    import(
+                    return@use import(
                         inspection = inspection,
                         importSessionItemId = importSessionItemId,
                         data = it
                     )
                 }
-                return true // TODO
             }
             else -> TODO()
         }
@@ -34,7 +33,7 @@ class ImportFromInternetUseCase(
         inspection: Inspection.ItemInspection.InternetTrack,
         importSessionItemId: Long,
         data: InputStream
-    ) {
+    ): Long {
         val trackId = saveAudioFileAsTrackUseCase.execute(
             folderId = null,
             title = inspection.title,
@@ -51,5 +50,6 @@ class ImportFromInternetUseCase(
             importSessionItemId = importSessionItemId,
             data = data
         )
+        return trackId
     }
 }

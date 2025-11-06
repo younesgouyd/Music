@@ -11,6 +11,13 @@ import kotlinx.coroutines.flow.Flow
             childColumns = ["folderId"],
             onUpdate = ForeignKey.CASCADE,
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = ImportSession::class,
+            parentColumns = ["id"],
+            childColumns = ["importSessionId"],
+            onUpdate = ForeignKey.CASCADE,
+            onDelete = ForeignKey.SET_NULL // TODO
         )
     ]
 )
@@ -20,6 +27,8 @@ data class Playlist(
     val name: String,
     val folderId: Long?,
     val image: ByteArray?,
+    val importSessionId: Long?,
+    val importUri: String?,
     val creationDatetime: Long,
     val updateDatetime: Long
 )
@@ -32,25 +41,22 @@ interface PlaylistDao {
     @Query("select * from playlist where id = :id")
     fun get(id: Long): Flow<Playlist>
 
+    @Query("select * from playlist where importSessionId = :importSessionId")
+    fun getImportSessionPlaylist(importSessionId: Long): Flow<Playlist?>
+
     @Query("select * from playlist where folderId = :folderId")
     fun getFolderPlaylists(folderId: Long?): Flow<List<Playlist>>
 
     @Query("""
-        select p.*
-        from playlist p
-        join playlisttrackcrossref cr on cr.playlistId = p.id
-        where cr.trackId = :trackId
-    """)
-    fun getTrackPlaylists(trackId: Long): Flow<List<Playlist>>
-
-    @Query("""
-        insert into playlist (name, folderId, image, creationDatetime, updateDatetime)
-        values (:name, :folderId, :image, :creationDatetime, :updateDatetime)
+        insert into playlist (name, folderId, image, importSessionId, importUri, creationDatetime, updateDatetime)
+        values (:name, :folderId, :image, :importSessionId, :importUri, :creationDatetime, :updateDatetime)
     """)
     suspend fun add(
         name: String,
         folderId: Long?,
         image: ByteArray?,
+        importSessionId: Long?,
+        importUri: String?,
         creationDatetime: Long,
         updateDatetime: Long
     ): Long

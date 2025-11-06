@@ -9,5 +9,5 @@ expect class ImportLocalFileUseCase(
 ) {
     val mediaFileRepo: MediaFileRepo
     val saveAudioFileAsTrackUseCase: SaveAudioFileAsTrackUseCase
-    suspend fun execute(inspection: Inspection.ItemInspection.LocalFileTrack, importSessionItemId: Long): Boolean
+    suspend fun execute(inspection: Inspection.ItemInspection.LocalFileTrack, importSessionItemId: Long): Long
 }

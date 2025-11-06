@@ -45,6 +45,8 @@ class Main(
         ImportService(
             importSessionRepo = repoStore.importSessionRepo,
             importSessionItemRepo = repoStore.importSessionItemRepo,
+            playlistRepo = repoStore.playlistRepo,
+            playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
             importLocalFileUseCase = ImportLocalFileUseCase(
                 mediaFileRepo = repoStore.mediaFileRepo,
                 saveAudioFileAsTrackUseCase = saveAudioFileAsTrackUseCase
