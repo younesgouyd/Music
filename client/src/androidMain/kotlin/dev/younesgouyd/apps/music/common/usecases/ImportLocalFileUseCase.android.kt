@@ -8,7 +8,6 @@ import dev.younesgouyd.apps.music.common.data.repoes.MediaFileRepo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.InputStream
-import kotlin.io.encoding.Base64
 
 actual class ImportLocalFileUseCase actual constructor(
     mediaFileRepo: MediaFileRepo,
@@ -42,10 +41,9 @@ actual class ImportLocalFileUseCase actual constructor(
             duration = inspection.duration,
             artists = inspection.artists,
             album = inspection.album,
-            releaseYear = inspection.year,
             albumTrackNumber = inspection.albumTrackNumber,
             lyrics = inspection.lyrics,
-            albumImage = inspection.albumImage?.let { Base64.decode(it) }
+            albumImage = inspection.albumImage
         )
         mediaFileRepo.add(
             trackId = trackId,

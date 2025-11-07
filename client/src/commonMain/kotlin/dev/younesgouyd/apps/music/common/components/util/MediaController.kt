@@ -1,7 +1,10 @@
 package dev.younesgouyd.apps.music.common.components.util
 
 import dev.younesgouyd.apps.music.common.data.RepoStore
-import dev.younesgouyd.apps.music.common.data.repoes.*
+import dev.younesgouyd.apps.music.common.data.repoes.ArtistRepo
+import dev.younesgouyd.apps.music.common.data.repoes.MediaFileRepo
+import dev.younesgouyd.apps.music.common.data.repoes.PlaylistRepo
+import dev.younesgouyd.apps.music.common.data.repoes.TrackRepo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -9,6 +12,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.io.encoding.Base64
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -26,7 +30,6 @@ class MediaController(
     private val mediaFileRepo: MediaFileRepo get() = repoStore.mediaFileRepo
     private val trackRepo: TrackRepo get() = repoStore.trackRepo
     private val artistRepo: ArtistRepo get() = repoStore.artistRepo
-    private val albumRepo: AlbumRepo get() = repoStore.albumRepo
     private val playlistRepo: PlaylistRepo get() = repoStore.playlistRepo
 
     val state: StateFlow<MediaControllerState> get() = _state.asStateFlow()
@@ -506,6 +509,8 @@ class MediaController(
                 MediaControllerState.Available.QueueItem.Track(
                     id = dbTrack.id,
                     name = dbTrack.name,
+                    album = dbTrack.album,
+                    image = dbTrack.albumArt?.let { Base64.decode(it) },
                     artists = artistRepo.getTrackArtists(this.id).first()
                         .map { dbArtist ->
                             MediaControllerState.Available.QueueItem.Track.Artist(
@@ -514,47 +519,8 @@ class MediaController(
                                 image = dbArtist.image
                             )
                         },
-                    album = dbTrack.albumId?.let {
-                        albumRepo.get(it).first().let { dbAlbum ->
-                            MediaControllerState.Available.QueueItem.Track.Album(
-                                id = dbAlbum.id,
-                                name = dbAlbum.name,
-                                image = dbAlbum.image,
-                                releaseDate = dbAlbum.releaseDate
-                            )
-                        }
-                    },
                     uri = mediaFileRepo.getMediaFileUri(dbTrack.id),
                     duration = dbTrack.duration
-                )
-            }
-            is QueueItemParameter.Album -> albumRepo.get(this.id).first().let { dbAlbum ->
-                MediaControllerState.Available.QueueItem.Album(
-                    id = dbAlbum.id,
-                    name = dbAlbum.name,
-                    image = dbAlbum.image,
-                    releaseDate = dbAlbum.releaseDate,
-                    items = trackRepo.getAlbumTracks(dbAlbum.id).first().map { dbTrack ->
-                        MediaControllerState.Available.QueueItem.Track(
-                            id = dbTrack.id,
-                            name = dbTrack.name,
-                            artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
-                                MediaControllerState.Available.QueueItem.Track.Artist(
-                                    id = dbArtist.id,
-                                    name = dbArtist.name,
-                                    image = dbArtist.image
-                                )
-                            },
-                            album = MediaControllerState.Available.QueueItem.Track.Album(
-                                id = dbAlbum.id,
-                                name = dbAlbum.name,
-                                image = dbAlbum.image,
-                                releaseDate = dbAlbum.releaseDate
-                            ),
-                            uri = mediaFileRepo.getMediaFileUri(dbTrack.id),
-                            duration = dbTrack.duration
-                        )
-                    }
                 )
             }
             is QueueItemParameter.Playlist -> playlistRepo.get(this.id).first().let { dbPlaylist ->
@@ -566,22 +532,14 @@ class MediaController(
                         MediaControllerState.Available.QueueItem.Track(
                             id = dbTrack.id,
                             name = dbTrack.name,
+                            album = dbTrack.album,
+                            image = dbTrack.albumArt?.let { Base64.decode(it) },
                             artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
                                 MediaControllerState.Available.QueueItem.Track.Artist(
                                     id = dbArtist.id,
                                     name = dbArtist.name,
                                     image = dbArtist.image
                                 )
-                            },
-                            album = dbTrack.albumId?.let {
-                                albumRepo.get(it).first().let { dbAlbum ->
-                                    MediaControllerState.Available.QueueItem.Track.Album(
-                                        id = dbAlbum.id,
-                                        name = dbAlbum.name,
-                                        image = dbAlbum.image,
-                                        releaseDate = dbAlbum.releaseDate
-                                    )
-                                }
                             },
                             uri = mediaFileRepo.getMediaFileUri(dbTrack.id),
                             duration = dbTrack.duration
@@ -625,8 +583,9 @@ class MediaController(
                 data class Track(
                     override val id: Long,
                     val name: String,
+                    val album: String?,
+                    val image: ByteArray?,
                     val artists: List<Artist>,
-                    val album: Album?,
                     val uri: String?,
                     val duration: Duration?
                 ) : QueueItem() {
@@ -634,13 +593,6 @@ class MediaController(
                         val id: Long,
                         val name: String,
                         val image: ByteArray?
-                    )
-
-                    data class Album(
-                        val id: Long,
-                        val name: String,
-                        val image: ByteArray?,
-                        val releaseDate: String?
                     )
                 }
 
@@ -670,7 +622,6 @@ class MediaController(
         abstract val id: Long
         data class Track(override val id: Long) : QueueItemParameter()
         data class Playlist(override val id: Long): QueueItemParameter()
-        data class Album(override val id: Long): QueueItemParameter()
     }
 
     abstract class MediaPlayer {

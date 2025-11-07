@@ -221,7 +221,7 @@ class Queue(
                         Icon(Icons.Default.Audiotrack, null)
                         Image(
                             modifier = Modifier.size(80.dp),
-                            data = item.album?.image
+                            data = item.image
                         )
                         Text(
                             modifier = Modifier.weight(1f),
@@ -548,7 +548,7 @@ class Queue(
                         Icon(Icons.Default.Audiotrack, null)
                         Image(
                             modifier = Modifier.size(80.dp),
-                            data = item.album?.image
+                            data = item.image
                         )
                         Text(
                             modifier = Modifier.weight(1f),

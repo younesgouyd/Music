@@ -5,7 +5,6 @@ import dev.younesgouyd.apps.music.common.data.Server
 import dev.younesgouyd.apps.music.common.data.repoes.MediaFileRepo
 import kotlinx.coroutines.flow.first
 import java.io.InputStream
-import kotlin.io.encoding.Base64
 
 class ImportFromInternetUseCase(
     val mediaFileRepo: MediaFileRepo,
@@ -40,10 +39,9 @@ class ImportFromInternetUseCase(
             duration = inspection.duration,
             artists = inspection.artists,
             album = inspection.album,
-            releaseYear = null, // TODO
             albumTrackNumber = null, // TODO
             lyrics = null, // TODO
-            albumImage = inspection.thumbnail?.let { Base64.decode(it) }
+            albumImage = inspection.thumbnail
         )
         mediaFileRepo.add(
             trackId = trackId,

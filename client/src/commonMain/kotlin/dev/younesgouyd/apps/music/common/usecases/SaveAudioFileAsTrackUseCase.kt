@@ -1,5 +1,6 @@
 package dev.younesgouyd.apps.music.common.usecases
 
+import dev.younesgouyd.apps.music.common.Base64String
 import dev.younesgouyd.apps.music.common.data.RepoStore
 import kotlinx.coroutines.flow.first
 import kotlin.time.Duration
@@ -9,7 +10,6 @@ class SaveAudioFileAsTrackUseCase(
 ) {
     private val trackRepo get() = repoStore.trackRepo
     private val artistRepo get() = repoStore.artistRepo
-    private val albumRepo get() = repoStore.albumRepo
     private val artistTrackCrossRefRepo get() = repoStore.artistTrackCrossRefRepo
 
     suspend fun execute(
@@ -18,22 +18,17 @@ class SaveAudioFileAsTrackUseCase(
         duration: Duration,
         artists: List<String>,
         album: String?,
-        releaseYear: Int?,
         albumTrackNumber: Int?,
         lyrics: String?,
-        albumImage: ByteArray?
+        albumImage: Base64String?
     ): Long {
         require(title.isNotBlank())
         val artistIds = saveArtists(artists)
-        val albumId = if (!album.isNullOrBlank()) {
-            saveAlbum(album, albumImage, releaseYear?.toString())
-        } else {
-            null
-        }
         val trackId = trackRepo.add(
             name = title,
             folderId = folderId,
-            albumId = albumId,
+            album = album,
+            albumArt = albumImage,
             lyrics = lyrics,
             albumTrackNumber = albumTrackNumber,
             duration = duration
@@ -58,19 +53,6 @@ class SaveAudioFileAsTrackUseCase(
                     }
                 }
                 this.add(artistId)
-            }
-        }
-    }
-
-    private suspend fun saveAlbum(album: String, albumImage: ByteArray?, releaseYear: String?): Long {
-        val dbAlbums = albumRepo.getByName(album).first()
-        return if (dbAlbums.isEmpty()) {
-            albumRepo.add(name = album, image = albumImage, releaseYear)
-        } else {
-            if (dbAlbums.size > 1) {
-                TODO("found multiple albums with same name")
-            } else {
-                dbAlbums.first().id
             }
         }
     }

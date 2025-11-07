@@ -1,6 +1,6 @@
+- implement search
 - save yt-dlp inspection response in client
 - implement export and re-importing from the export
-- remove album feature (to be re-implemented later)
 - update date and creation date in daos
 - define typealias for IDs
 - make material3 theme parametrable in settings
@@ -17,6 +17,7 @@
 - verify not null assertions (!!)
 
 done:
+- remove album feature (to be re-implemented later)
 - automatically create a playlist for every import
 - remember the scroll position of lists
 - issue: data is not being updated on the screen

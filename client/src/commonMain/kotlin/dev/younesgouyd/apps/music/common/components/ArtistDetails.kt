@@ -7,7 +7,10 @@ import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.AddToQueue
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.QueuePlayNext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,18 +29,17 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlin.io.encoding.Base64
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ArtistDetails(
     private val id: Long,
     private val artistRepo: ArtistRepo,
-    private val albumRepo: AlbumRepo,
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     private val trackRepo: TrackRepo,
     private val folderRepo: FolderRepo,
     private val playlistRepo: PlaylistRepo,
     private val mediaController: MediaController,
-    private val showAlbumDetails: (Long) -> Unit,
     private val showArtistDetails: (Long) -> Unit
 ) : Component() {
     override val title: String = "Artist"
@@ -56,31 +58,28 @@ class ArtistDetails(
                             image = dbArtist.image
                         )
                     }.stateIn(coroutineScope),
-                    albums = albumRepo.getArtistAlbums(id).mapLatest { list ->
-                        list.map { dbAlbum ->
-                            ArtistDetailsState.Loaded.Artist.Album(
-                                id = dbAlbum.id,
-                                name = dbAlbum.name,
-                                image = dbAlbum.image,
-                                releaseDate = dbAlbum.releaseDate,
-                                artists = artistRepo.getAlbumArtists(dbAlbum.id).first().map { dbArtist ->
-                                    ArtistDetailsState.Loaded.Artist.Album.Artist(
-                                        id = dbArtist.id,
-                                        name = dbArtist.name
-                                    )
-                                }
+                    tracks = trackRepo.getArtistTracks(id).mapLatest { dbList ->
+                        dbList.map { dbTrack ->
+                            ArtistDetailsState.Loaded.Track(
+                                id = dbTrack.id,
+                                name = dbTrack.name,
+                                image = dbTrack.albumArt?.let { Base64.decode(it) },
+                                artists = artistRepo.getTrackArtists(dbTrack.id).mapLatest {
+                                    it.map { dbArtist ->
+                                        ArtistDetailsState.Loaded.Track.Artist(id = dbArtist.id, name = dbArtist.name)
+                                    }
+                                }.first()
                             )
                         }
                     }.stateIn(coroutineScope),
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     scrollState = LazyGridState(),
-                    onAlbumClick = showAlbumDetails,
                     onArtistClick = showArtistDetails,
-                    onPlayAlbumClick = ::playAlbum,
-                    onAddAlbumToPlaylistClick = ::showAddAlbumToPlaylistDialog,
-                    onAddAlbumToQueueClick = ::addAlbumToQueueClick,
-                    onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
+                    onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
+                    onTrackClick = ::playTrack,
+                    onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
+                    onAddTrackToQueueClick = ::addTrackToQueueClick
                 )
             }
         }
@@ -100,17 +99,16 @@ class ArtistDetails(
         coroutineScope.cancel()
     }
 
-    private fun playAlbum(id: Long) {
-        mediaController.playQueue(listOf(MediaController.QueueItemParameter.Album(id)))
+    private fun playTrack(id: Long) {
+        mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(id)))
     }
 
-    private fun showAddAlbumToPlaylistDialog(albumId: Long) {
+    private fun showAddTrackToPlaylistDialog(albumId: Long) {
         addToPlaylist.update {
             AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Album(albumId),
+                itemToAdd = AddToPlaylist.Item.Track(albumId),
                 playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
                 trackRepo = trackRepo,
-                albumRepo = albumRepo,
                 folderRepo = folderRepo,
                 dismiss = ::dismissAddToPlaylistDialog,
                 playlistRepo = playlistRepo
@@ -119,8 +117,8 @@ class ArtistDetails(
         addToPlaylistDialogVisible.update { true }
     }
 
-    private fun addAlbumToQueueClick(id: Long) {
-        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Album(id)))
+    private fun addTrackToQueueClick(id: Long) {
+        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(id)))
     }
 
     private fun dismissAddToPlaylistDialog() {
@@ -136,40 +134,32 @@ class ArtistDetails(
 
         data class Loaded(
             val artist: StateFlow<Artist>,
-            val albums: StateFlow<List<Artist.Album>>,
+            val tracks: StateFlow<List<Track>>,
             val addToPlaylistDialogVisible: StateFlow<Boolean>,
             val addToPlaylist: StateFlow<Component?>,
             val scrollState: LazyGridState,
-            val onAlbumClick: (Long) -> Unit,
             val onArtistClick: (Long) -> Unit,
-            val onPlayAlbumClick: (Long) -> Unit,
-            val onAddAlbumToPlaylistClick: (id: Long) -> Unit,
-            val onAddAlbumToQueueClick: (id: Long) -> Unit,
-            val onDismissAddToPlaylistDialog: () -> Unit
+            val onDismissAddToPlaylistDialog: () -> Unit,
+            val onTrackClick: (Long) -> Unit,
+            val onAddTrackToPlaylistClick: (Long) -> Unit,
+            val onAddTrackToQueueClick: (Long) -> Unit
         ) : ArtistDetailsState() {
             data class Artist(
                 val id: Long,
                 val name: String,
                 val image: ByteArray?
+            )
+            
+            data class Track(
+                val id: Long,
+                val name: String,
+                val image: ByteArray?,
+                val artists: List<Artist>
             ) {
-                data class Track(
+                data class Artist(
                     val id: Long,
                     val name: String,
-                    val image: ByteArray?
                 )
-
-                data class Album(
-                    val id: Long,
-                    val name: String,
-                    val image: ByteArray?,
-                    val releaseDate: String?,
-                    val artists: List<Artist>
-                ) {
-                    data class Artist(
-                        val id: Long,
-                        val name: String
-                    )
-                }
             }
         }
     }
@@ -192,13 +182,12 @@ class ArtistDetails(
                 Main(
                     modifier = modifier,
                     artist = state.artist,
-                    albums = state.albums,
+                    tracks = state.tracks,
                     scrollState = state.scrollState,
-                    onAlbumClick = state.onAlbumClick,
+                    onTrackClick = state.onTrackClick,
                     onArtistClick = state.onArtistClick,
-                    onAddAlbumToPlaylistClick = state.onAddAlbumToPlaylistClick,
-                    onAddAlbumToQueueClick = state.onAddAlbumToQueueClick,
-                    onPlayAlbumClick = state.onPlayAlbumClick,
+                    onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick,
+                    onAddTrackToQueueClick = state.onAddTrackToQueueClick
                 )
 
                 if (addToPlaylistDialogVisible) {
@@ -212,16 +201,15 @@ class ArtistDetails(
             private fun Main(
                 modifier: Modifier,
                 artist: StateFlow<ArtistDetailsState.Loaded.Artist>,
-                albums: StateFlow<List<ArtistDetailsState.Loaded.Artist.Album>>,
+                tracks: StateFlow<List<ArtistDetailsState.Loaded.Track>>,
                 scrollState: LazyGridState,
-                onAlbumClick: (Long) -> Unit,
+                onTrackClick: (Long) -> Unit,
                 onArtistClick: (Long) -> Unit,
-                onAddAlbumToPlaylistClick: (id: Long) -> Unit,
-                onAddAlbumToQueueClick: (id: Long) -> Unit,
-                onPlayAlbumClick: (Long) -> Unit
+                onAddTrackToPlaylistClick: (Long) -> Unit,
+                onAddTrackToQueueClick: (Long) -> Unit
             ) {
                 val artist by artist.collectAsState()
-                val albumItems by albums.collectAsState()
+                val trackItems by tracks.collectAsState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -248,16 +236,15 @@ class ArtistDetails(
                                     )
                                 }
                                 items(
-                                    items = albumItems,
+                                    items = trackItems,
                                     key = { it.id }
-                                ) { album ->
-                                    AlbumItem(
-                                        album = album,
-                                        onClick = { onAlbumClick(album.id) },
+                                ) { track ->
+                                    TrackItem(
+                                        track = track,
+                                        onClick = { onTrackClick(track.id) },
                                         onArtistClick = onArtistClick,
-                                        onAddToPlaylistClick = { onAddAlbumToPlaylistClick(album.id) },
-                                        onAddToQueueClick = { onAddAlbumToQueueClick(album.id) },
-                                        onPlayClick = { onPlayAlbumClick(album.id) }
+                                        onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
+                                        onAddToQueueClick = { onAddTrackToQueueClick(track.id) }
                                     )
                                 }
                             }
@@ -298,14 +285,13 @@ class ArtistDetails(
             }
 
             @Composable
-            private fun AlbumItem(
+            private fun TrackItem(
                 modifier: Modifier = Modifier,
-                album: ArtistDetailsState.Loaded.Artist.Album,
+                track: ArtistDetailsState.Loaded.Track,
                 onClick: () -> Unit,
                 onArtistClick: (Long) -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onAddToQueueClick: () -> Unit,
-                onPlayClick: () -> Unit
             ) {
                 var showContextMenu by remember { mutableStateOf(false) }
 
@@ -319,25 +305,17 @@ class ArtistDetails(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            data = album.image,
+                            data = track.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
                         Text(
                             modifier = Modifier.fillMaxWidth().padding(12.dp),
-                            text = album.name,
+                            text = track.name,
                             style = MaterialTheme.typography.titleMedium,
                             textAlign = TextAlign.Center,
                             minLines = 2,
                             maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            modifier = Modifier.fillMaxWidth(),
-                            text = album.releaseDate?.let { "Released: $it" } ?: "",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         LazyRow(
@@ -345,7 +323,7 @@ class ArtistDetails(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            items(items = album.artists) { artist ->
+                            items(items = track.artists) { artist ->
                                 TextButton(
                                     onClick = { onArtistClick(artist.id) },
                                     content = {
@@ -366,10 +344,6 @@ class ArtistDetails(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             IconButton(
-                                content = { Icon(Icons.Default.PlayCircle, null) },
-                                onClick = onPlayClick
-                            )
-                            IconButton(
                                 content = { Icon(Icons.Default.MoreVert, null) },
                                 onClick = { showContextMenu = true }
                             )
@@ -379,7 +353,7 @@ class ArtistDetails(
 
                 if (showContextMenu) {
                     ItemContextMenu(
-                        item = Item(name = album.name, image = album.image),
+                        item = Item(name = track.name, image = track.image),
                         onDismiss = { showContextMenu = false }
                     ) {
                         Option(
@@ -419,12 +393,11 @@ class ArtistDetails(
                 Main(
                     modifier = modifier,
                     artist = state.artist,
-                    albums = state.albums,
+                    tracks = state.tracks,
                     scrollState = state.scrollState,
-                    onAlbumClick = state.onAlbumClick,
-                    onAddAlbumToPlaylistClick = state.onAddAlbumToPlaylistClick,
-                    onAddAlbumToQueueClick = state.onAddAlbumToQueueClick,
-                    onPlayAlbumClick = state.onPlayAlbumClick,
+                    onTrackClick = state.onTrackClick,
+                    onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick,
+                    onAddTrackToQueueClick = state.onAddTrackToQueueClick
                 )
 
                 if (addToPlaylistDialogVisible) {
@@ -438,15 +411,14 @@ class ArtistDetails(
             private fun Main(
                 modifier: Modifier,
                 artist: StateFlow<ArtistDetailsState.Loaded.Artist>,
-                albums: StateFlow<List<ArtistDetailsState.Loaded.Artist.Album>>,
+                tracks: StateFlow<List<ArtistDetailsState.Loaded.Track>>,
                 scrollState: LazyGridState,
-                onAlbumClick: (Long) -> Unit,
-                onAddAlbumToPlaylistClick: (id: Long) -> Unit,
-                onAddAlbumToQueueClick: (id: Long) -> Unit,
-                onPlayAlbumClick: (Long) -> Unit
+                onTrackClick: (Long) -> Unit,
+                onAddTrackToPlaylistClick: (id: Long) -> Unit,
+                onAddTrackToQueueClick: (id: Long) -> Unit
             ) {
                 val artist by artist.collectAsState()
-                val albumItems by albums.collectAsState()
+                val trackItems by tracks.collectAsState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -474,15 +446,14 @@ class ArtistDetails(
                                     )
                                 }
                                 items(
-                                    items = albumItems,
+                                    items = trackItems,
                                     key = { it.id }
-                                ) { album ->
-                                    AlbumItem(
-                                        album = album,
-                                        onClick = { onAlbumClick(album.id) },
-                                        onAddToPlaylistClick = { onAddAlbumToPlaylistClick(album.id) },
-                                        onAddToQueueClick = { onAddAlbumToQueueClick(album.id) },
-                                        onPlayClick = { onPlayAlbumClick(album.id) }
+                                ) { track ->
+                                    TrackItem(
+                                        track = track,
+                                        onClick = { onTrackClick(track.id) },
+                                        onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
+                                        onAddToQueueClick = { onAddTrackToQueueClick(track.id) }
                                     )
                                 }
                             }
@@ -518,13 +489,12 @@ class ArtistDetails(
             }
 
             @Composable
-            private fun AlbumItem(
+            private fun TrackItem(
                 modifier: Modifier = Modifier,
-                album: ArtistDetailsState.Loaded.Artist.Album,
+                track: ArtistDetailsState.Loaded.Track,
                 onClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
-                onAddToQueueClick: () -> Unit,
-                onPlayClick: () -> Unit
+                onAddToQueueClick: () -> Unit
             ) {
                 var showContextMenu by remember { mutableStateOf(false) }
 
@@ -540,13 +510,13 @@ class ArtistDetails(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            data = album.image,
+                            data = track.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
                         Text(
                             modifier = Modifier.fillMaxWidth().padding(8.dp),
-                            text = album.name,
+                            text = track.name,
                             style = MaterialTheme.typography.titleMedium,
                             textAlign = TextAlign.Center,
                             minLines = 2,
@@ -558,14 +528,9 @@ class ArtistDetails(
 
                 if (showContextMenu) {
                     ItemContextMenu(
-                        item = Item(name = album.name, image = album.image),
+                        item = Item(name = track.name, image = track.image),
                         onDismiss = { showContextMenu = false }
                     ) {
-                        Option(
-                            label = "Play",
-                            icon = Icons.Default.PlayCircle,
-                            onClick = onPlayClick,
-                        )
                         Option(
                             label = "Add to playlist",
                             icon = Icons.AutoMirrored.Default.PlaylistAdd,

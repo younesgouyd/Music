@@ -32,16 +32,6 @@ interface ArtistDao {
     """)
     fun getTrackArtists(trackId: Long): Flow<List<Artist>>
 
-    @Query("""
-        select distinct a.*
-        from artist a
-        join artisttrackcrossref atcr on atcr.artistId = a.id
-        join track t on t.id = atcr.trackId
-        join album ab on ab.id = t.albumId
-        where ab.id = :albumId
-    """)
-    fun getAlbumArtists(albumId: Long): Flow<List<Artist>>
-
     @Query("select * from artist where name = :name")
     fun getByName(name: String): Flow<List<Artist>>
 

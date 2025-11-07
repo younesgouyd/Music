@@ -5,7 +5,6 @@ import dev.younesgouyd.apps.music.common.data.room.entities.*
 
 @Database(
     entities = [
-        Album::class,
         Artist::class,
         ArtistTrackCrossRef::class,
         Folder::class,
@@ -22,7 +21,6 @@ import dev.younesgouyd.apps.music.common.data.room.entities.*
 @TypeConverters(Converters::class)
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun albumDao(): AlbumDao
     abstract fun artistDao(): ArtistDao
     abstract fun artistTrackCrossRefDao(): ArtistTrackCrossRefDao
     abstract fun folderDao(): FolderDao

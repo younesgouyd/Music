@@ -93,10 +93,6 @@ class NavigationHost(
 
         data class ArtistDetails(val artistId: Long) : Destination()
 
-        data object AlbumList : Destination()
-
-        data class AlbumDetails(val albumId: Long) : Destination()
-
         data object ImportList : Destination()
 
         data class ImportDetails(val importId: Long) : Destination()
@@ -177,7 +173,6 @@ class NavigationHost(
                         folderRepo = repoStore.folderRepo,
                         playlistRepo = repoStore.playlistRepo,
                         trackRepo = repoStore.trackRepo,
-                        albumRepo = repoStore.albumRepo,
                         artistRepo = repoStore.artistRepo,
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
                         importSessionWithItemsRepo = repoStore.importSessionWithItemsRepo,
@@ -185,38 +180,14 @@ class NavigationHost(
                         showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
                     )
-                    is Destination.AlbumDetails -> AlbumDetails(
-                        id = destination.albumId,
-                        albumRepo = repoStore.albumRepo,
-                        artistRepo = repoStore.artistRepo,
-                        trackRepo = repoStore.trackRepo,
-                        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
-                        playlistRepo = repoStore.playlistRepo,
-                        folderRepo = repoStore.folderRepo,
-                        mediaController = mediaController,
-                        showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
-                    )
-                    is Destination.AlbumList -> AlbumList(
-                        albumRepo = repoStore.albumRepo,
-                        artistRepo = repoStore.artistRepo,
-                        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
-                        trackRepo = repoStore.trackRepo,
-                        playlistRepo = repoStore.playlistRepo,
-                        folderRepo = repoStore.folderRepo,
-                        mediaController = mediaController,
-                        showAlbumDetails = { navigateTo(Destination.AlbumDetails(it)) },
-                        showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
-                    )
                     is Destination.ArtistDetails -> ArtistDetails(
                         id = destination.artistId,
                         artistRepo = repoStore.artistRepo,
-                        albumRepo = repoStore.albumRepo,
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
                         trackRepo = repoStore.trackRepo,
                         folderRepo = repoStore.folderRepo,
                         playlistRepo = repoStore.playlistRepo,
                         mediaController = mediaController,
-                        showAlbumDetails = { navigateTo(Destination.AlbumDetails(it)) },
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
                     )
                     is Destination.ArtistList -> ArtistList(
@@ -228,20 +199,17 @@ class NavigationHost(
                         trackRepo = repoStore.trackRepo,
                         playlistRepo = repoStore.playlistRepo,
                         artistRepo = repoStore.artistRepo,
-                        albumRepo = repoStore.albumRepo,
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
                         folderRepo = repoStore.folderRepo,
                         mediaController = mediaController,
                         showImport = { navigateTo(Destination.ImportDetails(it)) },
-                        showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
-                        showAlbumDetails = { navigateTo(Destination.AlbumDetails(it)) }
+                        showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
                     )
                     is Destination.PlaylistList -> PlaylistList(
                         playlistRepo = repoStore.playlistRepo,
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
                         trackRepo = repoStore.trackRepo,
                         folderRepo = repoStore.folderRepo,
-                        albumRepo = repoStore.albumRepo,
                         mediaController = mediaController,
                         showPlaylistDetails = { navigateTo(Destination.PlaylistDetails(it)) }
                     )

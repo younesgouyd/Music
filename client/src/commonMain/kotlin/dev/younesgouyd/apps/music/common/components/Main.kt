@@ -69,10 +69,6 @@ class Main(
     private var navigationHost: NavigationHost = getNewNavHost(NavigationHost.Destination.Library)
     private val miniPlayer = MiniPlayer(
         mediaController = mediaController,
-        showAlbumDetails = {
-            mainComponent.value = navigationHost
-            navigationHost.navigateTo(NavigationHost.Destination.AlbumDetails(it))
-        },
         showArtistDetails = {
             mainComponent.value = navigationHost
             navigationHost.navigateTo(NavigationHost.Destination.ArtistDetails(it))
@@ -81,11 +77,6 @@ class Main(
     )
     private val player: Component = Player(
         mediaController = mediaController,
-        showAlbumDetails = {
-            mainComponent.value = navigationHost
-            navigationHost.navigateTo(NavigationHost.Destination.AlbumDetails(it))
-            mainComponentType.value = MainComponentType.Content
-        },
         showArtistDetails = {
             mainComponent.value = navigationHost
             navigationHost.navigateTo(NavigationHost.Destination.ArtistDetails(it))
@@ -173,11 +164,6 @@ class Main(
             NavigationDrawerItems.Playlists -> {
                 navigationHost.clear()
                 navigationHost = getNewNavHost(NavigationHost.Destination.PlaylistList)
-                mainComponent.value = navigationHost
-            }
-            NavigationDrawerItems.Albums -> {
-                navigationHost.clear()
-                navigationHost = getNewNavHost(NavigationHost.Destination.AlbumList)
                 mainComponent.value = navigationHost
             }
             NavigationDrawerItems.Artists -> {
@@ -383,7 +369,6 @@ class Main(
         Settings("Settings"),
         Library("Library"),
         Playlists("Playlists"),
-        Albums("Albums"),
         Artists("Artists"),
         Imports("Imports")
     }

@@ -24,7 +24,10 @@ import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.common.components.util.MediaController
 import dev.younesgouyd.apps.music.common.components.util.compose.AdaptiveUi
 import dev.younesgouyd.apps.music.common.components.util.compose.widgets.*
-import dev.younesgouyd.apps.music.common.data.repoes.*
+import dev.younesgouyd.apps.music.common.data.repoes.FolderRepo
+import dev.younesgouyd.apps.music.common.data.repoes.PlaylistRepo
+import dev.younesgouyd.apps.music.common.data.repoes.PlaylistTrackCrossRefRepo
+import dev.younesgouyd.apps.music.common.data.repoes.TrackRepo
 import dev.younesgouyd.apps.music.common.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -35,7 +38,6 @@ class PlaylistList(
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     private val trackRepo: TrackRepo,
     private val folderRepo: FolderRepo,
-    private val albumRepo: AlbumRepo,
     private val mediaController: MediaController,
     showPlaylistDetails: (id: Long) -> Unit
 ) : Component() {
@@ -109,10 +111,9 @@ class PlaylistList(
     private fun showAddToPlaylistDialog(playlistId: Long) {
         addToPlaylist.update {
             AddToPlaylist(
-                itemToAdd = dev.younesgouyd.apps.music.common.components.AddToPlaylist.Item.Playlist(playlistId),
+                itemToAdd = AddToPlaylist.Item.Playlist(playlistId),
                 playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
                 trackRepo = trackRepo,
-                albumRepo = albumRepo,
                 folderRepo = folderRepo,
                 dismiss = ::dismissAddToPlaylistDialog,
                 playlistRepo = playlistRepo

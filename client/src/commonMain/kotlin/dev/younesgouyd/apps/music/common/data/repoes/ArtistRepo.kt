@@ -17,10 +17,6 @@ class ArtistRepo(private val dao: ArtistDao) {
         return dao.getTrackArtists(trackId)
     }
 
-    fun getAlbumArtists(albumId: Long): Flow<List<Artist>> {
-        return dao.getAlbumArtists(albumId)
-    }
-
     fun getByName(name: String): Flow<List<Artist>> {
         return dao.getByName(name)
     }

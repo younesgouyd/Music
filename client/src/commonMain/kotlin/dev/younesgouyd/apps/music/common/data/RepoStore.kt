@@ -15,7 +15,6 @@ class RepoStore(
     lateinit var fileManager: FileManager private set
     lateinit var server: Server private set
     lateinit var settingsRepo: SettingsRepo private set
-    lateinit var albumRepo: AlbumRepo private set
     lateinit var artistRepo: ArtistRepo private set
     lateinit var artistTrackCrossRefRepo: ArtistTrackCrossRefRepo private set
     lateinit var folderRepo: FolderRepo private set
@@ -31,7 +30,6 @@ class RepoStore(
         fileManager = FileManager(appDir)
         settingsRepo = SettingsRepo(database.settingDao())
         folderRepo = FolderRepo(database.folderDao())
-        albumRepo = AlbumRepo(database.albumDao())
         artistRepo = ArtistRepo(database.artistDao())
         artistTrackCrossRefRepo = ArtistTrackCrossRefRepo(database.artistTrackCrossRefDao())
         playlistRepo = PlaylistRepo(database.playlistDao())

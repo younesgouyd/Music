@@ -1,6 +1,7 @@
 package dev.younesgouyd.apps.music.common.data.room.entities
 
 import androidx.room.*
+import dev.younesgouyd.apps.music.common.Base64String
 import kotlinx.coroutines.flow.Flow
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -13,13 +14,6 @@ import kotlin.time.Duration.Companion.milliseconds
             childColumns = ["folderId"],
             onUpdate = ForeignKey.CASCADE,
             onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = Album::class,
-            parentColumns = ["id"],
-            childColumns = ["albumId"],
-            onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.SET_NULL
         )
     ]
 )
@@ -28,7 +22,8 @@ data class Track(
     val id: Long,
     val name: String,
     val folderId: Long?,
-    val albumId: Long?,
+    val album: String?,
+    val albumArt: Base64String?,
     val lyrics: String?,
     val albumTrackNumber: Int?,
     val durationMillis: Long?,
@@ -45,9 +40,6 @@ interface TrackDao {
 
     @Query("select * from track where id = :id")
     fun get(id: Long): Flow<Track>
-
-    @Query("select * from track where albumId = :albumId")
-    fun getAlbumTracks(albumId: Long): Flow<List<Track>>
 
     @Query("""
         select t.*
@@ -73,14 +65,15 @@ interface TrackDao {
 
     @Query(
         """
-        insert into track (name, folderId, albumId, lyrics, albumTrackNumber, durationMillis, creationDatetime, updateDatetime)
-        values (:name, :folderId, :albumId, :lyrics, :albumTrackNumber, :durationMillis, :creationDatetime, :updateDatetime)
+        insert into track (name, folderId, album, albumArt, lyrics, albumTrackNumber, durationMillis, creationDatetime, updateDatetime)
+        values (:name, :folderId, :album, :albumArt, :lyrics, :albumTrackNumber, :durationMillis, :creationDatetime, :updateDatetime)
     """
     )
     suspend fun add(
         name: String,
         folderId: Long?,
-        albumId: Long?,
+        album: String?,
+        albumArt: Base64String?,
         lyrics: String?,
         albumTrackNumber: Int?,
         durationMillis: Long,
@@ -91,17 +84,8 @@ interface TrackDao {
     @Query("update track set name = :name, updateDatetime = :updateDatetime where id = :id")
     suspend fun updateName(name: String, updateDatetime: Long, id: Long)
 
-    @Query("update track set albumId = :albumId, updateDatetime = :updateDatetime where id = :id")
-    suspend fun updateAlbumId(albumId: Long?, updateDatetime: Long, id: Long)
-
     @Query("update track set folderId = :folderId, updateDatetime = :updateDatetime where id = :id")
     suspend fun updateFolderId(folderId: Long, updateDatetime: Long, id: Long)
-
-    @Query("update track set lyrics = :lyrics, updateDatetime = :updateDatetime where id = :id")
-    suspend fun updateLyrics(lyrics: String?, updateDatetime: Long, id: Long)
-
-    @Query("update track set albumTrackNumber = :albumTrackNumber, updateDatetime = :updateDatetime where id = :id")
-    suspend fun updateAlbumTrackNumber(albumTrackNumber: Int?, updateDatetime: Long, id: Long)
 
     @Query("delete from track where id = :id")
     suspend fun delete(id: Long)

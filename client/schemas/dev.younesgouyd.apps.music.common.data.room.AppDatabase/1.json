@@ -2,54 +2,8 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "85ebb8ac0af4016d6556eb885fc7475f",
+    "identityHash": "d8fed837304e55d1cae1473844f938f4",
     "entities": [
-      {
-        "tableName": "Album",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `image` BLOB, `releaseDate` TEXT, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL)",
-        "fields": [
-          {
-            "fieldPath": "id",
-            "columnName": "id",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "name",
-            "columnName": "name",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "image",
-            "columnName": "image",
-            "affinity": "BLOB"
-          },
-          {
-            "fieldPath": "releaseDate",
-            "columnName": "releaseDate",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "creationDatetime",
-            "columnName": "creationDatetime",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "updateDatetime",
-            "columnName": "updateDatetime",
-            "affinity": "INTEGER",
-            "notNull": true
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": true,
-          "columnNames": [
-            "id"
-          ]
-        }
-      },
       {
         "tableName": "Artist",
         "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `image` BLOB, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL)",
@@ -616,7 +570,7 @@
       },
       {
         "tableName": "Track",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `folderId` INTEGER, `albumId` INTEGER, `lyrics` TEXT, `albumTrackNumber` INTEGER, `durationMillis` INTEGER, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`albumId`) REFERENCES `Album`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `folderId` INTEGER, `album` TEXT, `albumArt` TEXT, `lyrics` TEXT, `albumTrackNumber` INTEGER, `durationMillis` INTEGER, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -636,9 +590,14 @@
             "affinity": "INTEGER"
           },
           {
-            "fieldPath": "albumId",
-            "columnName": "albumId",
-            "affinity": "INTEGER"
+            "fieldPath": "album",
+            "columnName": "album",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "albumArt",
+            "columnName": "albumArt",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "lyrics",
@@ -685,24 +644,13 @@
             "referencedColumns": [
               "id"
             ]
-          },
-          {
-            "table": "Album",
-            "onDelete": "SET NULL",
-            "onUpdate": "CASCADE",
-            "columns": [
-              "albumId"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
           }
         ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '85ebb8ac0af4016d6556eb885fc7475f')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd8fed837304e55d1cae1473844f938f4')"
     ]
   }
 }

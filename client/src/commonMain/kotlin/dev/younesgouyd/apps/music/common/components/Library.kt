@@ -37,6 +37,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlin.io.encoding.Base64
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class Library(
@@ -44,7 +45,6 @@ class Library(
     private val folderRepo: FolderRepo,
     private val playlistRepo: PlaylistRepo,
     private val trackRepo: TrackRepo,
-    private val albumRepo: AlbumRepo,
     private val artistRepo: ArtistRepo,
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     private val importSessionWithItemsRepo: ImportSessionWithItemsRepo,
@@ -132,13 +132,9 @@ class Library(
                             Models.Track(
                                 id = dbTrack.id,
                                 name = dbTrack.name,
+                                image = dbTrack.albumArt?.let { Base64.decode(it) },
                                 artists = artistRepo.getTrackArtists(dbTrack.id).first().map {
                                     Models.Track.Artist(id = it.id, name = it.name)
-                                },
-                                album = dbTrack.albumId?.let {
-                                    albumRepo.get(it).first().let { dbAlbum ->
-                                        Models.Track.Album(id = dbAlbum.id, name = dbAlbum.name, image = dbAlbum.image)
-                                    }
                                 }
                             )
                         }
@@ -420,7 +416,6 @@ class Library(
                 itemToAdd = AddToPlaylist.Item.Track(trackId),
                 playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
                 trackRepo = trackRepo,
-                albumRepo = albumRepo,
                 folderRepo = folderRepo,
                 dismiss = ::dismissAddToPlaylistDialog,
                 playlistRepo = playlistRepo
@@ -435,7 +430,6 @@ class Library(
                 itemToAdd = AddToPlaylist.Item.Playlist(playlistId),
                 playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
                 trackRepo = trackRepo,
-                albumRepo = albumRepo,
                 folderRepo = folderRepo,
                 dismiss = ::dismissAddToPlaylistDialog,
                 playlistRepo = playlistRepo
@@ -451,7 +445,6 @@ class Library(
                 itemToAdd = AddToPlaylist.Item.Folder(folderId),
                 playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
                 trackRepo = trackRepo,
-                albumRepo = albumRepo,
                 folderRepo = folderRepo,
                 dismiss = ::dismissAddToPlaylistDialog,
                 playlistRepo = playlistRepo
@@ -508,18 +501,12 @@ class Library(
         data class Track(
             val id: Long,
             val name: String,
-            val artists: List<Artist>,
-            val album: Album?
+            val image: ByteArray?,
+            val artists: List<Artist>
         ) {
             data class Artist(
                 val id: Long,
                 val name: String
-            )
-
-            data class Album(
-                val id: Long,
-                val name: String,
-                val image: ByteArray?
             )
         }
     }
@@ -1122,7 +1109,7 @@ class Library(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            data = track.album?.image,
+                            data = track.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -1200,9 +1187,9 @@ class Library(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                dev.younesgouyd.apps.music.common.components.util.compose.widgets.Image(
+                                Image(
                                     modifier = Modifier.size(64.dp),
-                                    data = track.album?.image
+                                    data = track.image
                                 )
                                 Text(
                                     text = track.name,
@@ -1825,9 +1812,9 @@ class Library(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        dev.younesgouyd.apps.music.common.components.util.compose.widgets.Image(
+                        Image(
                             modifier = Modifier.aspectRatio(1f),
-                            data = track.album?.image,
+                            data = track.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -1879,9 +1866,9 @@ class Library(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                dev.younesgouyd.apps.music.common.components.util.compose.widgets.Image(
+                                Image(
                                     modifier = Modifier.size(64.dp),
-                                    data = track.album?.image
+                                    data = track.image
                                 )
                                 Text(
                                     text = track.name,

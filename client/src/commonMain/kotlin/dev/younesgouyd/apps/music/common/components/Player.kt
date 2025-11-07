@@ -33,7 +33,6 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class Player(
     mediaController: MediaController,
-    showAlbumDetails: (Long) -> Unit,
     showArtistDetails: (Long) -> Unit,
     showQueue: () -> Unit,
     minimizePlayer: () -> Unit
@@ -56,7 +55,6 @@ class Player(
                         isPlaying = mediaControllerState.isPlaying,
                         repeatState = mediaControllerState.repeatState,
                         track = mediaControllerState.track,
-                        onAlbumClick = showAlbumDetails,
                         onArtistClick = showArtistDetails,
                         onShowQueueClick = showQueue,
                         onTimeChange = mediaController::seek,
@@ -102,7 +100,6 @@ class Player(
             val isPlaying: StateFlow<Boolean>,
             val repeatState: RepeatState,
             val track: QueueItem.Track,
-            val onAlbumClick: (Long) -> Unit,
             val onArtistClick: (Long) -> Unit,
             val onShowQueueClick: () -> Unit,
             val onTimeChange: (Duration) -> Unit,
@@ -137,7 +134,6 @@ class Player(
                     timePositionChange = state.timePositionChange,
                     isPlaying = state.isPlaying,
                     onMinimizeClick = state.onMinimizeClick,
-                    onAlbumClick = state.onAlbumClick,
                     onArtistClick = state.onArtistClick,
                     onTimeChange = state.onTimeChange,
                     onPreviousClick = state.onPreviousClick,
@@ -155,7 +151,6 @@ class Player(
                 timePositionChange: StateFlow<Duration>,
                 isPlaying: StateFlow<Boolean>,
                 onMinimizeClick: () -> Unit,
-                onAlbumClick: (Long) -> Unit,
                 onArtistClick: (Long) -> Unit,
                 onTimeChange: (Duration) -> Unit,
                 onPreviousClick: () -> Unit,
@@ -180,13 +175,12 @@ class Player(
                         ) {
                             Image(
                                 modifier = Modifier.fillMaxWidth(0.4f),
-                                data = track.album?.image,
+                                data = track.image,
                                 contentScale = ContentScale.FillWidth
                             )
                             TrackInfo(
                                 modifier = Modifier.weight(1f),
                                 track = track,
-                                onAlbumClick = onAlbumClick,
                                 onArtistClick = onArtistClick
                             )
                         }
@@ -228,7 +222,6 @@ class Player(
             private fun TrackInfo(
                 modifier: Modifier,
                 track: MediaController.MediaControllerState.Available.QueueItem.Track,
-                onAlbumClick: (Long) -> Unit,
                 onArtistClick: (Long) -> Unit
             ) {
                 Column(
@@ -243,16 +236,14 @@ class Player(
                         overflow = TextOverflow.Ellipsis
                     )
                     track.album?.let { album ->
-                        TextButton(
-                            onClick = { onAlbumClick(album.id) }
-                        ) {
+                        Surface {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(Icons.Default.Album, null)
                                 Text(
-                                    text = album.name,
+                                    text = track.album,
                                     style = MaterialTheme.typography.labelMedium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -449,7 +440,6 @@ class Player(
                     track = state.track,
                     timePositionChange = state.timePositionChange,
                     isPlaying = state.isPlaying,
-                    onAlbumClick = state.onAlbumClick,
                     onArtistClick = state.onArtistClick,
                     onShowQueueClick = state.onShowQueueClick,
                     onTimeChange = state.onTimeChange,
@@ -469,7 +459,6 @@ class Player(
                 timePositionChange: StateFlow<Duration>,
                 isPlaying: StateFlow<Boolean>,
                 onShowQueueClick: () -> Unit,
-                onAlbumClick: (Long) -> Unit,
                 onArtistClick: (Long) -> Unit,
                 onTimeChange: (Duration) -> Unit,
                 onPreviousClick: () -> Unit,
@@ -490,13 +479,12 @@ class Player(
                     ) {
                         Image(
                             modifier = Modifier.fillMaxWidth(),
-                            data = track.album?.image,
+                            data = track.image,
                             contentScale = ContentScale.FillWidth
                         )
                         TrackInfo(
                             modifier = Modifier.fillMaxWidth(),
                             track = track,
-                            onAlbumClick = onAlbumClick,
                             onArtistClick = onArtistClick
                         )
                         PlaybackControls(
@@ -532,7 +520,6 @@ class Player(
             private fun TrackInfo(
                 modifier: Modifier,
                 track: QueueItem.Track,
-                onAlbumClick: (Long) -> Unit,
                 onArtistClick: (Long) -> Unit
             ) {
                 Column(
@@ -547,16 +534,14 @@ class Player(
                         overflow = TextOverflow.Ellipsis
                     )
                     track.album?.let { album ->
-                        TextButton(
-                            onClick = { onAlbumClick(album.id) }
-                        ) {
+                        Surface {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(Icons.Default.Album, null)
                                 Text(
-                                    text = album.name,
+                                    text = track.album,
                                     style = MaterialTheme.typography.labelMedium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis

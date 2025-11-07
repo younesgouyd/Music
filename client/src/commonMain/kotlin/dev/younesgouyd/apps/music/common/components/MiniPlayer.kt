@@ -33,7 +33,6 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class MiniPlayer(
     mediaController: MediaController,
-    showAlbumDetails: (Long) -> Unit,
     showArtistDetails: (Long) -> Unit,
     expand: () -> Unit
 ) : Component() {
@@ -53,7 +52,6 @@ class MiniPlayer(
                         repeatState = mediaControllerState.repeatState,
                         track = mediaControllerState.track,
                         onClick = expand,
-                        onAlbumClick = showAlbumDetails,
                         onArtistClick = showArtistDetails,
                         onTimeChange = mediaController::seek,
                         onPreviousClick = mediaController::previous,
@@ -93,7 +91,6 @@ class MiniPlayer(
             val repeatState: RepeatState,
             val track: QueueItem.Track,
             val onClick: () -> Unit,
-            val onAlbumClick: (Long) -> Unit,
             val onArtistClick: (Long) -> Unit,
             val onTimeChange: (Duration) -> Unit,
             val onPreviousClick: () -> Unit,
@@ -128,7 +125,6 @@ class MiniPlayer(
                     repeatState = state.repeatState,
                     track = state.track,
                     onClick = state.onClick,
-                    onAlbumClick = state.onAlbumClick,
                     onArtistClick = state.onArtistClick,
                     onTimeChange = state.onTimeChange,
                     onPreviousClick = state.onPreviousClick,
@@ -148,7 +144,6 @@ class MiniPlayer(
                 isPlaying : StateFlow<Boolean>,
                 repeatState: RepeatState,
                 onClick: () -> Unit,
-                onAlbumClick: (Long) -> Unit,
                 onArtistClick: (Long) -> Unit,
                 onTimeChange: (Duration) -> Unit,
                 onPreviousClick: () -> Unit,
@@ -177,7 +172,7 @@ class MiniPlayer(
                     ) {
                         Image(
                             modifier = Modifier.fillMaxHeight(),
-                            data = track.album?.image,
+                            data = track.image,
                             contentScale = ContentScale.FillHeight
                         )
                         Column(
@@ -191,23 +186,20 @@ class MiniPlayer(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            TextButton(
-                                content = {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(Icons.Default.Album, null)
-                                        Text(
-                                            text = track.album?.name ?: "",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                },
-                                onClick = { track.album?.let { onAlbumClick(it.id) } }
-                            )
+                            Surface {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Album, null)
+                                    Text(
+                                        text = track.album ?: "",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
                             LazyRow(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -395,7 +387,7 @@ class MiniPlayer(
                     ) {
                         Image(
                             modifier = Modifier.fillMaxHeight(),
-                            data = track.album?.image,
+                            data = track.image,
                             contentScale = ContentScale.FillHeight
                         )
                         Column(

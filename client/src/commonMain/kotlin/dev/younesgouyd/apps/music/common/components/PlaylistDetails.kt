@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.io.encoding.Base64
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistDetails(
@@ -37,13 +38,11 @@ class PlaylistDetails(
     private val trackRepo: TrackRepo,
     private val playlistRepo: PlaylistRepo,
     private val artistRepo: ArtistRepo,
-    private val albumRepo: AlbumRepo,
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     private val folderRepo: FolderRepo,
     private val mediaController: MediaController,
     showImport: (id: Long) -> Unit,
-    showArtistDetails: (id: Long) -> Unit,
-    showAlbumDetails: (id: Long) -> Unit
+    showArtistDetails: (id: Long) -> Unit
 ) : Component() {
     override val title: String = "Playlist"
     private val state: MutableStateFlow<PlaylistDetailsState> = MutableStateFlow(PlaylistDetailsState.Loading)
@@ -68,20 +67,13 @@ class PlaylistDetails(
                             PlaylistDetailsState.Loaded.Track(
                                 id = dbTrack.id,
                                 name = dbTrack.name,
+                                album = dbTrack.album,
+                                image = dbTrack.albumArt?.let { Base64.decode(it) },
                                 artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
                                     PlaylistDetailsState.Loaded.Track.Artist(
                                         id = dbArtist.id,
                                         name = dbArtist.name
                                     )
-                                },
-                                album = dbTrack.albumId?.let {
-                                    albumRepo.get(it).first().let { dbAlbum ->
-                                        PlaylistDetailsState.Loaded.Track.Album(
-                                            id = dbAlbum.id,
-                                            name = dbAlbum.name,
-                                            image = dbAlbum.image
-                                        )
-                                    }
                                 }
                             )
                         }
@@ -93,7 +85,6 @@ class PlaylistDetails(
                     onAddToQueueClick = ::addToQueue,
                     onTrackClick = ::playTrack,
                     onArtistClick = showArtistDetails,
-                    onAlbumClick = showAlbumDetails,
                     onAddToPlaylistClick = ::showAddToPlaylistDialog,
                     onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
                     onRemoveTrackFromPlaylistClick = ::removeTrackFromPlaylist,
@@ -144,7 +135,6 @@ class PlaylistDetails(
                 itemToAdd = AddToPlaylist.Item.Playlist(id),
                 playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
                 trackRepo = trackRepo,
-                albumRepo = albumRepo,
                 folderRepo = folderRepo,
                 dismiss = ::dismissAddToPlaylistDialog,
                 playlistRepo = playlistRepo
@@ -159,7 +149,6 @@ class PlaylistDetails(
                 itemToAdd = AddToPlaylist.Item.Track(trackId),
                 playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
                 trackRepo = trackRepo,
-                albumRepo = albumRepo,
                 folderRepo = folderRepo,
                 dismiss = ::dismissAddToPlaylistDialog,
                 playlistRepo = playlistRepo
@@ -198,7 +187,6 @@ class PlaylistDetails(
             val onPlayClick: () -> Unit,
             val onTrackClick: (id: Long) -> Unit,
             val onArtistClick: (id: Long) -> Unit,
-            val onAlbumClick: (id: Long) -> Unit,
             val onAddToPlaylistClick: () -> Unit,
             val onAddToQueueClick: () -> Unit,
             val onAddTrackToPlaylistClick: (id: Long) -> Unit,
@@ -217,18 +205,13 @@ class PlaylistDetails(
             data class Track(
                 val id: Long,
                 val name: String,
+                val album: String?,
+                val image: ByteArray?,
                 val artists: List<Artist>,
-                val album: Album?
             ) {
                 data class Artist(
                     val id: Long,
                     val name: String
-                )
-
-                data class Album(
-                    val id: Long,
-                    val name: String,
-                    val image: ByteArray?
                 )
             }
         }
@@ -266,7 +249,6 @@ class PlaylistDetails(
                     onAddToPlaylistClick = state.onAddToPlaylistClick,
                     onTrackClick = state.onTrackClick,
                     onArtistClick = state.onArtistClick,
-                    onAlbumClick = state.onAlbumClick,
                     onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick,
                     onAddTrackToQueueClick = state.onAddTrackToQueueClick,
                     onRemoveTrackFromPlaylistClick = state.onRemoveTrackFromPlaylistClick
@@ -291,7 +273,6 @@ class PlaylistDetails(
                 onAddToPlaylistClick: () -> Unit,
                 onTrackClick: (id: Long) -> Unit,
                 onArtistClick: (id: Long) -> Unit,
-                onAlbumClick: (id: Long) -> Unit,
                 onAddTrackToPlaylistClick: (id: Long) -> Unit,
                 onAddTrackToQueueClick: (id: Long) -> Unit,
                 onRemoveTrackFromPlaylistClick: (id: Long) -> Unit
@@ -331,7 +312,6 @@ class PlaylistDetails(
                                         track = track,
                                         onTrackClick = { onTrackClick(track.id) },
                                         onArtistClick = onArtistClick,
-                                        onAlbumClick = onAlbumClick,
                                         onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
                                         onAddToQueueClick = { onAddTrackToQueueClick(track.id) },
                                         onRemoveFromPlaylistClick = { onRemoveTrackFromPlaylistClick(track.id) }
@@ -485,7 +465,6 @@ class PlaylistDetails(
                 track: PlaylistDetailsState.Loaded.Track,
                 onTrackClick: () -> Unit,
                 onArtistClick: (id: Long) -> Unit,
-                onAlbumClick: (id: Long) -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onAddToQueueClick: () -> Unit,
                 onRemoveFromPlaylistClick: () -> Unit
@@ -505,7 +484,7 @@ class PlaylistDetails(
                         ) {
                             Image(
                                 modifier = Modifier.fillMaxHeight(),
-                                data = track.album?.image,
+                                data = track.image,
                                 contentScale = ContentScale.FillHeight
                             )
                             Column(
@@ -551,23 +530,20 @@ class PlaylistDetails(
                     // album
                     Box(modifier = Modifier.fillMaxSize().weight(ALBUM_WEIGHT), contentAlignment = Alignment.CenterStart) {
                         if (track.album != null) {
-                            TextButton(
-                                onClick = { onAlbumClick(track.album!!.id) },
-                                content = {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(Icons.Default.Album, null)
-                                        Text(
-                                            text = track.album!!.name,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
+                            Surface {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Album, null)
+                                    Text(
+                                        text = track.album,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
-                            )
+                            }
                         }
                     }
 
@@ -597,7 +573,7 @@ class PlaylistDetails(
 
                 if (showContextMenu) {
                     ItemContextMenu(
-                        item = Item(name = track.name, image = track.album?.image),
+                        item = Item(name = track.name, image = track.image),
                         onDismiss = { showContextMenu = false }
                     ) {
                         Option(
@@ -649,7 +625,6 @@ class PlaylistDetails(
                     onAddToPlaylistClick = state.onAddToPlaylistClick,
                     onTrackClick = state.onTrackClick,
                     onArtistClick = state.onArtistClick,
-                    onAlbumClick = state.onAlbumClick,
                     onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick,
                     onAddTrackToQueueClick = state.onAddTrackToQueueClick,
                     onRemoveTrackFromPlaylistClick = state.onRemoveTrackFromPlaylistClick
@@ -674,7 +649,6 @@ class PlaylistDetails(
                 onAddToPlaylistClick: () -> Unit,
                 onTrackClick: (id: Long) -> Unit,
                 onArtistClick: (id: Long) -> Unit,
-                onAlbumClick: (id: Long) -> Unit,
                 onAddTrackToPlaylistClick: (id: Long) -> Unit,
                 onAddTrackToQueueClick: (id: Long) -> Unit,
                 onRemoveTrackFromPlaylistClick: (id: Long) -> Unit
@@ -727,7 +701,6 @@ class PlaylistDetails(
                                         track = track,
                                         onTrackClick = { onTrackClick(track.id) },
                                         onArtistClick = onArtistClick,
-                                        onAlbumClick = onAlbumClick,
                                         onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
                                         onAddToQueueClick = { onAddTrackToQueueClick(track.id) },
                                         onRemoveFromPlaylistClick = { onRemoveTrackFromPlaylistClick(track.id) }
@@ -882,7 +855,6 @@ class PlaylistDetails(
                 track: PlaylistDetailsState.Loaded.Track,
                 onTrackClick: () -> Unit,
                 onArtistClick: (id: Long) -> Unit,
-                onAlbumClick: (id: Long) -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onAddToQueueClick: () -> Unit,
                 onRemoveFromPlaylistClick: () -> Unit
@@ -901,7 +873,7 @@ class PlaylistDetails(
                         ) {
                             Image(
                                 modifier = Modifier.fillMaxHeight(),
-                                data = track.album?.image,
+                                data = track.image,
                                 contentScale = ContentScale.FillHeight
                             )
                             Column(
@@ -955,7 +927,7 @@ class PlaylistDetails(
 
                 if (showContextMenu) {
                     ItemContextMenu(
-                        item = Item(name = track.name, image = track.album?.image),
+                        item = Item(name = track.name, image = track.image),
                         onDismiss = { showContextMenu = false }
                     ) {
                         Option(
