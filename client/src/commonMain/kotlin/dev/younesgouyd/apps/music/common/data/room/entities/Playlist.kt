@@ -41,6 +41,23 @@ interface PlaylistDao {
     @Query("select * from playlist where id = :id")
     fun get(id: Long): Flow<Playlist>
 
+    @Query("select * from playlist where name like :nameQuery")
+    fun search(nameQuery: String): Flow<List<Playlist>>
+
+    fun searchFolder(folderId: Long?, nameQuery: String): Flow<List<Playlist>> {
+        return if (folderId == null) {
+            searchRootFolder(nameQuery)
+        } else {
+            searchFolder(folderId, nameQuery)
+        }
+    }
+
+    @Query("select * from playlist where folderId is null and name like :nameQuery")
+    fun searchRootFolder(nameQuery: String): Flow<List<Playlist>>
+
+    @Query("select * from playlist where folderId = :folderId and name like :nameQuery")
+    fun searchFolder(folderId: Long, nameQuery: String): Flow<List<Playlist>>
+
     @Query("select * from playlist where importSessionId = :importSessionId")
     fun getImportSessionPlaylist(importSessionId: Long): Flow<Playlist?>
 

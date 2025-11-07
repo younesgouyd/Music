@@ -48,8 +48,19 @@ interface ImportSessionItemDao {
     """)
     fun getOldest(state: ImportSessionItem.State): Flow<ImportSessionItem?>
 
-    @Query("select * from importsessionitem where importSessionId = :importSessionId and state in (:state)")
-    fun getImportSessionItems(importSessionId: Long, state: List<ImportSessionItem.State>): Flow<List<ImportSessionItem>>
+    @Query("""
+        select *
+        from importsessionitem
+        where importSessionId = :importSessionId
+        and state = :state
+        and inspection like '%"title":"' || :titleQuery || '"%' -- TODO: this is not working
+        order by creationDatetime desc
+    """)
+    fun search(
+        importSessionId: Long,
+        state: ImportSessionItem.State,
+        titleQuery: String
+    ): Flow<List<ImportSessionItem>>
 
     @Query("update importsessionitem set state = :state, updateDatetime = :updateDatetime where id = :id")
     suspend fun updateState(state: ImportSessionItem.State, updateDatetime: Long, id: Long)

@@ -2,15 +2,16 @@ package dev.younesgouyd.apps.music.common.data.repoes
 
 import dev.younesgouyd.apps.music.common.data.room.entities.Folder
 import dev.younesgouyd.apps.music.common.data.room.entities.FolderDao
+import dev.younesgouyd.apps.music.common.data.room.toSearchQuery
 import kotlinx.coroutines.flow.Flow
 
 class FolderRepo(private val dao: FolderDao) {
-    fun getAll(): Flow<List<Folder>> {
-        return dao.getAll()
-    }
-
     fun get(id: Long): Flow<Folder> {
         return dao.get(id)
+    }
+
+    fun searchFolder(folderId: Long?, nameQuery: String): Flow<List<Folder>> {
+        return dao.searchFolder(folderId, nameQuery.toSearchQuery())
     }
 
     fun getSubfolders(id: Long?): Flow<List<Folder>> {

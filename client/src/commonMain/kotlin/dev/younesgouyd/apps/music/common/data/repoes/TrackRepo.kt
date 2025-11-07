@@ -3,20 +3,25 @@ package dev.younesgouyd.apps.music.common.data.repoes
 import dev.younesgouyd.apps.music.common.Base64String
 import dev.younesgouyd.apps.music.common.data.room.entities.Track
 import dev.younesgouyd.apps.music.common.data.room.entities.TrackDao
+import dev.younesgouyd.apps.music.common.data.room.toSearchQuery
 import kotlinx.coroutines.flow.Flow
 import kotlin.time.Duration
 
 class TrackRepo(private val dao: TrackDao) {
-    fun getAll(): Flow<List<Track>> {
-        return dao.getAll()
-    }
-
     fun get(id: Long): Flow<Track> {
         return dao.get(id)
     }
 
-    fun getArtistTracks(artistId: Long): Flow<List<Track>> {
-        return dao.getArtistTracks(artistId)
+    fun searchFolder(folderId: Long?, nameQuery: String): Flow<List<Track>> {
+        return dao.searchFolder(folderId, nameQuery.toSearchQuery())
+    }
+
+    fun searchArtist(artistId: Long, nameQuery: String): Flow<List<Track>> {
+        return dao.searchArtist(artistId, nameQuery.toSearchQuery())
+    }
+
+    fun searchPlaylist(playlistId: Long, nameQuery: String): Flow<List<Track>> {
+        return dao.searchPlaylist(playlistId, nameQuery.toSearchQuery())
     }
 
     fun getFolderTracks(folderId: Long?): Flow<List<Track>> {

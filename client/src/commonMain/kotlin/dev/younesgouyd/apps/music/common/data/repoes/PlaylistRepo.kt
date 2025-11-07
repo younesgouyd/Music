@@ -2,6 +2,7 @@ package dev.younesgouyd.apps.music.common.data.repoes
 
 import dev.younesgouyd.apps.music.common.data.room.entities.Playlist
 import dev.younesgouyd.apps.music.common.data.room.entities.PlaylistDao
+import dev.younesgouyd.apps.music.common.data.room.toSearchQuery
 import kotlinx.coroutines.flow.Flow
 
 class PlaylistRepo(private val dao: PlaylistDao) {
@@ -11,6 +12,14 @@ class PlaylistRepo(private val dao: PlaylistDao) {
 
     fun get(id: Long): Flow<Playlist> {
         return dao.get(id)
+    }
+
+    fun search(nameQuery: String): Flow<List<Playlist>> {
+        return dao.search(nameQuery.toSearchQuery())
+    }
+
+    fun searchFolder(folderId: Long?, nameQuery: String): Flow<List<Playlist>> {
+        return dao.searchFolder(folderId, nameQuery.toSearchQuery())
     }
 
     fun getImportSessionPlaylist(importSessionId: Long): Flow<Playlist?> {

@@ -5,10 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.ImportExport
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,15 +21,15 @@ import dev.younesgouyd.apps.music.common.data.repoes.ImportSessionRepo
 import dev.younesgouyd.apps.music.common.data.room.entities.ImportSession
 import dev.younesgouyd.apps.music.common.data.room.entities.ImportSessionItem
 import dev.younesgouyd.apps.music.common.util.Component
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlin.io.encoding.Base64
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ImportDetails(
     id: Long,
     importSessionRepo: ImportSessionRepo,
@@ -40,19 +37,22 @@ class ImportDetails(
 ) : Component() {
     override val title: String = "Import"
     private val state: MutableStateFlow<ImportDetailsState> = MutableStateFlow(ImportDetailsState.Loading)
+    private val searchQuery = MutableStateFlow("")
 
     init {
         coroutineScope.launch {
             state.value = ImportDetailsState.Loaded(
                 import = importSessionRepo.get(id).stateIn(coroutineScope),
                 items = ImportDetailsState.Loaded.Items(
-                    nonselected = importSessionItemRepo.getImportSessionItems(id, listOf(ImportSessionItem.State.Nonselected)).stateIn(coroutineScope),
-                    pending = importSessionItemRepo.getImportSessionItems(id, listOf(ImportSessionItem.State.Pending)).stateIn(coroutineScope),
-                    inProgress = importSessionItemRepo.getImportSessionItems(id, listOf(ImportSessionItem.State.InProgress)).stateIn(coroutineScope),
-                    completed = importSessionItemRepo.getImportSessionItems(id, listOf(ImportSessionItem.State.Completed)).stateIn(coroutineScope),
-                    cancelled = importSessionItemRepo.getImportSessionItems(id, listOf(ImportSessionItem.State.Cancelled)).stateIn(coroutineScope),
-                    failed = importSessionItemRepo.getImportSessionItems(id, listOf(ImportSessionItem.State.Failed)).stateIn(coroutineScope)
+                    nonselected = searchQuery.flatMapLatest { importSessionItemRepo.search(id, ImportSessionItem.State.Nonselected, it) }.stateIn(coroutineScope),
+                    pending = searchQuery.flatMapLatest { importSessionItemRepo.search(id, ImportSessionItem.State.Pending, it) }.stateIn(coroutineScope),
+                    inProgress = searchQuery.flatMapLatest { importSessionItemRepo.search(id, ImportSessionItem.State.InProgress, it) }.stateIn(coroutineScope),
+                    completed = searchQuery.flatMapLatest { importSessionItemRepo.search(id, ImportSessionItem.State.Completed, it) }.stateIn(coroutineScope),
+                    cancelled = searchQuery.flatMapLatest { importSessionItemRepo.search(id, ImportSessionItem.State.Cancelled, it) }.stateIn(coroutineScope),
+                    failed = searchQuery.flatMapLatest { importSessionItemRepo.search(id, ImportSessionItem.State.Failed, it) }.stateIn(coroutineScope)
                 ),
+                searchQuery = searchQuery.asStateFlow(),
+                onSearchQueryChange = { searchQuery.value = it },
                 onImportItemClick = {
                     coroutineScope.launch {
                         importSessionItemRepo.updateState(id = it, state = ImportSessionItem.State.Pending)
@@ -89,6 +89,8 @@ class ImportDetails(
         data class Loaded(
             val import: StateFlow<ImportSession>,
             val items: Items,
+            val searchQuery: StateFlow<String>,
+            val onSearchQueryChange: (String) -> Unit,
             val onImportItemClick: (Long) -> Unit,
             val onCancelItemClick: (Long) -> Unit,
             val onRetryItemClick: (Long) -> Unit
@@ -119,6 +121,8 @@ class ImportDetails(
                 modifier = modifier,
                 import = state.import,
                 items = state.items,
+                searchQuery = state.searchQuery,
+                onSearchQueryChange = state.onSearchQueryChange,
                 onImportItemClick = state.onImportItemClick,
                 onCancelItemClick = state.onCancelItemClick,
                 onRetryItemClick = state.onRetryItemClick
@@ -131,6 +135,8 @@ class ImportDetails(
             modifier: Modifier,
             import: StateFlow<ImportSession>,
             items: ImportDetailsState.Loaded.Items,
+            searchQuery: StateFlow<String>,
+            onSearchQueryChange: (String) -> Unit,
             onImportItemClick: (Long) -> Unit,
             onCancelItemClick: (Long) -> Unit,
             onRetryItemClick: (Long) -> Unit
@@ -142,6 +148,7 @@ class ImportDetails(
             val completed by items.completed.collectAsState()
             val cancelled by items.cancelled.collectAsState()
             val failed by items.failed.collectAsState()
+            val searchQuery by searchQuery.collectAsState()
             val items: Map<ImportSessionItem.State, List<ImportSessionItem>> = mapOf(
                 ImportSessionItem.State.Nonselected to nonselected,
                 ImportSessionItem.State.Pending to pending,
@@ -183,6 +190,13 @@ class ImportDetails(
                                         )
                                     }
                                 }
+                                OutlinedTextField(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    leadingIcon = { Icon(Icons.Default.Search, null) },
+                                    label = { Text("Search") },
+                                    value = searchQuery,
+                                    onValueChange = onSearchQueryChange
+                                )
                                 LazyColumn(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalAlignment = Alignment.CenterHorizontally,

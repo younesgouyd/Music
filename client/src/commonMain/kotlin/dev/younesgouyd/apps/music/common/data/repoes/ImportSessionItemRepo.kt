@@ -2,6 +2,7 @@ package dev.younesgouyd.apps.music.common.data.repoes
 
 import dev.younesgouyd.apps.music.common.data.room.entities.ImportSessionItem
 import dev.younesgouyd.apps.music.common.data.room.entities.ImportSessionItemDao
+import dev.younesgouyd.apps.music.common.data.room.toSearchQuery
 import kotlinx.coroutines.flow.Flow
 
 class ImportSessionItemRepo(
@@ -15,8 +16,8 @@ class ImportSessionItemRepo(
         return dao.getOldest(ImportSessionItem.State.Pending)
     }
 
-    fun getImportSessionItems(importSessionId: Long, state: List<ImportSessionItem.State>): Flow<List<ImportSessionItem>> {
-        return dao.getImportSessionItems(importSessionId, state)
+    fun search(importSessionId: Long, state: ImportSessionItem.State, titleQuery: String): Flow<List<ImportSessionItem>> {
+        return dao.search(importSessionId, state, titleQuery.toSearchQuery())
     }
 
     suspend fun updateState(id: Long, state: ImportSessionItem.State) {

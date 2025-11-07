@@ -35,19 +35,41 @@ data class Track(
 
 @Dao
 interface TrackDao {
-    @Query("select * from track")
-    fun getAll(): Flow<List<Track>>
-
     @Query("select * from track where id = :id")
     fun get(id: Long): Flow<Track>
 
+    fun searchFolder(folderId: Long?, nameQuery: String): Flow<List<Track>> {
+        val _nameQ = nameQuery.ifEmpty { "%" }
+        return if (folderId == null) {
+            searchRootFolder(_nameQ)
+        } else {
+            searchFolder(folderId, _nameQ)
+        }
+    }
+
+    @Query("select * from track where folderId is null and name like :nameQuery")
+    fun searchRootFolder(nameQuery: String): Flow<List<Track>>
+
+    @Query("select * from track where folderId = :folderId and name like :nameQuery")
+    fun searchFolder(folderId: Long, nameQuery: String): Flow<List<Track>>
+
     @Query("""
-        select t.*
+        select *
         from track t
         join artisttrackcrossref cr on cr.trackId = t.id
         where cr.artistId = :artistId
+        and t.name like :nameQuery
     """)
-    fun getArtistTracks(artistId: Long): Flow<List<Track>>
+    fun searchArtist(artistId: Long, nameQuery: String): Flow<List<Track>>
+
+    @Query("""
+        select *
+        from track t
+        join playlisttrackcrossref cr on cr.trackId = t.id
+        where cr.playlistId = :playlistId
+        and name like :nameQuery
+    """)
+    fun searchPlaylist(playlistId: Long, nameQuery: String): Flow<List<Track>>
 
     @Query("select * from track where folderId = :folderId")
     fun getFolderTracks(folderId: Long): Flow<List<Track>>

@@ -25,11 +25,22 @@ data class Folder(
 
 @Dao
 interface FolderDao {
-    @Query("select * from folder")
-    fun getAll(): Flow<List<Folder>>
-
     @Query("select * from folder where id = :id")
     fun get(id: Long): Flow<Folder>
+
+    fun searchFolder(folderId: Long?, nameQuery: String): Flow<List<Folder>> {
+        return if (folderId == null) {
+            searchRootFolder(nameQuery)
+        } else {
+            searchFolder(folderId, nameQuery)
+        }
+    }
+
+    @Query("select * from folder where parentFolderId is null and name like :nameQuery")
+    fun searchRootFolder(nameQuery: String): Flow<List<Folder>>
+
+    @Query("select * from folder where parentFolderId = :parentFolderId and name like :nameQuery")
+    fun searchFolder(parentFolderId: Long, nameQuery: String): Flow<List<Folder>>
 
     @Query("select * from folder where parentFolderId = :parentFolderId")
     fun getSubfolders(parentFolderId: Long): Flow<List<Folder>>

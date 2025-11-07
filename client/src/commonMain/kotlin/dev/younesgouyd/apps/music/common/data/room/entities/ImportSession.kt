@@ -25,7 +25,7 @@ data class ImportSession(
 
 @Dao
 interface ImportSessionDao {
-    @Query("select * from importsession")
+    @Query("select * from importsession order by creationDatetime desc")
     fun getAll(): Flow<List<ImportSession>>
 
     @Query("select * from importsession where id = :id")

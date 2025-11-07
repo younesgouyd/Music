@@ -28,8 +28,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
 import kotlin.io.encoding.Base64
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -48,6 +46,7 @@ class PlaylistDetails(
     private val state: MutableStateFlow<PlaylistDetailsState> = MutableStateFlow(PlaylistDetailsState.Loading)
     private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
+    private val searchQuery = MutableStateFlow("")
 
     init {
         coroutineScope.launch {
@@ -62,26 +61,30 @@ class PlaylistDetails(
                             onImportClick = { dbPlaylist.importSessionId?.let { showImport(it) } }
                         )
                     }.stateIn(coroutineScope),
-                    tracks = trackRepo.getPlaylistTracks(id).mapLatest {
-                        it.map { dbTrack ->
-                            PlaylistDetailsState.Loaded.Track(
-                                id = dbTrack.id,
-                                name = dbTrack.name,
-                                album = dbTrack.album,
-                                image = dbTrack.albumArt?.let { Base64.decode(it) },
-                                artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
-                                    PlaylistDetailsState.Loaded.Track.Artist(
-                                        id = dbArtist.id,
-                                        name = dbArtist.name
-                                    )
-                                }
-                            )
+                    tracks = searchQuery.flatMapLatest { nameQuery ->
+                        trackRepo.searchPlaylist(this@PlaylistDetails.id, nameQuery).mapLatest {
+                            it.map { dbTrack ->
+                                PlaylistDetailsState.Loaded.Track(
+                                    id = dbTrack.id,
+                                    name = dbTrack.name,
+                                    album = dbTrack.album,
+                                    image = dbTrack.albumArt?.let { Base64.decode(it) },
+                                    artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
+                                        PlaylistDetailsState.Loaded.Track.Artist(
+                                            id = dbArtist.id,
+                                            name = dbArtist.name
+                                        )
+                                    }
+                                )
+                            }
                         }
                     }.stateIn(coroutineScope),
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
+                    searchQuery = searchQuery.asStateFlow(),
                     scrollState = LazyListState(),
                     onPlayClick = ::play,
+                    onSearchQueryChange = { searchQuery.value = it },
                     onAddToQueueClick = ::addToQueue,
                     onTrackClick = ::playTrack,
                     onArtistClick = showArtistDetails,
@@ -183,8 +186,10 @@ class PlaylistDetails(
             val tracks: StateFlow<List<Track>>,
             val addToPlaylistDialogVisible: StateFlow<Boolean>,
             val addToPlaylist: StateFlow<Component?>,
+            val searchQuery: StateFlow<String>,
             val scrollState: LazyListState,
             val onPlayClick: () -> Unit,
+            val onSearchQueryChange: (String) -> Unit,
             val onTrackClick: (id: Long) -> Unit,
             val onArtistClick: (id: Long) -> Unit,
             val onAddToPlaylistClick: () -> Unit,
@@ -217,13 +222,6 @@ class PlaylistDetails(
         }
     }
 
-    private fun formatAddedAt(addedAtMillis: Long): String {
-        val date = Date(addedAtMillis)
-        val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
-        formatter.timeZone = TimeZone.getTimeZone("UTC")
-        return formatter.format(date)
-    }
-
     private object Ui {
         object Wide {
             @Composable
@@ -243,8 +241,10 @@ class PlaylistDetails(
                     modifier = modifier,
                     playlist = state.playlist,
                     tracks = state.tracks,
+                    searchQuery = state.searchQuery,
                     scrollState = state.scrollState,
                     onPlayClick = state.onPlayClick,
+                    onSearchQueryChange = state.onSearchQueryChange,
                     onAddToQueueClick = state.onAddToQueueClick,
                     onAddToPlaylistClick = state.onAddToPlaylistClick,
                     onTrackClick = state.onTrackClick,
@@ -267,8 +267,10 @@ class PlaylistDetails(
                 modifier: Modifier,
                 playlist: StateFlow<PlaylistDetailsState.Loaded.Playlist>,
                 tracks: StateFlow<List<PlaylistDetailsState.Loaded.Track>>,
+                searchQuery: StateFlow<String>,
                 scrollState: LazyListState,
                 onPlayClick: () -> Unit,
+                onSearchQueryChange: (String) -> Unit,
                 onAddToQueueClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onTrackClick: (id: Long) -> Unit,
@@ -279,6 +281,7 @@ class PlaylistDetails(
             ) {
                 val playlist by playlist.collectAsState()
                 val items by tracks.collectAsState()
+                val searchQuery by searchQuery.collectAsState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -303,8 +306,23 @@ class PlaylistDetails(
                                     Spacer(Modifier.size(8.dp))
                                 }
                                 stickyHeader {
-                                    TracksHeader(modifier = Modifier.fillMaxWidth().height(64.dp))
-                                    HorizontalDivider()
+                                    Surface {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            OutlinedTextField(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                leadingIcon = { Icon(Icons.Default.Search, null) },
+                                                label = { Text("Search") },
+                                                value = searchQuery,
+                                                onValueChange = onSearchQueryChange
+                                            )
+                                            TracksHeader(modifier = Modifier.fillMaxWidth().height(64.dp))
+                                            HorizontalDivider()
+                                        }
+                                    }
                                 }
                                 items(items = items) { track ->
                                     TrackItem(
@@ -619,8 +637,10 @@ class PlaylistDetails(
                     modifier = modifier,
                     playlist = state.playlist,
                     tracks = state.tracks,
+                    searchQuery = state.searchQuery,
                     scrollState = state.scrollState,
                     onPlayClick = state.onPlayClick,
+                    onSearchQueryChange = state.onSearchQueryChange,
                     onAddToQueueClick = state.onAddToQueueClick,
                     onAddToPlaylistClick = state.onAddToPlaylistClick,
                     onTrackClick = state.onTrackClick,
@@ -643,8 +663,10 @@ class PlaylistDetails(
                 modifier: Modifier,
                 playlist: StateFlow<PlaylistDetailsState.Loaded.Playlist>,
                 tracks: StateFlow<List<PlaylistDetailsState.Loaded.Track>>,
+                searchQuery: StateFlow<String>,
                 scrollState: LazyListState,
                 onPlayClick: () -> Unit,
+                onSearchQueryChange: (String) -> Unit,
                 onAddToQueueClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onTrackClick: (id: Long) -> Unit,
@@ -655,6 +677,7 @@ class PlaylistDetails(
             ) {
                 val playlist by playlist.collectAsState()
                 val items by tracks.collectAsState()
+                val searchQuery by searchQuery.collectAsState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -687,13 +710,26 @@ class PlaylistDetails(
                                     Surface(
                                         modifier = Modifier.fillMaxWidth(),
                                     ) {
-                                        Text(
-                                            text = "Tracks",
-                                            style = MaterialTheme.typography.titleLarge,
-                                            textAlign = TextAlign.Start
-                                        )
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                text = "Tracks",
+                                                style = MaterialTheme.typography.titleLarge,
+                                                textAlign = TextAlign.Start
+                                            )
+                                            OutlinedTextField(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                leadingIcon = { Icon(Icons.Default.Search, null) },
+                                                label = { Text("Search") },
+                                                value = searchQuery,
+                                                onValueChange = onSearchQueryChange
+                                            )
+                                            HorizontalDivider()
+                                        }
                                     }
-                                    HorizontalDivider()
                                 }
                                 items(items = items) { track ->
                                     TrackItem(

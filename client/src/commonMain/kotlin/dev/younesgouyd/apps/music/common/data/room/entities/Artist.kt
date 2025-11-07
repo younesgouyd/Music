@@ -18,11 +18,11 @@ data class Artist(
 
 @Dao
 interface ArtistDao {
-    @Query("select * from artist")
-    fun getAll(): Flow<List<Artist>>
-
     @Query("select * from artist where id = :id")
     fun get(id: Long): Flow<Artist>
+
+    @Query("select * from artist where name like :nameQuery")
+    fun search(nameQuery: String): Flow<List<Artist>>
 
     @Query("""
         select a.*

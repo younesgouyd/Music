@@ -5,9 +5,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,12 +35,13 @@ class ArtistList(
 ) : Component() {
     override val title: String = "Artists"
     private val state: MutableStateFlow<ArtistListState> = MutableStateFlow(ArtistListState.Loading)
+    private val searchQuery = MutableStateFlow("")
 
     init {
         coroutineScope.launch {
-            state.update {
-                ArtistListState.Loaded(
-                    artists = artistRepo.getAll().mapLatest { list ->
+            state.value = ArtistListState.Loaded(
+                artists = searchQuery.flatMapLatest { nameQuery ->
+                    artistRepo.search(nameQuery).mapLatest { list ->
                         list.map { dbArtist ->
                             ArtistListState.Loaded.ArtistItem(
                                 id = dbArtist.id,
@@ -48,11 +49,13 @@ class ArtistList(
                                 image = dbArtist.image
                             )
                         }
-                    }.stateIn(coroutineScope),
-                    scrollState = LazyGridState(),
-                    onArtistClick = showArtistDetails
-                )
-            }
+                    }
+                }.stateIn(coroutineScope),
+                searchQuery = searchQuery.asStateFlow(),
+                scrollState = LazyGridState(),
+                onSearchQueryChange = { searchQuery.value = it },
+                onArtistClick = showArtistDetails
+            )
         }
     }
 
@@ -75,7 +78,9 @@ class ArtistList(
 
         data class Loaded(
             val artists: StateFlow<List<ArtistItem>>,
+            val searchQuery: StateFlow<String>,
             val scrollState: LazyGridState,
+            val onSearchQueryChange: (String) -> Unit,
             val onArtistClick: (Long) -> Unit
         ) : ArtistListState() {
             data class ArtistItem(
@@ -101,7 +106,9 @@ class ArtistList(
                 Main(
                     modifier = modifier,
                     artists = loaded.artists,
+                    searchQuery = loaded.searchQuery,
                     scrollState = loaded.scrollState,
+                    onSearchQueryChange = loaded.onSearchQueryChange,
                     onArtistClick = loaded.onArtistClick
                 )
             }
@@ -110,10 +117,13 @@ class ArtistList(
             private fun Main(
                 modifier: Modifier,
                 artists: StateFlow<List<ArtistListState.Loaded.ArtistItem>>,
+                searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
+                onSearchQueryChange: (String) -> Unit,
                 onArtistClick: (Long) -> Unit
             ) {
                 val items by artists.collectAsState()
+                val searchQuery by searchQuery.collectAsState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -127,6 +137,17 @@ class ArtistList(
                                 verticalArrangement = Arrangement.spacedBy(18.dp),
                                 columns = GridCells.Adaptive(200.dp)
                             ) {
+                                stickyHeader {
+                                    Surface {
+                                        OutlinedTextField(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            leadingIcon = { Icon(Icons.Default.Search, null) },
+                                            label = { Text("Search") },
+                                            value = searchQuery,
+                                            onValueChange = onSearchQueryChange
+                                        )
+                                    }
+                                }
                                 items(
                                     items = items,
                                     key = { it.id }
@@ -191,7 +212,9 @@ class ArtistList(
                 Main(
                     modifier = modifier,
                     artists = loaded.artists,
+                    searchQuery = loaded.searchQuery,
                     scrollState = loaded.scrollState,
+                    onSearchQueryChange = loaded.onSearchQueryChange,
                     onArtistClick = loaded.onArtistClick
                 )
             }
@@ -200,10 +223,13 @@ class ArtistList(
             private fun Main(
                 modifier: Modifier,
                 artists: StateFlow<List<ArtistListState.Loaded.ArtistItem>>,
+                searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
+                onSearchQueryChange: (String) -> Unit,
                 onArtistClick: (Long) -> Unit
             ) {
                 val items by artists.collectAsState()
+                val searchQuery by searchQuery.collectAsState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -217,6 +243,17 @@ class ArtistList(
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                                 columns = GridCells.Adaptive(100.dp)
                             ) {
+                                stickyHeader {
+                                    Surface {
+                                        OutlinedTextField(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            leadingIcon = { Icon(Icons.Default.Search, null) },
+                                            label = { Text("Search") },
+                                            value = searchQuery,
+                                            onValueChange = onSearchQueryChange
+                                        )
+                                    }
+                                }
                                 items(
                                     items = items,
                                     key = { it.id }

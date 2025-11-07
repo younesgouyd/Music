@@ -2,11 +2,12 @@ package dev.younesgouyd.apps.music.common.data.repoes
 
 import dev.younesgouyd.apps.music.common.data.room.entities.Artist
 import dev.younesgouyd.apps.music.common.data.room.entities.ArtistDao
+import dev.younesgouyd.apps.music.common.data.room.toSearchQuery
 import kotlinx.coroutines.flow.Flow
 
 class ArtistRepo(private val dao: ArtistDao) {
-    fun getAll(): Flow<List<Artist>> {
-        return dao.getAll()
+    fun search(nameQuery: String): Flow<List<Artist>> {
+        return dao.search(nameQuery.toSearchQuery())
     }
 
     fun get(id: Long): Flow<Artist> {

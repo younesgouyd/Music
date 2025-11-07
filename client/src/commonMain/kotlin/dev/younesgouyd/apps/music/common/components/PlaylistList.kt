@@ -29,10 +29,12 @@ import dev.younesgouyd.apps.music.common.data.repoes.PlaylistRepo
 import dev.younesgouyd.apps.music.common.data.repoes.PlaylistTrackCrossRefRepo
 import dev.younesgouyd.apps.music.common.data.repoes.TrackRepo
 import dev.younesgouyd.apps.music.common.util.Component
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistList(
     private val playlistRepo: PlaylistRepo,
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
@@ -45,24 +47,29 @@ class PlaylistList(
     private val state: MutableStateFlow<PlaylistListState> = MutableStateFlow(PlaylistListState.Loading)
     private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
+    private val searchQuery = MutableStateFlow("")
 
     init {
         coroutineScope.launch {
             state.update {
                 PlaylistListState.Loaded(
-                    playlists = playlistRepo.getAll().mapLatest { list ->
-                        list.map { dbPlaylist ->
-                            PlaylistListState.Loaded.PlaylistListItem(
-                                id = dbPlaylist.id,
-                                name = dbPlaylist.name,
-                                image = dbPlaylist.image
-                            )
+                    playlists = searchQuery.flatMapLatest { nameQuery ->
+                        playlistRepo.search(nameQuery).mapLatest { list ->
+                            list.map { dbPlaylist ->
+                                PlaylistListState.Loaded.PlaylistListItem(
+                                    id = dbPlaylist.id,
+                                    name = dbPlaylist.name,
+                                    image = dbPlaylist.image
+                                )
+                            }
                         }
                     }.stateIn(coroutineScope),
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
+                    searchQuery = searchQuery.asStateFlow(),
                     scrollState = LazyGridState(),
-                    onPlaylist = showPlaylistDetails,
+                    onSearchQueryChange = { searchQuery.value = it },
+                    onPlaylistClick = showPlaylistDetails,
                     onPlayPlaylist = ::playPlaylist,
                     onAddToPlaylist = ::showAddToPlaylistDialog,
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
@@ -137,8 +144,10 @@ class PlaylistList(
             val playlists: StateFlow<List<PlaylistListItem>>,
             val addToPlaylistDialogVisible: StateFlow<Boolean>,
             val addToPlaylist: StateFlow<Component?>,
+            val searchQuery: StateFlow<String>,
             val scrollState: LazyGridState,
-            val onPlaylist: (Long) -> Unit,
+            val onSearchQueryChange: (String) -> Unit,
+            val onPlaylistClick: (Long) -> Unit,
             val onPlayPlaylist: (Long) -> Unit,
             val onAddToPlaylist: (id: Long) -> Unit,
             val onDismissAddToPlaylistDialog: () -> Unit,
@@ -172,8 +181,10 @@ class PlaylistList(
                 Main(
                     modifier = modifier,
                     playlists = state.playlists,
+                    searchQuery = state.searchQuery,
                     scrollState = state.scrollState,
-                    onPlaylist = state.onPlaylist,
+                    onSearchQueryChange = state.onSearchQueryChange,
+                    onPlaylistClick = state.onPlaylistClick,
                     onPlayPlaylist = state.onPlayPlaylist,
                     onAddToPlaylist = state.onAddToPlaylist,
                     onDeletePlaylist = state.onDeletePlaylist,
@@ -192,8 +203,10 @@ class PlaylistList(
             private fun Main(
                 modifier: Modifier,
                 playlists: StateFlow<List<PlaylistListState.Loaded.PlaylistListItem>>,
+                searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
-                onPlaylist: (Long) -> Unit,
+                onSearchQueryChange: (String) -> Unit,
+                onPlaylistClick: (Long) -> Unit,
                 onPlayPlaylist: (Long) -> Unit,
                 onAddToPlaylist: (id: Long) -> Unit,
                 onDeletePlaylist: (id: Long) -> Unit,
@@ -201,6 +214,7 @@ class PlaylistList(
                 onAddPlaylistToQueue: (id: Long) -> Unit
             ) {
                 val items by playlists.collectAsState()
+                val searchQuery by searchQuery.collectAsState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -214,10 +228,21 @@ class PlaylistList(
                                 verticalArrangement = Arrangement.spacedBy(18.dp),
                                 columns = GridCells.Adaptive(200.dp)
                             ) {
+                                stickyHeader {
+                                    Surface {
+                                        OutlinedTextField(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            leadingIcon = { Icon(Icons.Default.Search, null) },
+                                            label = { Text("Search") },
+                                            value = searchQuery,
+                                            onValueChange = onSearchQueryChange
+                                        )
+                                    }
+                                }
                                 items(items = items, key = { it.id }) { playlist ->
                                     PlaylistItem(
                                         playlist = playlist,
-                                        onClick = { onPlaylist(playlist.id) },
+                                        onClick = { onPlaylistClick(playlist.id) },
                                         onPlayClick = { onPlayPlaylist(playlist.id) },
                                         onAddToPlaylistClick = { onAddToPlaylist(playlist.id) },
                                         onDeleteClick = { onDeletePlaylist(playlist.id) },
@@ -405,8 +430,10 @@ class PlaylistList(
                 Main(
                     modifier = modifier,
                     playlists = state.playlists,
+                    searchQuery = state.searchQuery,
                     scrollState = state.scrollState,
-                    onPlaylist = state.onPlaylist,
+                    onSearchQueryChange = state.onSearchQueryChange,
+                    onPlaylistClick = state.onPlaylistClick,
                     onPlayPlaylist = state.onPlayPlaylist,
                     onAddToPlaylist = state.onAddToPlaylist,
                     onDeletePlaylist = state.onDeletePlaylist,
@@ -425,8 +452,10 @@ class PlaylistList(
             private fun Main(
                 modifier: Modifier,
                 playlists: StateFlow<List<PlaylistListState.Loaded.PlaylistListItem>>,
+                searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
-                onPlaylist: (Long) -> Unit,
+                onSearchQueryChange: (String) -> Unit,
+                onPlaylistClick: (Long) -> Unit,
                 onPlayPlaylist: (Long) -> Unit,
                 onAddToPlaylist: (id: Long) -> Unit,
                 onDeletePlaylist: (id: Long) -> Unit,
@@ -434,6 +463,7 @@ class PlaylistList(
                 onAddPlaylistToQueue: (id: Long) -> Unit
             ) {
                 val items by playlists.collectAsState()
+                val searchQuery by searchQuery.collectAsState()
 
                 Scaffold(
                     modifier = modifier,
@@ -447,10 +477,21 @@ class PlaylistList(
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                                 columns = GridCells.Adaptive(100.dp)
                             ) {
+                                stickyHeader {
+                                    Surface {
+                                        OutlinedTextField(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            leadingIcon = { Icon(Icons.Default.Search, null) },
+                                            label = { Text("Search") },
+                                            value = searchQuery,
+                                            onValueChange = onSearchQueryChange
+                                        )
+                                    }
+                                }
                                 items(items = items, key = { it.id }) { playlist ->
                                     PlaylistItem(
                                         playlist = playlist,
-                                        onClick = { onPlaylist(playlist.id) },
+                                        onClick = { onPlaylistClick(playlist.id) },
                                         onPlayClick = { onPlayPlaylist(playlist.id) },
                                         onAddToPlaylistClick = { onAddToPlaylist(playlist.id) },
                                         onDeleteClick = { onDeletePlaylist(playlist.id) },

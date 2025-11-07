@@ -7,10 +7,7 @@ import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.AddToQueue
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.QueuePlayNext
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,6 +43,7 @@ class ArtistDetails(
     private val state: MutableStateFlow<ArtistDetailsState> = MutableStateFlow(ArtistDetailsState.Loading)
     private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
+    private val searchQuery = MutableStateFlow("")
 
     init {
         coroutineScope.launch {
@@ -58,23 +56,27 @@ class ArtistDetails(
                             image = dbArtist.image
                         )
                     }.stateIn(coroutineScope),
-                    tracks = trackRepo.getArtistTracks(id).mapLatest { dbList ->
-                        dbList.map { dbTrack ->
-                            ArtistDetailsState.Loaded.Track(
-                                id = dbTrack.id,
-                                name = dbTrack.name,
-                                image = dbTrack.albumArt?.let { Base64.decode(it) },
-                                artists = artistRepo.getTrackArtists(dbTrack.id).mapLatest {
-                                    it.map { dbArtist ->
-                                        ArtistDetailsState.Loaded.Track.Artist(id = dbArtist.id, name = dbArtist.name)
-                                    }
-                                }.first()
-                            )
+                    tracks = searchQuery.flatMapLatest { nameQuery ->
+                        trackRepo.searchArtist(this@ArtistDetails.id, nameQuery).mapLatest { dbList ->
+                            dbList.map { dbTrack ->
+                                ArtistDetailsState.Loaded.Track(
+                                    id = dbTrack.id,
+                                    name = dbTrack.name,
+                                    image = dbTrack.albumArt?.let { Base64.decode(it) },
+                                    artists = artistRepo.getTrackArtists(dbTrack.id).mapLatest {
+                                        it.map { dbArtist ->
+                                            ArtistDetailsState.Loaded.Track.Artist(id = dbArtist.id, name = dbArtist.name)
+                                        }
+                                    }.first()
+                                )
+                            }
                         }
                     }.stateIn(coroutineScope),
+                    searchQuery = searchQuery.asStateFlow(),
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     scrollState = LazyGridState(),
+                    onSearchQueryChange = { searchQuery.value = it },
                     onArtistClick = showArtistDetails,
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
                     onTrackClick = ::playTrack,
@@ -135,9 +137,11 @@ class ArtistDetails(
         data class Loaded(
             val artist: StateFlow<Artist>,
             val tracks: StateFlow<List<Track>>,
+            val searchQuery: StateFlow<String>,
             val addToPlaylistDialogVisible: StateFlow<Boolean>,
             val addToPlaylist: StateFlow<Component?>,
             val scrollState: LazyGridState,
+            val onSearchQueryChange: (String) -> Unit,
             val onArtistClick: (Long) -> Unit,
             val onDismissAddToPlaylistDialog: () -> Unit,
             val onTrackClick: (Long) -> Unit,
@@ -183,7 +187,9 @@ class ArtistDetails(
                     modifier = modifier,
                     artist = state.artist,
                     tracks = state.tracks,
+                    searchQuery = state.searchQuery,
                     scrollState = state.scrollState,
+                    onSearchQueryChange = state.onSearchQueryChange,
                     onTrackClick = state.onTrackClick,
                     onArtistClick = state.onArtistClick,
                     onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick,
@@ -202,7 +208,9 @@ class ArtistDetails(
                 modifier: Modifier,
                 artist: StateFlow<ArtistDetailsState.Loaded.Artist>,
                 tracks: StateFlow<List<ArtistDetailsState.Loaded.Track>>,
+                searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
+                onSearchQueryChange: (String) -> Unit,
                 onTrackClick: (Long) -> Unit,
                 onArtistClick: (Long) -> Unit,
                 onAddTrackToPlaylistClick: (Long) -> Unit,
@@ -210,6 +218,7 @@ class ArtistDetails(
             ) {
                 val artist by artist.collectAsState()
                 val trackItems by tracks.collectAsState()
+                val searchQuery by searchQuery.collectAsState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -228,12 +237,27 @@ class ArtistDetails(
                                         artist = artist,
                                     )
                                 }
-                                item(span = { GridItemSpan(maxLineSpan) }) {
-                                    Text(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        text = "Discography",
-                                        style = MaterialTheme.typography.headlineMedium
-                                    )
+                                stickyHeader {
+                                    Surface {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                text = "Tracks",
+                                                style = MaterialTheme.typography.headlineMedium
+                                            )
+                                            OutlinedTextField(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                leadingIcon = { Icon(Icons.Default.Search, null) },
+                                                label = { Text("Search") },
+                                                value = searchQuery,
+                                                onValueChange = onSearchQueryChange
+                                            )
+                                        }
+                                    }
                                 }
                                 items(
                                     items = trackItems,
@@ -318,31 +342,30 @@ class ArtistDetails(
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
-                        LazyRow(
-                            modifier = Modifier.fillMaxWidth().height(50.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            items(items = track.artists) { artist ->
-                                TextButton(
-                                    onClick = { onArtistClick(artist.id) },
-                                    content = {
-                                        Row(
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(Icons.Default.Person, null)
-                                            Text(artist.name)
-                                        }
-                                    }
-                                )
-                            }
-                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            LazyRow(
+                                modifier = Modifier.weight(1f),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                items(items = track.artists) { artist ->
+                                    TextButton(
+                                        onClick = { onArtistClick(artist.id) },
+                                        content = {
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(Icons.Default.Person, null)
+                                                Text(artist.name)
+                                            }
+                                        }
+                                    )
+                                }
+                            }
                             IconButton(
                                 content = { Icon(Icons.Default.MoreVert, null) },
                                 onClick = { showContextMenu = true }
@@ -394,7 +417,9 @@ class ArtistDetails(
                     modifier = modifier,
                     artist = state.artist,
                     tracks = state.tracks,
+                    searchQuery = state.searchQuery,
                     scrollState = state.scrollState,
+                    onSearchQueryChange = state.onSearchQueryChange,
                     onTrackClick = state.onTrackClick,
                     onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick,
                     onAddTrackToQueueClick = state.onAddTrackToQueueClick
@@ -412,13 +437,16 @@ class ArtistDetails(
                 modifier: Modifier,
                 artist: StateFlow<ArtistDetailsState.Loaded.Artist>,
                 tracks: StateFlow<List<ArtistDetailsState.Loaded.Track>>,
+                searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
+                onSearchQueryChange: (String) -> Unit,
                 onTrackClick: (Long) -> Unit,
                 onAddTrackToPlaylistClick: (id: Long) -> Unit,
                 onAddTrackToQueueClick: (id: Long) -> Unit
             ) {
                 val artist by artist.collectAsState()
                 val trackItems by tracks.collectAsState()
+                val searchQuery by searchQuery.collectAsState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -438,12 +466,27 @@ class ArtistDetails(
                                         artist = artist,
                                     )
                                 }
-                                item(span = { GridItemSpan(maxLineSpan) }) {
-                                    Text(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        text = "Discography",
-                                        style = MaterialTheme.typography.titleLarge,
-                                    )
+                                stickyHeader {
+                                    Surface {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                text = "Tracks",
+                                                style = MaterialTheme.typography.headlineMedium
+                                            )
+                                            OutlinedTextField(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                leadingIcon = { Icon(Icons.Default.Search, null) },
+                                                label = { Text("Search") },
+                                                value = searchQuery,
+                                                onValueChange = onSearchQueryChange
+                                            )
+                                        }
+                                    }
                                 }
                                 items(
                                     items = trackItems,

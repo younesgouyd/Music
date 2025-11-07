@@ -67,6 +67,7 @@ class Library(
     private val inspectionDialogVisible = MutableStateFlow(false)
     private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
     private val inspection: MutableStateFlow<Inspection?> = MutableStateFlow(null)
+    private val searchQuery = MutableStateFlow("")
 
     init {
         loadingFolders = MutableStateFlow(true)
@@ -105,41 +106,42 @@ class Library(
             }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = list)
 
-        folders = currentFolder.flatMapLatest { currentFolderId ->
+        folders = currentFolder.flatMapLatest { parentFolder ->
             loadingFolders.value = true
-            folderRepo.getSubfolders(currentFolderId?.id).also {
-                loadingFolders.value = false
+            searchQuery.flatMapLatest { search ->
+                folderRepo.searchFolder(parentFolder?.id, search)
+                    .also {
+                        loadingFolders.value = false
+                    }
             }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
 
-        playlists = currentFolder.flatMapLatest { currentFolder ->
-            flow {
+        playlists = currentFolder.flatMapLatest { parentFolder ->
+            searchQuery.flatMapLatest { search ->
                 loadingPlaylists.value = true
-                playlistRepo.getFolderPlaylists(currentFolder?.id).collect { playlists ->
-                    emit(playlists)
-                    loadingPlaylists.value = false
+                playlistRepo.searchFolder(parentFolder?.id, search)
+                    .also {
+                        loadingFolders.value = false
+                    }
                 }
-                loadingPlaylists.value = false
-            }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
 
-        tracks = currentFolder.flatMapLatest { currentFolder ->
-            flow {
-                trackRepo.getFolderTracks(currentFolder?.id).collect { tracks ->
-                    loadingTracks.value = true
-                    emit(
-                        tracks.map { dbTrack ->
-                            Models.Track(
-                                id = dbTrack.id,
-                                name = dbTrack.name,
-                                image = dbTrack.albumArt?.let { Base64.decode(it) },
-                                artists = artistRepo.getTrackArtists(dbTrack.id).first().map {
-                                    Models.Track.Artist(id = it.id, name = it.name)
-                                }
-                            )
-                        }
-                    )
-                    loadingTracks.value = false
+        tracks = currentFolder.flatMapLatest { parentFolder ->
+            loadingTracks.value = true
+            searchQuery.flatMapLatest { search ->
+                trackRepo.searchFolder(parentFolder?.id, search).map { tracks ->
+                    tracks.map { dbTrack ->
+                        Models.Track(
+                            id = dbTrack.id,
+                            name = dbTrack.name,
+                            image = dbTrack.albumArt?.let { Base64.decode(it) },
+                            artists = artistRepo.getTrackArtists(dbTrack.id).first().map {
+                                Models.Track.Artist(id = it.id, name = it.name)
+                            }
+                        )
+                    }
+                }.also {
+                    loadingFolders.value = false
                 }
             }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
@@ -1133,7 +1135,7 @@ class Library(
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             LazyRow(
@@ -1161,16 +1163,6 @@ class Library(
                                     )
                                 }
                             }
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(
-                                content = { Icon(Icons.Default.PlayCircle, null) },
-                                onClick = onClick
-                            )
                             IconButton(
                                 content = { Icon(Icons.Default.MoreVert, null) },
                                 onClick = { showContextMenu = true }
