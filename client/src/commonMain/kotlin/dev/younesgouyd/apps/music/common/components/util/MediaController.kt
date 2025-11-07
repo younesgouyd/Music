@@ -172,7 +172,12 @@ class MediaController(
                         is MediaControllerState.Unavailable -> TODO()
                         is MediaControllerState.Loading -> TODO()
                         is MediaControllerState.Available -> {
-                            if (currentState.isPlaying.value) { wasPlaying = true; mediaPlayer.stop() }
+                            if (currentState.isPlaying.value) {
+                                wasPlaying = true
+                                mediaPlayer.stop()
+                            } else {
+                                wasPlaying = false
+                            }
                             isPlaying.value = false
                             currentState
                         }
