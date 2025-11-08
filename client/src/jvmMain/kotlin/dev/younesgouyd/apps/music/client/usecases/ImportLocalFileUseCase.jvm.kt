@@ -13,7 +13,11 @@ actual class ImportLocalFileUseCase actual constructor(
     actual val mediaFileRepo: MediaFileRepo = mediaFileRepo
     actual val saveAudioFileAsTrackUseCase: SaveAudioFileAsTrackUseCase = saveAudioFileAsTrackUseCase
 
-    actual suspend fun execute(inspection: Inspection.ItemInspection.LocalFileTrack, importSessionItemId: Long): Long {
+    actual suspend fun execute(
+        inspection: Inspection.ItemInspection.LocalFileTrack,
+        importSessionItemId: Long,
+        folderId: Long?
+    ): Long {
         URI(inspection.uri)
             .toPath()
             .toFile()
@@ -21,7 +25,8 @@ actual class ImportLocalFileUseCase actual constructor(
                 return import(
                     inspection = inspection,
                     importSessionItemId = importSessionItemId,
-                    data = it
+                    data = it,
+                    folderId = folderId
                 )
             }
     }
@@ -29,10 +34,11 @@ actual class ImportLocalFileUseCase actual constructor(
     private suspend fun import(
         inspection: Inspection.ItemInspection.LocalFileTrack,
         importSessionItemId: Long,
-        data: InputStream
+        data: InputStream,
+        folderId: Long?
     ): Long {
         val trackId = saveAudioFileAsTrackUseCase.execute(
-            folderId = null,
+            folderId = folderId,
             title = inspection.title,
             duration = inspection.duration,
             artists = inspection.artists,

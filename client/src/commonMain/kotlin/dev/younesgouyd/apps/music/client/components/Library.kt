@@ -122,11 +122,11 @@ class Library(
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
 
         playlists = currentFolder.flatMapLatest { parentFolder ->
+            loadingPlaylists.value = true
             searchQuery.flatMapLatest { search ->
-                loadingPlaylists.value = true
                 playlistRepo.searchFolder(parentFolder?.id, search)
                     .also {
-                        loadingFolders.value = false
+                        loadingPlaylists.value = false
                     }
             }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
@@ -146,7 +146,7 @@ class Library(
                         )
                     }
                 }.also {
-                    loadingFolders.value = false
+                    loadingTracks.value = false
                 }
             }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
@@ -411,7 +411,8 @@ class Library(
             inspection = dev.younesgouyd.apps.music.common.Inspection.Folder(
                 container = dev.younesgouyd.apps.music.common.Inspection.ContainerInspection.Folder(uri = uri),
                 items = items
-            )
+            ),
+            destinationFolderId = currentFolder.value?.id
         )
     }
 
@@ -421,7 +422,7 @@ class Library(
         selected: List<Long>
     ) {
         coroutineScope.launch {
-            importSessionWithItemsRepo.addUrlSession(url, inspection, selected)
+            importSessionWithItemsRepo.addUrlSession(url, inspection, selected, currentFolder.value?.id)
         }
     }
 
@@ -833,12 +834,10 @@ class Library(
                             horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (currentFolder == null) {
-                                IconButton(
-                                    onClick = onImportClick,
-                                    content = { Icon(Icons.Default.ImportExport, null) }
-                                )
-                            }
+                            IconButton(
+                                onClick = onImportClick,
+                                content = { Icon(Icons.Default.ImportExport, null) }
+                            )
                             IconButton(
                                 onClick = { newFolderFormVisible = true },
                                 content = { Icon(Icons.Default.CreateNewFolder, null) }
@@ -1548,12 +1547,10 @@ class Library(
                                 horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                if (currentFolder == null) {
-                                    IconButton(
-                                        onClick = onImportClick,
-                                        content = { Icon(Icons.Default.ImportExport, null) }
-                                    )
-                                }
+                                IconButton(
+                                    onClick = onImportClick,
+                                    content = { Icon(Icons.Default.ImportExport, null) }
+                                )
                                 IconButton(
                                     onClick = { newFolderFormVisible = true },
                                     content = { Icon(Icons.Default.CreateNewFolder, null) }

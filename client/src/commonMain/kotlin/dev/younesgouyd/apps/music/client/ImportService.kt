@@ -75,7 +75,7 @@ class ImportService(
                                             item = session
                                         )
                                     } catch (cancellation: CancellationException) {
-                                        if (cancellation.cause == IntendedCancellation()) {
+                                        if (cancellation.cause is IntendedCancellation) {
                                             println("import work for Session item ${session.id} was cancelled as intended")
                                         } else {
                                             cancellation.printStackTrace()
@@ -134,7 +134,8 @@ class ImportService(
                     playlistImg = null
                     importLocalFileUseCase.execute(
                         inspection = item.inspection as Inspection.ItemInspection.LocalFileTrack, // TODO
-                        importSessionItemId = item.id
+                        importSessionItemId = item.id,
+                        folderId = session.destinationFolderId
                     )
                 }
 
@@ -144,7 +145,8 @@ class ImportService(
                     playlistImg = container.thumbnail?.let { Base64.decode(it) }
                     importFromInternetUseCase.execute(
                         inspection = item.inspection as Inspection.ItemInspection.InternetTrack, // TODO
-                        importSessionItemId = item.id
+                        importSessionItemId = item.id,
+                        folderId = session.destinationFolderId
                     )
                 }
             }

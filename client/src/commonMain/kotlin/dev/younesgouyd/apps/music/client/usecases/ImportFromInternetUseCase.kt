@@ -9,7 +9,11 @@ class ImportFromInternetUseCase(
     val server: dev.younesgouyd.apps.music.client.data.Server,
     val saveAudioFileAsTrackUseCase: SaveAudioFileAsTrackUseCase
 ) {
-    suspend fun execute(inspection: Inspection.ItemInspection.InternetTrack, importSessionItemId: Long): Long? {
+    suspend fun execute(
+        inspection: Inspection.ItemInspection.InternetTrack,
+        importSessionItemId: Long,
+        folderId: Long?
+    ): Long? {
         val result: String = server.download(inspection.uri).first()
         return when (result) {
             "error" -> null
@@ -18,7 +22,8 @@ class ImportFromInternetUseCase(
                     return@use import(
                         inspection = inspection,
                         importSessionItemId = importSessionItemId,
-                        data = it
+                        data = it,
+                        folderId = folderId
                     )
                 }
             }
@@ -30,10 +35,11 @@ class ImportFromInternetUseCase(
     private suspend fun import(
         inspection: Inspection.ItemInspection.InternetTrack,
         importSessionItemId: Long,
-        data: InputStream
+        data: InputStream,
+        folderId: Long?
     ): Long {
         val trackId = saveAudioFileAsTrackUseCase.execute(
-            folderId = null,
+            folderId = folderId,
             title = inspection.title,
             duration = inspection.duration,
             artists = inspection.artists,

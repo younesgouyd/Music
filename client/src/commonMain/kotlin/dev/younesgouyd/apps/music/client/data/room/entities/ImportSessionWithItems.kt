@@ -8,12 +8,18 @@ import dev.younesgouyd.apps.music.common.Inspection
 @Dao
 interface ImportSessionWithItemsDao {
     @Transaction
-    suspend fun addUrlSession(url: String, inspection: Inspection.Webpage, selectedIds: List<Long>) {
+    suspend fun addUrlSession(
+        url: String,
+        inspection: Inspection.Webpage,
+        selectedIds: List<Long>,
+        destinationFolderId: Long?
+    ) {
         val currentTime = System.currentTimeMillis()
         val sessionId = add(
             uri = url,
             sourceType = ImportSession.SourceType.Internet,
             inspection = inspection.container,
+            destinationFolderId = destinationFolderId,
             creationDatetime = currentTime,
             updateDatetime = currentTime
         )
@@ -32,12 +38,17 @@ interface ImportSessionWithItemsDao {
     }
 
     @Transaction
-    suspend fun addLocalSession(uri: String, inspection: Inspection.Folder) {
+    suspend fun addLocalSession(
+        uri: String,
+        inspection: Inspection.Folder,
+        destinationFolderId: Long?
+    ) {
         val currentTime = System.currentTimeMillis()
         val sessionId = add(
             uri = uri,
             sourceType = ImportSession.SourceType.Local,
             inspection = inspection.container,
+            destinationFolderId = destinationFolderId,
             creationDatetime = currentTime,
             updateDatetime = currentTime
         )
@@ -56,14 +67,15 @@ interface ImportSessionWithItemsDao {
 
     @Query(
         """
-        insert into importsession (uri, sourceType, inspection, creationDatetime, updateDatetime)
-        values (:uri, :sourceType, :inspection, :creationDatetime, :updateDatetime)
+        insert into importsession (uri, sourceType, inspection, destinationFolderId, creationDatetime, updateDatetime)
+        values (:uri, :sourceType, :inspection, :destinationFolderId, :creationDatetime, :updateDatetime)
     """
     )
     suspend fun add(
         uri: String,
         sourceType: ImportSession.SourceType,
         inspection: Inspection.ContainerInspection,
+        destinationFolderId: Long?,
         creationDatetime: Long,
         updateDatetime: Long
     ): Long
