@@ -2,28 +2,28 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <application
-            android:name=".Music"
+            android:name="dev.younesgouyd.apps.music.client.android.Music"
             android:allowBackup="true"
             android:icon="@mipmap/ic_launcher"
-            android:label="@string/app_name"
+            android:label="Music"
             android:supportsRtl="true"
             android:theme="@style/Theme.Music"
             android:largeHeap="true">
         <activity
-                android:name=".MainActivity"
+                android:name="dev.younesgouyd.apps.music.client.android.MainActivity"
                 android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
         <service
-                android:name=".PlaybackService"
+                android:name="dev.younesgouyd.apps.music.client.android.PlaybackService"
                 android:foregroundServiceType="mediaPlayback"
                 android:exported="true">
             <intent-filter>
