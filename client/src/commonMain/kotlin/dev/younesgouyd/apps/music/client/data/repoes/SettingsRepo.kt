@@ -1,10 +1,13 @@
 package dev.younesgouyd.apps.music.client.data.repoes
 
+import dev.younesgouyd.apps.music.client.data.room.entities.Setting
+import dev.younesgouyd.apps.music.client.data.room.entities.SettingDao
+import dev.younesgouyd.apps.music.client.util.DarkThemeOptions
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
 class SettingsRepo(
-    private val dao: dev.younesgouyd.apps.music.client.data.room.entities.SettingDao
+    private val dao: SettingDao
 ) {
     suspend fun init() {
         val darkTheme = getDarkTheme().first()
@@ -25,15 +28,15 @@ class SettingsRepo(
         }
     }
 
-    fun getDarkTheme(): Flow<dev.younesgouyd.apps.music.client.data.room.entities.Setting?> {
+    fun getDarkTheme(): Flow<Setting?> {
         return dao.getDarkTheme()
     }
 
-    suspend fun updateDarkTheme(theme: dev.younesgouyd.apps.music.client.util.DarkThemeOptions) {
+    suspend fun updateDarkTheme(theme: DarkThemeOptions) {
         dao.updateDarkTheme(darkTheme = theme, System.currentTimeMillis())
     }
 
-    fun getServerAddress(): Flow<dev.younesgouyd.apps.music.client.data.room.entities.Setting?> {
+    fun getServerAddress(): Flow<Setting?> {
         return dao.getServerAddress()
     }
 

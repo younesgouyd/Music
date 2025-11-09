@@ -12,30 +12,32 @@ import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.ImportService
 import dev.younesgouyd.apps.music.client.components.util.MediaController
 import dev.younesgouyd.apps.music.client.components.util.compose.AdaptiveUi
+import dev.younesgouyd.apps.music.client.data.RepoStore
 import dev.younesgouyd.apps.music.client.usecases.ImportFromInternetUseCase
 import dev.younesgouyd.apps.music.client.usecases.ImportLocalFileUseCase
 import dev.younesgouyd.apps.music.client.usecases.SaveAudioFileAsTrackUseCase
 import dev.younesgouyd.apps.music.client.util.Component
+import dev.younesgouyd.apps.music.client.util.DarkThemeOptions
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
 
 class Main(
-    private val repoStore: dev.younesgouyd.apps.music.client.data.RepoStore,
+    private val repoStore: RepoStore,
     mediaPlayer: MediaController.MediaPlayer
 ) : Component() {
     override val title: String = ""
-    private val darkTheme: StateFlow<dev.younesgouyd.apps.music.client.util.DarkThemeOptions> =
+    private val darkTheme: StateFlow<DarkThemeOptions> =
         repoStore.settingsRepo.getDarkTheme()
             .map {
                 it!!.value?.let {
-                    dev.younesgouyd.apps.music.client.util.DarkThemeOptions.valueOf(it)
-                } ?: dev.younesgouyd.apps.music.client.util.DarkThemeOptions.SystemDefault
+                    DarkThemeOptions.valueOf(it)
+                } ?: DarkThemeOptions.SystemDefault
             }.stateIn(
                 scope = coroutineScope,
                 started = SharingStarted.WhileSubscribed(),
-                initialValue = dev.younesgouyd.apps.music.client.util.DarkThemeOptions.SystemDefault
+                initialValue = DarkThemeOptions.SystemDefault
             )
 
     private val mediaController = MediaController(
@@ -203,7 +205,7 @@ class Main(
             @Composable
             fun Main(
                 modifier: Modifier,
-                darkTheme: dev.younesgouyd.apps.music.client.util.DarkThemeOptions,
+                darkTheme: DarkThemeOptions,
                 mainComponent: StateFlow<Component>,
                 player: Component,
                 miniPlayer: Component,
@@ -277,14 +279,14 @@ class Main(
 
             @Composable
             fun YounesMusicTheme(
-                darkTheme: dev.younesgouyd.apps.music.client.util.DarkThemeOptions = dev.younesgouyd.apps.music.client.util.DarkThemeOptions.SystemDefault,
+                darkTheme: DarkThemeOptions = DarkThemeOptions.SystemDefault,
                 content: @Composable () -> Unit
             ) {
                 MaterialTheme(
                     colorScheme = when (darkTheme) {
-                        dev.younesgouyd.apps.music.client.util.DarkThemeOptions.SystemDefault -> if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()
-                        dev.younesgouyd.apps.music.client.util.DarkThemeOptions.Disabled -> lightColorScheme()
-                        dev.younesgouyd.apps.music.client.util.DarkThemeOptions.Enabled -> darkColorScheme()
+                        DarkThemeOptions.SystemDefault -> if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()
+                        DarkThemeOptions.Disabled -> lightColorScheme()
+                        DarkThemeOptions.Enabled -> darkColorScheme()
                     },
                     content = content
                 )
@@ -295,7 +297,7 @@ class Main(
             @Composable
             fun Main(
                 modifier: Modifier,
-                darkTheme: dev.younesgouyd.apps.music.client.util.DarkThemeOptions,
+                darkTheme: DarkThemeOptions,
                 mainComponentType: StateFlow<MainComponentType>,
                 mainComponent: StateFlow<Component>,
                 player: Component,
@@ -366,14 +368,14 @@ class Main(
 
             @Composable
             fun YounesMusicTheme(
-                darkTheme: dev.younesgouyd.apps.music.client.util.DarkThemeOptions = dev.younesgouyd.apps.music.client.util.DarkThemeOptions.SystemDefault,
+                darkTheme: DarkThemeOptions = DarkThemeOptions.SystemDefault,
                 content: @Composable () -> Unit
             ) {
                 MaterialTheme(
                     colorScheme = when (darkTheme) {
-                        dev.younesgouyd.apps.music.client.util.DarkThemeOptions.SystemDefault -> if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()
-                        dev.younesgouyd.apps.music.client.util.DarkThemeOptions.Disabled -> lightColorScheme()
-                        dev.younesgouyd.apps.music.client.util.DarkThemeOptions.Enabled -> darkColorScheme()
+                        DarkThemeOptions.SystemDefault -> if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()
+                        DarkThemeOptions.Disabled -> lightColorScheme()
+                        DarkThemeOptions.Enabled -> darkColorScheme()
                     },
                     content = content
                 )

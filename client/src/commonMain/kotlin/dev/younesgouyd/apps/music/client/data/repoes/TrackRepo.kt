@@ -1,41 +1,43 @@
 package dev.younesgouyd.apps.music.client.data.repoes
 
+import dev.younesgouyd.apps.music.client.data.room.entities.Track
+import dev.younesgouyd.apps.music.client.data.room.entities.TrackDao
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
 import dev.younesgouyd.apps.music.common.Base64String
 import kotlinx.coroutines.flow.Flow
 import kotlin.time.Duration
 
-class TrackRepo(private val dao: dev.younesgouyd.apps.music.client.data.room.entities.TrackDao) {
-    fun get(id: Long): Flow<dev.younesgouyd.apps.music.client.data.room.entities.Track> {
+class TrackRepo(private val dao: TrackDao) {
+    fun get(id: Long): Flow<Track> {
         return dao.get(id)
     }
 
     fun searchFolder(
         folderId: Long?,
         nameQuery: String
-    ): Flow<List<dev.younesgouyd.apps.music.client.data.room.entities.Track>> {
+    ): Flow<List<Track>> {
         return dao.searchFolder(folderId, nameQuery.toSearchQuery())
     }
 
     fun searchArtist(
         artistId: Long,
         nameQuery: String
-    ): Flow<List<dev.younesgouyd.apps.music.client.data.room.entities.Track>> {
+    ): Flow<List<Track>> {
         return dao.searchArtist(artistId, nameQuery.toSearchQuery())
     }
 
     fun searchPlaylist(
         playlistId: Long,
         nameQuery: String
-    ): Flow<List<dev.younesgouyd.apps.music.client.data.room.entities.Track>> {
+    ): Flow<List<Track>> {
         return dao.searchPlaylist(playlistId, nameQuery.toSearchQuery())
     }
 
-    fun getFolderTracks(folderId: Long?): Flow<List<dev.younesgouyd.apps.music.client.data.room.entities.Track>> {
+    fun getFolderTracks(folderId: Long?): Flow<List<Track>> {
         return if (folderId != null) dao.getFolderTracks(folderId) else dao.getRootFolderTracks()
     }
 
-    fun getPlaylistTracks(playlistId: Long): Flow<List<dev.younesgouyd.apps.music.client.data.room.entities.Track>> {
+    fun getPlaylistTracks(playlistId: Long): Flow<List<Track>> {
         return dao.getPlaylistTracks(playlistId)
     }
 

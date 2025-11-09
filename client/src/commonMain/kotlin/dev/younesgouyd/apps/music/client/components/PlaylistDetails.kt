@@ -23,6 +23,7 @@ import dev.younesgouyd.apps.music.client.components.util.MediaController
 import dev.younesgouyd.apps.music.client.components.util.compose.AdaptiveUi
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.*
 import dev.younesgouyd.apps.music.client.data.repoes.*
+import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -39,7 +40,7 @@ class PlaylistDetails(
     private val mediaController: MediaController,
     showImport: (id: Long) -> Unit,
     showArtistDetails: (id: Long) -> Unit
-) : dev.younesgouyd.apps.music.client.util.Component() {
+) : Component() {
     override val title: String = "Playlist"
     private val state: MutableStateFlow<PlaylistDetailsState> = MutableStateFlow(PlaylistDetailsState.Loading)
     private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
@@ -183,7 +184,7 @@ class PlaylistDetails(
             val playlist: StateFlow<Playlist>,
             val tracks: StateFlow<List<Track>>,
             val addToPlaylistDialogVisible: StateFlow<Boolean>,
-            val addToPlaylist: StateFlow<dev.younesgouyd.apps.music.client.util.Component?>,
+            val addToPlaylist: StateFlow<Component?>,
             val searchQuery: StateFlow<String>,
             val scrollState: LazyListState,
             val onPlayClick: () -> Unit,

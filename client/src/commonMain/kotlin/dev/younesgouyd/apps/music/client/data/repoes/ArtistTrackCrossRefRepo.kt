@@ -1,6 +1,8 @@
 package dev.younesgouyd.apps.music.client.data.repoes
 
-class ArtistTrackCrossRefRepo(private val dao: dev.younesgouyd.apps.music.client.data.room.entities.ArtistTrackCrossRefDao) {
+import dev.younesgouyd.apps.music.client.data.room.entities.ArtistTrackCrossRefDao
+
+class ArtistTrackCrossRefRepo(private val dao: ArtistTrackCrossRefDao) {
     suspend fun add(artistId: Long, trackId: Long) {
         val currentTime = System.currentTimeMillis()
         dao.add(

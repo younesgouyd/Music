@@ -1,9 +1,10 @@
 package dev.younesgouyd.apps.music.client.data.repoes
 
+import dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionWithItemsDao
 import dev.younesgouyd.apps.music.common.Inspection
 
 class ImportSessionWithItemsRepo(
-    private val dao: dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionWithItemsDao,
+    private val dao: ImportSessionWithItemsDao,
 ) {
     suspend fun addLocalSession(inspection: Inspection.Folder, destinationFolderId: Long?) {
         require(inspection.container.uri.isNotBlank() && inspection.items.isNotEmpty())

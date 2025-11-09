@@ -1,6 +1,7 @@
 package dev.younesgouyd.apps.music.client.data
 
 import dev.younesgouyd.apps.music.client.data.repoes.*
+import dev.younesgouyd.apps.music.client.data.room.AppDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -9,7 +10,7 @@ import java.io.File
 class RepoStore(
     private val appDir: File,
     private val applicationScope: CoroutineScope,
-    private val database: dev.younesgouyd.apps.music.client.data.room.AppDatabase
+    private val database: AppDatabase
 ) {
     lateinit var fileManager: FileManager private set
     lateinit var server: Server private set

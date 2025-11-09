@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import dev.younesgouyd.apps.music.client.data.room.entities.Folder
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -32,19 +33,19 @@ data class ItemToMove(
 @Composable
 fun MoveToFolderDialog(
     itemToMove: ItemToMove,
-    loadFolders: suspend (parentFolderId: Long?) -> List<dev.younesgouyd.apps.music.client.data.room.entities.Folder>,
+    loadFolders: suspend (parentFolderId: Long?) -> List<Folder>,
     onMoveToFolder: (id: Long) -> Unit,
     onDismissRequest: () -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
-    var path: Set<dev.younesgouyd.apps.music.client.data.room.entities.Folder?> by remember { mutableStateOf(setOf(null)) }
+    var path: Set<Folder?> by remember { mutableStateOf(setOf(null)) }
     val pathLazyListState = rememberLazyListState()
-    val folders: SnapshotStateList<dev.younesgouyd.apps.music.client.data.room.entities.Folder> =
+    val folders: SnapshotStateList<Folder> =
         remember { mutableStateListOf() }
     val lazyColumnState = rememberLazyListState()
     var currentCollection: Job? by remember { mutableStateOf<Job?>(null) }
 
-    fun onFolderClick(folder: dev.younesgouyd.apps.music.client.data.room.entities.Folder?) {
+    fun onFolderClick(folder: Folder?) {
         currentCollection?.cancel()
         currentCollection = coroutineScope.launch {
             folders.clear()

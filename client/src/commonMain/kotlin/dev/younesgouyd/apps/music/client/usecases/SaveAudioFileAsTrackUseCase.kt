@@ -1,11 +1,12 @@
 package dev.younesgouyd.apps.music.client.usecases
 
+import dev.younesgouyd.apps.music.client.data.RepoStore
 import dev.younesgouyd.apps.music.common.Base64String
 import kotlinx.coroutines.flow.first
 import kotlin.time.Duration
 
 class SaveAudioFileAsTrackUseCase(
-    private val repoStore: dev.younesgouyd.apps.music.client.data.RepoStore
+    private val repoStore: RepoStore
 ) {
     private val trackRepo get() = repoStore.trackRepo
     private val artistRepo get() = repoStore.artistRepo

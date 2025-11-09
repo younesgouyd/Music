@@ -1,8 +1,10 @@
 package dev.younesgouyd.apps.music.client.data.repoes
 
+import dev.younesgouyd.apps.music.client.data.room.entities.PlaylistTrackCrossRef
+import dev.younesgouyd.apps.music.client.data.room.entities.PlaylistTrackCrossRefDao
 import kotlinx.coroutines.flow.Flow
 
-class PlaylistTrackCrossRefRepo(private val dao: dev.younesgouyd.apps.music.client.data.room.entities.PlaylistTrackCrossRefDao) {
+class PlaylistTrackCrossRefRepo(private val dao: PlaylistTrackCrossRefDao) {
     suspend fun add(playlistId: Long, trackId: Long) {
         val currentTime = System.currentTimeMillis()
         dao.add(
@@ -16,7 +18,7 @@ class PlaylistTrackCrossRefRepo(private val dao: dev.younesgouyd.apps.music.clie
     fun get(
         playlistId: Long,
         trackId: Long
-    ): Flow<dev.younesgouyd.apps.music.client.data.room.entities.PlaylistTrackCrossRef?> {
+    ): Flow<PlaylistTrackCrossRef?> {
         return dao.get(playlistId, trackId)
     }
 

@@ -15,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.components.util.MediaController
+import dev.younesgouyd.apps.music.client.data.RepoStore
+import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,10 +27,10 @@ import java.util.*
 
 class NavigationHost(
     private val toggleDrawerState: suspend () -> Unit,
-    repoStore: dev.younesgouyd.apps.music.client.data.RepoStore,
+    repoStore: RepoStore,
     mediaController: MediaController,
     startDestination: Destination
-) : dev.younesgouyd.apps.music.client.util.Component() {
+) : Component() {
     override val title: String = ""
     private val navController = NavigationController(repoStore, mediaController, startDestination)
 
@@ -97,12 +99,12 @@ class NavigationHost(
     }
 
     private class NavigationController(
-        private val repoStore: dev.younesgouyd.apps.music.client.data.RepoStore,
+        private val repoStore: RepoStore,
         private val mediaController: MediaController,
         startDestination: Destination
     ) {
         val inHome: StateFlow<Boolean>
-        val currentDestination: StateFlow<dev.younesgouyd.apps.music.client.util.Component>
+        val currentDestination: StateFlow<Component>
 
         private val destinationFactory: DestinationFactory = DestinationFactory()
         private val backStack: BackStack
@@ -129,18 +131,18 @@ class NavigationHost(
             }
         }
 
-        private class BackStack(startDestination: dev.younesgouyd.apps.music.client.util.Component) {
+        private class BackStack(startDestination: Component) {
             val inHome: MutableStateFlow<Boolean>
-            val currentDestination: MutableStateFlow<dev.younesgouyd.apps.music.client.util.Component>
-            private val stack: Stack<dev.younesgouyd.apps.music.client.util.Component>
+            val currentDestination: MutableStateFlow<Component>
+            private val stack: Stack<Component>
 
             init {
-                stack = Stack<dev.younesgouyd.apps.music.client.util.Component>().apply { push(startDestination) }
+                stack = Stack<Component>().apply { push(startDestination) }
                 currentDestination = MutableStateFlow(startDestination)
                 inHome = MutableStateFlow(true)
             }
 
-            fun push(component: dev.younesgouyd.apps.music.client.util.Component) {
+            fun push(component: Component) {
                 stack.push(component)
                 currentDestination.update { stack.peek() }
                 inHome.update { false }
@@ -154,7 +156,7 @@ class NavigationHost(
                 inHome.update { stack.size == 1 }
             }
 
-            fun top(): dev.younesgouyd.apps.music.client.util.Component {
+            fun top(): Component {
                 return stack.peek()
             }
 
@@ -164,7 +166,7 @@ class NavigationHost(
         }
 
         private inner class DestinationFactory {
-            fun get(destination: Destination): dev.younesgouyd.apps.music.client.util.Component {
+            fun get(destination: Destination): Component {
                 return when (destination) {
                     is Destination.Library -> Library(
                         server = repoStore.server,

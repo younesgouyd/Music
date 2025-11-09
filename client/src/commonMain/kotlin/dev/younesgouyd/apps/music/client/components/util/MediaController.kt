@@ -1,5 +1,10 @@
 package dev.younesgouyd.apps.music.client.components.util
 
+import dev.younesgouyd.apps.music.client.data.RepoStore
+import dev.younesgouyd.apps.music.client.data.repoes.ArtistRepo
+import dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo
+import dev.younesgouyd.apps.music.client.data.repoes.PlaylistRepo
+import dev.younesgouyd.apps.music.client.data.repoes.TrackRepo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -12,7 +17,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class MediaController(
     private val mediaPlayer: MediaPlayer,
-    private val repoStore: dev.younesgouyd.apps.music.client.data.RepoStore
+    private val repoStore: RepoStore
 ) {
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
     private val mutex = Mutex()
@@ -21,10 +26,10 @@ class MediaController(
     private val isPlaying: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val timePositionChange: MutableStateFlow<Duration> = MutableStateFlow(0.milliseconds)
 
-    private val mediaFileRepo: dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo get() = repoStore.mediaFileRepo
-    private val trackRepo: dev.younesgouyd.apps.music.client.data.repoes.TrackRepo get() = repoStore.trackRepo
-    private val artistRepo: dev.younesgouyd.apps.music.client.data.repoes.ArtistRepo get() = repoStore.artistRepo
-    private val playlistRepo: dev.younesgouyd.apps.music.client.data.repoes.PlaylistRepo get() = repoStore.playlistRepo
+    private val mediaFileRepo: MediaFileRepo get() = repoStore.mediaFileRepo
+    private val trackRepo: TrackRepo get() = repoStore.trackRepo
+    private val artistRepo: ArtistRepo get() = repoStore.artistRepo
+    private val playlistRepo: PlaylistRepo get() = repoStore.playlistRepo
 
     val state: StateFlow<MediaControllerState> get() = _state.asStateFlow()
 

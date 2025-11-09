@@ -1,36 +1,37 @@
 package dev.younesgouyd.apps.music.client.data.room
 
 import androidx.room.*
+import dev.younesgouyd.apps.music.client.data.room.entities.*
 
 @Database(
     entities = [
-        dev.younesgouyd.apps.music.client.data.room.entities.Artist::class,
-        dev.younesgouyd.apps.music.client.data.room.entities.ArtistTrackCrossRef::class,
-        dev.younesgouyd.apps.music.client.data.room.entities.Folder::class,
-        dev.younesgouyd.apps.music.client.data.room.entities.ImportSession::class,
-        dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem::class,
-        dev.younesgouyd.apps.music.client.data.room.entities.MediaFile::class,
-        dev.younesgouyd.apps.music.client.data.room.entities.Playlist::class,
-        dev.younesgouyd.apps.music.client.data.room.entities.PlaylistTrackCrossRef::class,
-        dev.younesgouyd.apps.music.client.data.room.entities.Setting::class,
-        dev.younesgouyd.apps.music.client.data.room.entities.Track::class
+        Artist::class,
+        ArtistTrackCrossRef::class,
+        Folder::class,
+        ImportSession::class,
+        ImportSessionItem::class,
+        MediaFile::class,
+        Playlist::class,
+        PlaylistTrackCrossRef::class,
+        Setting::class,
+        Track::class
     ],
     version = 1
 )
 @TypeConverters(Converters::class)
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun artistDao(): dev.younesgouyd.apps.music.client.data.room.entities.ArtistDao
-    abstract fun artistTrackCrossRefDao(): dev.younesgouyd.apps.music.client.data.room.entities.ArtistTrackCrossRefDao
-    abstract fun folderDao(): dev.younesgouyd.apps.music.client.data.room.entities.FolderDao
-    abstract fun importSessionDao(): dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionDao
-    abstract fun importSessionItemDao(): dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItemDao
-    abstract fun importSessionWithItemsDao(): dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionWithItemsDao
-    abstract fun mediaFileDao(): dev.younesgouyd.apps.music.client.data.room.entities.MediaFileDao
-    abstract fun playlistDao(): dev.younesgouyd.apps.music.client.data.room.entities.PlaylistDao
-    abstract fun playlistTrackCrossRefDao(): dev.younesgouyd.apps.music.client.data.room.entities.PlaylistTrackCrossRefDao
-    abstract fun settingDao(): dev.younesgouyd.apps.music.client.data.room.entities.SettingDao
-    abstract fun trackDao(): dev.younesgouyd.apps.music.client.data.room.entities.TrackDao
+    abstract fun artistDao(): ArtistDao
+    abstract fun artistTrackCrossRefDao(): ArtistTrackCrossRefDao
+    abstract fun folderDao(): FolderDao
+    abstract fun importSessionDao(): ImportSessionDao
+    abstract fun importSessionItemDao(): ImportSessionItemDao
+    abstract fun importSessionWithItemsDao(): ImportSessionWithItemsDao
+    abstract fun mediaFileDao(): MediaFileDao
+    abstract fun playlistDao(): PlaylistDao
+    abstract fun playlistTrackCrossRefDao(): PlaylistTrackCrossRefDao
+    abstract fun settingDao(): SettingDao
+    abstract fun trackDao(): TrackDao
 }
 
 @Suppress("NO_ACTUAL_FOR_EXPECT")

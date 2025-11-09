@@ -10,14 +10,16 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import dev.younesgouyd.apps.music.client.data.RepoStore
+import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 class SplashScreen(
-    private val repoStore: dev.younesgouyd.apps.music.client.data.RepoStore,
+    private val repoStore: RepoStore,
     private val showContent: () -> Unit
-) : dev.younesgouyd.apps.music.client.util.Component() {
+) : Component() {
     override val title: String = ""
     private val message = MutableStateFlow("Loading")
 

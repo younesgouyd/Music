@@ -24,6 +24,11 @@ import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.components.util.MediaController
 import dev.younesgouyd.apps.music.client.components.util.compose.AdaptiveUi
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.*
+import dev.younesgouyd.apps.music.client.data.repoes.FolderRepo
+import dev.younesgouyd.apps.music.client.data.repoes.PlaylistRepo
+import dev.younesgouyd.apps.music.client.data.repoes.PlaylistTrackCrossRefRepo
+import dev.younesgouyd.apps.music.client.data.repoes.TrackRepo
+import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -31,13 +36,13 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistList(
-    private val playlistRepo: dev.younesgouyd.apps.music.client.data.repoes.PlaylistRepo,
-    private val playlistTrackCrossRefRepo: dev.younesgouyd.apps.music.client.data.repoes.PlaylistTrackCrossRefRepo,
-    private val trackRepo: dev.younesgouyd.apps.music.client.data.repoes.TrackRepo,
-    private val folderRepo: dev.younesgouyd.apps.music.client.data.repoes.FolderRepo,
+    private val playlistRepo: PlaylistRepo,
+    private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
+    private val trackRepo: TrackRepo,
+    private val folderRepo: FolderRepo,
     private val mediaController: MediaController,
     showPlaylistDetails: (id: Long) -> Unit
-) : dev.younesgouyd.apps.music.client.util.Component() {
+) : Component() {
     override val title: String = "Playlists"
     private val state: MutableStateFlow<PlaylistListState> = MutableStateFlow(PlaylistListState.Loading)
     private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
@@ -138,7 +143,7 @@ class PlaylistList(
         data class Loaded(
             val playlists: StateFlow<List<PlaylistListItem>>,
             val addToPlaylistDialogVisible: StateFlow<Boolean>,
-            val addToPlaylist: StateFlow<dev.younesgouyd.apps.music.client.util.Component?>,
+            val addToPlaylist: StateFlow<Component?>,
             val searchQuery: StateFlow<String>,
             val scrollState: LazyGridState,
             val onSearchQueryChange: (String) -> Unit,

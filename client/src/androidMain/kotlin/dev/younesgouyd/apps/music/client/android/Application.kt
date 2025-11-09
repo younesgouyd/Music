@@ -18,7 +18,7 @@ import dev.younesgouyd.apps.music.client.components.Main
 import dev.younesgouyd.apps.music.client.components.SplashScreen
 import dev.younesgouyd.apps.music.client.data.RepoStore
 import dev.younesgouyd.apps.music.client.data.room.AppDatabase
-import dev.younesgouyd.apps.music.util.Component
+import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update

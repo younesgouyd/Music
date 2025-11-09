@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item
 import dev.younesgouyd.apps.music.client.data.repoes.FolderRepo
 import dev.younesgouyd.apps.music.client.data.repoes.PlaylistRepo
 import dev.younesgouyd.apps.music.client.data.repoes.PlaylistTrackCrossRefRepo
@@ -268,7 +269,7 @@ class AddToPlaylist(
                                 item {
                                     var name by remember { mutableStateOf("") }
 
-                                    dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item(
+                                    Item(
                                         modifier = Modifier.padding(8.dp)
                                     ) {
                                         Row(
@@ -302,7 +303,7 @@ class AddToPlaylist(
                                     items = playlists,
                                     key = { it.id }
                                 ) { playlistOption ->
-                                    dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item(
+                                    Item(
                                         modifier = Modifier.padding(8.dp),
                                         onClick = {
                                             loaded.onAddTopPlaylist(

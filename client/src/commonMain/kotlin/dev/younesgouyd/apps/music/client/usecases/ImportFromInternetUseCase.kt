@@ -1,12 +1,14 @@
 package dev.younesgouyd.apps.music.client.usecases
 
+import dev.younesgouyd.apps.music.client.data.Server
+import dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.common.Inspection
 import kotlinx.coroutines.flow.first
 import java.io.InputStream
 
 class ImportFromInternetUseCase(
-    val mediaFileRepo: dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo,
-    val server: dev.younesgouyd.apps.music.client.data.Server,
+    val mediaFileRepo: MediaFileRepo,
+    val server: Server,
     val saveAudioFileAsTrackUseCase: SaveAudioFileAsTrackUseCase
 ) {
     suspend fun execute(

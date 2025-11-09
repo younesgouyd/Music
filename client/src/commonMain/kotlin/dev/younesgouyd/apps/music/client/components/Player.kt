@@ -20,6 +20,7 @@ import dev.younesgouyd.apps.music.client.components.util.compose.PlaybackSlider
 import dev.younesgouyd.apps.music.client.components.util.compose.formatted
 import dev.younesgouyd.apps.music.client.components.util.compose.linearAnimation
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Image
+import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,7 +34,7 @@ class Player(
     showArtistDetails: (Long) -> Unit,
     showQueue: () -> Unit,
     minimizePlayer: () -> Unit
-) : dev.younesgouyd.apps.music.client.util.Component() {
+) : Component() {
     override val title: String = "Player"
     private val state: MutableStateFlow<PlayerState> = MutableStateFlow(PlayerState.Unavailable)
 

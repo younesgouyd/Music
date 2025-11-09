@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.components.util.MediaController
 import dev.younesgouyd.apps.music.client.components.util.compose.AdaptiveUi
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Image
+import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,7 +29,7 @@ import kotlinx.coroutines.launch
 class Queue(
     private val mediaController: MediaController,
     close: () -> Unit
-) : dev.younesgouyd.apps.music.client.util.Component() {
+) : Component() {
     override val title: String = "Queue"
     private val state: MutableStateFlow<QueueState> = MutableStateFlow(QueueState.Unavailable)
 

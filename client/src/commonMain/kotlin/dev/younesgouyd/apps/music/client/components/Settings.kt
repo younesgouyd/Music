@@ -11,13 +11,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.client.data.repoes.SettingsRepo
+import dev.younesgouyd.apps.music.client.util.Component
+import dev.younesgouyd.apps.music.client.util.DarkThemeOptions
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class Settings(
-    private val settingsRepo: dev.younesgouyd.apps.music.client.data.repoes.SettingsRepo
-) : dev.younesgouyd.apps.music.client.util.Component() {
+    private val settingsRepo: SettingsRepo
+) : Component() {
     override val title: String = "Settings"
     private val state: MutableStateFlow<SettingsState> = MutableStateFlow(SettingsState.Loading)
 
@@ -27,11 +30,7 @@ class Settings(
                 SettingsState.Loaded(
                     darkTheme = settingsRepo.getDarkTheme()
                         .map {
-                            it!!.value?.let {
-                                dev.younesgouyd.apps.music.client.util.DarkThemeOptions.valueOf(
-                                    it
-                                )
-                            }
+                            it!!.value?.let { DarkThemeOptions.valueOf(it) }
                         }.stateIn(coroutineScope),
                     serverAddress = settingsRepo.getServerAddress().map { it!!.value }.stateIn(coroutineScope),
                     onDarkThemeChange = ::updateDarkTheme,
@@ -52,7 +51,7 @@ class Settings(
         coroutineScope.cancel()
     }
 
-    private fun updateDarkTheme(newValue: dev.younesgouyd.apps.music.client.util.DarkThemeOptions) {
+    private fun updateDarkTheme(newValue: DarkThemeOptions) {
         coroutineScope.launch {
             settingsRepo.updateDarkTheme(newValue)
         }
@@ -68,9 +67,9 @@ class Settings(
         data object Loading : SettingsState()
 
         data class Loaded(
-            val darkTheme: StateFlow<dev.younesgouyd.apps.music.client.util.DarkThemeOptions?>,
+            val darkTheme: StateFlow<DarkThemeOptions?>,
             val serverAddress: StateFlow<String?>,
-            val onDarkThemeChange: (dev.younesgouyd.apps.music.client.util.DarkThemeOptions) -> Unit,
+            val onDarkThemeChange: (DarkThemeOptions) -> Unit,
             val onServerAddressChange: (String) -> Unit
         ) : SettingsState()
     }
@@ -112,8 +111,8 @@ class Settings(
         @Composable
         private fun DarkTheme(
             modifier: Modifier = Modifier,
-            selectedOption: dev.younesgouyd.apps.music.client.util.DarkThemeOptions?,
-            onDarkThemeChange: (dev.younesgouyd.apps.music.client.util.DarkThemeOptions) -> Unit
+            selectedOption: DarkThemeOptions?,
+            onDarkThemeChange: (DarkThemeOptions) -> Unit
         ) {
             var expanded by remember { mutableStateOf(false) }
 
@@ -140,7 +139,7 @@ class Settings(
                         expanded = expanded,
                         onDismissRequest = { expanded = false }
                     ) {
-                        for (darkThemeOption in dev.younesgouyd.apps.music.client.util.DarkThemeOptions.entries) {
+                        for (darkThemeOption in DarkThemeOptions.entries) {
                             DropdownMenuItem(
                                 text = { Text(darkThemeOption.label) },
                                 onClick = {

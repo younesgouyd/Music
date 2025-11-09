@@ -1,21 +1,23 @@
 package dev.younesgouyd.apps.music.client.data.repoes
 
+import dev.younesgouyd.apps.music.client.data.room.entities.Folder
+import dev.younesgouyd.apps.music.client.data.room.entities.FolderDao
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
 import kotlinx.coroutines.flow.Flow
 
-class FolderRepo(private val dao: dev.younesgouyd.apps.music.client.data.room.entities.FolderDao) {
-    fun get(id: Long): Flow<dev.younesgouyd.apps.music.client.data.room.entities.Folder> {
+class FolderRepo(private val dao: FolderDao) {
+    fun get(id: Long): Flow<Folder> {
         return dao.get(id)
     }
 
     fun searchFolder(
         folderId: Long?,
         nameQuery: String
-    ): Flow<List<dev.younesgouyd.apps.music.client.data.room.entities.Folder>> {
+    ): Flow<List<Folder>> {
         return dao.searchFolder(folderId, nameQuery.toSearchQuery())
     }
 
-    fun getSubfolders(id: Long?): Flow<List<dev.younesgouyd.apps.music.client.data.room.entities.Folder>> {
+    fun getSubfolders(id: Long?): Flow<List<Folder>> {
         return if (id == null) {
             dao.getRoot()
         } else {

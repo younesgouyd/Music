@@ -1,6 +1,7 @@
 package dev.younesgouyd.apps.music.client.data.room.entities
 
 import androidx.room.*
+import dev.younesgouyd.apps.music.client.util.DarkThemeOptions
 import kotlinx.coroutines.flow.Flow
 
 @Entity(
@@ -30,7 +31,7 @@ interface SettingDao {
     """
     )
     suspend fun initDarkTheme(
-        darkTheme: dev.younesgouyd.apps.music.client.util.DarkThemeOptions = dev.younesgouyd.apps.music.client.util.DarkThemeOptions.Enabled,
+        darkTheme: DarkThemeOptions = DarkThemeOptions.Enabled,
         creationDatetime: Long,
         updateDatetime: Long
     )
@@ -49,7 +50,7 @@ interface SettingDao {
 
     @Query("update setting set value = :darkTheme, updateDatetime = :updateDatetime where name = 'dark_theme'")
     suspend fun updateDarkTheme(
-        darkTheme: dev.younesgouyd.apps.music.client.util.DarkThemeOptions,
+        darkTheme: DarkThemeOptions,
         updateDatetime: Long
     )
 

@@ -1,30 +1,32 @@
 package dev.younesgouyd.apps.music.client.data.repoes
 
+import dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem
+import dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItemDao
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
 import kotlinx.coroutines.flow.Flow
 
 class ImportSessionItemRepo(
-    private val dao: dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItemDao
+    private val dao: ImportSessionItemDao
 ) {
-    fun get(id: Long): Flow<dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem> {
+    fun get(id: Long): Flow<ImportSessionItem> {
         return dao.get(id)
     }
 
-    fun getOldestPending(): Flow<dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem?> {
-        return dao.getOldest(dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem.State.Pending)
+    fun getOldestPending(): Flow<ImportSessionItem?> {
+        return dao.getOldest(ImportSessionItem.State.Pending)
     }
 
     fun search(
         importSessionId: Long,
-        state: dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem.State,
+        state: ImportSessionItem.State,
         titleQuery: String
-    ): Flow<List<dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem>> {
+    ): Flow<List<ImportSessionItem>> {
         return dao.search(importSessionId, state, titleQuery.toSearchQuery())
     }
 
     suspend fun updateState(
         id: Long,
-        state: dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem.State
+        state: ImportSessionItem.State
     ) {
         dao.updateState(
             state = state,

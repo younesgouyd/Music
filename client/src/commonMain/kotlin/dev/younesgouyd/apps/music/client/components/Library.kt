@@ -636,7 +636,7 @@ class Library(
                 tracks: StateFlow<List<Models.Track>>,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
-                onFolderClick: (dev.younesgouyd.apps.music.client.data.room.entities.Folder?) -> Unit,
+                onFolderClick: (Folder?) -> Unit,
                 onAddFolderToPlaylistClick: (id: Long) -> Unit,
                 onAddFolderToQueueClick: (id: Long) -> Unit,
                 onPlayFolder: (id: Long) -> Unit,
@@ -669,11 +669,7 @@ class Library(
                 }
                 Scaffold(
                     modifier = modifier,
-                    floatingActionButton = {
-                        _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.ScrollToTopFloatingActionButton(
-                            scrollState
-                        )
-                    },
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) },
                     content = { paddingValues ->
                         Column(
                             modifier = Modifier.fillMaxSize().padding(paddingValues),
@@ -757,9 +753,9 @@ class Library(
             @Composable
             private fun ToolBar(
                 modifier: Modifier = Modifier,
-                currentFolder: StateFlow<dev.younesgouyd.apps.music.client.data.room.entities.Folder?>,
-                path: List<dev.younesgouyd.apps.music.client.data.room.entities.Folder>,
-                onFolderClick: (dev.younesgouyd.apps.music.client.data.room.entities.Folder?) -> Unit,
+                currentFolder: StateFlow<Folder?>,
+                path: List<Folder>,
+                onFolderClick: (Folder?) -> Unit,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit
             ) {
@@ -862,7 +858,7 @@ class Library(
             @Composable
             private fun FolderItem(
                 modifier: Modifier = Modifier,
-                folder: dev.younesgouyd.apps.music.client.data.room.entities.Folder,
+                folder: Folder,
                 onClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onAddToQueueClick: () -> Unit,
@@ -875,7 +871,7 @@ class Library(
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
-                _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item(
+                Item(
                     modifier = modifier,
                     onClick = onClick
                 ) {
@@ -926,8 +922,8 @@ class Library(
                 }
 
                 if (showContextMenu) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.ItemContextMenu(
-                        item = _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item(
+                    ItemContextMenu(
+                        item = Item(
                             name = folder.name,
                             image = null // TODO
                         ),
@@ -980,7 +976,7 @@ class Library(
                 }
 
                 if (showDeleteConfirmationDialog) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.DeleteConfirmationDialog(
+                    DeleteConfirmationDialog(
                         message = "Delete folder \"${folder.name}\" and all of its contents?",
                         onDismissRequest = { showDeleteConfirmationDialog = false },
                         onYesClick = {
@@ -995,7 +991,7 @@ class Library(
             @Composable
             private fun PlaylistItem(
                 modifier: Modifier = Modifier,
-                playlist: dev.younesgouyd.apps.music.client.data.room.entities.Playlist,
+                playlist: Playlist,
                 onClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -1008,7 +1004,7 @@ class Library(
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
-                _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item(
+                Item(
                     modifier = modifier,
                     onClick = onClick
                 ) {
@@ -1058,8 +1054,8 @@ class Library(
                 }
 
                 if (showContextMenu) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.ItemContextMenu(
-                        item = _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item(
+                    ItemContextMenu(
+                        item = Item(
                             name = playlist.name,
                             image = playlist.image
                         ),
@@ -1112,7 +1108,7 @@ class Library(
                 }
 
                 if (showDeleteConfirmationDialog) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.DeleteConfirmationDialog(
+                    DeleteConfirmationDialog(
                         message = "Delete playlist \"${playlist.name}\"?",
                         onDismissRequest = { showDeleteConfirmationDialog = false },
                         onYesClick = {
@@ -1140,7 +1136,7 @@ class Library(
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
-                _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item(
+                Item(
                     modifier = modifier,
                     onClick = onClick
                 ) {
@@ -1211,7 +1207,7 @@ class Library(
                 }
 
                 if (showContextMenu) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.ItemContextMenu(
+                    ItemContextMenu(
                         item = {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -1267,7 +1263,7 @@ class Library(
                 }
 
                 if (showDeleteConfirmationDialog) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.DeleteConfirmationDialog(
+                    DeleteConfirmationDialog(
                         message = "Delete track \"${track.name}\"?",
                         onDismissRequest = { showDeleteConfirmationDialog = false },
                         onYesClick = {
@@ -1340,13 +1336,13 @@ class Library(
                 modifier: Modifier = Modifier,
                 path: StateFlow<List<Models.NodeState>>,
                 loadingItems: StateFlow<Boolean>,
-                currentFolder: StateFlow<dev.younesgouyd.apps.music.client.data.room.entities.Folder?>,
-                folders: StateFlow<List<dev.younesgouyd.apps.music.client.data.room.entities.Folder>>,
-                playlists: StateFlow<List<dev.younesgouyd.apps.music.client.data.room.entities.Playlist>>,
+                currentFolder: StateFlow<Folder?>,
+                folders: StateFlow<List<Folder>>,
+                playlists: StateFlow<List<Playlist>>,
                 tracks: StateFlow<List<Models.Track>>,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
-                onFolderClick: (dev.younesgouyd.apps.music.client.data.room.entities.Folder?) -> Unit,
+                onFolderClick: (Folder?) -> Unit,
                 onAddFolderToPlaylistClick: (id: Long) -> Unit,
                 onAddFolderToQueueClick: (id: Long) -> Unit,
                 onPlayFolder: (id: Long) -> Unit,
@@ -1379,11 +1375,7 @@ class Library(
                 }
                 Scaffold(
                     modifier = modifier,
-                    floatingActionButton = {
-                        _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.ScrollToTopFloatingActionButton(
-                            scrollState
-                        )
-                    },
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) },
                     content = { paddingValues ->
                         Column(
                             modifier = Modifier.fillMaxSize().padding(paddingValues),
@@ -1465,9 +1457,9 @@ class Library(
             @Composable
             private fun ToolBar(
                 modifier: Modifier = Modifier,
-                currentFolder: StateFlow<dev.younesgouyd.apps.music.client.data.room.entities.Folder?>,
-                path: List<dev.younesgouyd.apps.music.client.data.room.entities.Folder>,
-                onFolderClick: (dev.younesgouyd.apps.music.client.data.room.entities.Folder?) -> Unit,
+                currentFolder: StateFlow<Folder?>,
+                path: List<Folder>,
+                onFolderClick: (Folder?) -> Unit,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
             ) {
@@ -1576,7 +1568,7 @@ class Library(
             @Composable
             private fun FolderItem(
                 modifier: Modifier = Modifier,
-                folder: dev.younesgouyd.apps.music.client.data.room.entities.Folder,
+                folder: Folder,
                 onClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onAddToQueueClick: () -> Unit,
@@ -1589,7 +1581,7 @@ class Library(
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
-                _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item(
+                Item(
                     modifier = modifier.combinedClickable(
                         onClick = onClick,
                         onLongClick = { showContextMenu = true }
@@ -1627,8 +1619,8 @@ class Library(
                 }
 
                 if (showContextMenu) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.ItemContextMenu(
-                        item = _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item(
+                    ItemContextMenu(
+                        item = Item(
                             name = folder.name,
                             image = null // TODO
                         ),
@@ -1686,7 +1678,7 @@ class Library(
                 }
 
                 if (showDeleteConfirmationDialog) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.DeleteConfirmationDialog(
+                    DeleteConfirmationDialog(
                         message = "Delete folder \"${folder.name}\" and all of its contents?",
                         onDismissRequest = { showDeleteConfirmationDialog = false },
                         onYesClick = {
@@ -1701,7 +1693,7 @@ class Library(
             @Composable
             private fun PlaylistItem(
                 modifier: Modifier = Modifier,
-                playlist: dev.younesgouyd.apps.music.client.data.room.entities.Playlist,
+                playlist: Playlist,
                 onClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -1714,7 +1706,7 @@ class Library(
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
-                _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item(
+                Item(
                     modifier = modifier.combinedClickable(
                         onClick = onClick,
                         onLongClick = { showContextMenu = true }
@@ -1751,8 +1743,8 @@ class Library(
                 }
 
                 if (showContextMenu) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.ItemContextMenu(
-                        item = _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item(
+                    ItemContextMenu(
+                        item = Item(
                             name = playlist.name,
                             image = playlist.image
                         ),
@@ -1810,7 +1802,7 @@ class Library(
                 }
 
                 if (showDeleteConfirmationDialog) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.DeleteConfirmationDialog(
+                    DeleteConfirmationDialog(
                         message = "Delete playlist \"${playlist.name}\"?",
                         onDismissRequest = { showDeleteConfirmationDialog = false },
                         onYesClick = {
@@ -1838,7 +1830,7 @@ class Library(
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
-                _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item(
+                Item(
                     modifier = modifier.combinedClickable(
                         onClick = onClick,
                         onLongClick = { showContextMenu = true }
@@ -1895,7 +1887,7 @@ class Library(
                 }
 
                 if (showContextMenu) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.ItemContextMenu(
+                    ItemContextMenu(
                         item = {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -1951,7 +1943,7 @@ class Library(
                 }
 
                 if (showDeleteConfirmationDialog) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.components.util.compose.widgets.DeleteConfirmationDialog(
+                    DeleteConfirmationDialog(
                         message = "Delete track \"${track.name}\"?",
                         onDismissRequest = { showDeleteConfirmationDialog = false },
                         onYesClick = {
