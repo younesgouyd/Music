@@ -1,6 +1,5 @@
 package dev.younesgouyd.apps.music.client.components
 
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -531,10 +530,9 @@ class PlaylistList(
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
                 Item(
-                    modifier = modifier.combinedClickable(
-                        onClick = onClick,
-                        onLongClick = { showContextMenu = true }
-                    )
+                    modifier = modifier,
+                    onClick = onClick,
+                    onLongClick = { showContextMenu = true }
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,

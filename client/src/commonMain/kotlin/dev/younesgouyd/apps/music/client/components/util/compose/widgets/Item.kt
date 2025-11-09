@@ -1,5 +1,6 @@
 package dev.younesgouyd.apps.music.client.components.util.compose.widgets
 
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
@@ -14,39 +15,74 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun Item(
     modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
     contentAlignment: Alignment = Alignment.Center,
     contentPadding: PaddingValues = PaddingValues(0.dp),
     content: @Composable () -> Unit
 ) {
-    if (onClick != null) {
-        Card(
-            modifier = modifier,
-            content = {
-                Box(
-                    modifier = Modifier.wrapContentSize()
-                        .padding(contentPadding),
-                    contentAlignment = contentAlignment,
-                    content = { content() }
-                )
-            },
-            onClick = onClick,
-            elevation = CardDefaults.elevatedCardElevation(),
-            colors = CardDefaults.elevatedCardColors()
-        )
-    } else {
-        Card(
-            modifier = modifier,
-            content = {
-                Box(
-                    modifier = Modifier.wrapContentSize()
-                        .padding(contentPadding),
-                    contentAlignment = contentAlignment,
-                    content = { content() }
-                )
-            },
-            elevation = CardDefaults.elevatedCardElevation(),
-            colors = CardDefaults.elevatedCardColors()
-        )
-    }
+    Card(
+        modifier = modifier,
+        content = {
+            Box(
+                modifier = Modifier.wrapContentSize()
+                    .padding(contentPadding),
+                contentAlignment = contentAlignment,
+                content = { content() }
+            )
+        },
+        elevation = CardDefaults.elevatedCardElevation(),
+        colors = CardDefaults.elevatedCardColors()
+    )
 }
+
+@Composable
+fun Item(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    contentAlignment: Alignment = Alignment.Center,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = modifier,
+        content = {
+            Box(
+                modifier = Modifier.wrapContentSize()
+                    .padding(contentPadding),
+                contentAlignment = contentAlignment,
+                content = { content() }
+            )
+        },
+        onClick = onClick,
+        elevation = CardDefaults.elevatedCardElevation(),
+        colors = CardDefaults.elevatedCardColors()
+    )
+}
+
+@Composable
+fun Item(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    contentAlignment: Alignment = Alignment.Center,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = modifier,
+        content = {
+            Box(
+                modifier = Modifier.wrapContentSize()
+                    .padding(contentPadding)
+                    .combinedClickable(
+                        onClick = onClick,
+                        onLongClick = onLongClick
+                    ),
+                contentAlignment = contentAlignment,
+                content = { content() }
+            )
+        },
+        elevation = CardDefaults.elevatedCardElevation(),
+        colors = CardDefaults.elevatedCardColors()
+    )
+}
+

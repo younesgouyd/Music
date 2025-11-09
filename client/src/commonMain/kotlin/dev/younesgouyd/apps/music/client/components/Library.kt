@@ -1,7 +1,6 @@
 package dev.younesgouyd.apps.music.client.components
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.*
@@ -1582,10 +1581,9 @@ class Library(
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
                 Item(
-                    modifier = modifier.combinedClickable(
-                        onClick = onClick,
-                        onLongClick = { showContextMenu = true }
-                    )
+                    modifier = modifier,
+                    onClick = onClick,
+                    onLongClick = { showContextMenu = true }
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1707,10 +1705,9 @@ class Library(
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
                 Item(
-                    modifier = modifier.combinedClickable(
-                        onClick = onClick,
-                        onLongClick = { showContextMenu = true }
-                    )
+                    modifier = modifier,
+                    onClick = onClick,
+                    onLongClick = { showContextMenu = true }
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1831,10 +1828,9 @@ class Library(
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
                 Item(
-                    modifier = modifier.combinedClickable(
-                        onClick = onClick,
-                        onLongClick = { showContextMenu = true }
-                    )
+                    modifier = modifier,
+                    onClick = onClick,
+                    onLongClick = { showContextMenu = true }
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
