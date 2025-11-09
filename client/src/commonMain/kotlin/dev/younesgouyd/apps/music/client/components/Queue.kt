@@ -139,8 +139,7 @@ class Queue(
                             contentPadding = PaddingValues(12.dp)
                         ) {
                             itemsIndexed(
-                                items = queue,
-                                key = { _, item -> "${item::class.simpleName}#${item.id}" }
+                                items = queue
                             ) { index: Int, queueItem: MediaController.MediaControllerState.Available.QueueItem ->
                                 when (queueItem) {
                                     is MediaController.MediaControllerState.Available.QueueItem.Track -> {
