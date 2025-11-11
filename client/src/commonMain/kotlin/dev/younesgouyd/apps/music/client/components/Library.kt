@@ -446,6 +446,7 @@ class Library(
                 playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
                 trackRepo = trackRepo,
                 folderRepo = folderRepo,
+                artistRepo = artistRepo,
                 dismiss = ::dismissAddToPlaylistDialog,
                 playlistRepo = playlistRepo
             )
@@ -460,6 +461,7 @@ class Library(
                 playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
                 trackRepo = trackRepo,
                 folderRepo = folderRepo,
+                artistRepo = artistRepo,
                 dismiss = ::dismissAddToPlaylistDialog,
                 playlistRepo = playlistRepo
             )
@@ -475,6 +477,7 @@ class Library(
                 playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
                 trackRepo = trackRepo,
                 folderRepo = folderRepo,
+                artistRepo = artistRepo,
                 dismiss = ::dismissAddToPlaylistDialog,
                 playlistRepo = playlistRepo
             )

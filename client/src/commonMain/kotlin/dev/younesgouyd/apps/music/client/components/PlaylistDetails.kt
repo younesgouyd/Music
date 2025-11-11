@@ -28,6 +28,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlin.io.encoding.Base64
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistDetails(
@@ -67,7 +68,7 @@ class PlaylistDetails(
                                     id = dbTrack.id,
                                     name = dbTrack.name,
                                     album = dbTrack.album,
-                                    image = dbTrack.albumArt?.let { kotlin.io.encoding.Base64.decode(it) },
+                                    image = dbTrack.albumArt?.let { Base64.decode(it) },
                                     artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
                                         PlaylistDetailsState.Loaded.Track.Artist(
                                             id = dbArtist.id,
@@ -82,16 +83,58 @@ class PlaylistDetails(
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     searchQuery = searchQuery.asStateFlow(),
                     scrollState = LazyListState(),
-                    onPlayClick = ::play,
+                    onPlayClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Playlist(id))) },
                     onSearchQueryChange = { searchQuery.value = it },
-                    onAddToQueueClick = ::addToQueue,
-                    onTrackClick = ::playTrack,
+                    onAddToQueueClick = { mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Playlist(id))) },
+                    onAddToPlaylistClick = {
+                        addToPlaylist.update {
+                            AddToPlaylist(
+                                itemToAdd = AddToPlaylist.Item.Playlist(id),
+                                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                                trackRepo = trackRepo,
+                                folderRepo = folderRepo,
+                                artistRepo = artistRepo,
+                                dismiss = ::dismissAddToPlaylistDialog,
+                                playlistRepo = playlistRepo
+                            )
+                        }
+                        addToPlaylistDialogVisible.update { true }
+                    },
+                    onTrackClick = { id ->
+                        coroutineScope.launch {
+                            val tracks = trackRepo.getPlaylistTracks(this@PlaylistDetails.id).first()
+                            val index = tracks.indexOfFirst { it.id == id }
+                            mediaController.playQueue(
+                                queue = listOf(MediaController.QueueItemParameter.Playlist(this@PlaylistDetails.id)),
+                                queueItemIndex = 0,
+                                queueSubItemIndex = index
+                            )
+                        }
+                    },
                     onArtistClick = showArtistDetails,
-                    onAddToPlaylistClick = ::showAddToPlaylistDialog,
-                    onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
-                    onRemoveTrackFromPlaylistClick = ::removeTrackFromPlaylist,
+                    onAddTrackToPlaylistClick = { trackId: Long ->
+                        addToPlaylist.update {
+                            AddToPlaylist(
+                                itemToAdd = AddToPlaylist.Item.Track(trackId),
+                                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                                trackRepo = trackRepo,
+                                folderRepo = folderRepo,
+                                artistRepo = artistRepo,
+                                dismiss = ::dismissAddToPlaylistDialog,
+                                playlistRepo = playlistRepo
+                            )
+                        }
+                        addToPlaylistDialogVisible.update { true }
+                    },
+                    onRemoveTrackFromPlaylistClick = { trackId: Long ->
+                        coroutineScope.launch {
+                            playlistTrackCrossRefRepo.delete(playlistId = id, trackId = trackId)
+                        }
+                    },
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
-                    onAddTrackToQueueClick = ::addTrackToQueue
+                    onAddTrackToQueueClick = { id: Long ->
+                        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(id)))
+                    }
                 )
             }
         }
@@ -111,70 +154,12 @@ class PlaylistDetails(
         coroutineScope.cancel()
     }
 
-    private fun play() {
-        mediaController.playQueue(listOf(MediaController.QueueItemParameter.Playlist(id)))
-    }
-
-    private fun addToQueue() {
-        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Playlist(id)))
-    }
-
-    private fun playTrack(id: Long) {
-        coroutineScope.launch {
-            val tracks = trackRepo.getPlaylistTracks(this@PlaylistDetails.id).first()
-            val index = tracks.indexOfFirst { it.id == id }
-            mediaController.playQueue(
-                queue = listOf(MediaController.QueueItemParameter.Playlist(this@PlaylistDetails.id)),
-                queueItemIndex = 0,
-                queueSubItemIndex = index
-            )
-        }
-    }
-
-    private fun showAddToPlaylistDialog() {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Playlist(id),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                folderRepo = folderRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.update { true }
-    }
-
-    private fun showAddTrackToPlaylistDialog(trackId: Long) {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Track(trackId),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                folderRepo = folderRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.update { true }
-    }
-
-    private fun removeTrackFromPlaylist(trackId: Long) {
-        coroutineScope.launch {
-            playlistTrackCrossRefRepo.delete(playlistId = id, trackId = trackId)
-        }
-    }
-
     private fun dismissAddToPlaylistDialog() {
         if (addToPlaylist.value?.adding?.value == true) {
             return
         }
         addToPlaylistDialogVisible.update { false }
         addToPlaylist.update { it?.clear(); null }
-    }
-
-    private fun addTrackToQueue(id: Long) {
-        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(id)))
     }
 
     private sealed class PlaylistDetailsState {
@@ -189,10 +174,10 @@ class PlaylistDetails(
             val scrollState: LazyListState,
             val onPlayClick: () -> Unit,
             val onSearchQueryChange: (String) -> Unit,
+            val onAddToQueueClick: () -> Unit,
+            val onAddToPlaylistClick: () -> Unit,
             val onTrackClick: (id: Long) -> Unit,
             val onArtistClick: (id: Long) -> Unit,
-            val onAddToPlaylistClick: () -> Unit,
-            val onAddToQueueClick: () -> Unit,
             val onAddTrackToPlaylistClick: (id: Long) -> Unit,
             val onRemoveTrackFromPlaylistClick: (id: Long) -> Unit,
             val onDismissAddToPlaylistDialog: () -> Unit,

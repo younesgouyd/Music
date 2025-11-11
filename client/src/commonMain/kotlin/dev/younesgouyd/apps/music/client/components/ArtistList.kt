@@ -6,21 +6,18 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.client.components.util.MediaController
 import dev.younesgouyd.apps.music.client.components.util.compose.AdaptiveUi
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Image
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.ScrollToTopFloatingActionButton
+import dev.younesgouyd.apps.music.client.components.util.compose.widgets.*
 import dev.younesgouyd.apps.music.client.data.repoes.ArtistRepo
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -31,6 +28,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalCoroutinesApi::class)
 class ArtistList(
     artistRepo: ArtistRepo,
+    mediaController: MediaController,
     showArtistDetails: (Long) -> Unit
 ) : Component() {
     override val title: String = "Artists"
@@ -54,7 +52,9 @@ class ArtistList(
                 searchQuery = searchQuery.asStateFlow(),
                 scrollState = LazyGridState(),
                 onSearchQueryChange = { searchQuery.value = it },
-                onArtistClick = showArtistDetails
+                onArtistClick = showArtistDetails,
+                onPlayArtistClick = { id: Long -> mediaController.playQueue(listOf(MediaController.QueueItemParameter.Artist(id))) },
+                onAddArtistToQueueClick = { id: Long -> mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Artist(id))) }
             )
         }
     }
@@ -81,7 +81,9 @@ class ArtistList(
             val searchQuery: StateFlow<String>,
             val scrollState: LazyGridState,
             val onSearchQueryChange: (String) -> Unit,
-            val onArtistClick: (Long) -> Unit
+            val onArtistClick: (Long) -> Unit,
+            val onPlayArtistClick: (Long) -> Unit,
+            val onAddArtistToQueueClick: (Long) -> Unit
         ) : ArtistListState() {
             data class ArtistItem(
                 val id: Long,
@@ -109,7 +111,9 @@ class ArtistList(
                     searchQuery = loaded.searchQuery,
                     scrollState = loaded.scrollState,
                     onSearchQueryChange = loaded.onSearchQueryChange,
-                    onArtistClick = loaded.onArtistClick
+                    onArtistClick = loaded.onArtistClick,
+                    onPlayArtistClick = loaded.onPlayArtistClick,
+                    onAddArtistToQueueClick = loaded.onAddArtistToQueueClick
                 )
             }
 
@@ -120,7 +124,9 @@ class ArtistList(
                 searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
                 onSearchQueryChange: (String) -> Unit,
-                onArtistClick: (Long) -> Unit
+                onArtistClick: (Long) -> Unit,
+                onPlayArtistClick: (Long) -> Unit,
+                onAddArtistToQueueClick: (Long) -> Unit
             ) {
                 val items by artists.collectAsState()
                 val searchQuery by searchQuery.collectAsState()
@@ -151,10 +157,12 @@ class ArtistList(
                                 items(
                                     items = items,
                                     key = { it.id }
-                                ) { item ->
+                                ) { artist ->
                                     ArtistItem(
-                                        artist = item,
-                                        onArtistClick = onArtistClick
+                                        artist = artist,
+                                        onClick = { onArtistClick(artist.id) },
+                                        onPlayClick = { onPlayArtistClick(artist.id) },
+                                        onAddToQueueClick = { onAddArtistToQueueClick(artist.id) }
                                     )
                                 }
                             }
@@ -168,11 +176,15 @@ class ArtistList(
             private fun ArtistItem(
                 modifier: Modifier = Modifier,
                 artist: ArtistListState.Loaded.ArtistItem,
-                onArtistClick: (Long) -> Unit
+                onClick: () -> Unit,
+                onPlayClick: () -> Unit,
+                onAddToQueueClick: () -> Unit
             ) {
+                var showContextMenu by remember { mutableStateOf(false) }
+
                 Item(
                     modifier = modifier,
-                    onClick = { onArtistClick(artist.id) }
+                    onClick = onClick
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -192,6 +204,41 @@ class ArtistList(
                             minLines = 2,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                content = { Icon(Icons.Default.PlayCircle, null) },
+                                onClick = onPlayClick
+                            )
+                            IconButton(
+                                content = { Icon(Icons.Default.MoreVert, null) },
+                                onClick = { showContextMenu = true }
+                            )
+                        }
+                    }
+                }
+
+                if (showContextMenu) {
+                    ItemContextMenu(
+                        item = Item(
+                            name = artist.name,
+                            image = artist.image
+                        ),
+                        onDismiss = { showContextMenu = false }
+                    ) {
+                        Option(
+                            label = "Add to queue",
+                            icon = Icons.Default.AddToQueue,
+                            onClick = onAddToQueueClick,
+                        )
+                        Option(
+                            label = "Play next",
+                            icon = Icons.Default.QueuePlayNext,
+                            onClick = { TODO() },
                         )
                     }
                 }
@@ -215,7 +262,9 @@ class ArtistList(
                     searchQuery = loaded.searchQuery,
                     scrollState = loaded.scrollState,
                     onSearchQueryChange = loaded.onSearchQueryChange,
-                    onArtistClick = loaded.onArtistClick
+                    onArtistClick = loaded.onArtistClick,
+                    onPlayArtistClick = loaded.onPlayArtistClick,
+                    onAddArtistToQueueClick = loaded.onAddArtistToQueueClick
                 )
             }
 
@@ -226,7 +275,9 @@ class ArtistList(
                 searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
                 onSearchQueryChange: (String) -> Unit,
-                onArtistClick: (Long) -> Unit
+                onArtistClick: (Long) -> Unit,
+                onPlayArtistClick: (Long) -> Unit,
+                onAddArtistToQueueClick: (Long) -> Unit
             ) {
                 val items by artists.collectAsState()
                 val searchQuery by searchQuery.collectAsState()
@@ -257,10 +308,12 @@ class ArtistList(
                                 items(
                                     items = items,
                                     key = { it.id }
-                                ) { item ->
+                                ) { artist ->
                                     ArtistItem(
-                                        artist = item,
-                                        onClick = { onArtistClick(item.id) }
+                                        artist = artist,
+                                        onClick = { onArtistClick(artist.id) },
+                                        onPlayClick = { onPlayArtistClick(artist.id) },
+                                        onAddToQueueClick = { onAddArtistToQueueClick(artist.id) }
                                     )
                                 }
                             }
@@ -276,11 +329,16 @@ class ArtistList(
             private fun ArtistItem(
                 modifier: Modifier = Modifier,
                 artist: ArtistListState.Loaded.ArtistItem,
-                onClick: () -> Unit
+                onClick: () -> Unit,
+                onPlayClick: () -> Unit,
+                onAddToQueueClick: () -> Unit
             ) {
+                var showContextMenu by remember { mutableStateOf(false) }
+
                 Item(
                     modifier = modifier,
-                    onClick = onClick
+                    onClick = onClick,
+                    onLongClick = { showContextMenu = true }
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -299,6 +357,32 @@ class ArtistList(
                             textAlign = TextAlign.Center,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                if (showContextMenu) {
+                    ItemContextMenu(
+                        item = Item(
+                            name = artist.name,
+                            image = artist.image
+                        ),
+                        onDismiss = { showContextMenu = false }
+                    ) {
+                        Option(
+                            label = "Play",
+                            icon = Icons.Default.PlayCircle,
+                            onClick = { onPlayClick(); showContextMenu = false },
+                        )
+                        Option(
+                            label = "Add to queue",
+                            icon = Icons.Default.AddToQueue,
+                            onClick = onAddToQueueClick,
+                        )
+                        Option(
+                            label = "Play next",
+                            icon = Icons.Default.QueuePlayNext,
+                            onClick = { TODO() },
                         )
                     }
                 }

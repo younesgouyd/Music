@@ -163,6 +163,18 @@ class Queue(
                                             }
                                         )
                                     }
+                                    is MediaController.MediaControllerState.Available.QueueItem.Artist -> {
+                                        ArtistItem(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            item = queueItem,
+                                            enabled = enabled,
+                                            isPlaying = state.queueItemIndex == index,
+                                            playingItem = if (state.queueItemIndex == index) { state.queueSubItemIndex } else { null },
+                                            onTrackClick = { trackIndex ->
+                                                state.onPlayQueueSubItem(index, trackIndex)
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -209,6 +221,100 @@ class Queue(
             private fun PlaylistItem(
                 modifier: Modifier = Modifier,
                 item: MediaController.MediaControllerState.Available.QueueItem.Playlist,
+                isPlaying: Boolean,
+                playingItem: Int?,
+                enabled: Boolean,
+                onTrackClick: (index: Int) -> Unit
+            ) {
+                var isExpanded by remember { mutableStateOf(false) }
+
+                Surface(
+                    modifier = modifier,
+                    shape = MaterialTheme.shapes.large,
+                    color = if (isPlaying) {
+                        if (isExpanded) {
+                            MaterialTheme.colorScheme.surfaceContainerHighest
+                        } else {
+                            MaterialTheme.colorScheme.primaryContainer
+                        }
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    }
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable { isExpanded = !isExpanded },
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(Modifier)
+                            Icon(Icons.AutoMirrored.Default.QueueMusic, null)
+                            Image(
+                                modifier = Modifier.size(80.dp),
+                                data = item.image
+                            )
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    modifier = Modifier.weight(1f),
+                                    text = item.name,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                when (isExpanded) {
+                                    true -> Icon(Icons.Default.ArrowDropUp, null)
+                                    false -> Icon(Icons.Default.ArrowDropDown, null)
+                                }
+                            }
+                        }
+                        if (isExpanded) {
+                            item.items.forEachIndexed { index, track ->
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth().height(80.dp).padding(horizontal = 12.dp),
+                                    enabled = enabled,
+                                    shape = MaterialTheme.shapes.large,
+                                    color = if (isPlaying) {
+                                        if (playingItem == index) {
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.secondaryContainer
+                                        }
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceContainerHighest
+                                    },
+                                    onClick = { onTrackClick(index) }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(Modifier)
+                                        Icon(Icons.Default.Audiotrack, null)
+                                        Text(
+                                            modifier = Modifier.weight(1f),
+                                            text = if (track.artists.isEmpty()) track.name else "${track.artists.first().name} - ${track.name}",
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                    }
+                                }
+                            }
+                            Box(Modifier)
+                        }
+                    }
+                }
+            }
+
+            @Composable
+            private fun ArtistItem(
+                modifier: Modifier = Modifier,
+                item: MediaController.MediaControllerState.Available.QueueItem.Artist,
                 isPlaying: Boolean,
                 playingItem: Int?,
                 enabled: Boolean,
@@ -371,6 +477,18 @@ class Queue(
                                             }
                                         )
                                     }
+                                    is MediaController.MediaControllerState.Available.QueueItem.Artist -> {
+                                        ArtistItem(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            item = queueItem,
+                                            enabled = enabled,
+                                            isPlaying = state.queueItemIndex == index,
+                                            playingItem = if (state.queueItemIndex == index) { state.queueSubItemIndex } else { null },
+                                            onTrackClick = { trackIndex ->
+                                                state.onPlayQueueSubItem(index, trackIndex)
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -422,6 +540,100 @@ class Queue(
             private fun PlaylistItem(
                 modifier: Modifier = Modifier,
                 item: MediaController.MediaControllerState.Available.QueueItem.Playlist,
+                isPlaying: Boolean,
+                playingItem: Int?,
+                enabled: Boolean,
+                onTrackClick: (index: Int) -> Unit
+            ) {
+                var isExpanded by remember { mutableStateOf(false) }
+
+                Surface(
+                    modifier = modifier,
+                    shape = MaterialTheme.shapes.large,
+                    color = if (isPlaying) {
+                        if (isExpanded) {
+                            MaterialTheme.colorScheme.surfaceContainerHighest
+                        } else {
+                            MaterialTheme.colorScheme.primaryContainer
+                        }
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    }
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable { isExpanded = !isExpanded },
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(Modifier)
+                            Icon(Icons.AutoMirrored.Default.QueueMusic, null)
+                            Image(
+                                modifier = Modifier.size(80.dp),
+                                data = item.image
+                            )
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    modifier = Modifier.weight(1f),
+                                    text = item.name,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                when (isExpanded) {
+                                    true -> Icon(Icons.Default.ArrowDropUp, null)
+                                    false -> Icon(Icons.Default.ArrowDropDown, null)
+                                }
+                            }
+                        }
+                        if (isExpanded) {
+                            item.items.forEachIndexed { index, track ->
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth().height(80.dp).padding(horizontal = 12.dp),
+                                    enabled = enabled,
+                                    shape = MaterialTheme.shapes.large,
+                                    color = if (isPlaying) {
+                                        if (playingItem == index) {
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.secondaryContainer
+                                        }
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceContainerHighest
+                                    },
+                                    onClick = { onTrackClick(index) }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(Modifier)
+                                        Icon(Icons.Default.Audiotrack, null)
+                                        Text(
+                                            modifier = Modifier.weight(1f),
+                                            text = if (track.artists.isEmpty()) track.name else "${track.artists.first().name} - ${track.name}",
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                    }
+                                }
+                            }
+                            Box(Modifier)
+                        }
+                    }
+                }
+            }
+
+            @Composable
+            private fun ArtistItem(
+                modifier: Modifier = Modifier,
+                item: MediaController.MediaControllerState.Available.QueueItem.Artist,
                 isPlaying: Boolean,
                 playingItem: Int?,
                 enabled: Boolean,

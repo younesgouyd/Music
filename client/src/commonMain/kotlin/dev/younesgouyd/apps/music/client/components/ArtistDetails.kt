@@ -78,12 +78,41 @@ class ArtistDetails(
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     scrollState = LazyGridState(),
+                    onPlayClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Artist(id))) },
                     onSearchQueryChange = { searchQuery.value = it },
+                    onAddToQueueClick = { mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Artist(id))) },
+                    onAddToPlaylistClick = {
+                        addToPlaylist.update {
+                            AddToPlaylist(
+                                itemToAdd = AddToPlaylist.Item.Artist(id),
+                                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                                trackRepo = trackRepo,
+                                folderRepo = folderRepo,
+                                artistRepo = artistRepo,
+                                dismiss = ::dismissAddToPlaylistDialog,
+                                playlistRepo = playlistRepo
+                            )
+                        }
+                        addToPlaylistDialogVisible.update { true }
+                    },
                     onArtistClick = showArtistDetails,
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
-                    onTrackClick = ::playTrack,
-                    onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
-                    onAddTrackToQueueClick = ::addTrackToQueueClick
+                    onTrackClick = { id -> mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(id))) },
+                    onAddTrackToPlaylistClick = { trackId ->
+                        addToPlaylist.update {
+                            AddToPlaylist(
+                                itemToAdd = AddToPlaylist.Item.Track(trackId),
+                                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                                trackRepo = trackRepo,
+                                folderRepo = folderRepo,
+                                artistRepo = artistRepo,
+                                dismiss = ::dismissAddToPlaylistDialog,
+                                playlistRepo = playlistRepo
+                            )
+                        }
+                        addToPlaylistDialogVisible.update { true }
+                    },
+                    onAddTrackToQueueClick = { id -> mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(id))) }
                 )
             }
         }
@@ -101,28 +130,6 @@ class ArtistDetails(
 
     override fun clear() {
         coroutineScope.cancel()
-    }
-
-    private fun playTrack(id: Long) {
-        mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(id)))
-    }
-
-    private fun showAddTrackToPlaylistDialog(albumId: Long) {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Track(albumId),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                folderRepo = folderRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.update { true }
-    }
-
-    private fun addTrackToQueueClick(id: Long) {
-        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(id)))
     }
 
     private fun dismissAddToPlaylistDialog() {
@@ -143,7 +150,10 @@ class ArtistDetails(
             val addToPlaylistDialogVisible: StateFlow<Boolean>,
             val addToPlaylist: StateFlow<Component?>,
             val scrollState: LazyGridState,
+            val onPlayClick: () -> Unit,
             val onSearchQueryChange: (String) -> Unit,
+            val onAddToQueueClick: () -> Unit,
+            val onAddToPlaylistClick: () -> Unit,
             val onArtistClick: (Long) -> Unit,
             val onDismissAddToPlaylistDialog: () -> Unit,
             val onTrackClick: (Long) -> Unit,
@@ -191,7 +201,10 @@ class ArtistDetails(
                     tracks = state.tracks,
                     searchQuery = state.searchQuery,
                     scrollState = state.scrollState,
+                    onPlayClick = state.onPlayClick,
                     onSearchQueryChange = state.onSearchQueryChange,
+                    onAddToQueueClick = state.onAddToQueueClick,
+                    onAddToPlaylistClick = state.onAddToPlaylistClick,
                     onTrackClick = state.onTrackClick,
                     onArtistClick = state.onArtistClick,
                     onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick,
@@ -212,7 +225,10 @@ class ArtistDetails(
                 tracks: StateFlow<List<ArtistDetailsState.Loaded.Track>>,
                 searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
+                onPlayClick: () -> Unit,
                 onSearchQueryChange: (String) -> Unit,
+                onAddToQueueClick: () -> Unit,
+                onAddToPlaylistClick: () -> Unit,
                 onTrackClick: (Long) -> Unit,
                 onArtistClick: (Long) -> Unit,
                 onAddTrackToPlaylistClick: (Long) -> Unit,
@@ -237,6 +253,9 @@ class ArtistDetails(
                                     ArtistInfo(
                                         modifier = Modifier.fillMaxWidth().height(400.dp),
                                         artist = artist,
+                                        onPlayClick = onPlayClick,
+                                        onAddToQueueClick = onAddToQueueClick,
+                                        onAddToPlaylistClick = onAddToPlaylistClick
                                     )
                                 }
                                 stickyHeader {
@@ -283,7 +302,10 @@ class ArtistDetails(
             @Composable
             private fun ArtistInfo(
                 modifier: Modifier = Modifier,
-                artist: ArtistDetailsState.Loaded.Artist
+                artist: ArtistDetailsState.Loaded.Artist,
+                onPlayClick: () -> Unit,
+                onAddToQueueClick: () -> Unit,
+                onAddToPlaylistClick: () -> Unit
             ) {
                 Row(
                     modifier = modifier,
@@ -306,6 +328,51 @@ class ArtistDetails(
                             style = MaterialTheme.typography.displayMedium,
                             textAlign = TextAlign.Center
                         )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(
+                                space = 12.dp,
+                                alignment = Alignment.CenterHorizontally
+                            ),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                content = {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.PlayCircle, null)
+                                        Text(text = "Play", style = MaterialTheme.typography.labelMedium)
+                                    }
+                                },
+                                onClick = onPlayClick
+                            )
+                            OutlinedButton(
+                                content = {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.AddToQueue, null)
+                                        Text(text = "Add to queue", style = MaterialTheme.typography.labelMedium)
+                                    }
+                                },
+                                onClick = onAddToQueueClick
+                            )
+                            OutlinedButton(
+                                content = {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.AutoMirrored.Default.PlaylistAdd, null)
+                                        Text(text = "Add to playlist", style = MaterialTheme.typography.labelMedium)
+                                    }
+                                },
+                                onClick = onAddToPlaylistClick
+                            )
+                        }
                     }
                 }
             }
@@ -421,7 +488,10 @@ class ArtistDetails(
                     tracks = state.tracks,
                     searchQuery = state.searchQuery,
                     scrollState = state.scrollState,
+                    onPlayClick = state.onPlayClick,
                     onSearchQueryChange = state.onSearchQueryChange,
+                    onAddToQueueClick = state.onAddToQueueClick,
+                    onAddToPlaylistClick = state.onAddToPlaylistClick,
                     onTrackClick = state.onTrackClick,
                     onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick,
                     onAddTrackToQueueClick = state.onAddTrackToQueueClick
@@ -441,7 +511,10 @@ class ArtistDetails(
                 tracks: StateFlow<List<ArtistDetailsState.Loaded.Track>>,
                 searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
+                onPlayClick: () -> Unit,
                 onSearchQueryChange: (String) -> Unit,
+                onAddToQueueClick: () -> Unit,
+                onAddToPlaylistClick: () -> Unit,
                 onTrackClick: (Long) -> Unit,
                 onAddTrackToPlaylistClick: (id: Long) -> Unit,
                 onAddTrackToQueueClick: (id: Long) -> Unit
@@ -466,6 +539,9 @@ class ArtistDetails(
                                     ArtistInfo(
                                         modifier = Modifier.fillMaxWidth(),
                                         artist = artist,
+                                        onPlayClick = onPlayClick,
+                                        onAddToQueueClick = onAddToQueueClick,
+                                        onAddToPlaylistClick = onAddToPlaylistClick
                                     )
                                 }
                                 stickyHeader {
@@ -511,7 +587,10 @@ class ArtistDetails(
             @Composable
             private fun ArtistInfo(
                 modifier: Modifier,
-                artist: ArtistDetailsState.Loaded.Artist
+                artist: ArtistDetailsState.Loaded.Artist,
+                onPlayClick: () -> Unit,
+                onAddToQueueClick: () -> Unit,
+                onAddToPlaylistClick: () -> Unit
             ) {
                 Column(
                     modifier = modifier,
@@ -530,6 +609,49 @@ class ArtistDetails(
                         textAlign = TextAlign.Center,
                         overflow = TextOverflow.Ellipsis
                     )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(
+                            space = 12.dp,
+                            alignment = Alignment.CenterHorizontally
+                        ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = onPlayClick
+                        ) {
+                            Icon(
+                                modifier = Modifier.fillMaxSize(),
+                                imageVector = Icons.Default.PlayCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        OutlinedButton(
+                            content = {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.AddToQueue, null)
+                                    Text(text = "Add to queue", style = MaterialTheme.typography.labelMedium)
+                                }
+                            },
+                            onClick = onAddToQueueClick
+                        )
+                        OutlinedButton(
+                            content = {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.AutoMirrored.Default.PlaylistAdd, null)
+                                    Text(text = "Add to playlist", style = MaterialTheme.typography.labelMedium)
+                                }
+                            },
+                            onClick = onAddToPlaylistClick
+                        )
+                    }
                 }
             }
 

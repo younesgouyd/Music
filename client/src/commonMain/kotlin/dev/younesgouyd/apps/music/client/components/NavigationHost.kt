@@ -194,6 +194,7 @@ class NavigationHost(
 
                     is Destination.ArtistList -> ArtistList(
                         artistRepo = repoStore.artistRepo,
+                        mediaController = mediaController,
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
                     )
 
@@ -214,6 +215,7 @@ class NavigationHost(
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
                         trackRepo = repoStore.trackRepo,
                         folderRepo = repoStore.folderRepo,
+                        artistRepo = repoStore.artistRepo,
                         mediaController = mediaController,
                         showPlaylistDetails = { navigateTo(Destination.PlaylistDetails(it)) }
                     )

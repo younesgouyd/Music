@@ -15,10 +15,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item
-import dev.younesgouyd.apps.music.client.data.repoes.FolderRepo
-import dev.younesgouyd.apps.music.client.data.repoes.PlaylistRepo
-import dev.younesgouyd.apps.music.client.data.repoes.PlaylistTrackCrossRefRepo
-import dev.younesgouyd.apps.music.client.data.repoes.TrackRepo
+import dev.younesgouyd.apps.music.client.data.repoes.*
 import dev.younesgouyd.apps.music.client.data.room.entities.Track
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.cancel
@@ -31,6 +28,7 @@ class AddToPlaylist(
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     private val trackRepo: TrackRepo,
     private val folderRepo: FolderRepo,
+    private val artistRepo: ArtistRepo,
     private val dismiss: () -> Unit,
     private val playlistRepo: PlaylistRepo
 ) : Component() {
@@ -47,22 +45,27 @@ class AddToPlaylist(
                     adding = _adding.asStateFlow(),
                     itemToAdd = when (itemToAdd) {
                         is Item.Track -> trackRepo.get(itemToAdd.id).first().let { dbTrack ->
-                            AddToPlaylistState.Loaded.ItemToAdd.Track(
+                            AddToPlaylistState.Loaded.ItemToAdd(
                                 name = dbTrack.name,
                                 image = dbTrack.albumArt?.let { Base64.decode(it) }
                             )
                         }
-
                         is Item.Playlist -> playlistRepo.get(itemToAdd.id).first().let { dbPlaylist ->
-                            AddToPlaylistState.Loaded.ItemToAdd.Playlist(
+                            AddToPlaylistState.Loaded.ItemToAdd(
                                 name = dbPlaylist.name,
                                 image = dbPlaylist.image
                             )
                         }
-
                         is Item.Folder -> folderRepo.get(itemToAdd.id).first().let { dbFolder ->
-                            AddToPlaylistState.Loaded.ItemToAdd.Folder(
-                                name = dbFolder.name
+                            AddToPlaylistState.Loaded.ItemToAdd(
+                                name = dbFolder.name,
+                                image = null
+                            )
+                        }
+                        is Item.Artist -> artistRepo.get(itemToAdd.id).first().let { dbArtist ->
+                            AddToPlaylistState.Loaded.ItemToAdd(
+                                name = dbArtist.name,
+                                image = dbArtist.image
                             )
                         }
                     },
@@ -115,7 +118,6 @@ class AddToPlaylist(
                         playlistTrackCrossRefRepo.add(playlistId, itemToAdd.id)
                     }
                 }
-
                 is Item.Playlist -> {
                     val tracks: List<Track> = trackRepo.getPlaylistTracks(itemToAdd.id).first()
                     for (track in tracks) {
@@ -125,7 +127,6 @@ class AddToPlaylist(
                         }
                     }
                 }
-
                 is Item.Folder -> {
                     suspend fun addFolderToPlaylist(folderId: Long) {
                         val tracks: List<Track> = trackRepo.getFolderTracks(folderId).first()
@@ -142,6 +143,15 @@ class AddToPlaylist(
                     }
                     addFolderToPlaylist(itemToAdd.id)
                 }
+                is Item.Artist -> {
+                    val tracks: List<Track> = trackRepo.getArtistTracks(itemToAdd.id).first()
+                    for (track in tracks) {
+                        val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
+                        if (!exists) {
+                            playlistTrackCrossRefRepo.add(playlistId, track.id)
+                        }
+                    }
+                }
             }
             _adding.update { false }
             dismiss()
@@ -156,6 +166,8 @@ class AddToPlaylist(
         data class Playlist(override val id: Long) : Item()
 
         data class Folder(override val id: Long) : Item()
+
+        data class Artist(override val id: Long) : Item()
     }
 
     private sealed class AddToPlaylistState {
@@ -167,26 +179,10 @@ class AddToPlaylist(
             val playlists: StateFlow<List<PlaylistOption>>,
             val onAddTopPlaylist: (playlistId: PlaylistToAddTo) -> Unit
         ) : AddToPlaylistState() {
-            sealed class ItemToAdd {
-                abstract val name: String
-                abstract val image: ByteArray?
-
-                data class Track(
-                    override val name: String,
-                    override val image: ByteArray?
-                ) : ItemToAdd()
-
-                data class Playlist(
-                    override val name: String,
-                    override val image: ByteArray?
-                ) : ItemToAdd()
-
-                data class Folder(
-                    override val name: String
-                ) : ItemToAdd() {
-                    override val image: ByteArray? = null
-                }
-            }
+            data class ItemToAdd(
+                val name: String,
+                val image: ByteArray?
+            )
 
             data class PlaylistOption(
                 val id: Long,

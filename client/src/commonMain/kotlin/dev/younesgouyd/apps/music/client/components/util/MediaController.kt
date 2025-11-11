@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.io.encoding.Base64
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -86,6 +87,7 @@ class MediaController(
                                 val currentTrack = when (firstQueueItem) {
                                     is MediaControllerState.Available.QueueItem.Track -> firstQueueItem
                                     is MediaControllerState.Available.QueueItem.Playlist -> firstQueueItem.items[queueSubItemIndex] // TODO: handle invalid subIndex
+                                    is MediaControllerState.Available.QueueItem.Artist -> firstQueueItem.items[queueSubItemIndex] // TODO: handle invalid subIndex
                                 }
                                 if (currentTrack.uri != null) {
                                     mediaPlayer.setMedia(currentTrack.uri)
@@ -97,6 +99,7 @@ class MediaController(
                                 }
                             }
                             when (currentState) {
+                                is MediaControllerState.Unavailable -> TODO()
                                 is MediaControllerState.Loading -> {
                                     MediaControllerState.Available(
                                         enabled = this@MediaController.enabled.asStateFlow(),
@@ -108,17 +111,12 @@ class MediaController(
                                         repeatState = MediaControllerState.Available.RepeatState.Off,
                                     )
                                 }
-
                                 is MediaControllerState.Available -> {
                                     currentState.copy(
                                         queue = mapped,
                                         queueItemIndex = queueItemIndex,
                                         queueSubItemIndex = queueSubItemIndex
                                     )
-                                }
-
-                                else -> {
-                                    TODO()
                                 }
                             }
                         }
@@ -222,7 +220,18 @@ class MediaController(
                                         newSubIndex = 0
                                     }
                                     is MediaControllerState.Available.QueueItem.Playlist -> {
-                                        if (currentSubIndex + 1 > queueItem.items.size - 1) {
+                                        val nextIsInNextContainer = currentSubIndex + 1 > queueItem.items.size - 1
+                                        if (nextIsInNextContainer) {
+                                            newIndex = if (currentIndex + 1 > queue.size - 1) 0 else currentIndex + 1
+                                            newSubIndex = 0
+                                        } else {
+                                            newIndex = currentIndex
+                                            newSubIndex = currentSubIndex + 1
+                                        }
+                                    }
+                                    is MediaControllerState.Available.QueueItem.Artist -> {
+                                        val nextIsInNextContainer = currentSubIndex + 1 > queueItem.items.size - 1
+                                        if (nextIsInNextContainer) {
                                             newIndex = if (currentIndex + 1 > queue.size - 1) 0 else currentIndex + 1
                                             newSubIndex = 0
                                         } else {
@@ -236,6 +245,7 @@ class MediaController(
                                 when (queueItem) {
                                     is MediaControllerState.Available.QueueItem.Track -> queueItem
                                     is MediaControllerState.Available.QueueItem.Playlist -> queueItem.items[newSubIndex]
+                                    is MediaControllerState.Available.QueueItem.Artist -> queueItem.items[newSubIndex]
                                 }
                             }
                             if (wasPlaying == null) {
@@ -297,6 +307,7 @@ class MediaController(
                                             when (it) {
                                                 is MediaControllerState.Available.QueueItem.Track -> 0
                                                 is MediaControllerState.Available.QueueItem.Playlist -> it.items.lastIndex
+                                                is MediaControllerState.Available.QueueItem.Artist -> it.items.lastIndex
                                             }
                                         }
                                     }
@@ -307,6 +318,22 @@ class MediaController(
                                                 when (it) {
                                                     is MediaControllerState.Available.QueueItem.Track -> 0
                                                     is MediaControllerState.Available.QueueItem.Playlist -> it.items.lastIndex
+                                                    is MediaControllerState.Available.QueueItem.Artist -> it.items.lastIndex
+                                                }
+                                            }
+                                        } else {
+                                            newIndex = currentIndex
+                                            newSubIndex = currentSubIndex - 1
+                                        }
+                                    }
+                                    is MediaControllerState.Available.QueueItem.Artist -> {
+                                        if (currentSubIndex - 1 < 0) {
+                                            newIndex = if (currentIndex - 1 < 0) 0 else currentIndex - 1
+                                            newSubIndex = if (currentIndex - 1 < 0) 0 else queue[currentIndex - 1].let {
+                                                when (it) {
+                                                    is MediaControllerState.Available.QueueItem.Track -> 0
+                                                    is MediaControllerState.Available.QueueItem.Playlist -> it.items.lastIndex
+                                                    is MediaControllerState.Available.QueueItem.Artist -> it.items.lastIndex
                                                 }
                                             }
                                         } else {
@@ -320,6 +347,7 @@ class MediaController(
                                 when (queueItem) {
                                     is MediaControllerState.Available.QueueItem.Track -> queueItem
                                     is MediaControllerState.Available.QueueItem.Playlist -> queueItem.items[newSubIndex]
+                                    is MediaControllerState.Available.QueueItem.Artist -> queueItem.items[newSubIndex]
                                 }
                             }
                             if (wasPlaying == null) TODO()
@@ -388,6 +416,7 @@ class MediaController(
                                 val currentTrack = when (firstQueueItem) {
                                     is MediaControllerState.Available.QueueItem.Track -> firstQueueItem
                                     is MediaControllerState.Available.QueueItem.Playlist -> firstQueueItem.items.first()
+                                    is MediaControllerState.Available.QueueItem.Artist -> firstQueueItem.items.first()
                                 }
                                 if (currentTrack.uri != null) {
                                     mediaPlayer.setMedia(currentTrack.uri)
@@ -444,6 +473,7 @@ class MediaController(
                                 val newTrack = when (queueItem) {
                                     is MediaControllerState.Available.QueueItem.Track -> queueItem
                                     is MediaControllerState.Available.QueueItem.Playlist -> queueItem.items.first()
+                                    is MediaControllerState.Available.QueueItem.Artist -> queueItem.items.first()
                                 }
                                 if (newTrack.uri != null) {
                                     mediaPlayer.setMedia(newTrack.uri)
@@ -490,6 +520,7 @@ class MediaController(
                                 val newTrack = when (queueItem) {
                                     is MediaControllerState.Available.QueueItem.Track -> queueItem
                                     is MediaControllerState.Available.QueueItem.Playlist -> queueItem.items[trackIndex]
+                                    is MediaControllerState.Available.QueueItem.Artist -> queueItem.items[trackIndex]
                                 }
                                 if (newTrack.uri != null) {
                                     mediaPlayer.setMedia(newTrack.uri)
@@ -517,7 +548,7 @@ class MediaController(
                     id = dbTrack.id,
                     name = dbTrack.name,
                     album = dbTrack.album,
-                    image = dbTrack.albumArt?.let { kotlin.io.encoding.Base64.decode(it) },
+                    image = dbTrack.albumArt?.let { Base64.decode(it) },
                     artists = artistRepo.getTrackArtists(this.id).first()
                         .map { dbArtist ->
                             MediaControllerState.Available.QueueItem.Track.Artist(
@@ -530,7 +561,6 @@ class MediaController(
                     duration = dbTrack.duration
                 )
             }
-
             is QueueItemParameter.Playlist -> playlistRepo.get(this.id).first().let { dbPlaylist ->
                 MediaControllerState.Available.QueueItem.Playlist(
                     id = dbPlaylist.id,
@@ -541,11 +571,31 @@ class MediaController(
                             id = dbTrack.id,
                             name = dbTrack.name,
                             album = dbTrack.album,
-                            image = dbTrack.albumArt?.let {
-                                kotlin.io.encoding.Base64.decode(
-                                    it
+                            image = dbTrack.albumArt?.let { Base64.decode(it) },
+                            artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
+                                MediaControllerState.Available.QueueItem.Track.Artist(
+                                    id = dbArtist.id,
+                                    name = dbArtist.name,
+                                    image = dbArtist.image
                                 )
                             },
+                            uri = mediaFileRepo.getMediaFileUri(dbTrack.id),
+                            duration = dbTrack.duration
+                        )
+                    }
+                )
+            }
+            is QueueItemParameter.Artist -> artistRepo.get(this.id).first().let { dbArtist ->
+                MediaControllerState.Available.QueueItem.Artist(
+                    id = dbArtist.id,
+                    name = dbArtist.name,
+                    image = dbArtist.image,
+                    items = trackRepo.getArtistTracks(dbArtist.id).first().map { dbTrack ->
+                        MediaControllerState.Available.QueueItem.Track(
+                            id = dbTrack.id,
+                            name = dbTrack.name,
+                            album = dbTrack.album,
+                            image = dbTrack.albumArt?.let { Base64.decode(it) },
                             artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
                                 MediaControllerState.Available.QueueItem.Track.Artist(
                                     id = dbArtist.id,
@@ -585,6 +635,7 @@ class MediaController(
                 get() = when (val result = queue[queueItemIndex]) {
                     is QueueItem.Track -> result
                     is QueueItem.Playlist -> result.items[queueSubItemIndex]
+                    is QueueItem.Artist -> result.items[queueSubItemIndex]
                 }
 
             enum class RepeatState { Off, List, Track }
@@ -620,6 +671,19 @@ class MediaController(
                         }
                     }
                 }
+
+                data class Artist(
+                    override val id: Long,
+                    val name: String,
+                    val image: ByteArray?,
+                    val items: List<Track>
+                ) : QueueItem() {
+                    init {
+                        if (items.isEmpty()) {
+                            TODO()
+                        }
+                    }
+                }
             }
         }
     }
@@ -629,6 +693,7 @@ class MediaController(
 
         data class Track(override val id: Long) : QueueItemParameter()
         data class Playlist(override val id: Long) : QueueItemParameter()
+        data class Artist(override val id: Long) : QueueItemParameter()
     }
 
     abstract class MediaPlayer {

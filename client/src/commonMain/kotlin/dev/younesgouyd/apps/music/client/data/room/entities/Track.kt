@@ -55,7 +55,7 @@ interface TrackDao {
 
     @Query(
         """
-        select *
+        select t.*
         from track t
         join artisttrackcrossref cr on cr.trackId = t.id
         where cr.artistId = :artistId
@@ -66,7 +66,7 @@ interface TrackDao {
 
     @Query(
         """
-        select *
+        select t.*
         from track t
         join playlisttrackcrossref cr on cr.trackId = t.id
         where cr.playlistId = :playlistId
@@ -80,6 +80,16 @@ interface TrackDao {
 
     @Query("select * from track where folderId is null")
     fun getRootFolderTracks(): Flow<List<Track>>
+
+    @Query(
+        """
+        select t.*
+        from track t
+        join artisttrackcrossref cr on cr.trackId = t.id
+        where cr.artistId = :artistId
+    """
+    )
+    fun getArtistTracks(artistId: Long): Flow<List<Track>>
 
     @Query(
         """

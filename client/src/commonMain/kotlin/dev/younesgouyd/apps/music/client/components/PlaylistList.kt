@@ -23,10 +23,7 @@ import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.components.util.MediaController
 import dev.younesgouyd.apps.music.client.components.util.compose.AdaptiveUi
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.*
-import dev.younesgouyd.apps.music.client.data.repoes.FolderRepo
-import dev.younesgouyd.apps.music.client.data.repoes.PlaylistRepo
-import dev.younesgouyd.apps.music.client.data.repoes.PlaylistTrackCrossRefRepo
-import dev.younesgouyd.apps.music.client.data.repoes.TrackRepo
+import dev.younesgouyd.apps.music.client.data.repoes.*
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -39,6 +36,7 @@ class PlaylistList(
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     private val trackRepo: TrackRepo,
     private val folderRepo: FolderRepo,
+    private val artistRepo: ArtistRepo,
     private val mediaController: MediaController,
     showPlaylistDetails: (id: Long) -> Unit
 ) : Component() {
@@ -69,12 +67,31 @@ class PlaylistList(
                     scrollState = LazyGridState(),
                     onSearchQueryChange = { searchQuery.value = it },
                     onPlaylistClick = showPlaylistDetails,
-                    onPlayPlaylist = ::playPlaylist,
-                    onAddToPlaylist = ::showAddToPlaylistDialog,
+                    onPlayPlaylist = { id: Long -> mediaController.playQueue(listOf(MediaController.QueueItemParameter.Playlist(id))) },
+                    onAddToPlaylist = { playlistId: Long ->
+                        addToPlaylist.update {
+                            AddToPlaylist(
+                                itemToAdd = AddToPlaylist.Item.Playlist(playlistId),
+                                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                                trackRepo = trackRepo,
+                                folderRepo = folderRepo,
+                                artistRepo = artistRepo,
+                                dismiss = ::dismissAddToPlaylistDialog,
+                                playlistRepo = playlistRepo
+                            )
+                        }
+                        addToPlaylistDialogVisible.update { true }
+                    },
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
-                    onDeletePlaylist = ::deletePlaylist,
-                    onRenamePlaylist = ::renamePlaylist,
-                    onAddPlaylistToQueue = ::addPlaylistToQueue
+                    onDeletePlaylist = { id: Long ->
+                        coroutineScope.launch { playlistRepo.delete(id) }
+                    },
+                    onRenamePlaylist = { newName: String, id: Long ->
+                        coroutineScope.launch {
+                            playlistRepo.updateName(id = id, name = newName)
+                        }
+                    },
+                    onAddPlaylistToQueue = { id: Long -> mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Playlist(id))) }
                 )
             }
         }
@@ -92,40 +109,6 @@ class PlaylistList(
 
     override fun clear() {
         coroutineScope.cancel()
-    }
-
-    private fun playPlaylist(id: Long) {
-        mediaController.playQueue(listOf(MediaController.QueueItemParameter.Playlist(id)))
-    }
-
-    private fun addPlaylistToQueue(id: Long) {
-        mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Playlist(id)))
-    }
-
-    private fun deletePlaylist(id: Long) {
-        coroutineScope.launch {
-            playlistRepo.delete(id)
-        }
-    }
-
-    private fun renamePlaylist(newName: String, id: Long) {
-        coroutineScope.launch {
-            playlistRepo.updateName(id = id, name = newName)
-        }
-    }
-
-    private fun showAddToPlaylistDialog(playlistId: Long) {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Playlist(playlistId),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                folderRepo = folderRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.update { true }
     }
 
     private fun dismissAddToPlaylistDialog() {

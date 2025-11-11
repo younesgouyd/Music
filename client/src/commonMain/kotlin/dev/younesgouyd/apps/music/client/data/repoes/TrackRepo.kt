@@ -37,6 +37,10 @@ class TrackRepo(private val dao: TrackDao) {
         return if (folderId != null) dao.getFolderTracks(folderId) else dao.getRootFolderTracks()
     }
 
+    fun getArtistTracks(artistId: Long): Flow<List<Track>> {
+        return dao.getArtistTracks(artistId)
+    }
+
     fun getPlaylistTracks(playlistId: Long): Flow<List<Track>> {
         return dao.getPlaylistTracks(playlistId)
     }
