@@ -100,11 +100,11 @@ room {
 
 android {
     namespace = "dev.younesgouyd.apps.music.android"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
         applicationId = "dev.younesgouyd.apps.music.android"
-        minSdk = 23
-        targetSdk = 35
+        minSdk = 29
+        targetSdk = 36
         versionCode = 1
         versionName = "0.1"
     }
