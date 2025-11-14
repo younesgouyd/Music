@@ -13,7 +13,7 @@ interface ImportSessionWithItemsDao {
         inspection: Inspection.Webpage,
         selectedIds: List<Long>,
         destinationFolderId: Long?
-    ) {
+    ): Long {
         val currentTime = System.currentTimeMillis()
         val sessionId = add(
             uri = url,
@@ -35,6 +35,7 @@ interface ImportSessionWithItemsDao {
                 updateDatetime = currentTime
             )
         }
+        return sessionId
     }
 
     @Transaction

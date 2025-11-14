@@ -418,10 +418,17 @@ class Library(
     private fun importUrl(
         url: String,
         inspection: dev.younesgouyd.apps.music.common.Inspection.Webpage,
+        ytDlpInspection: String,
         selected: List<Long>
     ) {
         coroutineScope.launch {
-            importSessionWithItemsRepo.addUrlSession(url, inspection, selected, currentFolder.value?.id)
+            importSessionWithItemsRepo.addUrlSession(
+                url = url,
+                inspection = inspection,
+                ytDlpInspection = ytDlpInspection,
+                selected = selected,
+                destinationFolderId = currentFolder.value?.id
+            )
         }
     }
 
@@ -491,8 +498,13 @@ class Library(
             Inspection(
                 server = server,
                 url = url,
-                onDone = { inspection, selected ->
-                    importUrl(url, inspection, selected)
+                onDone = { inspection, ytDlpInspection: String, selected ->
+                    importUrl(
+                        url = url,
+                        inspection = inspection,
+                        ytDlpInspection = ytDlpInspection,
+                        selected = selected
+                    )
                     dismissInspectionDialog()
                 }
             )

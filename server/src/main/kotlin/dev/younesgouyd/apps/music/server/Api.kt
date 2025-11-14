@@ -26,6 +26,7 @@ object Api {
         return if (ytDlpType.type == "playlist") {
             val playlist = ytDlpSerializer.decodeFromString<YtDlpModels.Playlist>(commandResponse)
             Inspection.Webpage(
+                ytDlpInspection = commandResponse,
                 container = Inspection.ContainerInspection.Webpage(
                     uri = url,
                     title = playlist.title.ifBlank { TODO() },
@@ -53,6 +54,7 @@ object Api {
             val title = single.title.ifBlank { TODO() }
             val thumbnail: Base64String? = single.thumbnail?.nullIfBlank()?.let { downloadThumbnail(it) }
             Inspection.Webpage(
+                ytDlpInspection = commandResponse,
                 container = Inspection.ContainerInspection.Webpage(
                     uri = url,
                     title = title,

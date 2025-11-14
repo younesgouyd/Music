@@ -28,27 +28,23 @@ class RepoStore(
 
     suspend fun init() {
         fileManager = FileManager(appDir)
-        settingsRepo =
-            SettingsRepo(database.settingDao())
+        settingsRepo = SettingsRepo(database.settingDao())
         folderRepo = FolderRepo(database.folderDao())
         artistRepo = ArtistRepo(database.artistDao())
-        artistTrackCrossRefRepo =
-            ArtistTrackCrossRefRepo(database.artistTrackCrossRefDao())
-        playlistRepo =
-            PlaylistRepo(database.playlistDao())
-        playlistTrackCrossRefRepo =
-            PlaylistTrackCrossRefRepo(database.playlistTrackCrossRefDao())
+        artistTrackCrossRefRepo = ArtistTrackCrossRefRepo(database.artistTrackCrossRefDao())
+        playlistRepo = PlaylistRepo(database.playlistDao())
+        playlistTrackCrossRefRepo = PlaylistTrackCrossRefRepo(database.playlistTrackCrossRefDao())
         trackRepo = TrackRepo(database.trackDao())
         mediaFileRepo = MediaFileRepo(
             dao = database.mediaFileDao(),
             fileManager = fileManager
         )
-        importSessionRepo =
-            ImportSessionRepo(database.importSessionDao())
-        importSessionItemRepo =
-            ImportSessionItemRepo(database.importSessionItemDao())
-        importSessionWithItemsRepo =
-            ImportSessionWithItemsRepo(database.importSessionWithItemsDao())
+        importSessionRepo = ImportSessionRepo(database.importSessionDao())
+        importSessionItemRepo = ImportSessionItemRepo(database.importSessionItemDao())
+        importSessionWithItemsRepo = ImportSessionWithItemsRepo(
+            dao = database.importSessionWithItemsDao(),
+            fileManager = fileManager
+        )
 
         settingsRepo.init()
 

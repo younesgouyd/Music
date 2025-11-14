@@ -1,5 +1,4 @@
-
-- save yt-dlp inspection response in client
+- save images in files to improve db performance
 - implement export and re-importing from the export
 - update date and creation date in daos
 - define typealias for IDs
@@ -17,6 +16,7 @@
 - verify not null assertions (!!)
 
 done:
+- save yt-dlp inspection response in client
 - bump android minimum api level to 29 (android 10)
 - add button to play artist in the artist list and details screens
 - check package names, maybe need adjusting

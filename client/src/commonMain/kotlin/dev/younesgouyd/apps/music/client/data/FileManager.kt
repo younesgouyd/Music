@@ -9,6 +9,7 @@ class FileManager(
     appDir: File
 ) {
     val mediaDir = File(appDir, "media").also { it.mkdir() }
+    val inspectionDir = File(appDir, "inspections").also { it.mkdir() }
 
     suspend fun saveMediaFile(data: InputStream, id: Long) {
         withContext(Dispatchers.IO) {
@@ -20,5 +21,12 @@ class FileManager(
 
     fun getMediaFile(id: Long): File {
         return File(mediaDir, id.toString())
+    }
+
+    suspend fun saveYtDlpInspection(importSessionId: Long, inspection: String) {
+        withContext(Dispatchers.IO) {
+            File(inspectionDir, importSessionId.toString())
+                .writeText(inspection)
+        }
     }
 }

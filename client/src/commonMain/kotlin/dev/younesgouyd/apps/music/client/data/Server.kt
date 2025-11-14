@@ -59,6 +59,6 @@ class Server(
 
     private fun getAddress(): String {
         val settingsAddress = serverAddress.value
-        return if (settingsAddress.isNullOrEmpty()) TODO() else settingsAddress
+        return if (settingsAddress.isNullOrBlank()) TODO() else settingsAddress
     }
 }

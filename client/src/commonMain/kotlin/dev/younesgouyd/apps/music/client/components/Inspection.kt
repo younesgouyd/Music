@@ -28,7 +28,11 @@ import kotlin.io.encoding.Base64
 
 class Inspection(
     private val server: Server,
-    private val onDone: (dev.younesgouyd.apps.music.common.Inspection.Webpage, selected: List<Long>) -> Unit,
+    private val onDone: (
+        inspection: dev.younesgouyd.apps.music.common.Inspection.Webpage,
+        ytDlpInspection: String,
+        selected: List<Long>
+    ) -> Unit,
     url: String
 ) : Component() {
     override val title: String = "Inspection"
@@ -56,7 +60,11 @@ class Inspection(
                     },
                     onUnselectAllClick = { selectedItems.clear() },
                     onDone = {
-                        onDone(inspection, selectedItems.toList())
+                        onDone(
+                            inspection,
+                            inspection.ytDlpInspection,
+                            selectedItems.toList()
+                        )
                     }
                 )
             } catch (e: Exception) {
