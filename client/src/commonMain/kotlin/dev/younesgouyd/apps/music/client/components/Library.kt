@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import dev.younesgouyd.apps.music.client.Music
 import dev.younesgouyd.apps.music.client.components.util.MediaController
 import dev.younesgouyd.apps.music.client.components.util.compose.AdaptiveUi
 import dev.younesgouyd.apps.music.client.components.util.compose.SystemFilePicker
@@ -29,13 +30,14 @@ import dev.younesgouyd.apps.music.client.components.util.compose.widgets.*
 import dev.younesgouyd.apps.music.client.data.Server
 import dev.younesgouyd.apps.music.client.data.repoes.*
 import dev.younesgouyd.apps.music.client.data.room.entities.Folder
-import dev.younesgouyd.apps.music.client.data.room.entities.Playlist
+import dev.younesgouyd.apps.music.client.data.room.entities.MediaFile
 import dev.younesgouyd.apps.music.client.scanFolder
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.File
 import kotlin.io.encoding.Base64
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -47,6 +49,9 @@ class Library(
     private val artistRepo: ArtistRepo,
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     private val importSessionWithItemsRepo: ImportSessionWithItemsRepo,
+    private val mediaFileRepo: MediaFileRepo,
+    private val mediaFileImportSessionCrossRefRepo: MediaFileImportSessionCrossRefRepo,
+    private val mediaFileImportSessionItemCrossRefRepo: MediaFileImportSessionItemCrossRefRepo,
     private val mediaController: MediaController,
     private val showPlaylist: (id: Long) -> Unit,
     private val showArtistDetails: (id: Long) -> Unit
@@ -55,7 +60,7 @@ class Library(
     private val currentFolder: MutableStateFlow<Folder?> = MutableStateFlow(null)
     private val path: StateFlow<List<Models.NodeState>>
     private val folders: StateFlow<List<Folder>>
-    private val playlists: StateFlow<List<Playlist>>
+    private val playlists: StateFlow<List<Models.Playlist>>
     private val tracks: StateFlow<List<Models.Track>>
     private val loadingItems: StateFlow<Boolean>
     private val loadingFolders: MutableStateFlow<Boolean>
@@ -124,6 +129,15 @@ class Library(
             loadingPlaylists.value = true
             searchQuery.flatMapLatest { search ->
                 playlistRepo.searchFolder(parentFolder?.id, search)
+                    .map { list ->
+                        list.map { dbPlaylist ->
+                            Models.Playlist(
+                                id = dbPlaylist.id,
+                                name = dbPlaylist.name,
+                                image = mediaFileRepo.getPlaylistImage(dbPlaylist.id)
+                            )
+                        }
+                    }
                     .also {
                         loadingPlaylists.value = false
                     }
@@ -138,7 +152,7 @@ class Library(
                         Models.Track(
                             id = dbTrack.id,
                             name = dbTrack.name,
-                            image = dbTrack.albumArt?.let { Base64.Default.decode(it) },
+                            image = mediaFileRepo.getTrackImage(dbTrack.id),
                             artists = artistRepo.getTrackArtists(dbTrack.id).first().map {
                                 Models.Track.Artist(id = it.id, name = it.name)
                             }
@@ -165,10 +179,8 @@ class Library(
             Ui.Common.ImportFormDialog(
                 onFolderPicked = {
                     coroutineScope.launch {
-                        importTypeDialogVisible = false
-                        preparingImportDialogVisible = true
                         importFolder(it)
-                        preparingImportDialogVisible = false
+                        importTypeDialogVisible = false
                     }
                 },
                 onUrlEntered = {
@@ -404,15 +416,29 @@ class Library(
         coroutineScope.cancel()
     }
 
-    private suspend fun importFolder(uri: String) {
-        val items = scanFolder(uri)
-        importSessionWithItemsRepo.addLocalSession(
-            inspection = dev.younesgouyd.apps.music.common.Inspection.Folder(
-                container = dev.younesgouyd.apps.music.common.Inspection.ContainerInspection.Folder(uri = uri),
-                items = items
-            ),
-            destinationFolderId = currentFolder.value?.id
-        )
+    private fun importFolder(uri: String) {
+        Music.coroutineScope.launch {
+            val items = scanFolder(uri)
+            val (_, itemsWithId) = importSessionWithItemsRepo.addLocalSession(
+                inspection = dev.younesgouyd.apps.music.common.Inspection.Folder(
+                    container = dev.younesgouyd.apps.music.common.Inspection.ContainerInspection.Folder(uri = uri),
+                    items = items
+                ),
+                destinationFolderId = currentFolder.value?.id
+            )
+            for ((id, item) in itemsWithId) {
+                item.albumImage?.let { albumImage ->
+                    val mediaFileId = mediaFileRepo.add(
+                        type = MediaFile.Type.Image,
+                        data = Base64.decode(albumImage)
+                    )
+                    mediaFileImportSessionItemCrossRefRepo.add(
+                        mediaFileId = mediaFileId,
+                        importSessionItemId = id
+                    )
+                }
+            }
+        }
     }
 
     private fun importUrl(
@@ -422,13 +448,35 @@ class Library(
         selected: List<Long>
     ) {
         coroutineScope.launch {
-            importSessionWithItemsRepo.addUrlSession(
+            val (importSessionId, itemsWithId) = importSessionWithItemsRepo.addUrlSession(
                 url = url,
                 inspection = inspection,
                 ytDlpInspection = ytDlpInspection,
                 selected = selected,
                 destinationFolderId = currentFolder.value?.id
             )
+            inspection.container.thumbnail?.let { thumbnail ->
+                val playlistImageId = mediaFileRepo.add(
+                    type = MediaFile.Type.Image,
+                    data = Base64.decode(thumbnail)
+                )
+                mediaFileImportSessionCrossRefRepo.add(
+                    mediaFileId = playlistImageId,
+                    importSessionId = importSessionId
+                )
+            }
+            for ((id, item) in itemsWithId) {
+                item.thumbnail?.let { thumbnail ->
+                    val mediaFileId = mediaFileRepo.add(
+                        type = MediaFile.Type.Image,
+                        data = Base64.decode(thumbnail)
+                    )
+                    mediaFileImportSessionItemCrossRefRepo.add(
+                        mediaFileId = mediaFileId,
+                        importSessionItemId = id
+                    )
+                }
+            }
         }
     }
 
@@ -454,11 +502,12 @@ class Library(
                 trackRepo = trackRepo,
                 folderRepo = folderRepo,
                 artistRepo = artistRepo,
+                mediaFileRepo = mediaFileRepo,
                 dismiss = ::dismissAddToPlaylistDialog,
                 playlistRepo = playlistRepo
             )
         }
-        addToPlaylistDialogVisible.value = false
+        addToPlaylistDialogVisible.value = true
     }
 
     private fun showAddPlaylistToPlaylistDialog(playlistId: Long) {
@@ -469,11 +518,12 @@ class Library(
                 trackRepo = trackRepo,
                 folderRepo = folderRepo,
                 artistRepo = artistRepo,
+                mediaFileRepo = mediaFileRepo,
                 dismiss = ::dismissAddToPlaylistDialog,
                 playlistRepo = playlistRepo
             )
         }
-        addToPlaylistDialogVisible.value = false
+        addToPlaylistDialogVisible.value = true
     }
 
     private fun showAddFolderToPlaylistDialog(folderId: Long) {
@@ -485,11 +535,12 @@ class Library(
                 trackRepo = trackRepo,
                 folderRepo = folderRepo,
                 artistRepo = artistRepo,
+                mediaFileRepo = mediaFileRepo,
                 dismiss = ::dismissAddToPlaylistDialog,
                 playlistRepo = playlistRepo
             )
         }
-        addToPlaylistDialogVisible.value = false
+        addToPlaylistDialogVisible.value = true
     }
 
     private fun showInspectionDialog(url: String) {
@@ -548,7 +599,7 @@ class Library(
         data class Track(
             val id: Long,
             val name: String,
-            val image: ByteArray?,
+            val image: File?,
             val artists: List<Artist>
         ) {
             data class Artist(
@@ -556,6 +607,12 @@ class Library(
                 val name: String
             )
         }
+
+        data class Playlist(
+            val id: Long,
+            val name: String,
+            val image: File?
+        )
     }
 
     private object Ui {
@@ -646,7 +703,7 @@ class Library(
                 loadingItems: StateFlow<Boolean>,
                 currentFolder: StateFlow<Folder?>,
                 folders: StateFlow<List<Folder>>,
-                playlists: StateFlow<List<Playlist>>,
+                playlists: StateFlow<List<Models.Playlist>>,
                 tracks: StateFlow<List<Models.Track>>,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
@@ -1005,7 +1062,7 @@ class Library(
             @Composable
             private fun PlaylistItem(
                 modifier: Modifier = Modifier,
-                playlist: Playlist,
+                playlist: Models.Playlist,
                 onClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -1028,7 +1085,7 @@ class Library(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            data = playlist.image,
+                            file = playlist.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -1160,7 +1217,7 @@ class Library(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            data = track.image,
+                            file = track.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -1230,7 +1287,7 @@ class Library(
                             ) {
                                 Image(
                                     modifier = Modifier.size(64.dp),
-                                    data = track.image
+                                    file = track.image
                                 )
                                 Text(
                                     text = track.name,
@@ -1352,7 +1409,7 @@ class Library(
                 loadingItems: StateFlow<Boolean>,
                 currentFolder: StateFlow<Folder?>,
                 folders: StateFlow<List<Folder>>,
-                playlists: StateFlow<List<Playlist>>,
+                playlists: StateFlow<List<Models.Playlist>>,
                 tracks: StateFlow<List<Models.Track>>,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
@@ -1706,7 +1763,7 @@ class Library(
             @Composable
             private fun PlaylistItem(
                 modifier: Modifier = Modifier,
-                playlist: Playlist,
+                playlist: Models.Playlist,
                 onClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -1730,7 +1787,7 @@ class Library(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            data = playlist.image,
+                            file = playlist.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -1853,7 +1910,7 @@ class Library(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            data = track.image,
+                            file = track.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -1907,7 +1964,7 @@ class Library(
                             ) {
                                 Image(
                                     modifier = Modifier.size(64.dp),
-                                    data = track.image
+                                    file = track.image
                                 )
                                 Text(
                                     text = track.name,

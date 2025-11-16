@@ -19,15 +19,18 @@ import dev.younesgouyd.apps.music.client.components.util.MediaController
 import dev.younesgouyd.apps.music.client.components.util.compose.AdaptiveUi
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.*
 import dev.younesgouyd.apps.music.client.data.repoes.ArtistRepo
+import dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ArtistList(
     artistRepo: ArtistRepo,
+    mediaFileRepo: MediaFileRepo,
     mediaController: MediaController,
     showArtistDetails: (Long) -> Unit
 ) : Component() {
@@ -44,7 +47,7 @@ class ArtistList(
                             ArtistListState.Loaded.ArtistItem(
                                 id = dbArtist.id,
                                 name = dbArtist.name,
-                                image = dbArtist.image
+                                image = mediaFileRepo.getArtistImage(dbArtist.id)
                             )
                         }
                     }
@@ -88,7 +91,7 @@ class ArtistList(
             data class ArtistItem(
                 val id: Long,
                 val name: String,
-                val image: ByteArray?
+                val image: File?
             )
         }
     }
@@ -192,7 +195,7 @@ class ArtistList(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            data = artist.image,
+                            file = artist.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -346,7 +349,7 @@ class ArtistList(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            data = artist.image,
+                            file = artist.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )

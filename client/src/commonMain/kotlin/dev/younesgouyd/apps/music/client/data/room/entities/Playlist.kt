@@ -26,7 +26,6 @@ data class Playlist(
     val id: Long,
     val name: String,
     val folderId: Long?,
-    val image: ByteArray?,
     val importSessionId: Long?,
     val importUri: String?,
     val creationDatetime: Long,
@@ -66,14 +65,13 @@ interface PlaylistDao {
 
     @Query(
         """
-        insert into playlist (name, folderId, image, importSessionId, importUri, creationDatetime, updateDatetime)
-        values (:name, :folderId, :image, :importSessionId, :importUri, :creationDatetime, :updateDatetime)
+        insert into playlist (name, folderId, importSessionId, importUri, creationDatetime, updateDatetime)
+        values (:name, :folderId, :importSessionId, :importUri, :creationDatetime, :updateDatetime)
     """
     )
     suspend fun add(
         name: String,
         folderId: Long?,
-        image: ByteArray?,
         importSessionId: Long?,
         importUri: String?,
         creationDatetime: Long,
@@ -85,9 +83,6 @@ interface PlaylistDao {
 
     @Query("update playlist set folderId = :folderId, updateDatetime = :updateDatetime where id = :id")
     suspend fun updateFolderId(folderId: Long?, updateDatetime: Long, id: Long)
-
-    @Query("update playlist set image = :image, updateDatetime = :updateDatetime where id = :id")
-    suspend fun updateImage(image: ByteArray?, updateDatetime: Long, id: Long)
 
     @Query("delete from playlist where id = :id")
     suspend fun delete(id: Long)

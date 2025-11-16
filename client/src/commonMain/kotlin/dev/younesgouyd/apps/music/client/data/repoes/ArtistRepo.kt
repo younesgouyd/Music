@@ -22,12 +22,11 @@ class ArtistRepo(private val dao: ArtistDao) {
         return dao.getByName(name)
     }
 
-    suspend fun add(name: String, image: ByteArray?): Long {
+    suspend fun add(name: String): Long {
         require(name.isNotEmpty())
         val currentTime = System.currentTimeMillis()
         return dao.add(
             name = name,
-            image = image,
             creationDatetime = currentTime,
             updateDatetime = currentTime
         )
@@ -36,10 +35,6 @@ class ArtistRepo(private val dao: ArtistDao) {
     suspend fun updateName(id: Long, name: String) {
         require(name.isNotEmpty())
         dao.updateName(name, System.currentTimeMillis(), id)
-    }
-
-    suspend fun updateImage(id: Long, image: ByteArray?) {
-        dao.updateImage(image, System.currentTimeMillis(), id)
     }
 
     suspend fun delete(id: Long) {

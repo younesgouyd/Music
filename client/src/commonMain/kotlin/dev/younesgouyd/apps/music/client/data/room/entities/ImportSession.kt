@@ -1,13 +1,20 @@
 package dev.younesgouyd.apps.music.client.data.room.entities
 
-import androidx.room.Dao
-import androidx.room.Entity
-import androidx.room.PrimaryKey
-import androidx.room.Query
+import androidx.room.*
 import dev.younesgouyd.apps.music.common.Inspection
 import kotlinx.coroutines.flow.Flow
 
-@Entity
+@Entity(
+    foreignKeys = [
+        ForeignKey(
+            entity = Folder::class,
+            parentColumns = ["id"],
+            childColumns = ["destinationFolderId"],
+            onUpdate = ForeignKey.CASCADE,
+            onDelete = ForeignKey.SET_NULL
+        )
+    ]
+)
 data class ImportSession(
     @PrimaryKey(autoGenerate = true)
     val id: Long,

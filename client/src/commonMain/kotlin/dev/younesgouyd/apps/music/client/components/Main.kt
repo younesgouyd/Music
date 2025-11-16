@@ -14,7 +14,7 @@ import dev.younesgouyd.apps.music.client.components.util.MediaController
 import dev.younesgouyd.apps.music.client.components.util.compose.AdaptiveUi
 import dev.younesgouyd.apps.music.client.data.RepoStore
 import dev.younesgouyd.apps.music.client.usecases.ImportFromInternetUseCase
-import dev.younesgouyd.apps.music.client.usecases.ImportLocalFileUseCase
+import dev.younesgouyd.apps.music.client.usecases.ImportLocalFileUseCaseImpl
 import dev.younesgouyd.apps.music.client.usecases.SaveAudioFileAsTrackUseCase
 import dev.younesgouyd.apps.music.client.util.Component
 import dev.younesgouyd.apps.music.client.util.DarkThemeOptions
@@ -51,12 +51,16 @@ class Main(
             importSessionItemRepo = repoStore.importSessionItemRepo,
             playlistRepo = repoStore.playlistRepo,
             playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
-            importLocalFileUseCase = ImportLocalFileUseCase(
+            mediaFileRepo = repoStore.mediaFileRepo,
+            mediaFilePlaylistCrossRefRepo = repoStore.mediaFilePlaylistCrossRefRepo,
+            importLocalFileUseCase = ImportLocalFileUseCaseImpl(
                 mediaFileRepo = repoStore.mediaFileRepo,
+                mediaFileTrackCrossRefRepo = repoStore.mediaFileTrackCrossRefRepo,
                 saveAudioFileAsTrackUseCase = saveAudioFileAsTrackUseCase
             ),
             importFromInternetUseCase = ImportFromInternetUseCase(
                 mediaFileRepo = repoStore.mediaFileRepo,
+                mediaFileTrackCrossRefRepo = repoStore.mediaFileTrackCrossRefRepo,
                 server = repoStore.server,
                 saveAudioFileAsTrackUseCase = saveAudioFileAsTrackUseCase
             )
@@ -256,7 +260,8 @@ class Main(
                                             player.show(Modifier.fillMaxSize())
                                         } else {
                                             Row(
-                                                modifier = Modifier.fillMaxWidth().weight(weight = .8f)
+                                                modifier = Modifier.fillMaxWidth()
+                                                    .weight(weight = 1f)
                                             ) {
                                                 mainComponent.show(Modifier.weight(.7f))
                                                 queue.show(
@@ -266,7 +271,7 @@ class Main(
                                             miniPlayer.show(
                                                 modifier = Modifier.fillMaxWidth()
                                                     .padding(8.dp)
-                                                    .weight(.2f)
+                                                    .height(180.dp)
                                             )
                                         }
                                     }
@@ -349,11 +354,9 @@ class Main(
                                                 mainComponent.show(Modifier.fillMaxWidth().weight(weight = 0.88f))
                                                 miniPlayer.show(modifier = Modifier.fillMaxWidth().weight(0.12f))
                                             }
-
                                             MainComponentType.Player -> {
                                                 player.show(Modifier.fillMaxSize())
                                             }
-
                                             MainComponentType.Queue -> {
                                                 queue.show(Modifier.fillMaxSize())
                                             }

@@ -1,19 +1,21 @@
 package dev.younesgouyd.apps.music.client.usecases
 
 import dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo
+import dev.younesgouyd.apps.music.client.data.repoes.MediaFileTrackCrossRefRepo
 import dev.younesgouyd.apps.music.common.Inspection
-import java.io.InputStream
 import java.net.URI
 import kotlin.io.path.toPath
 
-actual class ImportLocalFileUseCase actual constructor(
+actual class ImportLocalFileUseCaseImpl actual constructor(
     mediaFileRepo: MediaFileRepo,
+    mediaFileTrackCrossRefRepo: MediaFileTrackCrossRefRepo,
     saveAudioFileAsTrackUseCase: SaveAudioFileAsTrackUseCase
+) : ImportLocalFileUseCase(
+    mediaFileRepo,
+    mediaFileTrackCrossRefRepo,
+    saveAudioFileAsTrackUseCase
 ) {
-    actual val mediaFileRepo: MediaFileRepo = mediaFileRepo
-    actual val saveAudioFileAsTrackUseCase: SaveAudioFileAsTrackUseCase = saveAudioFileAsTrackUseCase
-
-    actual suspend fun execute(
+    override suspend fun execute(
         inspection: Inspection.ItemInspection.LocalFileTrack,
         importSessionItemId: Long,
         folderId: Long?
@@ -29,29 +31,5 @@ actual class ImportLocalFileUseCase actual constructor(
                     folderId = folderId
                 )
             }
-    }
-
-    private suspend fun import(
-        inspection: Inspection.ItemInspection.LocalFileTrack,
-        importSessionItemId: Long,
-        data: InputStream,
-        folderId: Long?
-    ): Long {
-        val trackId = saveAudioFileAsTrackUseCase.execute(
-            folderId = folderId,
-            title = inspection.title,
-            duration = inspection.duration,
-            artists = inspection.artists,
-            album = inspection.album,
-            albumTrackNumber = inspection.albumTrackNumber,
-            lyrics = inspection.lyrics,
-            albumImage = inspection.albumImage
-        )
-        mediaFileRepo.add(
-            trackId = trackId,
-            importSessionItemId = importSessionItemId,
-            data = data
-        )
-        return trackId
     }
 }

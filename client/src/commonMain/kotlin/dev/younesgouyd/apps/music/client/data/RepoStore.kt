@@ -24,7 +24,12 @@ class RepoStore(
     lateinit var mediaFileRepo: MediaFileRepo private set
     lateinit var importSessionRepo: ImportSessionRepo private set
     lateinit var importSessionItemRepo: ImportSessionItemRepo private set
-    lateinit var importSessionWithItemsRepo: ImportSessionWithItemsRepo
+    lateinit var importSessionWithItemsRepo: ImportSessionWithItemsRepo private set
+    lateinit var mediaFileTrackCrossRefRepo: MediaFileTrackCrossRefRepo private set
+    lateinit var mediaFileImportSessionCrossRefRepo: MediaFileImportSessionCrossRefRepo private set
+    lateinit var mediaFileImportSessionItemCrossRefRepo: MediaFileImportSessionItemCrossRefRepo private set
+    lateinit var mediaFileArtistCrossRefRepo: MediaFileArtistCrossRefRepo private set
+    lateinit var mediaFilePlaylistCrossRefRepo: MediaFilePlaylistCrossRefRepo private set
 
     suspend fun init() {
         fileManager = FileManager(appDir)
@@ -45,6 +50,11 @@ class RepoStore(
             dao = database.importSessionWithItemsDao(),
             fileManager = fileManager
         )
+        mediaFileTrackCrossRefRepo = MediaFileTrackCrossRefRepo(database.mediaFileTrackCrossRefDao())
+        mediaFileImportSessionCrossRefRepo = MediaFileImportSessionCrossRefRepo(database.mediaFileImportSessionCrossRefDao())
+        mediaFileImportSessionItemCrossRefRepo = MediaFileImportSessionItemCrossRefRepo(database.mediaFileImportSessionItemCrossRefDao())
+        mediaFileArtistCrossRefRepo = MediaFileArtistCrossRefRepo(database.mediaFileArtistCrossRefDao())
+        mediaFilePlaylistCrossRefRepo = MediaFilePlaylistCrossRefRepo(database.mediaFilePlaylistCrossRefDao())
 
         settingsRepo.init()
 

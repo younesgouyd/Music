@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <application
-            android:name="dev.younesgouyd.apps.music.client.android.Music"
+            android:name="dev.younesgouyd.apps.music.client.MusicAndroidApp"
             android:allowBackup="true"
             android:icon="@mipmap/ic_launcher"
             android:label="Music"
@@ -15,7 +15,7 @@
             android:theme="@style/Theme.Music"
             android:largeHeap="true">
         <activity
-                android:name="dev.younesgouyd.apps.music.client.android.MainActivity"
+                android:name="dev.younesgouyd.apps.music.client.MainActivity"
                 android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -23,7 +23,7 @@
             </intent-filter>
         </activity>
         <service
-                android:name="dev.younesgouyd.apps.music.client.android.PlaybackService"
+                android:name="dev.younesgouyd.apps.music.client.PlaybackService"
                 android:foregroundServiceType="mediaPlayback"
                 android:exported="true">
             <intent-filter>

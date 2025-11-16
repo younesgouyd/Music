@@ -28,7 +28,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlin.io.encoding.Base64
+import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistDetails(
@@ -39,6 +39,7 @@ class PlaylistDetails(
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     private val folderRepo: FolderRepo,
     private val mediaController: MediaController,
+    mediaFileRepo: MediaFileRepo,
     showImport: (id: Long) -> Unit,
     showArtistDetails: (id: Long) -> Unit
 ) : Component() {
@@ -56,7 +57,7 @@ class PlaylistDetails(
                         PlaylistDetailsState.Loaded.Playlist(
                             id = dbPlaylist.id,
                             name = dbPlaylist.name,
-                            image = dbPlaylist.image,
+                            image = mediaFileRepo.getPlaylistImage(dbPlaylist.id),
                             importUri = dbPlaylist.importUri,
                             onImportClick = { dbPlaylist.importSessionId?.let { showImport(it) } }
                         )
@@ -68,7 +69,7 @@ class PlaylistDetails(
                                     id = dbTrack.id,
                                     name = dbTrack.name,
                                     album = dbTrack.album,
-                                    image = dbTrack.albumArt?.let { Base64.decode(it) },
+                                    image = mediaFileRepo.getTrackImage(dbTrack.id),
                                     artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
                                         PlaylistDetailsState.Loaded.Track.Artist(
                                             id = dbArtist.id,
@@ -94,6 +95,7 @@ class PlaylistDetails(
                                 trackRepo = trackRepo,
                                 folderRepo = folderRepo,
                                 artistRepo = artistRepo,
+                                mediaFileRepo = mediaFileRepo,
                                 dismiss = ::dismissAddToPlaylistDialog,
                                 playlistRepo = playlistRepo
                             )
@@ -120,6 +122,7 @@ class PlaylistDetails(
                                 trackRepo = trackRepo,
                                 folderRepo = folderRepo,
                                 artistRepo = artistRepo,
+                                mediaFileRepo = mediaFileRepo,
                                 dismiss = ::dismissAddToPlaylistDialog,
                                 playlistRepo = playlistRepo
                             )
@@ -186,7 +189,7 @@ class PlaylistDetails(
             data class Playlist(
                 val id: Long,
                 val name: String,
-                val image: ByteArray?,
+                val image: File?,
                 val importUri: String?,
                 val onImportClick: () -> Unit
             )
@@ -195,7 +198,7 @@ class PlaylistDetails(
                 val id: Long,
                 val name: String,
                 val album: String?,
-                val image: ByteArray?,
+                val image: File?,
                 val artists: List<Artist>,
             ) {
                 data class Artist(
@@ -345,7 +348,7 @@ class PlaylistDetails(
                 ) {
                     Image(
                         modifier = Modifier.fillMaxHeight(),
-                        data = playlist.image,
+                        file = playlist.image,
                         contentScale = ContentScale.FillHeight
                     )
                     Column(
@@ -508,7 +511,7 @@ class PlaylistDetails(
                         ) {
                             Image(
                                 modifier = Modifier.fillMaxHeight(),
-                                data = track.image,
+                                file = track.image,
                                 contentScale = ContentScale.FillHeight
                             )
                             Column(
@@ -783,7 +786,7 @@ class PlaylistDetails(
                 ) {
                     Image(
                         modifier = Modifier.fillMaxWidth(),
-                        data = playlist.image,
+                        file = playlist.image,
                         contentScale = ContentScale.FillWidth
                     )
                     Text(
@@ -935,7 +938,7 @@ class PlaylistDetails(
                         ) {
                             Image(
                                 modifier = Modifier.fillMaxHeight(),
-                                data = track.image,
+                                file = track.image,
                                 contentScale = ContentScale.FillHeight
                             )
                             Column(

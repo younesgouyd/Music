@@ -1,9 +1,6 @@
 package dev.younesgouyd.apps.music.client
 
-import dev.younesgouyd.apps.music.client.data.repoes.ImportSessionItemRepo
-import dev.younesgouyd.apps.music.client.data.repoes.ImportSessionRepo
-import dev.younesgouyd.apps.music.client.data.repoes.PlaylistRepo
-import dev.younesgouyd.apps.music.client.data.repoes.PlaylistTrackCrossRefRepo
+import dev.younesgouyd.apps.music.client.data.repoes.*
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSession
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem
 import dev.younesgouyd.apps.music.client.usecases.ImportFromInternetUseCase
@@ -13,17 +10,18 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlin.concurrent.Volatile
-import kotlin.io.encoding.Base64
 
 class ImportService(
     private val importSessionRepo: ImportSessionRepo,
     private val importSessionItemRepo: ImportSessionItemRepo,
     private val playlistRepo: PlaylistRepo,
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
+    private val mediaFileRepo: MediaFileRepo,
+    private val mediaFilePlaylistCrossRefRepo: MediaFilePlaylistCrossRefRepo,
     private val importLocalFileUseCase: ImportLocalFileUseCase,
     private val importFromInternetUseCase: ImportFromInternetUseCase
 ) {
-    private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val coroutineScope = Music.coroutineScope
     private var started: Boolean = false
 
     @Volatile
@@ -127,22 +125,21 @@ class ImportService(
         withContext(Dispatchers.IO) {
             println("Working on session ${session.id} item ${item.id}")
             val playlistName: String
-            val playlistImg: ByteArray?
+            val containerImageMediaFileId: Long?
             val trackId = when (session.sourceType) {
                 ImportSession.SourceType.Local -> {
                     playlistName = "from import ${session.id}"
-                    playlistImg = null
+                    containerImageMediaFileId = null
                     importLocalFileUseCase.execute(
                         inspection = item.inspection as Inspection.ItemInspection.LocalFileTrack, // TODO
                         importSessionItemId = item.id,
                         folderId = session.destinationFolderId
                     )
                 }
-
                 ImportSession.SourceType.Internet -> {
                     val container = (session.inspection as Inspection.ContainerInspection.Webpage)
                     playlistName = container.title ?: "from import ${session.id}"
-                    playlistImg = container.thumbnail?.let { Base64.decode(it) }
+                    containerImageMediaFileId = mediaFileRepo.getImportSessionImageMediaFile(session.id)?.id
                     importFromInternetUseCase.execute(
                         inspection = item.inspection as Inspection.ItemInspection.InternetTrack, // TODO
                         importSessionItemId = item.id,
@@ -157,14 +154,23 @@ class ImportService(
             )
             if (trackId != null) {
                 val playlist = playlistRepo.getImportSessionPlaylist(session.id).first()
-                val playlistId: Long = playlist?.id
-                    ?: playlistRepo.add(
+                val playlistId: Long
+                if (playlist != null) {
+                    playlistId = playlist.id
+                } else {
+                    playlistId = playlistRepo.add(
                         name = playlistName,
                         folderId = null,
-                        image = playlistImg,
                         importSessionId = session.id,
                         importUri = session.uri
                     )
+                    if (containerImageMediaFileId != null) {
+                        mediaFilePlaylistCrossRefRepo.add(
+                            mediaFileId = containerImageMediaFileId,
+                            playlistId = playlistId
+                        )
+                    }
+                }
                 playlistTrackCrossRefRepo.add(playlistId, trackId)
             }
         }

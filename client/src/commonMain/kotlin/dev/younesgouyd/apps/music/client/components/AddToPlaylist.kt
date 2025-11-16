@@ -21,7 +21,7 @@ import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlin.io.encoding.Base64
+import java.io.File
 
 class AddToPlaylist(
     private val itemToAdd: Item,
@@ -29,6 +29,7 @@ class AddToPlaylist(
     private val trackRepo: TrackRepo,
     private val folderRepo: FolderRepo,
     private val artistRepo: ArtistRepo,
+    private val mediaFileRepo: MediaFileRepo,
     private val dismiss: () -> Unit,
     private val playlistRepo: PlaylistRepo
 ) : Component() {
@@ -47,13 +48,13 @@ class AddToPlaylist(
                         is Item.Track -> trackRepo.get(itemToAdd.id).first().let { dbTrack ->
                             AddToPlaylistState.Loaded.ItemToAdd(
                                 name = dbTrack.name,
-                                image = dbTrack.albumArt?.let { Base64.decode(it) }
+                                image = mediaFileRepo.getTrackImage(dbTrack.id)
                             )
                         }
                         is Item.Playlist -> playlistRepo.get(itemToAdd.id).first().let { dbPlaylist ->
                             AddToPlaylistState.Loaded.ItemToAdd(
                                 name = dbPlaylist.name,
-                                image = dbPlaylist.image
+                                image = mediaFileRepo.getPlaylistImage(dbPlaylist.id)
                             )
                         }
                         is Item.Folder -> folderRepo.get(itemToAdd.id).first().let { dbFolder ->
@@ -65,7 +66,7 @@ class AddToPlaylist(
                         is Item.Artist -> artistRepo.get(itemToAdd.id).first().let { dbArtist ->
                             AddToPlaylistState.Loaded.ItemToAdd(
                                 name = dbArtist.name,
-                                image = dbArtist.image
+                                image = mediaFileRepo.getArtistImage(dbArtist.id)
                             )
                         }
                     },
@@ -74,7 +75,7 @@ class AddToPlaylist(
                             AddToPlaylistState.Loaded.PlaylistOption(
                                 id = dbPlaylist.id,
                                 name = dbPlaylist.name,
-                                image = dbPlaylist.image
+                                image = mediaFileRepo.getPlaylistImage(dbPlaylist.id)
                             )
                         }
                     }.stateIn(coroutineScope),
@@ -106,7 +107,6 @@ class AddToPlaylist(
                 is AddToPlaylistState.Loaded.PlaylistToAddTo.New -> playlistRepo.add(
                     name = playlistToAddTo.name,
                     folderId = null,
-                    image = null,
                     importSessionId = null,
                     importUri = null
                 )
@@ -181,13 +181,13 @@ class AddToPlaylist(
         ) : AddToPlaylistState() {
             data class ItemToAdd(
                 val name: String,
-                val image: ByteArray?
+                val image: File?
             )
 
             data class PlaylistOption(
                 val id: Long,
                 val name: String,
-                val image: ByteArray?
+                val image: File?
             )
 
             sealed class PlaylistToAddTo {
@@ -245,7 +245,7 @@ class AddToPlaylist(
                         ) {
                             dev.younesgouyd.apps.music.client.components.util.compose.widgets.Image(
                                 modifier = Modifier.size(64.dp),
-                                data = itemToAdd.image
+                                file = itemToAdd.image
                             )
                             Text(
                                 text = itemToAdd.name,
@@ -316,7 +316,7 @@ class AddToPlaylist(
                                         ) {
                                             dev.younesgouyd.apps.music.client.components.util.compose.widgets.Image(
                                                 modifier = Modifier.size(64.dp),
-                                                data = playlistOption.image
+                                                file = playlistOption.image
                                             )
                                             Text(
                                                 text = playlistOption.name,

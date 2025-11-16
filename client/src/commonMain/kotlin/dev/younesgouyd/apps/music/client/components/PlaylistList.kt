@@ -29,6 +29,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistList(
@@ -38,6 +39,7 @@ class PlaylistList(
     private val folderRepo: FolderRepo,
     private val artistRepo: ArtistRepo,
     private val mediaController: MediaController,
+    mediaFileRepo: MediaFileRepo,
     showPlaylistDetails: (id: Long) -> Unit
 ) : Component() {
     override val title: String = "Playlists"
@@ -56,7 +58,7 @@ class PlaylistList(
                                 PlaylistListState.Loaded.PlaylistListItem(
                                     id = dbPlaylist.id,
                                     name = dbPlaylist.name,
-                                    image = dbPlaylist.image
+                                    image = mediaFileRepo.getPlaylistImage(dbPlaylist.id)
                                 )
                             }
                         }
@@ -76,6 +78,7 @@ class PlaylistList(
                                 trackRepo = trackRepo,
                                 folderRepo = folderRepo,
                                 artistRepo = artistRepo,
+                                mediaFileRepo = mediaFileRepo,
                                 dismiss = ::dismissAddToPlaylistDialog,
                                 playlistRepo = playlistRepo
                             )
@@ -140,7 +143,7 @@ class PlaylistList(
             data class PlaylistListItem(
                 val id: Long,
                 val name: String,
-                val image: ByteArray?,
+                val image: File?,
             )
         }
     }
@@ -268,7 +271,7 @@ class PlaylistList(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            data = playlist.image,
+                            file = playlist.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -523,7 +526,7 @@ class PlaylistList(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            data = playlist.image,
+                            file = playlist.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )

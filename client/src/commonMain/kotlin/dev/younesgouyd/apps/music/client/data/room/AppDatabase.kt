@@ -14,7 +14,12 @@ import dev.younesgouyd.apps.music.client.data.room.entities.*
         Playlist::class,
         PlaylistTrackCrossRef::class,
         Setting::class,
-        Track::class
+        Track::class,
+        MediaFileTrackCrossRef::class,
+        MediaFileImportSessionCrossRef::class,
+        MediaFileImportSessionItemCrossRef::class,
+        MediaFileArtistCrossRef::class,
+        MediaFilePlaylistCrossRef::class
     ],
     version = 1
 )
@@ -32,6 +37,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun playlistTrackCrossRefDao(): PlaylistTrackCrossRefDao
     abstract fun settingDao(): SettingDao
     abstract fun trackDao(): TrackDao
+    abstract fun mediaFileTrackCrossRefDao(): MediaFileTrackCrossRefDao
+    abstract fun mediaFileImportSessionItemCrossRefDao(): MediaFileImportSessionItemCrossRefDao
+    abstract fun mediaFileArtistCrossRefDao(): MediaFileArtistCrossRefDao
+    abstract fun mediaFilePlaylistCrossRefDao(): MediaFilePlaylistCrossRefDao
+    abstract fun mediaFileImportSessionCrossRefDao(): MediaFileImportSessionCrossRefDao
 }
 
 @Suppress("NO_ACTUAL_FOR_EXPECT")

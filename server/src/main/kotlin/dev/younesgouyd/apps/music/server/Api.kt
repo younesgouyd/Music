@@ -25,19 +25,21 @@ object Api {
         val ytDlpType = ytDlpSerializer.decodeFromString<YtDlpModels.Type>(commandResponse)
         return if (ytDlpType.type == "playlist") {
             val playlist = ytDlpSerializer.decodeFromString<YtDlpModels.Playlist>(commandResponse)
+            val containerThumbnailUrl = playlist.thumbnails
+                .filter { !it.url.contains("maxresdefault") }
+                .maxBy { it.width * it.height }
+                .url
             Inspection.Webpage(
                 ytDlpInspection = commandResponse,
                 container = Inspection.ContainerInspection.Webpage(
                     uri = url,
                     title = playlist.title.ifBlank { TODO() },
                     description = playlist.description?.nullIfBlank(),
-                    thumbnail = playlist.thumbnails
-                        .filter { !it.url.contains("maxresdefault") }
-                        .maxBy { it.width * it.height }
-                        .url
-                        .let { downloadThumbnail(it) },
+                    thumbnailUrl = containerThumbnailUrl,
+                    thumbnail = downloadThumbnail(containerThumbnailUrl),
                 ),
                 items = playlist.entries.filterNotNull().mapIndexed { index, it ->
+                    val itemThumbnailUrl = it.thumbnail?.nullIfBlank()
                     Inspection.ItemInspection.InternetTrack(
                         uri = it.webpageUrl.ifBlank { TODO() },
                         title = it.title.ifBlank { TODO() },
@@ -45,21 +47,23 @@ object Api {
                         artists = it.artists,
                         album = it.album?.nullIfBlank(),
                         id = (index + 1).toLong(),
-                        thumbnail = it.thumbnail?.nullIfBlank()?.let { downloadThumbnail(it) }
+                        thumbnailUrl = itemThumbnailUrl,
+                        thumbnail = itemThumbnailUrl?.let { downloadThumbnail(it) }
                     )
                 }
             )
         } else {
             val single = ytDlpSerializer.decodeFromString<YtDlpModels.Single>(commandResponse)
             val title = single.title.ifBlank { TODO() }
-            val thumbnail: Base64String? = single.thumbnail?.nullIfBlank()?.let { downloadThumbnail(it) }
+            val thumbnailUrl = single.thumbnail?.nullIfBlank()
             Inspection.Webpage(
                 ytDlpInspection = commandResponse,
                 container = Inspection.ContainerInspection.Webpage(
                     uri = url,
                     title = title,
                     description = null,
-                    thumbnail = thumbnail
+                    thumbnailUrl = null,
+                    thumbnail = null
                 ),
                 items = listOf(
                     Inspection.ItemInspection.InternetTrack(
@@ -69,7 +73,8 @@ object Api {
                         artists = single.artists,
                         album = single.album?.nullIfBlank(),
                         id = 1,
-                        thumbnail = thumbnail
+                        thumbnailUrl = thumbnailUrl,
+                        thumbnail = thumbnailUrl?.let { downloadThumbnail(it) }
                     )
                 )
             )

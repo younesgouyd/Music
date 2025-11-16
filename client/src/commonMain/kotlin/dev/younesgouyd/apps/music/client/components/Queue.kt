@@ -206,7 +206,7 @@ class Queue(
                         Icon(Icons.Default.Audiotrack, null)
                         Image(
                             modifier = Modifier.size(80.dp),
-                            data = item.image
+                            file = item.image
                         )
                         Text(
                             modifier = Modifier.weight(1f),
@@ -255,7 +255,7 @@ class Queue(
                             Icon(Icons.AutoMirrored.Default.QueueMusic, null)
                             Image(
                                 modifier = Modifier.size(80.dp),
-                                data = item.image
+                                file = item.image
                             )
                             Row(
                                 modifier = Modifier.weight(1f),
@@ -349,7 +349,7 @@ class Queue(
                             Icon(Icons.AutoMirrored.Default.QueueMusic, null)
                             Image(
                                 modifier = Modifier.size(80.dp),
-                                data = item.image
+                                file = item.image
                             )
                             Row(
                                 modifier = Modifier.weight(1f),
@@ -525,7 +525,7 @@ class Queue(
                         Icon(Icons.Default.Audiotrack, null)
                         Image(
                             modifier = Modifier.size(80.dp),
-                            data = item.image
+                            file = item.image
                         )
                         Text(
                             modifier = Modifier.weight(1f),
@@ -574,7 +574,7 @@ class Queue(
                             Icon(Icons.AutoMirrored.Default.QueueMusic, null)
                             Image(
                                 modifier = Modifier.size(80.dp),
-                                data = item.image
+                                file = item.image
                             )
                             Row(
                                 modifier = Modifier.weight(1f),
@@ -668,7 +668,7 @@ class Queue(
                             Icon(Icons.AutoMirrored.Default.QueueMusic, null)
                             Image(
                                 modifier = Modifier.size(80.dp),
-                                data = item.image
+                                file = item.image
                             )
                             Row(
                                 modifier = Modifier.weight(1f),

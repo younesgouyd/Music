@@ -25,7 +25,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlin.io.encoding.Base64
+import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ArtistDetails(
@@ -35,6 +35,7 @@ class ArtistDetails(
     private val trackRepo: TrackRepo,
     private val folderRepo: FolderRepo,
     private val playlistRepo: PlaylistRepo,
+    private val mediaFileRepo: MediaFileRepo,
     private val mediaController: MediaController,
     private val showArtistDetails: (Long) -> Unit
 ) : Component() {
@@ -52,7 +53,7 @@ class ArtistDetails(
                         ArtistDetailsState.Loaded.Artist(
                             id = dbArtist.id,
                             name = dbArtist.name,
-                            image = dbArtist.image
+                            image = mediaFileRepo.getArtistImage(dbArtist.id)
                         )
                     }.stateIn(coroutineScope),
                     tracks = searchQuery.flatMapLatest { nameQuery ->
@@ -61,7 +62,7 @@ class ArtistDetails(
                                 ArtistDetailsState.Loaded.Track(
                                     id = dbTrack.id,
                                     name = dbTrack.name,
-                                    image = dbTrack.albumArt?.let { Base64.decode(it) },
+                                    image = mediaFileRepo.getTrackImage(dbTrack.id),
                                     artists = artistRepo.getTrackArtists(dbTrack.id).mapLatest {
                                         it.map { dbArtist ->
                                             ArtistDetailsState.Loaded.Track.Artist(
@@ -89,6 +90,7 @@ class ArtistDetails(
                                 trackRepo = trackRepo,
                                 folderRepo = folderRepo,
                                 artistRepo = artistRepo,
+                                mediaFileRepo = mediaFileRepo,
                                 dismiss = ::dismissAddToPlaylistDialog,
                                 playlistRepo = playlistRepo
                             )
@@ -106,6 +108,7 @@ class ArtistDetails(
                                 trackRepo = trackRepo,
                                 folderRepo = folderRepo,
                                 artistRepo = artistRepo,
+                                mediaFileRepo = mediaFileRepo,
                                 dismiss = ::dismissAddToPlaylistDialog,
                                 playlistRepo = playlistRepo
                             )
@@ -163,13 +166,13 @@ class ArtistDetails(
             data class Artist(
                 val id: Long,
                 val name: String,
-                val image: ByteArray?
+                val image: File?
             )
 
             data class Track(
                 val id: Long,
                 val name: String,
-                val image: ByteArray?,
+                val image: File?,
                 val artists: List<Artist>
             ) {
                 data class Artist(
@@ -314,7 +317,7 @@ class ArtistDetails(
                 ) {
                     Image(
                         modifier = Modifier.fillMaxHeight(),
-                        data = artist.image,
+                        file = artist.image,
                         contentScale = ContentScale.FillHeight
                     )
                     Column(
@@ -398,7 +401,7 @@ class ArtistDetails(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            data = track.image,
+                            file = track.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -599,7 +602,7 @@ class ArtistDetails(
                 ) {
                     Image(
                         modifier = Modifier.fillMaxWidth(),
-                        data = artist.image,
+                        file = artist.image,
                         contentScale = ContentScale.FillWidth
                     )
                     Text(
@@ -676,7 +679,7 @@ class ArtistDetails(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            data = track.image,
+                            file = track.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )

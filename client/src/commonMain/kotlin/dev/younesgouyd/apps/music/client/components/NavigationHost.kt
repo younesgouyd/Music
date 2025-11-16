@@ -176,11 +176,13 @@ class NavigationHost(
                         artistRepo = repoStore.artistRepo,
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
                         importSessionWithItemsRepo = repoStore.importSessionWithItemsRepo,
+                        mediaFileRepo = repoStore.mediaFileRepo,
+                        mediaFileImportSessionCrossRefRepo = repoStore.mediaFileImportSessionCrossRefRepo,
+                        mediaFileImportSessionItemCrossRefRepo = repoStore.mediaFileImportSessionItemCrossRefRepo,
                         mediaController = mediaController,
                         showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
                     )
-
                     is Destination.ArtistDetails -> ArtistDetails(
                         id = destination.artistId,
                         artistRepo = repoStore.artistRepo,
@@ -188,16 +190,16 @@ class NavigationHost(
                         trackRepo = repoStore.trackRepo,
                         folderRepo = repoStore.folderRepo,
                         playlistRepo = repoStore.playlistRepo,
+                        mediaFileRepo = repoStore.mediaFileRepo,
                         mediaController = mediaController,
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
                     )
-
                     is Destination.ArtistList -> ArtistList(
                         artistRepo = repoStore.artistRepo,
+                        mediaFileRepo = repoStore.mediaFileRepo,
                         mediaController = mediaController,
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
                     )
-
                     is Destination.PlaylistDetails -> PlaylistDetails(
                         id = destination.playlistId,
                         trackRepo = repoStore.trackRepo,
@@ -206,10 +208,10 @@ class NavigationHost(
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
                         folderRepo = repoStore.folderRepo,
                         mediaController = mediaController,
+                        mediaFileRepo = repoStore.mediaFileRepo,
                         showImport = { navigateTo(Destination.ImportDetails(it)) },
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
                     )
-
                     is Destination.PlaylistList -> PlaylistList(
                         playlistRepo = repoStore.playlistRepo,
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
@@ -217,18 +219,18 @@ class NavigationHost(
                         folderRepo = repoStore.folderRepo,
                         artistRepo = repoStore.artistRepo,
                         mediaController = mediaController,
+                        mediaFileRepo = repoStore.mediaFileRepo,
                         showPlaylistDetails = { navigateTo(Destination.PlaylistDetails(it)) }
                     )
-
                     is Destination.ImportList -> ImportList(
                         importSessionRepo = repoStore.importSessionRepo,
                         showImportDetails = { navigateTo(Destination.ImportDetails(it)) }
                     )
-
                     is Destination.ImportDetails -> ImportDetails(
                         id = destination.importId,
                         importSessionRepo = repoStore.importSessionRepo,
-                        importSessionItemRepo = repoStore.importSessionItemRepo
+                        importSessionItemRepo = repoStore.importSessionItemRepo,
+                        mediaFileRepo = repoStore.mediaFileRepo,
                     )
                 }
             }

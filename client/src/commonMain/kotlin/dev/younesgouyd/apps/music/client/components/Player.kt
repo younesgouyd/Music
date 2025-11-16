@@ -171,7 +171,7 @@ class Player(
                         ) {
                             Image(
                                 modifier = Modifier.fillMaxWidth(0.4f),
-                                data = track.image,
+                                file = track.image,
                                 contentScale = ContentScale.FillWidth
                             )
                             TrackInfo(
@@ -477,7 +477,7 @@ class Player(
                     ) {
                         Image(
                             modifier = Modifier.fillMaxWidth(),
-                            data = track.image,
+                            file = track.image,
                             contentScale = ContentScale.FillWidth
                         )
                         TrackInfo(

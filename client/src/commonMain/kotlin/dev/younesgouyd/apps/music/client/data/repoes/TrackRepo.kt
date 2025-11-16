@@ -3,11 +3,12 @@ package dev.younesgouyd.apps.music.client.data.repoes
 import dev.younesgouyd.apps.music.client.data.room.entities.Track
 import dev.younesgouyd.apps.music.client.data.room.entities.TrackDao
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
-import dev.younesgouyd.apps.music.common.Base64String
 import kotlinx.coroutines.flow.Flow
 import kotlin.time.Duration
 
-class TrackRepo(private val dao: TrackDao) {
+class TrackRepo(
+    private val dao: TrackDao
+) {
     fun get(id: Long): Flow<Track> {
         return dao.get(id)
     }
@@ -49,7 +50,6 @@ class TrackRepo(private val dao: TrackDao) {
         name: String,
         folderId: Long?,
         album: String?,
-        albumArt: Base64String?,
         lyrics: String?,
         albumTrackNumber: Int?,
         duration: Duration
@@ -60,7 +60,6 @@ class TrackRepo(private val dao: TrackDao) {
             name = name,
             folderId = folderId,
             album = album,
-            albumArt = albumArt,
             lyrics = lyrics,
             albumTrackNumber = albumTrackNumber,
             durationMillis = duration.inWholeMilliseconds,

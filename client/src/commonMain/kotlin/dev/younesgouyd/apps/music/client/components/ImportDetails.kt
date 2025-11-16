@@ -17,7 +17,8 @@ import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Image
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item
 import dev.younesgouyd.apps.music.client.data.repoes.ImportSessionItemRepo
 import dev.younesgouyd.apps.music.client.data.repoes.ImportSessionRepo
-import dev.younesgouyd.apps.music.client.data.room.entities.ImportSession
+import dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo
+import dev.younesgouyd.apps.music.client.data.room.entities.ImportSession.SourceType
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem
 import dev.younesgouyd.apps.music.client.util.Component
 import dev.younesgouyd.apps.music.common.Inspection
@@ -25,15 +26,17 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlin.io.encoding.Base64
+import java.io.File
+import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, ExperimentalTime::class)
 class ImportDetails(
     id: Long,
     importSessionRepo: ImportSessionRepo,
-    importSessionItemRepo: ImportSessionItemRepo
+    importSessionItemRepo: ImportSessionItemRepo,
+    mediaFileRepo: MediaFileRepo
 ) : Component() {
     override val title: String = "Import"
     private val state: MutableStateFlow<ImportDetailsState> = MutableStateFlow(ImportDetailsState.Loading)
@@ -42,49 +45,86 @@ class ImportDetails(
     init {
         coroutineScope.launch {
             state.value = ImportDetailsState.Loaded(
-                import = importSessionRepo.get(id).stateIn(coroutineScope),
+                import = importSessionRepo.get(id).mapLatest { dbImport ->
+                    when (dbImport.inspection) {
+                        is Inspection.ContainerInspection.Folder -> {
+                            ImportDetailsState.Loaded.Import(
+                                id = dbImport.id,
+                                uri = dbImport.uri,
+                                sourceType = dbImport.sourceType,
+                                title = null,
+                                description = null,
+                                image = mediaFileRepo.getImportSessionImage(dbImport.id),
+                                createdAt = Instant.fromEpochMilliseconds(dbImport.creationDatetime).toString()
+                            )
+                        }
+                        is Inspection.ContainerInspection.Webpage -> {
+                            ImportDetailsState.Loaded.Import(
+                                id = dbImport.id,
+                                uri = dbImport.uri,
+                                sourceType = dbImport.sourceType,
+                                title = dbImport.inspection.title,
+                                description = dbImport.inspection.description,
+                                image = mediaFileRepo.getImportSessionImage(dbImport.id),
+                                createdAt = Instant.fromEpochMilliseconds(dbImport.creationDatetime).toString()
+                            )
+                        }
+                    }
+                }.stateIn(coroutineScope),
                 items = ImportDetailsState.Loaded.Items(
                     nonselected = searchQuery.flatMapLatest {
                         importSessionItemRepo.search(
                             id,
                             ImportSessionItem.State.Nonselected,
                             it
-                        )
+                        ).mapLatest { list ->
+                            list.map { it.toModel(mediaFileRepo) }
+                        }
                     }.stateIn(coroutineScope),
                     pending = searchQuery.flatMapLatest {
                         importSessionItemRepo.search(
                             id,
                             ImportSessionItem.State.Pending,
                             it
-                        )
+                        ).mapLatest { list ->
+                            list.map { it.toModel(mediaFileRepo) }
+                        }
                     }.stateIn(coroutineScope),
                     inProgress = searchQuery.flatMapLatest {
                         importSessionItemRepo.search(
                             id,
                             ImportSessionItem.State.InProgress,
                             it
-                        )
+                        ).mapLatest { list ->
+                            list.map { it.toModel(mediaFileRepo) }
+                        }
                     }.stateIn(coroutineScope),
                     completed = searchQuery.flatMapLatest {
                         importSessionItemRepo.search(
                             id,
                             ImportSessionItem.State.Completed,
                             it
-                        )
+                        ).mapLatest { list ->
+                            list.map { it.toModel(mediaFileRepo) }
+                        }
                     }.stateIn(coroutineScope),
                     cancelled = searchQuery.flatMapLatest {
                         importSessionItemRepo.search(
                             id,
                             ImportSessionItem.State.Cancelled,
                             it
-                        )
+                        ).mapLatest { list ->
+                            list.map { it.toModel(mediaFileRepo) }
+                        }
                     }.stateIn(coroutineScope),
                     failed = searchQuery.flatMapLatest {
                         importSessionItemRepo.search(
                             id,
                             ImportSessionItem.State.Failed,
                             it
-                        )
+                        ).mapLatest { list ->
+                            list.map { it.toModel(mediaFileRepo) }
+                        }
                     }.stateIn(coroutineScope)
                 ),
                 searchQuery = searchQuery.asStateFlow(),
@@ -119,11 +159,40 @@ class ImportDetails(
         coroutineScope.cancel()
     }
 
+    private suspend fun ImportSessionItem.toModel(mediaFileRepo: MediaFileRepo): ImportDetailsState.Loaded.Items.Item {
+        return when (this.inspection) {
+            is Inspection.ItemInspection.LocalFileTrack -> {
+                ImportDetailsState.Loaded.Items.Item(
+                    id = this.id,
+                    uri = this.uri,
+                    state = this.state,
+                    title = this.inspection.title,
+                    duration = this.inspection.duration,
+                    artists = this.inspection.artists,
+                    album = this.inspection.album,
+                    image = mediaFileRepo.getImportSessionItemImage(this.id)
+                )
+            }
+            is Inspection.ItemInspection.InternetTrack -> {
+                ImportDetailsState.Loaded.Items.Item(
+                    id = this.id,
+                    uri = this.uri,
+                    state = this.state,
+                    title = this.inspection.title,
+                    duration = this.inspection.duration,
+                    artists = this.inspection.artists,
+                    album = this.inspection.album,
+                    image = mediaFileRepo.getImportSessionItemImage(this.id)
+                )
+            }
+        }
+    }
+
     private sealed class ImportDetailsState {
         data object Loading : ImportDetailsState()
 
         data class Loaded(
-            val import: StateFlow<ImportSession>,
+            val import: StateFlow<Import>,
             val items: Items,
             val searchQuery: StateFlow<String>,
             val onSearchQueryChange: (String) -> Unit,
@@ -131,14 +200,35 @@ class ImportDetails(
             val onCancelItemClick: (Long) -> Unit,
             val onRetryItemClick: (Long) -> Unit
         ) : ImportDetailsState() {
-            data class Items(
-                val nonselected: StateFlow<List<ImportSessionItem>>,
-                val pending: StateFlow<List<ImportSessionItem>>,
-                val inProgress: StateFlow<List<ImportSessionItem>>,
-                val completed: StateFlow<List<ImportSessionItem>>,
-                val cancelled: StateFlow<List<ImportSessionItem>>,
-                val failed: StateFlow<List<ImportSessionItem>>
+            data class Import(
+                val id: Long,
+                val uri: String,
+                val sourceType: SourceType,
+                val title: String?,
+                val description: String?,
+                val image: File?,
+                val createdAt: String
             )
+
+            data class Items(
+                val nonselected: StateFlow<List<Item>>,
+                val pending: StateFlow<List<Item>>,
+                val inProgress: StateFlow<List<Item>>,
+                val completed: StateFlow<List<Item>>,
+                val cancelled: StateFlow<List<Item>>,
+                val failed: StateFlow<List<Item>>
+            ) {
+                data class Item(
+                    val id: Long,
+                    val uri: String,
+                    val state: ImportSessionItem.State,
+                    val title: String,
+                    val duration: Duration,
+                    val artists: List<String>,
+                    val album: String?,
+                    val image: File?
+                )
+            }
         }
     }
 
@@ -169,7 +259,7 @@ class ImportDetails(
         @Composable
         private fun Main(
             modifier: Modifier,
-            import: StateFlow<ImportSession>,
+            import: StateFlow<ImportDetailsState.Loaded.Import>,
             items: ImportDetailsState.Loaded.Items,
             searchQuery: StateFlow<String>,
             onSearchQueryChange: (String) -> Unit,
@@ -185,7 +275,7 @@ class ImportDetails(
             val cancelled by items.cancelled.collectAsState()
             val failed by items.failed.collectAsState()
             val searchQuery by searchQuery.collectAsState()
-            val items: Map<ImportSessionItem.State, List<ImportSessionItem>> = mapOf(
+            val items: Map<ImportSessionItem.State, List<ImportDetailsState.Loaded.Items.Item>> = mapOf(
                 ImportSessionItem.State.Nonselected to nonselected,
                 ImportSessionItem.State.Pending to pending,
                 ImportSessionItem.State.InProgress to inProgress,
@@ -256,23 +346,20 @@ class ImportDetails(
             )
         }
 
-        @OptIn(ExperimentalTime::class)
         @Composable
         private fun ImportInfo(
             modifier: Modifier,
-            import: ImportSession
+            import: ImportDetailsState.Loaded.Import
         ) {
             Row(
                 modifier = modifier,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (import.inspection is Inspection.ContainerInspection.Webpage) {
-                    Image(
-                        modifier = Modifier.size(64.dp),
-                        data = import.inspection.thumbnail?.let { Base64.decode(it) },
-                    )
-                }
+                Image(
+                    modifier = Modifier.size(64.dp),
+                    file = import.image
+                )
                 Column(
                     modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -281,11 +368,9 @@ class ImportDetails(
                     Text("Session: ${import.id}")
                     Text(import.uri)
                     Text(import.sourceType.name)
-                    Text(Instant.fromEpochMilliseconds(import.creationDatetime).toString())
-                    if (import.inspection is Inspection.ContainerInspection.Webpage) {
-                        Text(import.inspection.title ?: "")
-                        Text(import.inspection.description ?: "")
-                    }
+                    Text(import.createdAt)
+                    Text(import.title ?: "")
+                    Text(import.description ?: "")
                 }
             }
         }
@@ -293,7 +378,7 @@ class ImportDetails(
         @Composable
         private fun ImportItem(
             modifier: Modifier,
-            item: ImportSessionItem,
+            item: ImportDetailsState.Loaded.Items.Item,
             onImportClick: () -> Unit,
             onCancelClick: () -> Unit,
             onRetryClick: () -> Unit
@@ -307,29 +392,18 @@ class ImportDetails(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    when (item.inspection) {
-                        is Inspection.ItemInspection.InternetTrack -> {
-                            Image(
-                                modifier = Modifier.size(64.dp),
-                                data = item.inspection.thumbnail?.let { Base64.decode(it) }
-                            )
-                        }
-
-                        is Inspection.ItemInspection.LocalFileTrack -> {
-                            Image(
-                                modifier = Modifier.size(64.dp),
-                                data = item.inspection.albumImage?.let { Base64.decode(it) }
-                            )
-                        }
-                    }
+                    Image(
+                        modifier = Modifier.size(64.dp),
+                        file = item.image
+                    )
                     Column(
                         modifier = Modifier.weight(1f),
                         horizontalAlignment = Alignment.Start,
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(item.inspection.title)
+                        Text(item.title)
                         Text(
-                            text = "" + item.inspection.album,
+                            text = "" + item.album,
                             style = MaterialTheme.typography.labelMedium
                         )
                         LazyRow(
@@ -337,7 +411,7 @@ class ImportDetails(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            items(item.inspection.artists) { artist ->
+                            items(item.artists) { artist ->
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     verticalAlignment = Alignment.CenterVertically
@@ -353,7 +427,7 @@ class ImportDetails(
                             }
                         }
                         Text(
-                            text = item.inspection.duration.formatted(),
+                            text = item.duration.formatted(),
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
@@ -364,7 +438,6 @@ class ImportDetails(
                                 content = { Icon(Icons.Default.ImportExport, null) }
                             )
                         }
-
                         ImportSessionItem.State.Pending,
                         ImportSessionItem.State.InProgress -> {
                             IconButton(
@@ -372,12 +445,10 @@ class ImportDetails(
                                 content = { Icon(Icons.Default.Cancel, null) }
                             )
                         }
-
                         ImportSessionItem.State.Completed -> {
                             // TODO: the media file may or may not exist at this point.
                             //       add a button to "show some details about it"; or if it was deleted, to "re-import it"
                         }
-
                         ImportSessionItem.State.Cancelled,
                         ImportSessionItem.State.Failed -> {
                             IconButton(

@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "9138acb1fa2ed36cbf0e5ee867044b99",
+    "identityHash": "9508c86a0ef5e6baf4f6c1ef1cf5d5de",
     "entities": [
       {
         "tableName": "Artist",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `image` BLOB, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -19,11 +19,6 @@
             "columnName": "name",
             "affinity": "TEXT",
             "notNull": true
-          },
-          {
-            "fieldPath": "image",
-            "columnName": "image",
-            "affinity": "BLOB"
           },
           {
             "fieldPath": "creationDatetime",
@@ -179,7 +174,7 @@
       },
       {
         "tableName": "ImportSession",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uri` TEXT NOT NULL, `sourceType` TEXT NOT NULL, `inspection` TEXT NOT NULL, `destinationFolderId` INTEGER, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uri` TEXT NOT NULL, `sourceType` TEXT NOT NULL, `inspection` TEXT NOT NULL, `destinationFolderId` INTEGER, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`destinationFolderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -228,7 +223,20 @@
           "columnNames": [
             "id"
           ]
-        }
+        },
+        "foreignKeys": [
+          {
+            "table": "Folder",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "destinationFolderId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
       },
       {
         "tableName": "ImportSessionItem",
@@ -299,7 +307,7 @@
       },
       {
         "tableName": "MediaFile",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `trackId` INTEGER NOT NULL, `importSessionItemId` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`trackId`) REFERENCES `Track`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`importSessionItemId`) REFERENCES `ImportSessionItem`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `type` TEXT NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -308,15 +316,9 @@
             "notNull": true
           },
           {
-            "fieldPath": "trackId",
-            "columnName": "trackId",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "importSessionItemId",
-            "columnName": "importSessionItemId",
-            "affinity": "INTEGER",
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
             "notNull": true
           },
           {
@@ -337,35 +339,11 @@
           "columnNames": [
             "id"
           ]
-        },
-        "foreignKeys": [
-          {
-            "table": "Track",
-            "onDelete": "CASCADE",
-            "onUpdate": "CASCADE",
-            "columns": [
-              "trackId"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          },
-          {
-            "table": "ImportSessionItem",
-            "onDelete": "SET NULL",
-            "onUpdate": "CASCADE",
-            "columns": [
-              "importSessionItemId"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          }
-        ]
+        }
       },
       {
         "tableName": "Playlist",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `folderId` INTEGER, `image` BLOB, `importSessionId` INTEGER, `importUri` TEXT, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`importSessionId`) REFERENCES `ImportSession`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `folderId` INTEGER, `importSessionId` INTEGER, `importUri` TEXT, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`importSessionId`) REFERENCES `ImportSession`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -383,11 +361,6 @@
             "fieldPath": "folderId",
             "columnName": "folderId",
             "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "image",
-            "columnName": "image",
-            "affinity": "BLOB"
           },
           {
             "fieldPath": "importSessionId",
@@ -575,7 +548,7 @@
       },
       {
         "tableName": "Track",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `folderId` INTEGER, `album` TEXT, `albumArt` TEXT, `lyrics` TEXT, `albumTrackNumber` INTEGER, `durationMillis` INTEGER, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `folderId` INTEGER, `album` TEXT, `lyrics` TEXT, `albumTrackNumber` INTEGER, `durationMillis` INTEGER, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -597,11 +570,6 @@
           {
             "fieldPath": "album",
             "columnName": "album",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "albumArt",
-            "columnName": "albumArt",
             "affinity": "TEXT"
           },
           {
@@ -651,11 +619,401 @@
             ]
           }
         ]
+      },
+      {
+        "tableName": "MediaFileTrackCrossRef",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `mediaFileId` INTEGER NOT NULL, `trackId` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`mediaFileId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`trackId`) REFERENCES `Track`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaFileId",
+            "columnName": "mediaFileId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trackId",
+            "columnName": "trackId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updateDatetime",
+            "columnName": "updateDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_MediaFileTrackCrossRef_mediaFileId_trackId",
+            "unique": true,
+            "columnNames": [
+              "mediaFileId",
+              "trackId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_MediaFileTrackCrossRef_mediaFileId_trackId` ON `${TABLE_NAME}` (`mediaFileId`, `trackId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "MediaFile",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "mediaFileId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "Track",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "trackId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "MediaFileImportSessionCrossRef",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `mediaFileId` INTEGER NOT NULL, `importSessionId` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`mediaFileId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`importSessionId`) REFERENCES `ImportSession`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaFileId",
+            "columnName": "mediaFileId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "importSessionId",
+            "columnName": "importSessionId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updateDatetime",
+            "columnName": "updateDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_MediaFileImportSessionCrossRef_mediaFileId_importSessionId",
+            "unique": true,
+            "columnNames": [
+              "mediaFileId",
+              "importSessionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_MediaFileImportSessionCrossRef_mediaFileId_importSessionId` ON `${TABLE_NAME}` (`mediaFileId`, `importSessionId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "MediaFile",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "mediaFileId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "ImportSession",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "importSessionId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "MediaFileImportSessionItemCrossRef",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `mediaFileId` INTEGER NOT NULL, `importSessionItemId` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`mediaFileId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`importSessionItemId`) REFERENCES `ImportSessionItem`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaFileId",
+            "columnName": "mediaFileId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "importSessionItemId",
+            "columnName": "importSessionItemId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updateDatetime",
+            "columnName": "updateDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_MediaFileImportSessionItemCrossRef_mediaFileId_importSessionItemId",
+            "unique": true,
+            "columnNames": [
+              "mediaFileId",
+              "importSessionItemId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_MediaFileImportSessionItemCrossRef_mediaFileId_importSessionItemId` ON `${TABLE_NAME}` (`mediaFileId`, `importSessionItemId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "MediaFile",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "mediaFileId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "ImportSessionItem",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "importSessionItemId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "MediaFileArtistCrossRef",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `mediaFileId` INTEGER NOT NULL, `artistId` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`mediaFileId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`artistId`) REFERENCES `Artist`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaFileId",
+            "columnName": "mediaFileId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "artistId",
+            "columnName": "artistId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updateDatetime",
+            "columnName": "updateDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_MediaFileArtistCrossRef_mediaFileId_artistId",
+            "unique": true,
+            "columnNames": [
+              "mediaFileId",
+              "artistId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_MediaFileArtistCrossRef_mediaFileId_artistId` ON `${TABLE_NAME}` (`mediaFileId`, `artistId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "MediaFile",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "mediaFileId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "Artist",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "artistId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "MediaFilePlaylistCrossRef",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `mediaFileId` INTEGER NOT NULL, `playlistId` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`mediaFileId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`playlistId`) REFERENCES `Playlist`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaFileId",
+            "columnName": "mediaFileId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "playlistId",
+            "columnName": "playlistId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updateDatetime",
+            "columnName": "updateDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_MediaFilePlaylistCrossRef_mediaFileId_playlistId",
+            "unique": true,
+            "columnNames": [
+              "mediaFileId",
+              "playlistId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_MediaFilePlaylistCrossRef_mediaFileId_playlistId` ON `${TABLE_NAME}` (`mediaFileId`, `playlistId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "MediaFile",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "mediaFileId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "Playlist",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "playlistId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9138acb1fa2ed36cbf0e5ee867044b99')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9508c86a0ef5e6baf4f6c1ef1cf5d5de')"
     ]
   }
 }

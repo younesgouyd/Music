@@ -1,7 +1,6 @@
 package dev.younesgouyd.apps.music.client.data.room.entities
 
 import androidx.room.*
-import dev.younesgouyd.apps.music.common.Base64String
 import kotlinx.coroutines.flow.Flow
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -23,7 +22,6 @@ data class Track(
     val name: String,
     val folderId: Long?,
     val album: String?,
-    val albumArt: Base64String?,
     val lyrics: String?,
     val albumTrackNumber: Int?,
     val durationMillis: Long?,
@@ -103,15 +101,14 @@ interface TrackDao {
 
     @Query(
         """
-        insert into track (name, folderId, album, albumArt, lyrics, albumTrackNumber, durationMillis, creationDatetime, updateDatetime)
-        values (:name, :folderId, :album, :albumArt, :lyrics, :albumTrackNumber, :durationMillis, :creationDatetime, :updateDatetime)
+        insert into track (name, folderId, album, lyrics, albumTrackNumber, durationMillis, creationDatetime, updateDatetime)
+        values (:name, :folderId, :album, :lyrics, :albumTrackNumber, :durationMillis, :creationDatetime, :updateDatetime)
     """
     )
     suspend fun add(
         name: String,
         folderId: Long?,
         album: String?,
-        albumArt: Base64String?,
         lyrics: String?,
         albumTrackNumber: Int?,
         durationMillis: Long,

@@ -1,49 +1,80 @@
 package dev.younesgouyd.apps.music.client.data.room.entities
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import androidx.room.Query
+import dev.younesgouyd.apps.music.client.data.room.entities.MediaFile.Type
 import kotlinx.coroutines.flow.Flow
 
-@Entity(
-    foreignKeys = [
-        ForeignKey(
-            entity = Track::class,
-            parentColumns = ["id"],
-            childColumns = ["trackId"],
-            onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = ImportSessionItem::class,
-            parentColumns = ["id"],
-            childColumns = ["importSessionItemId"],
-            onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.SET_NULL
-        )
-    ]
-)
+@Entity
 data class MediaFile(
     @PrimaryKey(autoGenerate = true)
     val id: Long,
-    val trackId: Long,
-    val importSessionItemId: Long,
+    val type: Type,
     val creationDatetime: Long,
     val updateDatetime: Long
-)
+) {
+    enum class Type {
+        Audio, Video, Image
+    }
+}
 
 @Dao
 interface MediaFileDao {
-    @Query("select * from mediafile where trackId = :trackId")
-    fun getTrackMediaFiles(trackId: Long): Flow<List<MediaFile>>
+    @Query("""
+        select *
+        from mediafile m
+        join mediafiletrackcrossref cr on cr.mediaFileId = m.id
+        where cr.trackId = :trackId
+        and m.type = :type
+    """)
+    fun getTrackMediaFiles(trackId: Long, type: Type): Flow<List<MediaFile>>
+
+    @Query("""
+        select *
+        from mediafile m
+        join mediafileimportsessioncrossref cr on cr.mediaFileId = m.id
+        where cr.importSessionId = :importSessionId
+        and m.type = :type
+    """)
+    fun getImportSessionMediaFiles(importSessionId: Long, type: Type): Flow<List<MediaFile>>
+
+    @Query("""
+        select *
+        from mediafile m
+        join mediafileimportsessionitemcrossref cr on cr.mediaFileId = m.id
+        where cr.importSessionItemId = :importSessionItemId
+        and m.type = :type
+    """)
+    fun getImportSessionItemMediaFiles(importSessionItemId: Long, type: Type): Flow<List<MediaFile>>
+
+    @Query("""
+        select *
+        from mediafile m
+        join mediafileartistcrossref cr on cr.mediaFileId = m.id
+        where cr.artistId = :artistId
+        and m.type = :type
+    """)
+    fun getArtistMediaFiles(artistId: Long, type: Type): Flow<List<MediaFile>>
+
+    @Query("""
+        select *
+        from mediafile m
+        join mediafileplaylistcrossref cr on cr.mediaFileId = m.id
+        where cr.playlistId = :playlistId
+        and m.type = :type
+    """)
+    fun getPlaylistMediaFiles(playlistId: Long, type: Type): Flow<List<MediaFile>>
 
     @Query(
         """
-        insert into mediafile (trackId, importSessionItemId, creationDatetime, updateDatetime)
-        values (:trackId, :importSessionItemId, :creationDatetime, :updateDatetime)
+        insert into mediafile (type, creationDatetime, updateDatetime)
+        values (:type, :creationDatetime, :updateDatetime)
     """
     )
     suspend fun add(
-        trackId: Long,
-        importSessionItemId: Long,
+        type: Type,
         creationDatetime: Long,
         updateDatetime: Long
     ): Long

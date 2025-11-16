@@ -1,7 +1,6 @@
 package dev.younesgouyd.apps.music.client.usecases
 
 import dev.younesgouyd.apps.music.client.data.RepoStore
-import dev.younesgouyd.apps.music.common.Base64String
 import kotlinx.coroutines.flow.first
 import kotlin.time.Duration
 
@@ -19,8 +18,7 @@ class SaveAudioFileAsTrackUseCase(
         artists: List<String>,
         album: String?,
         albumTrackNumber: Int?,
-        lyrics: String?,
-        albumImage: Base64String?
+        lyrics: String?
     ): Long {
         require(title.isNotBlank())
         val artistIds = saveArtists(artists)
@@ -28,7 +26,6 @@ class SaveAudioFileAsTrackUseCase(
             name = title,
             folderId = folderId,
             album = album,
-            albumArt = albumImage,
             lyrics = lyrics,
             albumTrackNumber = albumTrackNumber,
             duration = duration
@@ -44,7 +41,7 @@ class SaveAudioFileAsTrackUseCase(
             for (artist in artists) {
                 val dbArtists = artistRepo.getByName(artist).first()
                 val artistId = if (dbArtists.isEmpty()) {
-                    artistRepo.add(name = artist, image = null)
+                    artistRepo.add(name = artist)
                 } else {
                     if (dbArtists.size > 1) {
                         TODO("found multiple artists with same name")

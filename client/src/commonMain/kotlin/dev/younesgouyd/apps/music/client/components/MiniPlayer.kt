@@ -169,7 +169,7 @@ class MiniPlayer(
                     ) {
                         Image(
                             modifier = Modifier.fillMaxHeight(),
-                            data = track.image,
+                            file = track.image,
                             contentScale = ContentScale.FillHeight
                         )
                         Column(
@@ -183,8 +183,12 @@ class MiniPlayer(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            Surface {
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh
+                            ) {
                                 Row(
+                                    modifier = Modifier.padding(4.dp),
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -223,12 +227,13 @@ class MiniPlayer(
                                 }
                             }
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(space = 8.dp, alignment = Alignment.Start),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Surface(
-                                    shape = MaterialTheme.shapes.large,
+                                    shape = MaterialTheme.shapes.small,
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh
                                 ) {
                                     Row(
@@ -246,7 +251,7 @@ class MiniPlayer(
                                     }
                                 }
                                 Surface(
-                                    shape = MaterialTheme.shapes.large,
+                                    shape = MaterialTheme.shapes.small,
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh
                                 ) {
                                     Row(
@@ -400,7 +405,7 @@ class MiniPlayer(
                     ) {
                         Image(
                             modifier = Modifier.fillMaxHeight(),
-                            data = track.image,
+                            file = track.image,
                             contentScale = ContentScale.FillHeight
                         )
                         Column(

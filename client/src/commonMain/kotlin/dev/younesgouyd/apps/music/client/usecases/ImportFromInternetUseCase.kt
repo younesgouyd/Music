@@ -2,12 +2,15 @@ package dev.younesgouyd.apps.music.client.usecases
 
 import dev.younesgouyd.apps.music.client.data.Server
 import dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo
+import dev.younesgouyd.apps.music.client.data.repoes.MediaFileTrackCrossRefRepo
+import dev.younesgouyd.apps.music.client.data.room.entities.MediaFile
 import dev.younesgouyd.apps.music.common.Inspection
 import kotlinx.coroutines.flow.first
 import java.io.InputStream
 
 class ImportFromInternetUseCase(
     val mediaFileRepo: MediaFileRepo,
+    val mediaFileTrackCrossRefRepo: MediaFileTrackCrossRefRepo,
     val server: Server,
     val saveAudioFileAsTrackUseCase: SaveAudioFileAsTrackUseCase
 ) {
@@ -47,13 +50,22 @@ class ImportFromInternetUseCase(
             artists = inspection.artists,
             album = inspection.album,
             albumTrackNumber = null, // TODO
-            lyrics = null, // TODO
-            albumImage = inspection.thumbnail
+            lyrics = null // TODO
         )
-        mediaFileRepo.add(
-            trackId = trackId,
-            importSessionItemId = importSessionItemId,
+        val imageMediaFile = mediaFileRepo.getImportSessionItemImageMediaFile(importSessionItemId = importSessionItemId)
+        if (imageMediaFile != null) {
+            mediaFileTrackCrossRefRepo.add(
+                mediaFileId = imageMediaFile.id,
+                trackId = trackId
+            )
+        }
+        val audioMediaFileId = mediaFileRepo.add(
+            type = MediaFile.Type.Audio,
             data = data
+        )
+        mediaFileTrackCrossRefRepo.add(
+            mediaFileId = audioMediaFileId,
+            trackId = trackId
         )
         return trackId
     }

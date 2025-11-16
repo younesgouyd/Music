@@ -9,10 +9,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import java.io.File
 
 data class Item(
     val name: String,
-    val image: ByteArray?
+    val image: File?
 )
 
 @Composable
@@ -39,7 +40,7 @@ fun ItemContextMenu(
                 ) {
                     Image(
                         modifier = Modifier.size(64.dp),
-                        data = item.image
+                        file = item.image
                     )
                     Text(
                         text = item.name,

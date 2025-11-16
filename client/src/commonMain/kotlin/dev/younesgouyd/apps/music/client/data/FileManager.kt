@@ -8,14 +8,21 @@ import java.io.InputStream
 class FileManager(
     appDir: File
 ) {
-    val mediaDir = File(appDir, "media").also { it.mkdir() }
-    val inspectionDir = File(appDir, "inspections").also { it.mkdir() }
+    private val mediaDir = File(appDir, "media").also { it.mkdir() }
+    private val inspectionDir = File(appDir, "inspections").also { it.mkdir() }
 
     suspend fun saveMediaFile(data: InputStream, id: Long) {
         withContext(Dispatchers.IO) {
             File(mediaDir, id.toString())
                 .outputStream()
                 .use { fileStream -> data.copyTo(fileStream) }
+        }
+    }
+
+    suspend fun saveMediaFile(data: ByteArray, id: Long) {
+        withContext(Dispatchers.IO) {
+            File(mediaDir, id.toString())
+                .writeBytes(data)
         }
     }
 

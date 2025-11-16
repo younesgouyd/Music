@@ -3,7 +3,6 @@ package dev.younesgouyd.apps.music.client
 import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.core.net.toUri
-import dev.younesgouyd.apps.music.client.android.Music
 import dev.younesgouyd.apps.music.common.Inspection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,7 +14,7 @@ actual suspend fun scanFolder(uri: FileUri): List<Inspection.ItemInspection.Loca
 }
 
 private suspend fun scanFolder(folderUri: Uri): List<Inspection.ItemInspection.LocalFileTrack> {
-    val context = Music.instance // TODO
+    val context = MusicAndroidApp.instance // TODO
     val result = mutableListOf<Inspection.ItemInspection.LocalFileTrack>()
     withContext(Dispatchers.IO) {
         val contentResolver = context.contentResolver
@@ -68,7 +67,7 @@ private suspend fun scanFolder(folderUri: Uri): List<Inspection.ItemInspection.L
 
 private fun Uri.isHiddenFolder(): Boolean {
     val projection = arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
-    val context = Music.instance // TODO
+    val context = MusicAndroidApp.instance // TODO
     context.contentResolver.query(this, projection, null, null, null).use { cursor ->
         if (cursor != null && cursor.moveToFirst()) {
             val name = cursor.getString(0)

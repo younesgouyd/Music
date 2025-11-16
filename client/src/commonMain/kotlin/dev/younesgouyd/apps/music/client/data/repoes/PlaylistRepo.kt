@@ -5,7 +5,9 @@ import dev.younesgouyd.apps.music.client.data.room.entities.PlaylistDao
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
 import kotlinx.coroutines.flow.Flow
 
-class PlaylistRepo(private val dao: PlaylistDao) {
+class PlaylistRepo(
+    private val dao: PlaylistDao
+) {
     fun getAll(): Flow<List<Playlist>> {
         return dao.getAll()
     }
@@ -36,7 +38,6 @@ class PlaylistRepo(private val dao: PlaylistDao) {
     suspend fun add(
         name: String,
         folderId: Long?,
-        image: ByteArray?,
         importSessionId: Long?,
         importUri: String?
     ): Long {
@@ -45,7 +46,6 @@ class PlaylistRepo(private val dao: PlaylistDao) {
         return dao.add(
             name = name,
             folderId = folderId,
-            image = image,
             importSessionId = importSessionId,
             importUri = importUri,
             creationDatetime = currentTime,
@@ -60,10 +60,6 @@ class PlaylistRepo(private val dao: PlaylistDao) {
 
     suspend fun updateFolderId(id: Long, folderId: Long) {
         dao.updateFolderId(folderId, System.currentTimeMillis(), id)
-    }
-
-    suspend fun updateImage(id: Long, image: ByteArray?) {
-        dao.updateImage(image, System.currentTimeMillis(), id)
     }
 
     suspend fun delete(id: Long) {

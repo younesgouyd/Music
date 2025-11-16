@@ -11,6 +11,48 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.decodeToImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.io.File
+import java.time.Instant
+
+@Composable
+fun Image(
+    modifier: Modifier = Modifier,
+    file: File?,
+    contentScale: ContentScale = ContentScale.Fit,
+    alignment: Alignment = Alignment.Center
+) {
+    var loading by remember { mutableStateOf(true) }
+    var image by remember { mutableStateOf<ImageBitmap?>(null) }
+
+    if (file == null) {
+        BrokenImage(modifier)
+    } else {
+        val path = file.path
+        LaunchedEffect(path) {
+            loading = true
+            image = Cache.get(path)
+            loading = false
+        }
+
+        when (loading) {
+            true -> LoadingImage(modifier)
+            false -> {
+                image?.let {
+                    Image(
+                        modifier = modifier,
+                        bitmap = it,
+                        contentDescription = null,
+                        contentScale = contentScale,
+                        alignment = alignment
+                    )
+                } ?: BrokenImage(modifier)
+            }
+        }
+    }
+}
 
 @Composable
 fun Image(
@@ -71,5 +113,66 @@ private fun BrokenImage(
             imageVector = Icons.Default.BrokenImage,
             contentDescription = null
         )
+    }
+}
+
+private typealias FilePath = String
+
+private object Cache {
+    private const val MAX_CACHE_SIZE = 100 * 1024 * 1024
+
+    private val cache = mutableMapOf<FilePath, Image>()
+    private val mutex = Mutex()
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var cacheSize = 0
+
+    suspend fun get(filePath: FilePath): ImageBitmap {
+        return withContext(Dispatchers.IO) {
+            val fromCache = cache[filePath]
+            if (fromCache == null) {
+                mutex.withLock {
+                    val fromCache2 = cache[filePath]
+                    if (fromCache2 == null) {
+                        val bytes = File(filePath).readBytes()
+                        val imageBitmap = bytes.decodeToImageBitmap()
+                        val image = Image(imageBitmap, byteSize = bytes.size)
+                        add(filePath to image)
+                        while (cacheSize > MAX_CACHE_SIZE) {
+                            val leastImportant = cache.minByOrNull { it.value.lastUsed }
+                            if (leastImportant != null) {
+                                remove(leastImportant.toPair())
+                            }
+                        }
+                        image.bitmap
+                    } else {
+                        fromCache2.updateLastUsed()
+                        fromCache2.bitmap
+                    }
+                }
+            } else {
+                fromCache.updateLastUsed()
+                fromCache.bitmap
+            }
+        }
+    }
+
+    private suspend fun add(entry: Pair<FilePath, Image>) {
+        scope.launch {
+            cache += entry
+            cacheSize += entry.second.byteSize
+        }.join()
+    }
+
+    private suspend fun remove(entry: Pair<FilePath, Image>) {
+        scope.launch {
+            cache.remove(entry.first)
+            cacheSize -= entry.second.byteSize
+        }.join()
+    }
+
+    private data class Image(val bitmap: ImageBitmap, val byteSize: Int) {
+        var lastUsed = Instant.now().toEpochMilli()
+
+        fun updateLastUsed() { lastUsed = Instant.now().toEpochMilli() }
     }
 }

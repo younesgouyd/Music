@@ -1,4 +1,4 @@
-package dev.younesgouyd.apps.music.client.android
+package dev.younesgouyd.apps.music.client
 
 import android.content.Intent
 import androidx.annotation.OptIn

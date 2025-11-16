@@ -29,6 +29,7 @@ sealed class Inspection {
             val uri: String,
             val title: String?,
             val description: String?,
+            val thumbnailUrl: String?,
             val thumbnail: Base64String?
         ) : ContainerInspection()
 
@@ -55,6 +56,7 @@ sealed class Inspection {
             override val artists: List<String>,
             override val album: String?,
             val id: Long,
+            val thumbnailUrl: String?,
             val thumbnail: Base64String?
         ) : ItemInspection() {
             @Transient

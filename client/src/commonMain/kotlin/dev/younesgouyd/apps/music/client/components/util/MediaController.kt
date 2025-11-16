@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlin.io.encoding.Base64
+import java.io.File
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -548,16 +548,16 @@ class MediaController(
                     id = dbTrack.id,
                     name = dbTrack.name,
                     album = dbTrack.album,
-                    image = dbTrack.albumArt?.let { Base64.decode(it) },
+                    image = mediaFileRepo.getTrackImage(dbTrack.id),
                     artists = artistRepo.getTrackArtists(this.id).first()
                         .map { dbArtist ->
                             MediaControllerState.Available.QueueItem.Track.Artist(
                                 id = dbArtist.id,
                                 name = dbArtist.name,
-                                image = dbArtist.image
+                                image = mediaFileRepo.getArtistImage(dbArtist.id)
                             )
                         },
-                    uri = mediaFileRepo.getMediaFileUri(dbTrack.id),
+                    uri = mediaFileRepo.getTrackAudioUri(dbTrack.id),
                     duration = dbTrack.duration
                 )
             }
@@ -565,21 +565,21 @@ class MediaController(
                 MediaControllerState.Available.QueueItem.Playlist(
                     id = dbPlaylist.id,
                     name = dbPlaylist.name,
-                    image = dbPlaylist.image,
+                    image = mediaFileRepo.getPlaylistImage(dbPlaylist.id),
                     items = trackRepo.getPlaylistTracks(dbPlaylist.id).first().map { dbTrack ->
                         MediaControllerState.Available.QueueItem.Track(
                             id = dbTrack.id,
                             name = dbTrack.name,
                             album = dbTrack.album,
-                            image = dbTrack.albumArt?.let { Base64.decode(it) },
+                            image = mediaFileRepo.getTrackImage(dbTrack.id),
                             artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
                                 MediaControllerState.Available.QueueItem.Track.Artist(
                                     id = dbArtist.id,
                                     name = dbArtist.name,
-                                    image = dbArtist.image
+                                    image = mediaFileRepo.getArtistImage(dbArtist.id)
                                 )
                             },
-                            uri = mediaFileRepo.getMediaFileUri(dbTrack.id),
+                            uri = mediaFileRepo.getTrackAudioUri(dbTrack.id),
                             duration = dbTrack.duration
                         )
                     }
@@ -589,21 +589,21 @@ class MediaController(
                 MediaControllerState.Available.QueueItem.Artist(
                     id = dbArtist.id,
                     name = dbArtist.name,
-                    image = dbArtist.image,
+                    image = mediaFileRepo.getArtistImage(dbArtist.id),
                     items = trackRepo.getArtistTracks(dbArtist.id).first().map { dbTrack ->
                         MediaControllerState.Available.QueueItem.Track(
                             id = dbTrack.id,
                             name = dbTrack.name,
                             album = dbTrack.album,
-                            image = dbTrack.albumArt?.let { Base64.decode(it) },
+                            image = mediaFileRepo.getTrackImage(dbTrack.id),
                             artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
                                 MediaControllerState.Available.QueueItem.Track.Artist(
                                     id = dbArtist.id,
                                     name = dbArtist.name,
-                                    image = dbArtist.image
+                                    image = mediaFileRepo.getArtistImage(dbArtist.id)
                                 )
                             },
-                            uri = mediaFileRepo.getMediaFileUri(dbTrack.id),
+                            uri = mediaFileRepo.getTrackAudioUri(dbTrack.id),
                             duration = dbTrack.duration
                         )
                     }
@@ -647,7 +647,7 @@ class MediaController(
                     override val id: Long,
                     val name: String,
                     val album: String?,
-                    val image: ByteArray?,
+                    val image: File?,
                     val artists: List<Artist>,
                     val uri: String?,
                     val duration: Duration?
@@ -655,14 +655,14 @@ class MediaController(
                     data class Artist(
                         val id: Long,
                         val name: String,
-                        val image: ByteArray?
+                        val image: File?
                     )
                 }
 
                 data class Playlist(
                     override val id: Long,
                     val name: String,
-                    val image: ByteArray?,
+                    val image: File?,
                     val items: List<Track>
                 ) : QueueItem() {
                     init {
@@ -675,7 +675,7 @@ class MediaController(
                 data class Artist(
                     override val id: Long,
                     val name: String,
-                    val image: ByteArray?,
+                    val image: File?,
                     val items: List<Track>
                 ) : QueueItem() {
                     init {

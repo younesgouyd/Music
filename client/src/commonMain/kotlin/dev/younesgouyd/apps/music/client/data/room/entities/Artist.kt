@@ -11,7 +11,6 @@ data class Artist(
     @PrimaryKey(autoGenerate = true)
     val id: Long,
     val name: String,
-    val image: ByteArray?,
     val creationDatetime: Long,
     val updateDatetime: Long
 )
@@ -39,17 +38,14 @@ interface ArtistDao {
 
     @Query(
         """
-        insert into artist (name, image, creationDatetime, updateDatetime)
-        values (:name, :image, :creationDatetime, :updateDatetime)
+        insert into artist (name, creationDatetime, updateDatetime)
+        values (:name, :creationDatetime, :updateDatetime)
     """
     )
-    suspend fun add(name: String, image: ByteArray?, creationDatetime: Long, updateDatetime: Long): Long
+    suspend fun add(name: String, creationDatetime: Long, updateDatetime: Long): Long
 
     @Query("update artist set name = :name, updateDatetime = :updateDatetime where id = :id")
     suspend fun updateName(name: String, updateDatetime: Long, id: Long)
-
-    @Query("update artist set image = :image, updateDatetime = :updateDatetime where id = :id")
-    suspend fun updateImage(image: ByteArray?, updateDatetime: Long, id: Long)
 
     @Query("delete from artist where id = :id")
     suspend fun delete(id: Long)
