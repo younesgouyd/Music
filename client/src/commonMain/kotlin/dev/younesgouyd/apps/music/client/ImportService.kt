@@ -1,5 +1,8 @@
 package dev.younesgouyd.apps.music.client
 
+import dev.younesgouyd.apps.music.client.data.ImportSessionItemId
+import dev.younesgouyd.apps.music.client.data.MediaFileId
+import dev.younesgouyd.apps.music.client.data.PlaylistId
 import dev.younesgouyd.apps.music.client.data.repoes.*
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSession
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem
@@ -25,7 +28,7 @@ class ImportService(
     private var started: Boolean = false
 
     @Volatile
-    private var currentSessionId: Long? = null
+    private var currentSessionItemId: ImportSessionItemId? = null
 
     @Volatile
     private var importJob: Job? = null
@@ -42,12 +45,12 @@ class ImportService(
                 if (session == null) {
                     return@collect
                 }
-                if (currentSessionId == session.id) {
+                if (currentSessionItemId == session.id) {
                     println("Session item ${session.id} was already started")
                     return@collect
                 }
                 importSessionItemRepo.updateState(session.id, ImportSessionItem.State.InProgress)
-                currentSessionId = session.id
+                currentSessionItemId = session.id
                 val sessionState = importSessionItemRepo.get(session.id).map { it.state }
                 launch {
                     sessionState.collect { state ->
@@ -88,21 +91,21 @@ class ImportService(
 
                             ImportSessionItem.State.Completed -> {
                                 println("Session item ${session.id} Completed → stopping")
-                                currentSessionId = null
+                                currentSessionItemId = null
                                 importJob = null
                                 cancel(message = "IntendedCancellation", cause = IntendedCancellation())
                             }
 
                             ImportSessionItem.State.Cancelled -> {
                                 println("Session item ${session.id} Cancelled → stopping")
-                                currentSessionId = null
+                                currentSessionItemId = null
                                 importJob = null
                                 cancel(message = "IntendedCancellation", cause = IntendedCancellation())
                             }
 
                             ImportSessionItem.State.Failed -> {
                                 println("Session item ${session.id} Failed → stopping")
-                                currentSessionId = null
+                                currentSessionItemId = null
                                 importJob = null
                                 cancel(message = "IntendedCancellation", cause = IntendedCancellation())
                             }
@@ -116,8 +119,8 @@ class ImportService(
     suspend fun stop() {
         println("stopping ImportService")
         coroutineScope.cancel(message = "IntendedCancellation", cause = IntendedCancellation())
-        if (currentSessionId != null) {
-            importSessionItemRepo.updateState(currentSessionId!!, ImportSessionItem.State.Failed)
+        if (currentSessionItemId != null) {
+            importSessionItemRepo.updateState(currentSessionItemId!!, ImportSessionItem.State.Failed)
         }
     }
 
@@ -125,7 +128,7 @@ class ImportService(
         withContext(Dispatchers.IO) {
             println("Working on session ${session.id} item ${item.id}")
             val playlistName: String
-            val containerImageMediaFileId: Long?
+            val containerImageMediaFileId: MediaFileId?
             val trackId = when (session.sourceType) {
                 ImportSession.SourceType.Local -> {
                     playlistName = "from import ${session.id}"
@@ -154,7 +157,7 @@ class ImportService(
             )
             if (trackId != null) {
                 val playlist = playlistRepo.getImportSessionPlaylist(session.id).first()
-                val playlistId: Long
+                val playlistId: PlaylistId
                 if (playlist != null) {
                     playlistId = playlist.id
                 } else {

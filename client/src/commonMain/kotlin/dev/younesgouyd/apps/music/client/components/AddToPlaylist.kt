@@ -15,6 +15,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item
+import dev.younesgouyd.apps.music.client.data.ArtistId
+import dev.younesgouyd.apps.music.client.data.FolderId
+import dev.younesgouyd.apps.music.client.data.PlaylistId
+import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.client.data.repoes.*
 import dev.younesgouyd.apps.music.client.data.room.entities.Track
 import dev.younesgouyd.apps.music.client.util.Component
@@ -128,7 +132,7 @@ class AddToPlaylist(
                     }
                 }
                 is Item.Folder -> {
-                    suspend fun addFolderToPlaylist(folderId: Long) {
+                    suspend fun addFolderToPlaylist(folderId: FolderId) {
                         val tracks: List<Track> = trackRepo.getFolderTracks(folderId).first()
                         for (track in tracks) {
                             val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
@@ -159,15 +163,13 @@ class AddToPlaylist(
     }
 
     sealed class Item {
-        abstract val id: Long
+        data class Track(val id: TrackId) : Item()
 
-        data class Track(override val id: Long) : Item()
+        data class Playlist(val id: PlaylistId) : Item()
 
-        data class Playlist(override val id: Long) : Item()
+        data class Folder(val id: FolderId) : Item()
 
-        data class Folder(override val id: Long) : Item()
-
-        data class Artist(override val id: Long) : Item()
+        data class Artist(val id: ArtistId) : Item()
     }
 
     private sealed class AddToPlaylistState {
@@ -185,13 +187,13 @@ class AddToPlaylist(
             )
 
             data class PlaylistOption(
-                val id: Long,
+                val id: PlaylistId,
                 val name: String,
                 val image: File?
             )
 
             sealed class PlaylistToAddTo {
-                data class Id(val value: Long) : PlaylistToAddTo()
+                data class Id(val value: PlaylistId) : PlaylistToAddTo()
 
                 data class New(val name: String) : PlaylistToAddTo()
             }

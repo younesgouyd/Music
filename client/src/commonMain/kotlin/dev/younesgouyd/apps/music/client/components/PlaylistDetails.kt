@@ -22,6 +22,10 @@ import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.components.util.MediaController
 import dev.younesgouyd.apps.music.client.components.util.compose.AdaptiveUi
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.*
+import dev.younesgouyd.apps.music.client.data.ArtistId
+import dev.younesgouyd.apps.music.client.data.ImportSessionId
+import dev.younesgouyd.apps.music.client.data.PlaylistId
+import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.client.data.repoes.*
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -32,7 +36,7 @@ import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistDetails(
-    private val id: Long,
+    private val id: PlaylistId,
     private val trackRepo: TrackRepo,
     private val playlistRepo: PlaylistRepo,
     private val artistRepo: ArtistRepo,
@@ -40,8 +44,8 @@ class PlaylistDetails(
     private val folderRepo: FolderRepo,
     private val mediaController: MediaController,
     mediaFileRepo: MediaFileRepo,
-    showImport: (id: Long) -> Unit,
-    showArtistDetails: (id: Long) -> Unit
+    showImport: (ImportSessionId) -> Unit,
+    showArtistDetails: (ArtistId) -> Unit
 ) : Component() {
     override val title: String = "Playlist"
     private val state: MutableStateFlow<PlaylistDetailsState> = MutableStateFlow(PlaylistDetailsState.Loading)
@@ -114,7 +118,7 @@ class PlaylistDetails(
                         }
                     },
                     onArtistClick = showArtistDetails,
-                    onAddTrackToPlaylistClick = { trackId: Long ->
+                    onAddTrackToPlaylistClick = { trackId: TrackId ->
                         addToPlaylist.update {
                             AddToPlaylist(
                                 itemToAdd = AddToPlaylist.Item.Track(trackId),
@@ -129,13 +133,13 @@ class PlaylistDetails(
                         }
                         addToPlaylistDialogVisible.update { true }
                     },
-                    onRemoveTrackFromPlaylistClick = { trackId: Long ->
+                    onRemoveTrackFromPlaylistClick = { trackId: TrackId ->
                         coroutineScope.launch {
                             playlistTrackCrossRefRepo.delete(playlistId = id, trackId = trackId)
                         }
                     },
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
-                    onAddTrackToQueueClick = { id: Long ->
+                    onAddTrackToQueueClick = { id: TrackId ->
                         mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(id)))
                     }
                 )
@@ -179,15 +183,15 @@ class PlaylistDetails(
             val onSearchQueryChange: (String) -> Unit,
             val onAddToQueueClick: () -> Unit,
             val onAddToPlaylistClick: () -> Unit,
-            val onTrackClick: (id: Long) -> Unit,
-            val onArtistClick: (id: Long) -> Unit,
-            val onAddTrackToPlaylistClick: (id: Long) -> Unit,
-            val onRemoveTrackFromPlaylistClick: (id: Long) -> Unit,
+            val onTrackClick: (TrackId) -> Unit,
+            val onArtistClick: (ArtistId) -> Unit,
+            val onAddTrackToPlaylistClick: (TrackId) -> Unit,
+            val onRemoveTrackFromPlaylistClick: (TrackId) -> Unit,
             val onDismissAddToPlaylistDialog: () -> Unit,
-            val onAddTrackToQueueClick: (id: Long) -> Unit
+            val onAddTrackToQueueClick: (TrackId) -> Unit
         ) : PlaylistDetailsState() {
             data class Playlist(
-                val id: Long,
+                val id: PlaylistId,
                 val name: String,
                 val image: File?,
                 val importUri: String?,
@@ -195,14 +199,14 @@ class PlaylistDetails(
             )
 
             data class Track(
-                val id: Long,
+                val id: TrackId,
                 val name: String,
                 val album: String?,
                 val image: File?,
                 val artists: List<Artist>,
             ) {
                 data class Artist(
-                    val id: Long,
+                    val id: ArtistId,
                     val name: String
                 )
             }
@@ -260,11 +264,11 @@ class PlaylistDetails(
                 onSearchQueryChange: (String) -> Unit,
                 onAddToQueueClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
-                onTrackClick: (id: Long) -> Unit,
-                onArtistClick: (id: Long) -> Unit,
-                onAddTrackToPlaylistClick: (id: Long) -> Unit,
-                onAddTrackToQueueClick: (id: Long) -> Unit,
-                onRemoveTrackFromPlaylistClick: (id: Long) -> Unit
+                onTrackClick: (TrackId) -> Unit,
+                onArtistClick: (ArtistId) -> Unit,
+                onAddTrackToPlaylistClick: (TrackId) -> Unit,
+                onAddTrackToQueueClick: (TrackId) -> Unit,
+                onRemoveTrackFromPlaylistClick: (TrackId) -> Unit
             ) {
                 val playlist by playlist.collectAsState()
                 val items by tracks.collectAsState()
@@ -488,7 +492,7 @@ class PlaylistDetails(
                 modifier: Modifier = Modifier,
                 track: PlaylistDetailsState.Loaded.Track,
                 onTrackClick: () -> Unit,
-                onArtistClick: (id: Long) -> Unit,
+                onArtistClick: (ArtistId) -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onAddToQueueClick: () -> Unit,
                 onRemoveFromPlaylistClick: () -> Unit
@@ -690,11 +694,11 @@ class PlaylistDetails(
                 onSearchQueryChange: (String) -> Unit,
                 onAddToQueueClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
-                onTrackClick: (id: Long) -> Unit,
-                onArtistClick: (id: Long) -> Unit,
-                onAddTrackToPlaylistClick: (id: Long) -> Unit,
-                onAddTrackToQueueClick: (id: Long) -> Unit,
-                onRemoveTrackFromPlaylistClick: (id: Long) -> Unit
+                onTrackClick: (TrackId) -> Unit,
+                onArtistClick: (ArtistId) -> Unit,
+                onAddTrackToPlaylistClick: (TrackId) -> Unit,
+                onAddTrackToQueueClick: (TrackId) -> Unit,
+                onRemoveTrackFromPlaylistClick: (TrackId) -> Unit
             ) {
                 val playlist by playlist.collectAsState()
                 val items by tracks.collectAsState()
@@ -916,7 +920,7 @@ class PlaylistDetails(
                 modifier: Modifier = Modifier,
                 track: PlaylistDetailsState.Loaded.Track,
                 onTrackClick: () -> Unit,
-                onArtistClick: (id: Long) -> Unit,
+                onArtistClick: (ArtistId) -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onAddToQueueClick: () -> Unit,
                 onRemoveFromPlaylistClick: () -> Unit

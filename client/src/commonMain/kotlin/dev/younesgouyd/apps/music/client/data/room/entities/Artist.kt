@@ -4,12 +4,14 @@ import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import dev.younesgouyd.apps.music.client.data.ArtistId
+import dev.younesgouyd.apps.music.client.data.TrackId
 import kotlinx.coroutines.flow.Flow
 
 @Entity
 data class Artist(
     @PrimaryKey(autoGenerate = true)
-    val id: Long,
+    val id: ArtistId,
     val name: String,
     val creationDatetime: Long,
     val updateDatetime: Long
@@ -18,7 +20,7 @@ data class Artist(
 @Dao
 interface ArtistDao {
     @Query("select * from artist where id = :id")
-    fun get(id: Long): Flow<Artist>
+    fun get(id: ArtistId): Flow<Artist>
 
     @Query("select * from artist where name like :nameQuery")
     fun search(nameQuery: String): Flow<List<Artist>>
@@ -31,7 +33,7 @@ interface ArtistDao {
         where cr.trackId = :trackId
     """
     )
-    fun getTrackArtists(trackId: Long): Flow<List<Artist>>
+    fun getTrackArtists(trackId: TrackId): Flow<List<Artist>>
 
     @Query("select * from artist where name = :name")
     fun getByName(name: String): Flow<List<Artist>>
@@ -45,8 +47,8 @@ interface ArtistDao {
     suspend fun add(name: String, creationDatetime: Long, updateDatetime: Long): Long
 
     @Query("update artist set name = :name, updateDatetime = :updateDatetime where id = :id")
-    suspend fun updateName(name: String, updateDatetime: Long, id: Long)
+    suspend fun updateName(name: String, updateDatetime: Long, id: ArtistId)
 
     @Query("delete from artist where id = :id")
-    suspend fun delete(id: Long)
+    suspend fun delete(id: ArtistId)
 }

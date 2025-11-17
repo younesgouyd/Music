@@ -1,5 +1,9 @@
 package dev.younesgouyd.apps.music.client.data.repoes
 
+import dev.younesgouyd.apps.music.client.data.ArtistId
+import dev.younesgouyd.apps.music.client.data.FolderId
+import dev.younesgouyd.apps.music.client.data.PlaylistId
+import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.client.data.room.entities.Track
 import dev.younesgouyd.apps.music.client.data.room.entities.TrackDao
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
@@ -9,54 +13,54 @@ import kotlin.time.Duration
 class TrackRepo(
     private val dao: TrackDao
 ) {
-    fun get(id: Long): Flow<Track> {
+    fun get(id: TrackId): Flow<Track> {
         return dao.get(id)
     }
 
     fun searchFolder(
-        folderId: Long?,
+        folderId: FolderId?,
         nameQuery: String
     ): Flow<List<Track>> {
         return dao.searchFolder(folderId, nameQuery.toSearchQuery())
     }
 
     fun searchArtist(
-        artistId: Long,
+        artistId: ArtistId,
         nameQuery: String
     ): Flow<List<Track>> {
         return dao.searchArtist(artistId, nameQuery.toSearchQuery())
     }
 
     fun searchPlaylist(
-        playlistId: Long,
+        playlistId: PlaylistId,
         nameQuery: String
     ): Flow<List<Track>> {
         return dao.searchPlaylist(playlistId, nameQuery.toSearchQuery())
     }
 
-    fun getFolderTracks(folderId: Long?): Flow<List<Track>> {
+    fun getFolderTracks(folderId: FolderId?): Flow<List<Track>> {
         return if (folderId != null) dao.getFolderTracks(folderId) else dao.getRootFolderTracks()
     }
 
-    fun getArtistTracks(artistId: Long): Flow<List<Track>> {
+    fun getArtistTracks(artistId: ArtistId): Flow<List<Track>> {
         return dao.getArtistTracks(artistId)
     }
 
-    fun getPlaylistTracks(playlistId: Long): Flow<List<Track>> {
+    fun getPlaylistTracks(playlistId: PlaylistId): Flow<List<Track>> {
         return dao.getPlaylistTracks(playlistId)
     }
 
     suspend fun add(
         name: String,
-        folderId: Long?,
+        folderId: FolderId?,
         album: String?,
         lyrics: String?,
         albumTrackNumber: Int?,
         duration: Duration
-    ): Long {
+    ): TrackId {
         require(name.isNotEmpty())
         val currentTime = System.currentTimeMillis()
-        return dao.add(
+        val id = dao.add(
             name = name,
             folderId = folderId,
             album = album,
@@ -66,18 +70,19 @@ class TrackRepo(
             creationDatetime = currentTime,
             updateDatetime = currentTime
         )
+        return TrackId(id)
     }
 
-    suspend fun updateName(id: Long, name: String) {
+    suspend fun updateName(id: TrackId, name: String) {
         require(name.isNotEmpty())
         dao.updateName(name, System.currentTimeMillis(), id)
     }
 
-    suspend fun updateFolderId(id: Long, folderId: Long) {
+    suspend fun updateFolderId(id: TrackId, folderId: FolderId) {
         dao.updateFolderId(folderId, System.currentTimeMillis(), id)
     }
 
-    suspend fun delete(id: Long) {
+    suspend fun delete(id: TrackId) {
         dao.delete(id)
     }
 }

@@ -4,13 +4,14 @@ import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import dev.younesgouyd.apps.music.client.data.*
 import dev.younesgouyd.apps.music.client.data.room.entities.MediaFile.Type
 import kotlinx.coroutines.flow.Flow
 
 @Entity
 data class MediaFile(
     @PrimaryKey(autoGenerate = true)
-    val id: Long,
+    val id: MediaFileId,
     val type: Type,
     val creationDatetime: Long,
     val updateDatetime: Long
@@ -29,7 +30,7 @@ interface MediaFileDao {
         where cr.trackId = :trackId
         and m.type = :type
     """)
-    fun getTrackMediaFiles(trackId: Long, type: Type): Flow<List<MediaFile>>
+    fun getTrackMediaFiles(trackId: TrackId, type: Type): Flow<List<MediaFile>>
 
     @Query("""
         select m.*
@@ -38,7 +39,7 @@ interface MediaFileDao {
         where cr.importSessionId = :importSessionId
         and m.type = :type
     """)
-    fun getImportSessionMediaFiles(importSessionId: Long, type: Type): Flow<List<MediaFile>>
+    fun getImportSessionMediaFiles(importSessionId: ImportSessionId, type: Type): Flow<List<MediaFile>>
 
     @Query("""
         select m.*
@@ -47,7 +48,7 @@ interface MediaFileDao {
         where cr.importSessionItemId = :importSessionItemId
         and m.type = :type
     """)
-    fun getImportSessionItemMediaFiles(importSessionItemId: Long, type: Type): Flow<List<MediaFile>>
+    fun getImportSessionItemMediaFiles(importSessionItemId: ImportSessionItemId, type: Type): Flow<List<MediaFile>>
 
     @Query("""
         select m.*
@@ -56,7 +57,7 @@ interface MediaFileDao {
         where cr.artistId = :artistId
         and m.type = :type
     """)
-    fun getArtistMediaFiles(artistId: Long, type: Type): Flow<List<MediaFile>>
+    fun getArtistMediaFiles(artistId: ArtistId, type: Type): Flow<List<MediaFile>>
 
     @Query("""
         select m.*
@@ -65,7 +66,7 @@ interface MediaFileDao {
         where cr.playlistId = :playlistId
         and m.type = :type
     """)
-    fun getPlaylistMediaFiles(playlistId: Long, type: Type): Flow<List<MediaFile>>
+    fun getPlaylistMediaFiles(playlistId: PlaylistId, type: Type): Flow<List<MediaFile>>
 
     @Query(
         """

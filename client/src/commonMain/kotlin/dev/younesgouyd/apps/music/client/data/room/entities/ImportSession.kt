@@ -1,6 +1,8 @@
 package dev.younesgouyd.apps.music.client.data.room.entities
 
 import androidx.room.*
+import dev.younesgouyd.apps.music.client.data.FolderId
+import dev.younesgouyd.apps.music.client.data.ImportSessionId
 import dev.younesgouyd.apps.music.common.Inspection
 import kotlinx.coroutines.flow.Flow
 
@@ -17,11 +19,11 @@ import kotlinx.coroutines.flow.Flow
 )
 data class ImportSession(
     @PrimaryKey(autoGenerate = true)
-    val id: Long,
+    val id: ImportSessionId,
     val uri: String,
     val sourceType: SourceType,
     val inspection: Inspection.ContainerInspection,
-    val destinationFolderId: Long?,
+    val destinationFolderId: FolderId?,
     val creationDatetime: Long,
     val updateDatetime: Long
 ) {
@@ -37,5 +39,5 @@ interface ImportSessionDao {
     fun getAll(): Flow<List<ImportSession>>
 
     @Query("select * from importsession where id = :id")
-    fun get(id: Long): Flow<ImportSession>
+    fun get(id: ImportSessionId): Flow<ImportSession>
 }

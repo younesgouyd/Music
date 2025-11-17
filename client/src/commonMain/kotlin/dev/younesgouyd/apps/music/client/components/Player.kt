@@ -20,6 +20,7 @@ import dev.younesgouyd.apps.music.client.components.util.compose.PlaybackSlider
 import dev.younesgouyd.apps.music.client.components.util.compose.formatted
 import dev.younesgouyd.apps.music.client.components.util.compose.linearAnimation
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Image
+import dev.younesgouyd.apps.music.client.data.ArtistId
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +32,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class Player(
     mediaController: MediaController,
-    showArtistDetails: (Long) -> Unit,
+    showArtistDetails: (ArtistId) -> Unit,
     showQueue: () -> Unit,
     minimizePlayer: () -> Unit
 ) : Component() {
@@ -96,7 +97,7 @@ class Player(
             val isPlaying: StateFlow<Boolean>,
             val repeatState: MediaController.MediaControllerState.Available.RepeatState,
             val track: MediaController.MediaControllerState.Available.QueueItem.Track,
-            val onArtistClick: (Long) -> Unit,
+            val onArtistClick: (ArtistId) -> Unit,
             val onShowQueueClick: () -> Unit,
             val onTimeChange: (Duration) -> Unit,
             val onPreviousClick: () -> Unit,
@@ -147,7 +148,7 @@ class Player(
                 timePositionChange: StateFlow<Duration>,
                 isPlaying: StateFlow<Boolean>,
                 onMinimizeClick: () -> Unit,
-                onArtistClick: (Long) -> Unit,
+                onArtistClick: (ArtistId) -> Unit,
                 onTimeChange: (Duration) -> Unit,
                 onPreviousClick: () -> Unit,
                 onPlayClick: () -> Unit,
@@ -218,7 +219,7 @@ class Player(
             private fun TrackInfo(
                 modifier: Modifier,
                 track: MediaController.MediaControllerState.Available.QueueItem.Track,
-                onArtistClick: (Long) -> Unit
+                onArtistClick: (ArtistId) -> Unit
             ) {
                 Column(
                     modifier = modifier,
@@ -457,7 +458,7 @@ class Player(
                 timePositionChange: StateFlow<Duration>,
                 isPlaying: StateFlow<Boolean>,
                 onShowQueueClick: () -> Unit,
-                onArtistClick: (Long) -> Unit,
+                onArtistClick: (ArtistId) -> Unit,
                 onTimeChange: (Duration) -> Unit,
                 onPreviousClick: () -> Unit,
                 onPlayClick: () -> Unit,
@@ -518,7 +519,7 @@ class Player(
             private fun TrackInfo(
                 modifier: Modifier,
                 track: MediaController.MediaControllerState.Available.QueueItem.Track,
-                onArtistClick: (Long) -> Unit
+                onArtistClick: (ArtistId) -> Unit
             ) {
                 Column(
                     modifier = modifier,

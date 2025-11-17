@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item
+import dev.younesgouyd.apps.music.client.data.ImportSessionId
 import dev.younesgouyd.apps.music.client.data.repoes.ImportSessionRepo
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSession
 import dev.younesgouyd.apps.music.client.util.Component
@@ -31,7 +32,7 @@ import kotlin.time.Instant
 @OptIn(ExperimentalTime::class, ExperimentalCoroutinesApi::class)
 class ImportList(
     importSessionRepo: ImportSessionRepo,
-    showImportDetails: (Long) -> Unit
+    showImportDetails: (ImportSessionId) -> Unit
 ) : Component() {
     override val title: String = "Imports"
     private val state: MutableStateFlow<ImportListState> = MutableStateFlow(ImportListState.Loading)
@@ -63,7 +64,7 @@ class ImportList(
         data class Loaded(
             val imports: StateFlow<List<ImportSession>>,
             val scrollState: LazyListState,
-            val onItemClick: (Long) -> Unit
+            val onItemClick: (ImportSessionId) -> Unit
         ) : ImportListState()
     }
 
@@ -91,7 +92,7 @@ class ImportList(
             modifier: Modifier,
             imports: StateFlow<List<ImportSession>>,
             scrollState: LazyListState,
-            onItemClick: (Long) -> Unit
+            onItemClick: (ImportSessionId) -> Unit
         ) {
             val imports by imports.collectAsState()
 

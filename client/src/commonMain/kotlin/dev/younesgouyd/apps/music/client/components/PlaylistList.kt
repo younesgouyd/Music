@@ -23,6 +23,7 @@ import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.components.util.MediaController
 import dev.younesgouyd.apps.music.client.components.util.compose.AdaptiveUi
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.*
+import dev.younesgouyd.apps.music.client.data.PlaylistId
 import dev.younesgouyd.apps.music.client.data.repoes.*
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -40,7 +41,7 @@ class PlaylistList(
     private val artistRepo: ArtistRepo,
     private val mediaController: MediaController,
     mediaFileRepo: MediaFileRepo,
-    showPlaylistDetails: (id: Long) -> Unit
+    showPlaylistDetails: (PlaylistId) -> Unit
 ) : Component() {
     override val title: String = "Playlists"
     private val state: MutableStateFlow<PlaylistListState> = MutableStateFlow(PlaylistListState.Loading)
@@ -69,8 +70,8 @@ class PlaylistList(
                     scrollState = LazyGridState(),
                     onSearchQueryChange = { searchQuery.value = it },
                     onPlaylistClick = showPlaylistDetails,
-                    onPlayPlaylist = { id: Long -> mediaController.playQueue(listOf(MediaController.QueueItemParameter.Playlist(id))) },
-                    onAddToPlaylist = { playlistId: Long ->
+                    onPlayPlaylist = { id: PlaylistId -> mediaController.playQueue(listOf(MediaController.QueueItemParameter.Playlist(id))) },
+                    onAddToPlaylist = { playlistId: PlaylistId ->
                         addToPlaylist.update {
                             AddToPlaylist(
                                 itemToAdd = AddToPlaylist.Item.Playlist(playlistId),
@@ -86,15 +87,15 @@ class PlaylistList(
                         addToPlaylistDialogVisible.update { true }
                     },
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
-                    onDeletePlaylist = { id: Long ->
+                    onDeletePlaylist = { id: PlaylistId ->
                         coroutineScope.launch { playlistRepo.delete(id) }
                     },
-                    onRenamePlaylist = { newName: String, id: Long ->
+                    onRenamePlaylist = { newName: String, id: PlaylistId ->
                         coroutineScope.launch {
                             playlistRepo.updateName(id = id, name = newName)
                         }
                     },
-                    onAddPlaylistToQueue = { id: Long -> mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Playlist(id))) }
+                    onAddPlaylistToQueue = { id: PlaylistId -> mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Playlist(id))) }
                 )
             }
         }
@@ -132,16 +133,16 @@ class PlaylistList(
             val searchQuery: StateFlow<String>,
             val scrollState: LazyGridState,
             val onSearchQueryChange: (String) -> Unit,
-            val onPlaylistClick: (Long) -> Unit,
-            val onPlayPlaylist: (Long) -> Unit,
-            val onAddToPlaylist: (id: Long) -> Unit,
+            val onPlaylistClick: (PlaylistId) -> Unit,
+            val onPlayPlaylist: (PlaylistId) -> Unit,
+            val onAddToPlaylist: (PlaylistId) -> Unit,
             val onDismissAddToPlaylistDialog: () -> Unit,
-            val onDeletePlaylist: (id: Long) -> Unit,
-            val onRenamePlaylist: (newName: String, id: Long) -> Unit,
-            val onAddPlaylistToQueue: (id: Long) -> Unit
+            val onDeletePlaylist: (PlaylistId) -> Unit,
+            val onRenamePlaylist: (newName: String, id: PlaylistId) -> Unit,
+            val onAddPlaylistToQueue: (PlaylistId) -> Unit
         ) : PlaylistListState() {
             data class PlaylistListItem(
-                val id: Long,
+                val id: PlaylistId,
                 val name: String,
                 val image: File?,
             )
@@ -191,12 +192,12 @@ class PlaylistList(
                 searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
                 onSearchQueryChange: (String) -> Unit,
-                onPlaylistClick: (Long) -> Unit,
-                onPlayPlaylist: (Long) -> Unit,
-                onAddToPlaylist: (id: Long) -> Unit,
-                onDeletePlaylist: (id: Long) -> Unit,
-                onRenamePlaylist: (newName: String, id: Long) -> Unit,
-                onAddPlaylistToQueue: (id: Long) -> Unit
+                onPlaylistClick: (PlaylistId) -> Unit,
+                onPlayPlaylist: (PlaylistId) -> Unit,
+                onAddToPlaylist: (PlaylistId) -> Unit,
+                onDeletePlaylist: (PlaylistId) -> Unit,
+                onRenamePlaylist: (newName: String, id: PlaylistId) -> Unit,
+                onAddPlaylistToQueue: (id: PlaylistId) -> Unit
             ) {
                 val items by playlists.collectAsState()
                 val searchQuery by searchQuery.collectAsState()
@@ -445,12 +446,12 @@ class PlaylistList(
                 searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
                 onSearchQueryChange: (String) -> Unit,
-                onPlaylistClick: (Long) -> Unit,
-                onPlayPlaylist: (Long) -> Unit,
-                onAddToPlaylist: (id: Long) -> Unit,
-                onDeletePlaylist: (id: Long) -> Unit,
-                onRenamePlaylist: (newName: String, id: Long) -> Unit,
-                onAddPlaylistToQueue: (id: Long) -> Unit
+                onPlaylistClick: (PlaylistId) -> Unit,
+                onPlayPlaylist: (PlaylistId) -> Unit,
+                onAddToPlaylist: (PlaylistId) -> Unit,
+                onDeletePlaylist: (PlaylistId) -> Unit,
+                onRenamePlaylist: (newName: String, id: PlaylistId) -> Unit,
+                onAddPlaylistToQueue: (PlaylistId) -> Unit
             ) {
                 val items by playlists.collectAsState()
                 val searchQuery by searchQuery.collectAsState()

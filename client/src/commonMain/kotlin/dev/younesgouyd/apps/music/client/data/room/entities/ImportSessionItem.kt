@@ -1,6 +1,8 @@
 package dev.younesgouyd.apps.music.client.data.room.entities
 
 import androidx.room.*
+import dev.younesgouyd.apps.music.client.data.ImportSessionId
+import dev.younesgouyd.apps.music.client.data.ImportSessionItemId
 import dev.younesgouyd.apps.music.common.Inspection
 import kotlinx.coroutines.flow.Flow
 
@@ -17,9 +19,9 @@ import kotlinx.coroutines.flow.Flow
 )
 data class ImportSessionItem(
     @PrimaryKey(autoGenerate = true)
-    val id: Long,
+    val id: ImportSessionItemId,
     val uri: String,
-    val importSessionId: Long,
+    val importSessionId: ImportSessionId,
     val state: State,
     val inspection: Inspection.ItemInspection,
     val creationDatetime: Long,
@@ -38,7 +40,7 @@ data class ImportSessionItem(
 @Dao
 interface ImportSessionItemDao {
     @Query("select * from importsessionitem where id = :id")
-    fun get(id: Long): Flow<ImportSessionItem>
+    fun get(id: ImportSessionItemId): Flow<ImportSessionItem>
 
     @Query(
         """
@@ -61,11 +63,11 @@ interface ImportSessionItemDao {
     """
     )
     fun search(
-        importSessionId: Long,
+        importSessionId: ImportSessionId,
         state: ImportSessionItem.State,
         titleQuery: String
     ): Flow<List<ImportSessionItem>>
 
     @Query("update importsessionitem set state = :state, updateDatetime = :updateDatetime where id = :id")
-    suspend fun updateState(state: ImportSessionItem.State, updateDatetime: Long, id: Long)
+    suspend fun updateState(state: ImportSessionItem.State, updateDatetime: Long, id: ImportSessionItemId)
 }

@@ -15,6 +15,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.components.util.MediaController
+import dev.younesgouyd.apps.music.client.data.ArtistId
+import dev.younesgouyd.apps.music.client.data.ImportSessionId
+import dev.younesgouyd.apps.music.client.data.PlaylistId
 import dev.younesgouyd.apps.music.client.data.RepoStore
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.cancel
@@ -87,15 +90,15 @@ class NavigationHost(
 
         data object PlaylistList : Destination()
 
-        data class PlaylistDetails(val playlistId: Long) : Destination()
+        data class PlaylistDetails(val playlistId: PlaylistId) : Destination()
 
         data object ArtistList : Destination()
 
-        data class ArtistDetails(val artistId: Long) : Destination()
+        data class ArtistDetails(val artistId: ArtistId) : Destination()
 
         data object ImportList : Destination()
 
-        data class ImportDetails(val importId: Long) : Destination()
+        data class ImportDetails(val importId: ImportSessionId) : Destination()
     }
 
     private class NavigationController(

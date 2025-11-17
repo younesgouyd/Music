@@ -15,6 +15,8 @@ import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.components.util.compose.formatted
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Image
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item
+import dev.younesgouyd.apps.music.client.data.ImportSessionId
+import dev.younesgouyd.apps.music.client.data.ImportSessionItemId
 import dev.younesgouyd.apps.music.client.data.repoes.ImportSessionItemRepo
 import dev.younesgouyd.apps.music.client.data.repoes.ImportSessionRepo
 import dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo
@@ -33,7 +35,7 @@ import kotlin.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class, ExperimentalTime::class)
 class ImportDetails(
-    id: Long,
+    id: ImportSessionId,
     importSessionRepo: ImportSessionRepo,
     importSessionItemRepo: ImportSessionItemRepo,
     mediaFileRepo: MediaFileRepo
@@ -196,12 +198,12 @@ class ImportDetails(
             val items: Items,
             val searchQuery: StateFlow<String>,
             val onSearchQueryChange: (String) -> Unit,
-            val onImportItemClick: (Long) -> Unit,
-            val onCancelItemClick: (Long) -> Unit,
-            val onRetryItemClick: (Long) -> Unit
+            val onImportItemClick: (ImportSessionItemId) -> Unit,
+            val onCancelItemClick: (ImportSessionItemId) -> Unit,
+            val onRetryItemClick: (ImportSessionItemId) -> Unit
         ) : ImportDetailsState() {
             data class Import(
-                val id: Long,
+                val id: ImportSessionId,
                 val uri: String,
                 val sourceType: SourceType,
                 val title: String?,
@@ -219,7 +221,7 @@ class ImportDetails(
                 val failed: StateFlow<List<Item>>
             ) {
                 data class Item(
-                    val id: Long,
+                    val id: ImportSessionItemId,
                     val uri: String,
                     val state: ImportSessionItem.State,
                     val title: String,
@@ -263,9 +265,9 @@ class ImportDetails(
             items: ImportDetailsState.Loaded.Items,
             searchQuery: StateFlow<String>,
             onSearchQueryChange: (String) -> Unit,
-            onImportItemClick: (Long) -> Unit,
-            onCancelItemClick: (Long) -> Unit,
-            onRetryItemClick: (Long) -> Unit
+            onImportItemClick: (ImportSessionItemId) -> Unit,
+            onCancelItemClick: (ImportSessionItemId) -> Unit,
+            onRetryItemClick: (ImportSessionItemId) -> Unit
         ) {
             val import by import.collectAsState()
             val nonselected by items.nonselected.collectAsState()

@@ -1,6 +1,7 @@
 package dev.younesgouyd.apps.music.client.data.room.entities
 
 import androidx.room.*
+import dev.younesgouyd.apps.music.client.data.FolderId
 import kotlinx.coroutines.flow.Flow
 
 @Entity(
@@ -16,9 +17,9 @@ import kotlinx.coroutines.flow.Flow
 )
 data class Folder(
     @PrimaryKey(autoGenerate = true)
-    val id: Long,
+    val id: FolderId,
     val name: String,
-    val parentFolderId: Long?,
+    val parentFolderId: FolderId?,
     val creationDatetime: Long,
     val updateDatetime: Long
 )
@@ -26,9 +27,9 @@ data class Folder(
 @Dao
 interface FolderDao {
     @Query("select * from folder where id = :id")
-    fun get(id: Long): Flow<Folder>
+    fun get(id: FolderId): Flow<Folder>
 
-    fun searchFolder(folderId: Long?, nameQuery: String): Flow<List<Folder>> {
+    fun searchFolder(folderId: FolderId?, nameQuery: String): Flow<List<Folder>> {
         return if (folderId == null) {
             searchRootFolder(nameQuery)
         } else {
@@ -40,10 +41,10 @@ interface FolderDao {
     fun searchRootFolder(nameQuery: String): Flow<List<Folder>>
 
     @Query("select * from folder where parentFolderId = :parentFolderId and name like :nameQuery")
-    fun searchFolder(parentFolderId: Long, nameQuery: String): Flow<List<Folder>>
+    fun searchFolder(parentFolderId: FolderId, nameQuery: String): Flow<List<Folder>>
 
     @Query("select * from folder where parentFolderId = :parentFolderId")
-    fun getSubfolders(parentFolderId: Long): Flow<List<Folder>>
+    fun getSubfolders(parentFolderId: FolderId): Flow<List<Folder>>
 
     @Query("select * from folder where parentFolderId is null")
     fun getRoot(): Flow<List<Folder>>
@@ -54,14 +55,14 @@ interface FolderDao {
         values (:name, :parentFolderId, :creationDatetime, :updateDatetime)
     """
     )
-    suspend fun add(name: String, parentFolderId: Long?, creationDatetime: Long, updateDatetime: Long): Long
+    suspend fun add(name: String, parentFolderId: FolderId?, creationDatetime: Long, updateDatetime: Long): Long
 
     @Query("update folder set name = :name, updateDatetime = :updateDatetime where id = :id")
-    suspend fun updateName(name: String, updateDatetime: Long, id: Long)
+    suspend fun updateName(name: String, updateDatetime: Long, id: FolderId)
 
     @Query("update folder set parentFolderId = :parentFolderId, updateDatetime = :updateDatetime where id = :id")
-    suspend fun updateParentFolderId(parentFolderId: Long?, updateDatetime: Long, id: Long)
+    suspend fun updateParentFolderId(parentFolderId: FolderId?, updateDatetime: Long, id: FolderId)
 
     @Query("delete from folder where id = :id")
-    suspend fun delete(id: Long)
+    suspend fun delete(id: FolderId)
 }

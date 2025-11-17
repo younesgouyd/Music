@@ -1,6 +1,9 @@
 package dev.younesgouyd.apps.music.client.data.room.entities
 
 import androidx.room.*
+import dev.younesgouyd.apps.music.client.data.ArtistId
+import dev.younesgouyd.apps.music.client.data.ArtistTrackCrossRefId
+import dev.younesgouyd.apps.music.client.data.TrackId
 
 @Entity(
     indices = [
@@ -25,9 +28,9 @@ import androidx.room.*
 )
 data class ArtistTrackCrossRef(
     @PrimaryKey(autoGenerate = true)
-    val id: Long,
-    val artistId: Long,
-    val trackId: Long,
+    val id: ArtistTrackCrossRefId,
+    val artistId: ArtistId,
+    val trackId: TrackId,
     val creationDatetime: Long,
     val updateDatetime: Long
 )
@@ -40,8 +43,8 @@ interface ArtistTrackCrossRefDao {
         values (:artistId, :trackId, :creationDatetime, :updateDatetime)
     """
     )
-    suspend fun add(artistId: Long, trackId: Long, creationDatetime: Long, updateDatetime: Long)
+    suspend fun add(artistId: ArtistId, trackId: TrackId, creationDatetime: Long, updateDatetime: Long)
 
     @Query("delete from artisttrackcrossref where artistId = :artistId and trackId = :trackId")
-    suspend fun delete(artistId: Long, trackId: Long)
+    suspend fun delete(artistId: ArtistId, trackId: TrackId)
 }

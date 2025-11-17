@@ -1,6 +1,9 @@
 package dev.younesgouyd.apps.music.client.usecases
 
+import dev.younesgouyd.apps.music.client.data.FolderId
+import dev.younesgouyd.apps.music.client.data.ImportSessionItemId
 import dev.younesgouyd.apps.music.client.data.Server
+import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.client.data.repoes.MediaFileTrackCrossRefRepo
 import dev.younesgouyd.apps.music.client.data.room.entities.MediaFile
@@ -16,9 +19,9 @@ class ImportFromInternetUseCase(
 ) {
     suspend fun execute(
         inspection: Inspection.ItemInspection.InternetTrack,
-        importSessionItemId: Long,
-        folderId: Long?
-    ): Long? {
+        importSessionItemId: ImportSessionItemId,
+        folderId: FolderId?
+    ): TrackId? {
         val result: String = server.download(inspection.uri).first()
         return when (result) {
             "error" -> null
@@ -39,10 +42,10 @@ class ImportFromInternetUseCase(
 
     private suspend fun import(
         inspection: Inspection.ItemInspection.InternetTrack,
-        importSessionItemId: Long,
+        importSessionItemId: ImportSessionItemId,
         data: InputStream,
-        folderId: Long?
-    ): Long {
+        folderId: FolderId?
+    ): TrackId {
         val trackId = saveAudioFileAsTrackUseCase.execute(
             folderId = folderId,
             title = inspection.title,

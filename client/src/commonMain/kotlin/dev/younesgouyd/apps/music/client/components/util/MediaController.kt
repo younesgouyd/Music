@@ -1,6 +1,9 @@
 package dev.younesgouyd.apps.music.client.components.util
 
+import dev.younesgouyd.apps.music.client.data.ArtistId
+import dev.younesgouyd.apps.music.client.data.PlaylistId
 import dev.younesgouyd.apps.music.client.data.RepoStore
+import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.client.data.repoes.ArtistRepo
 import dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.client.data.repoes.PlaylistRepo
@@ -641,10 +644,8 @@ class MediaController(
             enum class RepeatState { Off, List, Track }
 
             sealed class QueueItem {
-                abstract val id: Long
-
                 data class Track(
-                    override val id: Long,
+                    val id: TrackId,
                     val name: String,
                     val album: String?,
                     val image: File?,
@@ -653,14 +654,14 @@ class MediaController(
                     val duration: Duration?
                 ) : QueueItem() {
                     data class Artist(
-                        val id: Long,
+                        val id: ArtistId,
                         val name: String,
                         val image: File?
                     )
                 }
 
                 data class Playlist(
-                    override val id: Long,
+                    val id: PlaylistId,
                     val name: String,
                     val image: File?,
                     val items: List<Track>
@@ -673,7 +674,7 @@ class MediaController(
                 }
 
                 data class Artist(
-                    override val id: Long,
+                    val id: ArtistId,
                     val name: String,
                     val image: File?,
                     val items: List<Track>
@@ -689,11 +690,9 @@ class MediaController(
     }
 
     sealed class QueueItemParameter {
-        abstract val id: Long
-
-        data class Track(override val id: Long) : QueueItemParameter()
-        data class Playlist(override val id: Long) : QueueItemParameter()
-        data class Artist(override val id: Long) : QueueItemParameter()
+        data class Track(val id: TrackId) : QueueItemParameter()
+        data class Playlist(val id: PlaylistId) : QueueItemParameter()
+        data class Artist(val id: ArtistId) : QueueItemParameter()
     }
 
     abstract class MediaPlayer {

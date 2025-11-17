@@ -1,5 +1,8 @@
 package dev.younesgouyd.apps.music.client.data.repoes
 
+import dev.younesgouyd.apps.music.client.data.FolderId
+import dev.younesgouyd.apps.music.client.data.ImportSessionId
+import dev.younesgouyd.apps.music.client.data.PlaylistId
 import dev.younesgouyd.apps.music.client.data.room.entities.Playlist
 import dev.younesgouyd.apps.music.client.data.room.entities.PlaylistDao
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
@@ -12,7 +15,7 @@ class PlaylistRepo(
         return dao.getAll()
     }
 
-    fun get(id: Long): Flow<Playlist> {
+    fun get(id: PlaylistId): Flow<Playlist> {
         return dao.get(id)
     }
 
@@ -21,29 +24,29 @@ class PlaylistRepo(
     }
 
     fun searchFolder(
-        folderId: Long?,
+        folderId: FolderId?,
         nameQuery: String
     ): Flow<List<Playlist>> {
         return dao.searchFolder(folderId, nameQuery.toSearchQuery())
     }
 
-    fun getImportSessionPlaylist(importSessionId: Long): Flow<Playlist?> {
+    fun getImportSessionPlaylist(importSessionId: ImportSessionId): Flow<Playlist?> {
         return dao.getImportSessionPlaylist(importSessionId)
     }
 
-    fun getFolderPlaylists(folderId: Long?): Flow<List<Playlist>> {
+    fun getFolderPlaylists(folderId: FolderId?): Flow<List<Playlist>> {
         return dao.getFolderPlaylists(folderId)
     }
 
     suspend fun add(
         name: String,
-        folderId: Long?,
-        importSessionId: Long?,
+        folderId: FolderId?,
+        importSessionId: ImportSessionId?,
         importUri: String?
-    ): Long {
+    ): PlaylistId {
         require(name.isNotEmpty())
         val currentTime = System.currentTimeMillis()
-        return dao.add(
+        val id = dao.add(
             name = name,
             folderId = folderId,
             importSessionId = importSessionId,
@@ -51,18 +54,19 @@ class PlaylistRepo(
             creationDatetime = currentTime,
             updateDatetime = currentTime
         )
+        return PlaylistId(id)
     }
 
-    suspend fun updateName(id: Long, name: String) {
+    suspend fun updateName(id: PlaylistId, name: String) {
         require(name.isNotEmpty())
         dao.updateName(name, System.currentTimeMillis(), id)
     }
 
-    suspend fun updateFolderId(id: Long, folderId: Long) {
+    suspend fun updateFolderId(id: PlaylistId, folderId: FolderId) {
         dao.updateFolderId(folderId, System.currentTimeMillis(), id)
     }
 
-    suspend fun delete(id: Long) {
+    suspend fun delete(id: PlaylistId) {
         dao.delete(id)
     }
 }

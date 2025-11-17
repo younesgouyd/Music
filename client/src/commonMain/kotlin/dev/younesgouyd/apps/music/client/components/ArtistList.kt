@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.components.util.MediaController
 import dev.younesgouyd.apps.music.client.components.util.compose.AdaptiveUi
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.*
+import dev.younesgouyd.apps.music.client.data.ArtistId
 import dev.younesgouyd.apps.music.client.data.repoes.ArtistRepo
 import dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.client.util.Component
@@ -32,7 +33,7 @@ class ArtistList(
     artistRepo: ArtistRepo,
     mediaFileRepo: MediaFileRepo,
     mediaController: MediaController,
-    showArtistDetails: (Long) -> Unit
+    showArtistDetails: (ArtistId) -> Unit
 ) : Component() {
     override val title: String = "Artists"
     private val state: MutableStateFlow<ArtistListState> = MutableStateFlow(ArtistListState.Loading)
@@ -56,8 +57,8 @@ class ArtistList(
                 scrollState = LazyGridState(),
                 onSearchQueryChange = { searchQuery.value = it },
                 onArtistClick = showArtistDetails,
-                onPlayArtistClick = { id: Long -> mediaController.playQueue(listOf(MediaController.QueueItemParameter.Artist(id))) },
-                onAddArtistToQueueClick = { id: Long -> mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Artist(id))) }
+                onPlayArtistClick = { id: ArtistId -> mediaController.playQueue(listOf(MediaController.QueueItemParameter.Artist(id))) },
+                onAddArtistToQueueClick = { id: ArtistId -> mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Artist(id))) }
             )
         }
     }
@@ -84,12 +85,12 @@ class ArtistList(
             val searchQuery: StateFlow<String>,
             val scrollState: LazyGridState,
             val onSearchQueryChange: (String) -> Unit,
-            val onArtistClick: (Long) -> Unit,
-            val onPlayArtistClick: (Long) -> Unit,
-            val onAddArtistToQueueClick: (Long) -> Unit
+            val onArtistClick: (ArtistId) -> Unit,
+            val onPlayArtistClick: (ArtistId) -> Unit,
+            val onAddArtistToQueueClick: (ArtistId) -> Unit
         ) : ArtistListState() {
             data class ArtistItem(
-                val id: Long,
+                val id: ArtistId,
                 val name: String,
                 val image: File?
             )
@@ -127,9 +128,9 @@ class ArtistList(
                 searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
                 onSearchQueryChange: (String) -> Unit,
-                onArtistClick: (Long) -> Unit,
-                onPlayArtistClick: (Long) -> Unit,
-                onAddArtistToQueueClick: (Long) -> Unit
+                onArtistClick: (ArtistId) -> Unit,
+                onPlayArtistClick: (ArtistId) -> Unit,
+                onAddArtistToQueueClick: (ArtistId) -> Unit
             ) {
                 val items by artists.collectAsState()
                 val searchQuery by searchQuery.collectAsState()
@@ -278,9 +279,9 @@ class ArtistList(
                 searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
                 onSearchQueryChange: (String) -> Unit,
-                onArtistClick: (Long) -> Unit,
-                onPlayArtistClick: (Long) -> Unit,
-                onAddArtistToQueueClick: (Long) -> Unit
+                onArtistClick: (ArtistId) -> Unit,
+                onPlayArtistClick: (ArtistId) -> Unit,
+                onAddArtistToQueueClick: (ArtistId) -> Unit
             ) {
                 val items by artists.collectAsState()
                 val searchQuery by searchQuery.collectAsState()

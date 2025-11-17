@@ -1,5 +1,8 @@
 package dev.younesgouyd.apps.music.client.usecases
 
+import dev.younesgouyd.apps.music.client.data.FolderId
+import dev.younesgouyd.apps.music.client.data.ImportSessionItemId
+import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.client.data.repoes.MediaFileTrackCrossRefRepo
 import dev.younesgouyd.apps.music.client.data.room.entities.MediaFile
@@ -13,16 +16,16 @@ abstract class ImportLocalFileUseCase(
 ) {
     abstract suspend fun execute(
         inspection: Inspection.ItemInspection.LocalFileTrack,
-        importSessionItemId: Long,
-        folderId: Long?
-    ): Long
+        importSessionItemId: ImportSessionItemId,
+        folderId: FolderId?
+    ): TrackId
 
     protected suspend fun import(
         inspection: Inspection.ItemInspection.LocalFileTrack,
-        importSessionItemId: Long,
+        importSessionItemId: ImportSessionItemId,
         data: InputStream,
-        folderId: Long?
-    ): Long {
+        folderId: FolderId?
+    ): TrackId {
         val trackId = saveAudioFileAsTrackUseCase.execute(
             folderId = folderId,
             title = inspection.title,

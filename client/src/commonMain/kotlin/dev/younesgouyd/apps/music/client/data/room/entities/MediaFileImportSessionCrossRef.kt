@@ -1,6 +1,9 @@
 package dev.younesgouyd.apps.music.client.data.room.entities
 
 import androidx.room.*
+import dev.younesgouyd.apps.music.client.data.ImportSessionId
+import dev.younesgouyd.apps.music.client.data.MediaFileId
+import dev.younesgouyd.apps.music.client.data.MediaFileImportSessionCrossRefId
 
 @Entity(
     indices = [
@@ -25,9 +28,9 @@ import androidx.room.*
 )
 data class MediaFileImportSessionCrossRef(
     @PrimaryKey(autoGenerate = true)
-    val id: Long,
-    val mediaFileId: Long,
-    val importSessionId: Long,
+    val id: MediaFileImportSessionCrossRefId,
+    val mediaFileId: MediaFileId,
+    val importSessionId: ImportSessionId,
     val creationDatetime: Long,
     val updateDatetime: Long
 )
@@ -38,9 +41,9 @@ interface MediaFileImportSessionCrossRefDao {
         insert into mediafileimportsessioncrossref (mediaFileId, importSessionId, creationDatetime, updateDatetime)
         values (:mediaFileId, :importSessionId, :creationDatetime, :updateDatetime)
     """)
-    suspend fun add(mediaFileId: Long, importSessionId: Long, creationDatetime: Long, updateDatetime: Long)
+    suspend fun add(mediaFileId: MediaFileId, importSessionId: ImportSessionId, creationDatetime: Long, updateDatetime: Long)
 
 
     @Query("delete from mediafileimportsessioncrossref where mediaFileId = :mediaFileId and importSessionId = :importSessionId")
-    suspend fun delete(mediaFileId: Long, importSessionId: Long)
+    suspend fun delete(mediaFileId: MediaFileId, importSessionId: ImportSessionId)
 }

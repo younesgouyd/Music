@@ -1,6 +1,10 @@
 package dev.younesgouyd.apps.music.client.data.room.entities
 
 import androidx.room.*
+import dev.younesgouyd.apps.music.client.data.ArtistId
+import dev.younesgouyd.apps.music.client.data.FolderId
+import dev.younesgouyd.apps.music.client.data.PlaylistId
+import dev.younesgouyd.apps.music.client.data.TrackId
 import kotlinx.coroutines.flow.Flow
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -18,9 +22,9 @@ import kotlin.time.Duration.Companion.milliseconds
 )
 data class Track(
     @PrimaryKey(autoGenerate = true)
-    val id: Long,
+    val id: TrackId,
     val name: String,
-    val folderId: Long?,
+    val folderId: FolderId?,
     val album: String?,
     val lyrics: String?,
     val albumTrackNumber: Int?,
@@ -34,9 +38,9 @@ data class Track(
 @Dao
 interface TrackDao {
     @Query("select * from track where id = :id")
-    fun get(id: Long): Flow<Track>
+    fun get(id: TrackId): Flow<Track>
 
-    fun searchFolder(folderId: Long?, nameQuery: String): Flow<List<Track>> {
+    fun searchFolder(folderId: FolderId?, nameQuery: String): Flow<List<Track>> {
         val _nameQ = nameQuery.ifEmpty { "%" }
         return if (folderId == null) {
             searchRootFolder(_nameQ)
@@ -49,7 +53,7 @@ interface TrackDao {
     fun searchRootFolder(nameQuery: String): Flow<List<Track>>
 
     @Query("select * from track where folderId = :folderId and name like :nameQuery")
-    fun searchFolder(folderId: Long, nameQuery: String): Flow<List<Track>>
+    fun searchFolder(folderId: FolderId, nameQuery: String): Flow<List<Track>>
 
     @Query(
         """
@@ -60,7 +64,7 @@ interface TrackDao {
         and t.name like :nameQuery
     """
     )
-    fun searchArtist(artistId: Long, nameQuery: String): Flow<List<Track>>
+    fun searchArtist(artistId: ArtistId, nameQuery: String): Flow<List<Track>>
 
     @Query(
         """
@@ -71,10 +75,10 @@ interface TrackDao {
         and name like :nameQuery
     """
     )
-    fun searchPlaylist(playlistId: Long, nameQuery: String): Flow<List<Track>>
+    fun searchPlaylist(playlistId: PlaylistId, nameQuery: String): Flow<List<Track>>
 
     @Query("select * from track where folderId = :folderId")
-    fun getFolderTracks(folderId: Long): Flow<List<Track>>
+    fun getFolderTracks(folderId: FolderId): Flow<List<Track>>
 
     @Query("select * from track where folderId is null")
     fun getRootFolderTracks(): Flow<List<Track>>
@@ -87,7 +91,7 @@ interface TrackDao {
         where cr.artistId = :artistId
     """
     )
-    fun getArtistTracks(artistId: Long): Flow<List<Track>>
+    fun getArtistTracks(artistId: ArtistId): Flow<List<Track>>
 
     @Query(
         """
@@ -97,7 +101,7 @@ interface TrackDao {
         where cr.playlistId = :playlistId
     """
     )
-    fun getPlaylistTracks(playlistId: Long): Flow<List<Track>>
+    fun getPlaylistTracks(playlistId: PlaylistId): Flow<List<Track>>
 
     @Query(
         """
@@ -107,7 +111,7 @@ interface TrackDao {
     )
     suspend fun add(
         name: String,
-        folderId: Long?,
+        folderId: FolderId?,
         album: String?,
         lyrics: String?,
         albumTrackNumber: Int?,
@@ -117,11 +121,11 @@ interface TrackDao {
     ): Long
 
     @Query("update track set name = :name, updateDatetime = :updateDatetime where id = :id")
-    suspend fun updateName(name: String, updateDatetime: Long, id: Long)
+    suspend fun updateName(name: String, updateDatetime: Long, id: TrackId)
 
     @Query("update track set folderId = :folderId, updateDatetime = :updateDatetime where id = :id")
-    suspend fun updateFolderId(folderId: Long, updateDatetime: Long, id: Long)
+    suspend fun updateFolderId(folderId: FolderId, updateDatetime: Long, id: TrackId)
 
     @Query("delete from track where id = :id")
-    suspend fun delete(id: Long)
+    suspend fun delete(id: TrackId)
 }

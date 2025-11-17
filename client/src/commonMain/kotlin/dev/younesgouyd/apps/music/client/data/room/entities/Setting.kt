@@ -1,6 +1,7 @@
 package dev.younesgouyd.apps.music.client.data.room.entities
 
 import androidx.room.*
+import dev.younesgouyd.apps.music.client.data.SettingId
 import dev.younesgouyd.apps.music.client.util.DarkThemeOptions
 import kotlinx.coroutines.flow.Flow
 
@@ -9,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 )
 data class Setting(
     @PrimaryKey(autoGenerate = true)
-    val id: Long,
+    val id: SettingId,
     val name: String,
     val value: String?,
     val creationDatetime: Long,

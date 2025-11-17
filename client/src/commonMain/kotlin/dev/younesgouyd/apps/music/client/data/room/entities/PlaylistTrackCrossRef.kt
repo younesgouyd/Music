@@ -1,6 +1,9 @@
 package dev.younesgouyd.apps.music.client.data.room.entities
 
 import androidx.room.*
+import dev.younesgouyd.apps.music.client.data.PlaylistId
+import dev.younesgouyd.apps.music.client.data.PlaylistTrackCrossRefId
+import dev.younesgouyd.apps.music.client.data.TrackId
 import kotlinx.coroutines.flow.Flow
 
 @Entity(
@@ -26,9 +29,9 @@ import kotlinx.coroutines.flow.Flow
 )
 data class PlaylistTrackCrossRef(
     @PrimaryKey(autoGenerate = true)
-    val id: Long,
-    val playlistId: Long,
-    val trackId: Long,
+    val id: PlaylistTrackCrossRefId,
+    val playlistId: PlaylistId,
+    val trackId: TrackId,
     val creationDatetime: Long,
     val updateDatetime: Long
 )
@@ -43,7 +46,7 @@ interface PlaylistTrackCrossRefDao {
         and trackId = :trackId
     """
     )
-    fun get(playlistId: Long, trackId: Long): Flow<PlaylistTrackCrossRef?>
+    fun get(playlistId: PlaylistId, trackId: TrackId): Flow<PlaylistTrackCrossRef?>
 
     @Query(
         """
@@ -51,8 +54,8 @@ interface PlaylistTrackCrossRefDao {
         values (:playlistId, :trackId, :creationDatetime, :updateDatetime)
     """
     )
-    suspend fun add(playlistId: Long, trackId: Long, creationDatetime: Long, updateDatetime: Long)
+    suspend fun add(playlistId: PlaylistId, trackId: TrackId, creationDatetime: Long, updateDatetime: Long)
 
     @Query("delete from playlisttrackcrossref where playlistId = :playlistId and trackId = :trackId")
-    suspend fun delete(playlistId: Long, trackId: Long)
+    suspend fun delete(playlistId: PlaylistId, trackId: TrackId)
 }

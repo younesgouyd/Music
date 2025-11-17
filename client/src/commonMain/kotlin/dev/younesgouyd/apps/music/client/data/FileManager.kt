@@ -11,7 +11,7 @@ class FileManager(
     private val mediaDir = File(appDir, "media").also { it.mkdir() }
     private val inspectionDir = File(appDir, "inspections").also { it.mkdir() }
 
-    suspend fun saveMediaFile(data: InputStream, id: Long) {
+    suspend fun saveMediaFile(data: InputStream, id: MediaFileId) {
         withContext(Dispatchers.IO) {
             File(mediaDir, id.toString())
                 .outputStream()
@@ -19,18 +19,18 @@ class FileManager(
         }
     }
 
-    suspend fun saveMediaFile(data: ByteArray, id: Long) {
+    suspend fun saveMediaFile(data: ByteArray, id: MediaFileId) {
         withContext(Dispatchers.IO) {
             File(mediaDir, id.toString())
                 .writeBytes(data)
         }
     }
 
-    fun getMediaFile(id: Long): File {
+    fun getMediaFile(id: MediaFileId): File {
         return File(mediaDir, id.toString())
     }
 
-    suspend fun saveYtDlpInspection(importSessionId: Long, inspection: String) {
+    suspend fun saveYtDlpInspection(importSessionId: ImportSessionId, inspection: String) {
         withContext(Dispatchers.IO) {
             File(inspectionDir, importSessionId.toString())
                 .writeText(inspection)

@@ -1,6 +1,9 @@
 package dev.younesgouyd.apps.music.client.data.room.entities
 
 import androidx.room.*
+import dev.younesgouyd.apps.music.client.data.FolderId
+import dev.younesgouyd.apps.music.client.data.ImportSessionId
+import dev.younesgouyd.apps.music.client.data.PlaylistId
 import kotlinx.coroutines.flow.Flow
 
 @Entity(
@@ -23,10 +26,10 @@ import kotlinx.coroutines.flow.Flow
 )
 data class Playlist(
     @PrimaryKey(autoGenerate = true)
-    val id: Long,
+    val id: PlaylistId,
     val name: String,
-    val folderId: Long?,
-    val importSessionId: Long?,
+    val folderId: FolderId?,
+    val importSessionId: ImportSessionId?,
     val importUri: String?,
     val creationDatetime: Long,
     val updateDatetime: Long
@@ -38,12 +41,12 @@ interface PlaylistDao {
     fun getAll(): Flow<List<Playlist>>
 
     @Query("select * from playlist where id = :id")
-    fun get(id: Long): Flow<Playlist>
+    fun get(id: PlaylistId): Flow<Playlist>
 
     @Query("select * from playlist where name like :nameQuery")
     fun search(nameQuery: String): Flow<List<Playlist>>
 
-    fun searchFolder(folderId: Long?, nameQuery: String): Flow<List<Playlist>> {
+    fun searchFolder(folderId: FolderId?, nameQuery: String): Flow<List<Playlist>> {
         return if (folderId == null) {
             searchRootFolder(nameQuery)
         } else {
@@ -55,13 +58,13 @@ interface PlaylistDao {
     fun searchRootFolder(nameQuery: String): Flow<List<Playlist>>
 
     @Query("select * from playlist where folderId = :folderId and name like :nameQuery")
-    fun searchFolder(folderId: Long, nameQuery: String): Flow<List<Playlist>>
+    fun searchFolder(folderId: FolderId, nameQuery: String): Flow<List<Playlist>>
 
     @Query("select * from playlist where importSessionId = :importSessionId")
-    fun getImportSessionPlaylist(importSessionId: Long): Flow<Playlist?>
+    fun getImportSessionPlaylist(importSessionId: ImportSessionId): Flow<Playlist?>
 
     @Query("select * from playlist where folderId = :folderId")
-    fun getFolderPlaylists(folderId: Long?): Flow<List<Playlist>>
+    fun getFolderPlaylists(folderId: FolderId?): Flow<List<Playlist>>
 
     @Query(
         """
@@ -71,19 +74,19 @@ interface PlaylistDao {
     )
     suspend fun add(
         name: String,
-        folderId: Long?,
-        importSessionId: Long?,
+        folderId: FolderId?,
+        importSessionId: ImportSessionId?,
         importUri: String?,
         creationDatetime: Long,
         updateDatetime: Long
     ): Long
 
     @Query("update playlist set name = :name, updateDatetime = :updateDatetime where id = :id")
-    suspend fun updateName(name: String, updateDatetime: Long, id: Long)
+    suspend fun updateName(name: String, updateDatetime: Long, id: PlaylistId)
 
     @Query("update playlist set folderId = :folderId, updateDatetime = :updateDatetime where id = :id")
-    suspend fun updateFolderId(folderId: Long?, updateDatetime: Long, id: Long)
+    suspend fun updateFolderId(folderId: FolderId?, updateDatetime: Long, id: PlaylistId)
 
     @Query("delete from playlist where id = :id")
-    suspend fun delete(id: Long)
+    suspend fun delete(id: PlaylistId)
 }

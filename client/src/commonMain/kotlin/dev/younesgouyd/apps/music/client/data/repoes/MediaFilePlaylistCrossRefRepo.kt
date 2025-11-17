@@ -1,11 +1,13 @@
 package dev.younesgouyd.apps.music.client.data.repoes
 
+import dev.younesgouyd.apps.music.client.data.MediaFileId
+import dev.younesgouyd.apps.music.client.data.PlaylistId
 import dev.younesgouyd.apps.music.client.data.room.entities.MediaFilePlaylistCrossRefDao
 
 class MediaFilePlaylistCrossRefRepo(
     private val dao: MediaFilePlaylistCrossRefDao
 ) {
-    suspend fun add(mediaFileId: Long, playlistId: Long) {
+    suspend fun add(mediaFileId: MediaFileId, playlistId: PlaylistId) {
         val currentTime = System.currentTimeMillis()
         dao.add(
             mediaFileId = mediaFileId,
@@ -16,7 +18,7 @@ class MediaFilePlaylistCrossRefRepo(
     }
 
 
-    suspend fun delete(mediaFileId: Long, playlistId: Long) {
+    suspend fun delete(mediaFileId: MediaFileId, playlistId: PlaylistId) {
         dao.delete(mediaFileId = mediaFileId, playlistId = playlistId)
     }
 }

@@ -1,5 +1,8 @@
 package dev.younesgouyd.apps.music.client.usecases
 
+import dev.younesgouyd.apps.music.client.data.FolderId
+import dev.younesgouyd.apps.music.client.data.ImportSessionItemId
+import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.client.data.repoes.MediaFileTrackCrossRefRepo
 import dev.younesgouyd.apps.music.common.Inspection
@@ -17,9 +20,9 @@ actual class ImportLocalFileUseCaseImpl actual constructor(
 ) {
     override suspend fun execute(
         inspection: Inspection.ItemInspection.LocalFileTrack,
-        importSessionItemId: Long,
-        folderId: Long?
-    ): Long {
+        importSessionItemId: ImportSessionItemId,
+        folderId: FolderId?
+    ): TrackId {
         URI(inspection.uri)
             .toPath()
             .toFile()

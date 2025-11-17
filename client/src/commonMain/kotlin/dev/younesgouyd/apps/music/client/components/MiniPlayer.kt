@@ -20,6 +20,7 @@ import dev.younesgouyd.apps.music.client.components.util.compose.PlaybackSlider
 import dev.younesgouyd.apps.music.client.components.util.compose.formatted
 import dev.younesgouyd.apps.music.client.components.util.compose.linearAnimation
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Image
+import dev.younesgouyd.apps.music.client.data.ArtistId
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +32,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class MiniPlayer(
     mediaController: MediaController,
-    showArtistDetails: (Long) -> Unit,
+    showArtistDetails: (ArtistId) -> Unit,
     expand: () -> Unit
 ) : Component() {
     override val title: String = "Mini Player"
@@ -89,7 +90,7 @@ class MiniPlayer(
             val repeatState: MediaController.MediaControllerState.Available.RepeatState,
             val track: MediaController.MediaControllerState.Available.QueueItem.Track,
             val onClick: () -> Unit,
-            val onArtistClick: (Long) -> Unit,
+            val onArtistClick: (ArtistId) -> Unit,
             val onTimeChange: (Duration) -> Unit,
             val onPreviousClick: () -> Unit,
             val onPlayClick: () -> Unit,
@@ -141,7 +142,7 @@ class MiniPlayer(
                 isPlaying: StateFlow<Boolean>,
                 repeatState: MediaController.MediaControllerState.Available.RepeatState,
                 onClick: () -> Unit,
-                onArtistClick: (Long) -> Unit,
+                onArtistClick: (ArtistId) -> Unit,
                 onTimeChange: (Duration) -> Unit,
                 onPreviousClick: () -> Unit,
                 onPlayClick: () -> Unit,

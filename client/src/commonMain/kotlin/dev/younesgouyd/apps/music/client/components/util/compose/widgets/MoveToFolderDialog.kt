@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import dev.younesgouyd.apps.music.client.data.FolderId
 import dev.younesgouyd.apps.music.client.data.room.entities.Folder
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -33,8 +34,8 @@ data class ItemToMove(
 @Composable
 fun MoveToFolderDialog(
     itemToMove: ItemToMove,
-    loadFolders: suspend (parentFolderId: Long?) -> List<Folder>,
-    onMoveToFolder: (id: Long) -> Unit,
+    loadFolders: suspend (parentFolderId: FolderId?) -> List<Folder>,
+    onMoveToFolder: (FolderId) -> Unit,
     onDismissRequest: () -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
