@@ -133,9 +133,10 @@ private object Cache {
                 mutex.withLock {
                     val fromCache2 = cache[filePath]
                     if (fromCache2 == null) {
-                        val bytes = File(filePath).readBytes()
-                        val imageBitmap = bytes.decodeToImageBitmap()
-                        val image = Image(imageBitmap, byteSize = bytes.size)
+                        val imageBitmap = File(filePath)
+                            .readBytes()
+                            .decodeToImageBitmap()
+                        val image = Image(imageBitmap)
                         add(filePath to image)
                         while (cacheSize > MAX_CACHE_SIZE) {
                             val leastImportant = cache.minByOrNull { it.value.lastUsed }
@@ -170,8 +171,9 @@ private object Cache {
         }.join()
     }
 
-    private data class Image(val bitmap: ImageBitmap, val byteSize: Int) {
+    private data class Image(val bitmap: ImageBitmap) {
         var lastUsed = Instant.now().toEpochMilli()
+        val byteSize = bitmap.width * bitmap.height * 4
 
         fun updateLastUsed() { lastUsed = Instant.now().toEpochMilli() }
     }
