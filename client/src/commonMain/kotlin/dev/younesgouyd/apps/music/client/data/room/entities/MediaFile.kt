@@ -23,7 +23,7 @@ data class MediaFile(
 @Dao
 interface MediaFileDao {
     @Query("""
-        select *
+        select m.*
         from mediafile m
         join mediafiletrackcrossref cr on cr.mediaFileId = m.id
         where cr.trackId = :trackId
@@ -32,7 +32,7 @@ interface MediaFileDao {
     fun getTrackMediaFiles(trackId: Long, type: Type): Flow<List<MediaFile>>
 
     @Query("""
-        select *
+        select m.*
         from mediafile m
         join mediafileimportsessioncrossref cr on cr.mediaFileId = m.id
         where cr.importSessionId = :importSessionId
@@ -41,7 +41,7 @@ interface MediaFileDao {
     fun getImportSessionMediaFiles(importSessionId: Long, type: Type): Flow<List<MediaFile>>
 
     @Query("""
-        select *
+        select m.*
         from mediafile m
         join mediafileimportsessionitemcrossref cr on cr.mediaFileId = m.id
         where cr.importSessionItemId = :importSessionItemId
@@ -50,7 +50,7 @@ interface MediaFileDao {
     fun getImportSessionItemMediaFiles(importSessionItemId: Long, type: Type): Flow<List<MediaFile>>
 
     @Query("""
-        select *
+        select m.*
         from mediafile m
         join mediafileartistcrossref cr on cr.mediaFileId = m.id
         where cr.artistId = :artistId
@@ -59,7 +59,7 @@ interface MediaFileDao {
     fun getArtistMediaFiles(artistId: Long, type: Type): Flow<List<MediaFile>>
 
     @Query("""
-        select *
+        select m.*
         from mediafile m
         join mediafileplaylistcrossref cr on cr.mediaFileId = m.id
         where cr.playlistId = :playlistId
