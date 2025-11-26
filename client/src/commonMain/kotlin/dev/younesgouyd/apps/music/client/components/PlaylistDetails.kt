@@ -534,7 +534,7 @@ class PlaylistDetails(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    items(items = track.artists, key = { it.id }) { artist ->
+                                    items(items = track.artists, key = { it.id.value }) { artist ->
                                         TextButton(
                                             onClick = { onArtistClick(artist.id) },
                                             content = {
@@ -961,7 +961,7 @@ class PlaylistDetails(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    items(items = track.artists, key = { it.id }) { artist ->
+                                    items(items = track.artists, key = { it.id.value }) { artist ->
                                         TextButton(
                                             onClick = { onArtistClick(artist.id) },
                                             content = {

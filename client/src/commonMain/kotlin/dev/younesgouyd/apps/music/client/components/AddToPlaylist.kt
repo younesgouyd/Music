@@ -299,7 +299,7 @@ class AddToPlaylist(
                                 }
                                 items(
                                     items = playlists,
-                                    key = { it.id }
+                                    key = { it.id.value }
                                 ) { playlistOption ->
                                     Item(
                                         modifier = Modifier.padding(8.dp),

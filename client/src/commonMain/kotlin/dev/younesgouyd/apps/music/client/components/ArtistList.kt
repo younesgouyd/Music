@@ -160,7 +160,7 @@ class ArtistList(
                                 }
                                 items(
                                     items = items,
-                                    key = { it.id }
+                                    key = { it.id.value }
                                 ) { artist ->
                                     ArtistItem(
                                         artist = artist,
@@ -311,7 +311,7 @@ class ArtistList(
                                 }
                                 items(
                                     items = items,
-                                    key = { it.id }
+                                    key = { it.id.value }
                                 ) { artist ->
                                     ArtistItem(
                                         artist = artist,

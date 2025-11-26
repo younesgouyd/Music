@@ -870,7 +870,7 @@ class Library(
                                     Text("/")
                                 }
                             }
-                            items(items = path, key = { it.id }) { folder ->
+                            items(items = path, key = { it.id.value }) { folder ->
                                 Row(
                                     horizontalArrangement = Arrangement.Start,
                                     verticalAlignment = Alignment.CenterVertically
@@ -1574,7 +1574,7 @@ class Library(
                                     Text("/")
                                 }
                             }
-                            items(items = path, key = { it.id }) { folder ->
+                            items(items = path, key = { it.id.value }) { folder ->
                                 Row(
                                     horizontalArrangement = Arrangement.Start,
                                     verticalAlignment = Alignment.CenterVertically

@@ -287,7 +287,7 @@ class ArtistDetails(
                                 }
                                 items(
                                     items = trackItems,
-                                    key = { it.id }
+                                    key = { it.id.value }
                                 ) { track ->
                                     TrackItem(
                                         track = track,
@@ -573,7 +573,7 @@ class ArtistDetails(
                                 }
                                 items(
                                     items = trackItems,
-                                    key = { it.id }
+                                    key = { it.id.value }
                                 ) { track ->
                                     TrackItem(
                                         track = track,

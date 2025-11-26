@@ -126,7 +126,7 @@ fun MoveToFolderDialog(
                                 Text("/")
                             }
                         }
-                        items(items = path.drop(1), key = { it!!.id }) { folder ->
+                        items(items = path.drop(1), key = { it!!.id.value }) { folder ->
                             require(folder != null)
                             Row(
                                 horizontalArrangement = Arrangement.Start,
@@ -151,7 +151,7 @@ fun MoveToFolderDialog(
                     ) {
                         items(
                             items = folders,
-                            key = { it.id }
+                            key = { it.id.value }
                         ) { folderOption ->
                             Item(
                                 modifier = Modifier.padding(8.dp),

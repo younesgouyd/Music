@@ -225,7 +225,7 @@ class PlaylistList(
                                         )
                                     }
                                 }
-                                items(items = items, key = { it.id }) { playlist ->
+                                items(items = items, key = { it.id.value }) { playlist ->
                                     PlaylistItem(
                                         playlist = playlist,
                                         onClick = { onPlaylistClick(playlist.id) },
@@ -479,7 +479,7 @@ class PlaylistList(
                                         )
                                     }
                                 }
-                                items(items = items, key = { it.id }) { playlist ->
+                                items(items = items, key = { it.id.value }) { playlist ->
                                     PlaylistItem(
                                         playlist = playlist,
                                         onClick = { onPlaylistClick(playlist.id) },
