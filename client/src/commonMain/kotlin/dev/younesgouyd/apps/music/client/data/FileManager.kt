@@ -6,10 +6,11 @@ import java.io.File
 import java.io.InputStream
 
 class FileManager(
-    appDir: File
+    appDir: File,
+    val dbDir: File,
 ) {
-    private val mediaDir = File(appDir, "media").also { it.mkdir() }
-    private val inspectionDir = File(appDir, "inspections").also { it.mkdir() }
+    val mediaDir = File(appDir, "media").also { it.mkdir() }
+    val inspectionDir = File(appDir, "inspections").also { it.mkdir() }
 
     suspend fun saveMediaFile(data: InputStream, id: MediaFileId) {
         withContext(Dispatchers.IO) {

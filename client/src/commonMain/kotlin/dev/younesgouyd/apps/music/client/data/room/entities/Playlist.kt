@@ -5,6 +5,7 @@ import dev.younesgouyd.apps.music.client.data.FolderId
 import dev.younesgouyd.apps.music.client.data.ImportSessionId
 import dev.younesgouyd.apps.music.client.data.PlaylistId
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
 
 @Entity(
     foreignKeys = [
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.Flow
         )
     ]
 )
+@Serializable
 data class Playlist(
     @PrimaryKey(autoGenerate = true)
     val id: PlaylistId,

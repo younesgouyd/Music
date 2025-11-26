@@ -26,6 +26,7 @@ dependencyResolutionManagement {
                 val java = version("java", "22")
                 val kotlin = version("kotlin", "2.2.0")
                 val json = version("json", "1.9.0")
+                val jsonJava = version("jsonJava", "20250517")
                 val coroutines = version("coroutines", "1.10.2")
                 val room = version("room", "2.8.1")
                 val sqlite = version("sqlite", "2.6.1")
@@ -44,6 +45,7 @@ dependencyResolutionManagement {
                     val appcompat = version("appcompat", "1.7.1")
                     val activity = version("android.activity", "1.10.1")
                     val media3 = version("android.media3", "1.7.1")
+                    val documentfile = version("documentfile", "1.1.0")
                 }
                 val vlcj = version("vlcj", "4.11.0")
                 val mp3agic = version("mp3agic", "0.9.1")
@@ -60,6 +62,7 @@ dependencyResolutionManagement {
             plugin("androidApplication", "com.android.application").versionRef(versions.android.agp)
 
             library("json", "org.jetbrains.kotlinx", "kotlinx-serialization-json").versionRef(versions.json)
+            library("jsonJava", "org.json", "json").versionRef(versions.jsonJava)
 
             library("coroutines.core", "org.jetbrains.kotlinx", "kotlinx-coroutines-core").versionRef(versions.coroutines)
             library("coroutines.desktop", "org.jetbrains.kotlinx", "kotlinx-coroutines-swing").versionRef(versions.coroutines)
@@ -98,6 +101,7 @@ dependencyResolutionManagement {
             library("android.media3.common", "androidx.media3", "media3-common").versionRef(versions.android.media3)
             library("android.media3.exoplayer", "androidx.media3", "media3-exoplayer").versionRef(versions.android.media3)
             library("android.media3.session", "androidx.media3", "media3-session").versionRef(versions.android.media3)
+            library("android.documentfile", "androidx.documentfile", "documentfile").versionRef(versions.android.documentfile)
         }
     }
 }

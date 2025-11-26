@@ -7,8 +7,10 @@ import androidx.room.Query
 import dev.younesgouyd.apps.music.client.data.ArtistId
 import dev.younesgouyd.apps.music.client.data.TrackId
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
 
 @Entity
+@Serializable
 data class Artist(
     @PrimaryKey(autoGenerate = true)
     val id: ArtistId,
@@ -19,6 +21,9 @@ data class Artist(
 
 @Dao
 interface ArtistDao {
+    @Query("select * from artist")
+    fun getAll(): Flow<List<Artist>>
+
     @Query("select * from artist where id = :id")
     fun get(id: ArtistId): Flow<Artist>
 

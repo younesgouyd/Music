@@ -3,6 +3,7 @@ package dev.younesgouyd.apps.music.client.data.room.entities
 import androidx.room.*
 import dev.younesgouyd.apps.music.client.data.FolderId
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
 
 @Entity(
     foreignKeys = [
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
         )
     ]
 )
+@Serializable
 data class Folder(
     @PrimaryKey(autoGenerate = true)
     val id: FolderId,
@@ -26,6 +28,9 @@ data class Folder(
 
 @Dao
 interface FolderDao {
+    @Query("select * from folder")
+    fun getAll(): Flow<List<Folder>>
+
     @Query("select * from folder where id = :id")
     fun get(id: FolderId): Flow<Folder>
 
@@ -55,7 +60,12 @@ interface FolderDao {
         values (:name, :parentFolderId, :creationDatetime, :updateDatetime)
     """
     )
-    suspend fun add(name: String, parentFolderId: FolderId?, creationDatetime: Long, updateDatetime: Long): Long
+    suspend fun add(
+        name: String,
+        parentFolderId: FolderId?,
+        creationDatetime: Long,
+        updateDatetime: Long
+    ): Long
 
     @Query("update folder set name = :name, updateDatetime = :updateDatetime where id = :id")
     suspend fun updateName(name: String, updateDatetime: Long, id: FolderId)

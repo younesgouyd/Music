@@ -9,6 +9,10 @@ import kotlinx.coroutines.flow.first
 class SettingsRepo(
     private val dao: SettingDao
 ) {
+    fun getAll(): Flow<List<Setting>> {
+        return dao.getAll()
+    }
+
     suspend fun init() {
         val darkTheme = getDarkTheme().first()
         if (darkTheme == null) {

@@ -20,6 +20,8 @@ abstract class ImportLocalFileUseCase(
         folderId: FolderId?
     ): TrackId
 
+    protected abstract fun getFileName(uri: String): String
+
     protected suspend fun import(
         inspection: Inspection.ItemInspection.LocalFileTrack,
         importSessionItemId: ImportSessionItemId,
@@ -44,6 +46,7 @@ abstract class ImportLocalFileUseCase(
         }
         val audioMediaFileId = mediaFileRepo.add(
             type = MediaFile.Type.Audio,
+            fileName = getFileName(inspection.uri),
             data = data
         )
         mediaFileTrackCrossRefRepo.add(

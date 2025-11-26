@@ -18,6 +18,10 @@ actual class ImportLocalFileUseCaseImpl actual constructor(
     mediaFileTrackCrossRefRepo,
     saveAudioFileAsTrackUseCase
 ) {
+    override fun getFileName(uri: String): String {
+        return URI(uri).toPath().toFile().name
+    }
+
     override suspend fun execute(
         inspection: Inspection.ItemInspection.LocalFileTrack,
         importSessionItemId: ImportSessionItemId,

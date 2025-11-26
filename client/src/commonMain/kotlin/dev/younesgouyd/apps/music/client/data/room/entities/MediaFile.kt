@@ -7,12 +7,15 @@ import androidx.room.Query
 import dev.younesgouyd.apps.music.client.data.*
 import dev.younesgouyd.apps.music.client.data.room.entities.MediaFile.Type
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
 
 @Entity
+@Serializable
 data class MediaFile(
     @PrimaryKey(autoGenerate = true)
     val id: MediaFileId,
     val type: Type,
+    val fileName: String?,
     val creationDatetime: Long,
     val updateDatetime: Long
 ) {
@@ -23,6 +26,9 @@ data class MediaFile(
 
 @Dao
 interface MediaFileDao {
+    @Query("select * from mediafile")
+    fun getAll(): Flow<List<MediaFile>>
+
     @Query("""
         select m.*
         from mediafile m
@@ -70,12 +76,13 @@ interface MediaFileDao {
 
     @Query(
         """
-        insert into mediafile (type, creationDatetime, updateDatetime)
-        values (:type, :creationDatetime, :updateDatetime)
+        insert into mediafile (type, fileName, creationDatetime, updateDatetime)
+        values (:type, :fileName, :creationDatetime, :updateDatetime)
     """
     )
     suspend fun add(
         type: Type,
+        fileName: String?,
         creationDatetime: Long,
         updateDatetime: Long
     ): Long

@@ -3,6 +3,7 @@ package dev.younesgouyd.apps.music.client.data.repoes
 import dev.younesgouyd.apps.music.client.data.*
 import dev.younesgouyd.apps.music.client.data.room.entities.MediaFile
 import dev.younesgouyd.apps.music.client.data.room.entities.MediaFileDao
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.io.File
@@ -12,6 +13,10 @@ class MediaFileRepo(
     private val dao: MediaFileDao,
     private val fileManager: FileManager
 ) {
+    fun getAll(): Flow<List<MediaFile>> {
+        return dao.getAll()
+    }
+
     suspend fun getImportSessionImageMediaFile(importSessionId: ImportSessionId): MediaFile? {
         return dao.getImportSessionMediaFiles(importSessionId = importSessionId, type = MediaFile.Type.Image)
             .map { it.firstOrNull() }
@@ -74,11 +79,12 @@ class MediaFileRepo(
         return fileManager.getMediaFile(mediaFile.id)
     }
 
-    suspend fun add(type: MediaFile.Type, data: InputStream): MediaFileId {
+    suspend fun add(type: MediaFile.Type, fileName: String, data: InputStream): MediaFileId {
         val currentTime = System.currentTimeMillis()
         val id = MediaFileId(
             value = dao.add(
                 type = type,
+                fileName = fileName,
                 creationDatetime = currentTime,
                 updateDatetime = currentTime
             )
@@ -87,11 +93,12 @@ class MediaFileRepo(
         return id
     }
 
-    suspend fun add(type: MediaFile.Type, data: ByteArray): MediaFileId{
+    suspend fun add(type: MediaFile.Type, fileName: String?, data: ByteArray): MediaFileId{
         val currentTime = System.currentTimeMillis()
         val id = MediaFileId(
             value = dao.add(
                 type = type,
+                fileName = fileName,
                 creationDatetime = currentTime,
                 updateDatetime = currentTime
             )

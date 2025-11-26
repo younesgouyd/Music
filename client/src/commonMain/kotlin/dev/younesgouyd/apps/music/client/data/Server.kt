@@ -11,6 +11,7 @@ import io.ktor.client.plugins.logging.*
 import io.ktor.client.plugins.sse.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
+import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.flow.Flow
@@ -51,10 +52,13 @@ class Server(
         }
     }
 
-    suspend fun getResult(): InputStream {
-        return client.get("${getAddress()}/getResult")
-            .bodyAsChannel()
-            .toInputStream()
+    suspend fun getResult(): Pair<String, InputStream> {
+        val response = client.get("${getAddress()}/getResult")
+        val stream = response.bodyAsChannel().toInputStream()
+        val filename = response.headers[HttpHeaders.ContentDisposition]!!
+            .substringAfter("filename=\"")
+            .substringBeforeLast("\"")
+        return filename to stream
     }
 
     private fun getAddress(): String {

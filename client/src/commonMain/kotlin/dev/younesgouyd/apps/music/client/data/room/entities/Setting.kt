@@ -4,10 +4,12 @@ import androidx.room.*
 import dev.younesgouyd.apps.music.client.data.SettingId
 import dev.younesgouyd.apps.music.client.util.DarkThemeOptions
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
 
 @Entity(
     indices = [Index(value = ["name"], unique = true)]
 )
+@Serializable
 data class Setting(
     @PrimaryKey(autoGenerate = true)
     val id: SettingId,
@@ -19,11 +21,27 @@ data class Setting(
 
 @Dao
 interface SettingDao {
+    @Query("select * from setting")
+    fun getAll(): Flow<List<Setting>>
+
     @Query("select * from setting where name = 'dark_theme'")
     fun getDarkTheme(): Flow<Setting?>
 
     @Query("select * from setting where name = 'server_address'")
     fun getServerAddress(): Flow<Setting?>
+
+    @Query(
+        """
+        insert into setting (name, value, creationDatetime, updateDatetime)
+        values (:name, :value, :creationDatetime, :updateDatetime)
+    """
+    )
+    suspend fun add(
+        name: String,
+        value: String,
+        creationDatetime: Long,
+        updateDatetime: Long
+    )
 
     @Query(
         """

@@ -25,7 +25,7 @@ import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.Music
 import dev.younesgouyd.apps.music.client.components.util.MediaController
 import dev.younesgouyd.apps.music.client.components.util.compose.AdaptiveUi
-import dev.younesgouyd.apps.music.client.components.util.compose.SystemFilePicker
+import dev.younesgouyd.apps.music.client.components.util.compose.SystemFolderPicker
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.*
 import dev.younesgouyd.apps.music.client.data.*
 import dev.younesgouyd.apps.music.client.data.repoes.*
@@ -430,6 +430,7 @@ class Library(
                 item.albumImage?.let { albumImage ->
                     val mediaFileId = mediaFileRepo.add(
                         type = MediaFile.Type.Image,
+                        fileName = null,
                         data = Base64.decode(albumImage)
                     )
                     mediaFileImportSessionItemCrossRefRepo.add(
@@ -458,6 +459,7 @@ class Library(
             inspection.container.thumbnail?.let { thumbnail ->
                 val playlistImageId = mediaFileRepo.add(
                     type = MediaFile.Type.Image,
+                    fileName = null,
                     data = Base64.decode(thumbnail)
                 )
                 mediaFileImportSessionCrossRefRepo.add(
@@ -469,6 +471,7 @@ class Library(
                 item.thumbnail?.let { thumbnail ->
                     val mediaFileId = mediaFileRepo.add(
                         type = MediaFile.Type.Image,
+                        fileName = null,
                         data = Base64.decode(thumbnail)
                     )
                     mediaFileImportSessionItemCrossRefRepo.add(
@@ -690,7 +693,13 @@ class Library(
                     }
                 }
                 if (showSystemFilePicker) {
-                    SystemFilePicker(onFolderPicked)
+                    SystemFolderPicker(
+                        onFolderChosen = {
+                            showSystemFilePicker = false
+                            onFolderPicked(it)
+                        },
+                        onCancelled = { showSystemFilePicker = false }
+                    )
                 }
             }
         }

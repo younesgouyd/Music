@@ -50,8 +50,11 @@ private suspend fun scanFolder(folderUri: Uri): List<Inspection.ItemInspection.L
                         println("::scanMetadata | this file is not mp3 and will be skipped: $childUri")
                     } else {
                         val fileNameWithoutExtension = getFileName(childUri).substringBeforeLast(".")
-                        val tempFile =
-                            File.createTempFile(fileNameWithoutExtension, extension, context.cacheDir) // TODO
+                        val tempFile = File.createTempFile(
+                            fileNameWithoutExtension,
+                            extension,
+                            context.cacheDir
+                        ) // TODO
                         contentResolver.openInputStream(childUri)!!.use { input ->
                             tempFile.outputStream().use { output -> input.copyTo(output) }
                         }

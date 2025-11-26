@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "9508c86a0ef5e6baf4f6c1ef1cf5d5de",
+    "identityHash": "372bcfe81132861e113b6101d21ff2eb",
     "entities": [
       {
         "tableName": "Artist",
@@ -307,7 +307,7 @@
       },
       {
         "tableName": "MediaFile",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `type` TEXT NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `type` TEXT NOT NULL, `fileName` TEXT, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -320,6 +320,11 @@
             "columnName": "type",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "fileName",
+            "columnName": "fileName",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "creationDatetime",
@@ -1013,7 +1018,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9508c86a0ef5e6baf4f6c1ef1cf5d5de')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '372bcfe81132861e113b6101d21ff2eb')"
     ]
   }
 }

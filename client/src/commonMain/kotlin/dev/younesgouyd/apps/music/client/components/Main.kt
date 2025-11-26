@@ -25,7 +25,8 @@ import kotlinx.coroutines.runBlocking
 
 class Main(
     private val repoStore: RepoStore,
-    mediaPlayer: MediaController.MediaPlayer
+    mediaPlayer: MediaController.MediaPlayer,
+    onReinitializeAppData: () -> Unit
 ) : Component() {
     override val title: String = ""
     private val darkTheme: StateFlow<DarkThemeOptions> =
@@ -74,7 +75,10 @@ class Main(
         it == MainComponentType.Player
     }.stateIn(coroutineScope, started = SharingStarted.WhileSubscribed(), false)
 
-    private val settings: Component = Settings(repoStore.settingsRepo)
+    private val settings: Component = Settings(
+        repoStore.settingsRepo,
+        onReinitializeAppData = onReinitializeAppData
+    )
     private var navigationHost: NavigationHost = getNewNavHost(NavigationHost.Destination.Library)
     private val miniPlayer = MiniPlayer(
         mediaController = mediaController,
@@ -166,7 +170,6 @@ class Main(
             NavigationDrawerItems.Settings -> {
                 mainComponent.value = settings
             }
-
             NavigationDrawerItems.Library -> {
                 navigationHost.clear()
                 navigationHost = getNewNavHost(NavigationHost.Destination.Library)
@@ -188,6 +191,11 @@ class Main(
             NavigationDrawerItems.Imports -> {
                 navigationHost.clear()
                 navigationHost = getNewNavHost(NavigationHost.Destination.ImportList)
+                mainComponent.value = navigationHost
+            }
+            NavigationDrawerItems.Export -> {
+                navigationHost.clear()
+                navigationHost = getNewNavHost(NavigationHost.Destination.Export)
                 mainComponent.value = navigationHost
             }
         }
@@ -391,7 +399,8 @@ class Main(
         Library("Library"),
         Playlists("Playlists"),
         Artists("Artists"),
-        Imports("Imports")
+        Imports("Imports"),
+        Export("Export")
     }
 
     private enum class MainComponentType {

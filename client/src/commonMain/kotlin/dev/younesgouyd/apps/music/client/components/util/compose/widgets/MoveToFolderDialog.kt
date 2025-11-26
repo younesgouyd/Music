@@ -41,8 +41,7 @@ fun MoveToFolderDialog(
     val coroutineScope = rememberCoroutineScope()
     var path: Set<Folder?> by remember { mutableStateOf(setOf(null)) }
     val pathLazyListState = rememberLazyListState()
-    val folders: SnapshotStateList<Folder> =
-        remember { mutableStateListOf() }
+    val folders: SnapshotStateList<Folder> = remember { mutableStateListOf() }
     val lazyColumnState = rememberLazyListState()
     var currentCollection: Job? by remember { mutableStateOf<Job?>(null) }
 

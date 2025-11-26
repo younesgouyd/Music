@@ -9,6 +9,7 @@ import java.io.File
 
 class RepoStore(
     private val appDir: File,
+    private val dbDir: File,
     private val applicationScope: CoroutineScope,
     private val database: AppDatabase
 ) {
@@ -32,7 +33,11 @@ class RepoStore(
     lateinit var mediaFilePlaylistCrossRefRepo: MediaFilePlaylistCrossRefRepo private set
 
     suspend fun init() {
-        fileManager = FileManager(appDir)
+        println("--> RepoStore::init")
+        fileManager = FileManager(
+            appDir = appDir,
+            dbDir = dbDir
+        )
         settingsRepo = SettingsRepo(database.settingDao())
         folderRepo = FolderRepo(database.folderDao())
         artistRepo = ArtistRepo(database.artistDao())
@@ -61,5 +66,6 @@ class RepoStore(
         server = Server(
             serverAddress = settingsRepo.getServerAddress().map { it!!.value }.stateIn(applicationScope),
         )
+        println("<-- RepoStore::init")
     }
 }

@@ -10,6 +10,10 @@ import kotlinx.coroutines.flow.Flow
 class ImportSessionItemRepo(
     private val dao: ImportSessionItemDao
 ) {
+    fun getAll(): Flow<List<ImportSessionItem>> {
+        return dao.getAll()
+    }
+
     fun get(id: ImportSessionItemId): Flow<ImportSessionItem> {
         return dao.get(id)
     }

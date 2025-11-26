@@ -20,7 +20,13 @@ object Api {
     private val ytDlpSerializer = Json { ignoreUnknownKeys = true }
 
     suspend fun inspect(url: String): Inspection.Webpage {
-        val commandResponse = runCommand("--dump-single-json", "--quiet", "--no-warnings", "--simulate", url)
+        val commandResponse = runCommand(
+            "--dump-single-json",
+            "--quiet",
+            "--no-warnings",
+            "--simulate",
+            url
+        )
         println("::inspect | commandResponse: $commandResponse")
         val ytDlpType = ytDlpSerializer.decodeFromString<YtDlpModels.Type>(commandResponse)
         return if (ytDlpType.type == "playlist") {
@@ -86,11 +92,9 @@ object Api {
             downloadDir.listFiles().orEmpty().forEach {
                 it.delete()
             }
-            val outputPath = "${downloadDir.absolutePath}/temp"
             val commandResponse = runCommand(
                 "--extract-audio",
-                "--audio-format", "mp3",
-                "--output", outputPath,
+                "--output", "${downloadDir.absolutePath}/%(title)s.%(ext)s",
                 url
             )
             println("::download | command response for $url: \n$commandResponse")

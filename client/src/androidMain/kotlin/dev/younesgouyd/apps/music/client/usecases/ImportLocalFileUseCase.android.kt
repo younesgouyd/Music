@@ -8,6 +8,7 @@ import dev.younesgouyd.apps.music.client.data.ImportSessionItemId
 import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.client.data.repoes.MediaFileTrackCrossRefRepo
+import dev.younesgouyd.apps.music.client.getFileName
 import dev.younesgouyd.apps.music.common.Inspection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -22,6 +23,10 @@ actual class ImportLocalFileUseCaseImpl actual constructor(
     saveAudioFileAsTrackUseCase
 ) {
     private val context: Context = MusicAndroidApp.instance.applicationContext
+
+    override fun getFileName(uri: String): String {
+        return getFileName(uri.toUri())
+    }
 
     override suspend fun execute(
         inspection: Inspection.ItemInspection.LocalFileTrack,

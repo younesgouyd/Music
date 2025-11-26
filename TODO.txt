@@ -1,13 +1,11 @@
-
+- verify SaveAudioFileAsTrackUseCase logic
+- fix id types causing crash in compose lazy lists
 - support showing the destination folder from import session
-- implement export and re-importing from the export
 - update date and creation date in daos
-- define typealias for IDs
 - make material3 theme parametrable in settings
 - delete non-referenced files
 - find the most precise way to represent time: check: https://en.wikipedia.org/wiki/Unix_time
 - create Detect Duplicates Component
-- make app compatible with Android 10
 - implement android events (back navigation, configuration changes... etc)
 - implement play next (add to the queue items of the desired queue after the current index)
 - implement tags
@@ -17,6 +15,9 @@
 - verify not null assertions (!!)
 
 done:
+- implement export and re-importing from the export
+- make app compatible with Android 10
+- define typealias for IDs
 - save images in files to improve performance
 - save yt-dlp inspection response in client
 - bump android minimum api level to 29 (android 10)

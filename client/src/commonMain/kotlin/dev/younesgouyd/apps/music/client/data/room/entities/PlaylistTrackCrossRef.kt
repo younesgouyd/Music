@@ -5,6 +5,7 @@ import dev.younesgouyd.apps.music.client.data.PlaylistId
 import dev.younesgouyd.apps.music.client.data.PlaylistTrackCrossRefId
 import dev.younesgouyd.apps.music.client.data.TrackId
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
 
 @Entity(
     indices = [
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.Flow
         )
     ]
 )
+@Serializable
 data class PlaylistTrackCrossRef(
     @PrimaryKey(autoGenerate = true)
     val id: PlaylistTrackCrossRefId,
@@ -38,6 +40,9 @@ data class PlaylistTrackCrossRef(
 
 @Dao
 interface PlaylistTrackCrossRefDao {
+    @Query("select * from playlisttrackcrossref")
+    fun getAll(): Flow<List<PlaylistTrackCrossRef>>
+
     @Query(
         """
         select *
@@ -54,7 +59,12 @@ interface PlaylistTrackCrossRefDao {
         values (:playlistId, :trackId, :creationDatetime, :updateDatetime)
     """
     )
-    suspend fun add(playlistId: PlaylistId, trackId: TrackId, creationDatetime: Long, updateDatetime: Long)
+    suspend fun add(
+        playlistId: PlaylistId,
+        trackId: TrackId,
+        creationDatetime: Long,
+        updateDatetime: Long
+    )
 
     @Query("delete from playlisttrackcrossref where playlistId = :playlistId and trackId = :trackId")
     suspend fun delete(playlistId: PlaylistId, trackId: TrackId)

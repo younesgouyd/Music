@@ -5,6 +5,7 @@ import dev.younesgouyd.apps.music.client.data.ImportSessionId
 import dev.younesgouyd.apps.music.client.data.ImportSessionItemId
 import dev.younesgouyd.apps.music.common.Inspection
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
 
 @Entity(
     foreignKeys = [
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.Flow
         )
     ]
 )
+@Serializable
 data class ImportSessionItem(
     @PrimaryKey(autoGenerate = true)
     val id: ImportSessionItemId,
@@ -39,6 +41,9 @@ data class ImportSessionItem(
 
 @Dao
 interface ImportSessionItemDao {
+    @Query("select * from ImportSessionItem")
+    fun getAll(): Flow<List<ImportSessionItem>>
+
     @Query("select * from importsessionitem where id = :id")
     fun get(id: ImportSessionItemId): Flow<ImportSessionItem>
 

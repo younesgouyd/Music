@@ -6,6 +6,7 @@ import dev.younesgouyd.apps.music.client.data.FolderId
 import dev.younesgouyd.apps.music.client.data.PlaylistId
 import dev.younesgouyd.apps.music.client.data.TrackId
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -20,6 +21,7 @@ import kotlin.time.Duration.Companion.milliseconds
         )
     ]
 )
+@Serializable
 data class Track(
     @PrimaryKey(autoGenerate = true)
     val id: TrackId,
@@ -37,6 +39,9 @@ data class Track(
 
 @Dao
 interface TrackDao {
+    @Query("select * from track")
+    fun getAll(): Flow<List<Track>>
+
     @Query("select * from track where id = :id")
     fun get(id: TrackId): Flow<Track>
 

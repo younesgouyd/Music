@@ -4,6 +4,8 @@ import androidx.room.*
 import dev.younesgouyd.apps.music.client.data.MediaFileId
 import dev.younesgouyd.apps.music.client.data.MediaFileTrackCrossRefId
 import dev.younesgouyd.apps.music.client.data.TrackId
+import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
 
 @Entity(
     indices = [
@@ -26,6 +28,7 @@ import dev.younesgouyd.apps.music.client.data.TrackId
         )
     ]
 )
+@Serializable
 data class MediaFileTrackCrossRef(
     @PrimaryKey(autoGenerate = true)
     val id: MediaFileTrackCrossRefId,
@@ -37,11 +40,19 @@ data class MediaFileTrackCrossRef(
 
 @Dao
 interface MediaFileTrackCrossRefDao {
+    @Query("select * from mediafiletrackcrossref")
+    fun getAll(): Flow<List<MediaFileTrackCrossRef>>
+
     @Query("""
         insert into mediafiletrackcrossref (mediaFileId, trackId, creationDatetime, updateDatetime)
         values (:mediaFileId, :trackId, :creationDatetime, :updateDatetime)
     """)
-    suspend fun add(mediaFileId: MediaFileId, trackId: TrackId, creationDatetime: Long, updateDatetime: Long)
+    suspend fun add(
+        mediaFileId: MediaFileId,
+        trackId: TrackId,
+        creationDatetime: Long,
+        updateDatetime: Long
+    )
 
 
     @Query("delete from mediafiletrackcrossref where mediaFileId = :mediaFileId and trackId = :trackId")

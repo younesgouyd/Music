@@ -8,17 +8,46 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 
 @Composable
-actual fun SystemFilePicker(onFolderPicked: (Uri) -> Unit) {
+actual fun SystemFolderPicker(
+    onFolderChosen: (Uri) -> Unit,
+    onCancelled: () -> Unit
+) {
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         if (uri != null) {
-            context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            onFolderPicked(uri.toString())
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            onFolderChosen(uri.toString())
+        } else {
+            onCancelled()
         }
     }
     LaunchedEffect(Unit) {
         launcher.launch(null)
+    }
+}
+
+@Composable
+actual fun SystemFilePicker(
+    onFileChosen: (Uri) -> Unit,
+    onCancelled: () -> Unit
+) {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            onFileChosen(uri.toString())
+        } else {
+            onCancelled()
+        }
+    }
+    LaunchedEffect(Unit) {
+        launcher.launch(arrayOf("application/zip")) // TODO
     }
 }

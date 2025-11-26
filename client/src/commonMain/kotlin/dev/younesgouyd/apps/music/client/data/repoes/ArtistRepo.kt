@@ -8,6 +8,10 @@ import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
 import kotlinx.coroutines.flow.Flow
 
 class ArtistRepo(private val dao: ArtistDao) {
+    fun getAll(): Flow<List<Artist>> {
+        return dao.getAll()
+    }
+
     fun search(nameQuery: String): Flow<List<Artist>> {
         return dao.search(nameQuery.toSearchQuery())
     }
@@ -38,9 +42,5 @@ class ArtistRepo(private val dao: ArtistDao) {
     suspend fun updateName(id: ArtistId, name: String) {
         require(name.isNotEmpty())
         dao.updateName(name, System.currentTimeMillis(), id)
-    }
-
-    suspend fun delete(id: ArtistId) {
-        dao.delete(id)
     }
 }

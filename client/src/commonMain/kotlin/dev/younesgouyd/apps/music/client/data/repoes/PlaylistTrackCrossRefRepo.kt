@@ -6,7 +6,13 @@ import dev.younesgouyd.apps.music.client.data.room.entities.PlaylistTrackCrossRe
 import dev.younesgouyd.apps.music.client.data.room.entities.PlaylistTrackCrossRefDao
 import kotlinx.coroutines.flow.Flow
 
-class PlaylistTrackCrossRefRepo(private val dao: PlaylistTrackCrossRefDao) {
+class PlaylistTrackCrossRefRepo(
+    private val dao: PlaylistTrackCrossRefDao
+) {
+    fun getAll(): Flow<List<PlaylistTrackCrossRef>> {
+        return dao.getAll()
+    }
+
     suspend fun add(playlistId: PlaylistId, trackId: TrackId) {
         val currentTime = System.currentTimeMillis()
         dao.add(

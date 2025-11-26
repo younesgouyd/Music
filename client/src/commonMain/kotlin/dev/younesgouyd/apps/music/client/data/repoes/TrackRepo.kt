@@ -13,6 +13,10 @@ import kotlin.time.Duration
 class TrackRepo(
     private val dao: TrackDao
 ) {
+    fun getAll(): Flow<List<Track>> {
+        return dao.getAll()
+    }
+
     fun get(id: TrackId): Flow<Track> {
         return dao.get(id)
     }

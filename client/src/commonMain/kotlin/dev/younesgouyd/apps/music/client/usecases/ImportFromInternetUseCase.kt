@@ -26,10 +26,12 @@ class ImportFromInternetUseCase(
         return when (result) {
             "error" -> null
             "completed" -> {
-                server.getResult().use {
-                    return@use import(
+                val (filename, stream) = server.getResult()
+                stream.use {
+                    import(
                         inspection = inspection,
                         importSessionItemId = importSessionItemId,
+                        fileName = filename,
                         data = it,
                         folderId = folderId
                     )
@@ -43,6 +45,7 @@ class ImportFromInternetUseCase(
     private suspend fun import(
         inspection: Inspection.ItemInspection.InternetTrack,
         importSessionItemId: ImportSessionItemId,
+        fileName: String,
         data: InputStream,
         folderId: FolderId?
     ): TrackId {
@@ -64,6 +67,7 @@ class ImportFromInternetUseCase(
         }
         val audioMediaFileId = mediaFileRepo.add(
             type = MediaFile.Type.Audio,
+            fileName = fileName,
             data = data
         )
         mediaFileTrackCrossRefRepo.add(

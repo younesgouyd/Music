@@ -4,6 +4,8 @@ import androidx.room.*
 import dev.younesgouyd.apps.music.client.data.ArtistId
 import dev.younesgouyd.apps.music.client.data.ArtistTrackCrossRefId
 import dev.younesgouyd.apps.music.client.data.TrackId
+import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
 
 @Entity(
     indices = [
@@ -26,6 +28,7 @@ import dev.younesgouyd.apps.music.client.data.TrackId
         )
     ]
 )
+@Serializable
 data class ArtistTrackCrossRef(
     @PrimaryKey(autoGenerate = true)
     val id: ArtistTrackCrossRefId,
@@ -37,6 +40,9 @@ data class ArtistTrackCrossRef(
 
 @Dao
 interface ArtistTrackCrossRefDao {
+    @Query("select * from artisttrackcrossref")
+    fun getAll(): Flow<List<ArtistTrackCrossRef>>
+
     @Query(
         """
         insert into artisttrackcrossref (artistId, trackId, creationDatetime, updateDatetime)

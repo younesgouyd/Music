@@ -4,6 +4,8 @@ import androidx.room.*
 import dev.younesgouyd.apps.music.client.data.ImportSessionItemId
 import dev.younesgouyd.apps.music.client.data.MediaFileId
 import dev.younesgouyd.apps.music.client.data.MediaFileImportSessionItemCrossRefId
+import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
 
 @Entity(
     indices = [
@@ -26,6 +28,7 @@ import dev.younesgouyd.apps.music.client.data.MediaFileImportSessionItemCrossRef
         )
     ]
 )
+@Serializable
 data class MediaFileImportSessionItemCrossRef(
     @PrimaryKey(autoGenerate = true)
     val id: MediaFileImportSessionItemCrossRefId,
@@ -37,11 +40,19 @@ data class MediaFileImportSessionItemCrossRef(
 
 @Dao
 interface MediaFileImportSessionItemCrossRefDao {
+    @Query("select * from mediafileimportsessionitemcrossref")
+    fun getAll(): Flow<List<MediaFileImportSessionItemCrossRef>>
+
     @Query("""
         insert into mediafileimportsessionitemcrossref (mediaFileId, importSessionItemId, creationDatetime, updateDatetime)
         values (:mediaFileId, :importSessionItemId, :creationDatetime, :updateDatetime)
     """)
-    suspend fun add(mediaFileId: MediaFileId, importSessionItemId: ImportSessionItemId, creationDatetime: Long, updateDatetime: Long)
+    suspend fun add(
+        mediaFileId: MediaFileId,
+        importSessionItemId: ImportSessionItemId,
+        creationDatetime: Long,
+        updateDatetime: Long
+    )
 
     @Query("delete from mediafileimportsessionitemcrossref where mediaFileId = :mediaFileId and importSessionItemId = :importSessionItemId")
     suspend fun delete(mediaFileId: MediaFileId, importSessionItemId: ImportSessionItemId)

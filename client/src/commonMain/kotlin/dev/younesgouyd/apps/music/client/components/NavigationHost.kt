@@ -19,6 +19,7 @@ import dev.younesgouyd.apps.music.client.data.ArtistId
 import dev.younesgouyd.apps.music.client.data.ImportSessionId
 import dev.younesgouyd.apps.music.client.data.PlaylistId
 import dev.younesgouyd.apps.music.client.data.RepoStore
+import dev.younesgouyd.apps.music.client.usecases.ExportUseCaseImpl
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -99,6 +100,8 @@ class NavigationHost(
         data object ImportList : Destination()
 
         data class ImportDetails(val importId: ImportSessionId) : Destination()
+
+        data object Export : Destination()
     }
 
     private class NavigationController(
@@ -234,6 +237,9 @@ class NavigationHost(
                         importSessionRepo = repoStore.importSessionRepo,
                         importSessionItemRepo = repoStore.importSessionItemRepo,
                         mediaFileRepo = repoStore.mediaFileRepo,
+                    )
+                    is Destination.Export -> Export(
+                        exportUseCase = ExportUseCaseImpl(repoStore)
                     )
                 }
             }

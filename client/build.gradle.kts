@@ -34,6 +34,7 @@ kotlin {
             dependencies {
                 implementation(project(":common"))
                 implementation(libs.json)
+                implementation(libs.jsonJava)
                 implementation(libs.coroutines.core)
                 implementation(compose.material3)
                 implementation(compose.materialIconsExtended)
@@ -72,6 +73,7 @@ kotlin {
                 implementation(libs.android.media3.exoplayer)
                 implementation(libs.android.media3.session)
                 implementation(libs.logback.android)
+                implementation(libs.android.documentfile)
             }
         }
     }

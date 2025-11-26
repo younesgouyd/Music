@@ -19,7 +19,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class Settings(
-    private val settingsRepo: SettingsRepo
+    private val settingsRepo: SettingsRepo,
+    onReinitializeAppData: () -> Unit
 ) : Component() {
     override val title: String = "Settings"
     private val state: MutableStateFlow<SettingsState> = MutableStateFlow(SettingsState.Loading)
@@ -34,7 +35,8 @@ class Settings(
                         }.stateIn(coroutineScope),
                     serverAddress = settingsRepo.getServerAddress().map { it!!.value }.stateIn(coroutineScope),
                     onDarkThemeChange = ::updateDarkTheme,
-                    onServerAddressChange = ::updateServerAddress
+                    onServerAddressChange = ::updateServerAddress,
+                    onReinitializeAppDataClick = onReinitializeAppData
                 )
             }
         }
@@ -70,7 +72,8 @@ class Settings(
             val darkTheme: StateFlow<DarkThemeOptions?>,
             val serverAddress: StateFlow<String?>,
             val onDarkThemeChange: (DarkThemeOptions) -> Unit,
-            val onServerAddressChange: (String) -> Unit
+            val onServerAddressChange: (String) -> Unit,
+            val onReinitializeAppDataClick: () -> Unit
         ) : SettingsState()
     }
 
@@ -104,13 +107,17 @@ class Settings(
                     serverAddress = serverAddress,
                     onServerAddressChange = loaded.onServerAddressChange
                 )
+                ReinitializeAppData(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = loaded.onReinitializeAppDataClick,
+                )
             }
         }
 
         @OptIn(ExperimentalMaterial3Api::class)
         @Composable
         private fun DarkTheme(
-            modifier: Modifier = Modifier,
+            modifier: Modifier,
             selectedOption: DarkThemeOptions?,
             onDarkThemeChange: (DarkThemeOptions) -> Unit
         ) {
@@ -155,7 +162,7 @@ class Settings(
 
         @Composable
         private fun ServerAddress(
-            modifier: Modifier = Modifier,
+            modifier: Modifier,
             serverAddress: String?,
             onServerAddressChange: (String) -> Unit
         ) {
@@ -164,6 +171,18 @@ class Settings(
                 value = serverAddress ?: "",
                 onValueChange = onServerAddressChange,
                 singleLine = true
+            )
+        }
+
+        @Composable
+        private fun ReinitializeAppData(
+            modifier: Modifier,
+            onClick: () -> Unit
+        ) {
+            Button(
+                modifier = modifier,
+                onClick = onClick,
+                content = { Text("Reinitialize app data") }
             )
         }
     }

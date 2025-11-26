@@ -13,7 +13,16 @@ import kotlin.time.Duration.Companion.milliseconds
 typealias Uri = String
 
 @Composable
-expect fun SystemFilePicker(onFolderPicked: (Uri) -> Unit)
+expect fun SystemFolderPicker(
+    onFolderChosen: (Uri) -> Unit,
+    onCancelled: () -> Unit
+)
+
+@Composable
+expect fun SystemFilePicker(
+    onFileChosen: (Uri) -> Unit,
+    onCancelled: () -> Unit
+)
 
 @Composable
 fun AdaptiveUi(

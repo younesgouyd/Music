@@ -75,8 +75,8 @@ object Application {
                 get("/getResult") {
                     val file: File = Api.getResult()
                     call.response.header(
-                        name = "Content-Disposition",
-                        value = "attachment; filename=\"temp\""
+                        name = HttpHeaders.ContentDisposition,
+                        value = "attachment; filename=\"${file.name}\""
                     )
                     call.respondFile(file)
                 }
