@@ -31,6 +31,7 @@ import dev.younesgouyd.apps.music.client.data.*
 import dev.younesgouyd.apps.music.client.data.repoes.*
 import dev.younesgouyd.apps.music.client.data.room.entities.Folder
 import dev.younesgouyd.apps.music.client.data.room.entities.MediaFile
+import dev.younesgouyd.apps.music.client.data.room.entities.Tag
 import dev.younesgouyd.apps.music.client.scanFolder
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,6 +44,7 @@ import kotlin.io.encoding.Base64
 @OptIn(ExperimentalCoroutinesApi::class)
 class Library(
     private val server: Server,
+    private val tagRepo: TagRepo,
     private val folderRepo: FolderRepo,
     private val playlistRepo: PlaylistRepo,
     private val trackRepo: TrackRepo,
@@ -59,6 +61,8 @@ class Library(
     override val title: String = "Library"
     private val currentFolder: MutableStateFlow<Folder?> = MutableStateFlow(null)
     private val path: StateFlow<List<Models.NodeState>>
+    private val tags: StateFlow<List<Tag>>
+    private val selectedTags = MutableStateFlow(emptyList<TagId>())
     private val folders: StateFlow<List<Folder>>
     private val playlists: StateFlow<List<Models.Playlist>>
     private val tracks: StateFlow<List<Models.Track>>
@@ -72,6 +76,7 @@ class Library(
     private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
     private val inspection: MutableStateFlow<Inspection?> = MutableStateFlow(null)
     private val searchQuery = MutableStateFlow("")
+    private val tagSearchQuery = MutableStateFlow("")
 
     init {
         loadingFolders = MutableStateFlow(true)
@@ -115,6 +120,10 @@ class Library(
             }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = list)
 
+        tags = tagSearchQuery.flatMapLatest {
+            tagRepo.search(it)
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
+
         folders = currentFolder.flatMapLatest { parentFolder ->
             loadingFolders.value = true
             searchQuery.flatMapLatest { search ->
@@ -144,25 +153,30 @@ class Library(
             }
         }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
 
-        tracks = currentFolder.flatMapLatest { parentFolder ->
+        tracks = combine(currentFolder, searchQuery, selectedTags) { folder, search, tags ->
+            Triple(folder, search, tags)
+        }.onEach {
             loadingTracks.value = true
-            searchQuery.flatMapLatest { search ->
-                trackRepo.searchFolder(parentFolder?.id, search).map { tracks ->
-                    tracks.map { dbTrack ->
-                        Models.Track(
-                            id = dbTrack.id,
-                            name = dbTrack.name,
-                            image = mediaFileRepo.getTrackImage(dbTrack.id),
-                            artists = artistRepo.getTrackArtists(dbTrack.id).first().map {
-                                Models.Track.Artist(id = it.id, name = it.name)
-                            }
-                        )
-                    }
-                }.also {
-                    loadingTracks.value = false
-                }
+        }.flatMapLatest { (folder, search, tags) ->
+            trackRepo.searchFolder(folder?.id, search, tags)
+        }.map { dbTracks ->
+            dbTracks.map { dbTrack ->
+                Models.Track(
+                    id = dbTrack.id,
+                    name = dbTrack.name,
+                    image = mediaFileRepo.getTrackImage(dbTrack.id),
+                    artists = artistRepo.getTrackArtists(dbTrack.id)
+                        .first()
+                        .map { Models.Track.Artist(id = it.id, name = it.name) }
+                )
             }
-        }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
+        }.onEach {
+            loadingTracks.value = false
+        }.stateIn(
+            scope = coroutineScope,
+            started = SharingStarted.WhileSubscribed(),
+            initialValue = emptyList()
+        )
     }
 
     @Composable
@@ -222,58 +236,31 @@ class Library(
                     modifier = modifier,
                     path = path,
                     loadingItems = loadingItems,
-                    currentFolder = currentFolder.asStateFlow(),
+                    tags = tags,
+                    selectedTags = selectedTags.asStateFlow(),
+                    searchQuery = searchQuery.asStateFlow(),
+                    tagSearchQuery = tagSearchQuery.asStateFlow(),
                     folders = folders,
                     playlists = playlists,
                     tracks = tracks,
                     onImportClick = { importTypeDialogVisible = true },
-                    onNewFolder = {
-                        coroutineScope.launch {
-                            folderRepo.add(
-                                name = it,
-                                parentFolderId = currentFolder.value?.id
-                            )
-                        }
-                    },
+                    onNewFolder = ::addFolder,
                     onFolderClick = { currentFolder.value = it },
+                    onSearchQueryChange = ::updateSearchQuery,
+                    onTagSearchQueryChange = ::updateTagSearchQuery,
+                    onSelectUnselectTag = ::selectUnselectTag,
                     onAddFolderToPlaylistClick = ::showAddFolderToPlaylistDialog,
                     onAddFolderToQueueClick = ::addFolderToQueue,
                     onPlayFolder = ::playFolder,
                     onPlaylistClick = showPlaylist,
-                    onPlayPlaylistClick = {
-                        mediaController.playQueue(
-                            listOf(
-                                MediaController.QueueItemParameter.Playlist(
-                                    it
-                                )
-                            )
-                        )
-                    },
+                    onPlayPlaylistClick = ::playPlaylist,
                     onAddPlaylistToPlaylistClick = ::showAddPlaylistToPlaylistDialog,
-                    onAddPlaylistToQueueClick = {
-                        mediaController.addToQueue(
-                            listOf(MediaController.QueueItemParameter.Playlist(it))
-                        )
-                    },
+                    onAddPlaylistToQueueClick = ::addPlaylistToQueue,
                     onTrackClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
                     onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
                     onArtistClick = showArtistDetails,
-                    onRenameFolder = { id: FolderId, name: String ->
-                        coroutineScope.launch {
-                            folderRepo.updateName(
-                                id = id,
-                                name = name
-                            )
-                        }
-                    },
-                    onRenamePlaylist = { id: PlaylistId, name: String ->
-                        coroutineScope.launch {
-                            playlistRepo.updateName(
-                                id = id,
-                                name = name
-                            )
-                        }
-                    },
+                    onRenameFolder = ::renameFolder,
+                    onRenamePlaylist = ::renamePlaylist,
                     onDeleteFolder = { coroutineScope.launch { folderRepo.delete(it) } },
                     onDeletePlaylist = { coroutineScope.launch { playlistRepo.delete(it) } },
                     onDeleteTrack = { coroutineScope.launch { trackRepo.delete(it) } },
@@ -318,58 +305,31 @@ class Library(
                     modifier = modifier,
                     path = path,
                     loadingItems = loadingItems,
-                    currentFolder = currentFolder.asStateFlow(),
+                    tags = tags,
+                    selectedTags = selectedTags.asStateFlow(),
+                    searchQuery = searchQuery.asStateFlow(),
+                    tagSearchQuery = tagSearchQuery.asStateFlow(),
                     folders = folders,
                     playlists = playlists,
                     tracks = tracks,
                     onImportClick = { importTypeDialogVisible = true },
-                    onNewFolder = {
-                        coroutineScope.launch {
-                            folderRepo.add(
-                                name = it,
-                                parentFolderId = currentFolder.value?.id
-                            )
-                        }
-                    },
+                    onNewFolder = ::addFolder,
                     onFolderClick = { currentFolder.value = it },
+                    onSearchQueryChange = ::updateSearchQuery,
+                    onTagSearchQueryChange = ::updateTagSearchQuery,
+                    onSelectUnselectTag = ::selectUnselectTag,
                     onAddFolderToPlaylistClick = ::showAddFolderToPlaylistDialog,
                     onAddFolderToQueueClick = ::addFolderToQueue,
                     onPlayFolder = ::playFolder,
                     onPlaylistClick = showPlaylist,
-                    onPlayPlaylistClick = {
-                        mediaController.playQueue(
-                            listOf(
-                                MediaController.QueueItemParameter.Playlist(
-                                    it
-                                )
-                            )
-                        )
-                    },
+                    onPlayPlaylistClick = ::playPlaylist,
                     onAddPlaylistToPlaylistClick = ::showAddPlaylistToPlaylistDialog,
-                    onAddPlaylistToQueueClick = {
-                        mediaController.addToQueue(
-                            listOf(MediaController.QueueItemParameter.Playlist(it))
-                        )
-                    },
+                    onAddPlaylistToQueueClick = ::addPlaylistToQueue,
                     onTrackClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
                     onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
                     onArtistClick = showArtistDetails,
-                    onRenameFolder = { id: FolderId, name: String ->
-                        coroutineScope.launch {
-                            folderRepo.updateName(
-                                id = id,
-                                name = name
-                            )
-                        }
-                    },
-                    onRenamePlaylist = { id: PlaylistId, name: String ->
-                        coroutineScope.launch {
-                            playlistRepo.updateName(
-                                id = id,
-                                name = name
-                            )
-                        }
-                    },
+                    onRenameFolder = ::renameFolder,
+                    onRenamePlaylist = ::renamePlaylist,
                     onDeleteFolder = { coroutineScope.launch { folderRepo.delete(it) } },
                     onDeletePlaylist = { coroutineScope.launch { playlistRepo.delete(it) } },
                     onDeleteTrack = { coroutineScope.launch { trackRepo.delete(it) } },
@@ -593,6 +553,63 @@ class Library(
         inspection.update { it!!.clear(); null }
     }
 
+    private fun addFolder(name: String) {
+        coroutineScope.launch {
+            folderRepo.add(
+                name = name,
+                parentFolderId = currentFolder.value?.id
+            )
+        }
+    }
+
+    private fun playPlaylist(id: PlaylistId) {
+        mediaController.playQueue(
+            listOf(MediaController.QueueItemParameter.Playlist(id))
+        )
+    }
+
+    private fun addPlaylistToQueue(id: PlaylistId) {
+        mediaController.addToQueue(
+            listOf(MediaController.QueueItemParameter.Playlist(id))
+        )
+    }
+
+    private fun renameFolder(id: FolderId, name: String) {
+        coroutineScope.launch {
+            folderRepo.updateName(
+                id = id,
+                name = name
+            )
+        }
+    }
+
+    private fun renamePlaylist(id: PlaylistId, name: String) {
+        coroutineScope.launch {
+            playlistRepo.updateName(
+                id = id,
+                name = name
+            )
+        }
+    }
+
+    private fun selectUnselectTag(id: TagId) {
+        selectedTags.update {
+            if (it.contains(id)) {
+                it.filter { it == id }
+            } else {
+                it.toMutableList().also { it.add(id) }
+            }
+        }
+    }
+
+    private fun updateTagSearchQuery(value: String) {
+        tagSearchQuery.value = value
+    }
+
+    private fun updateSearchQuery(value: String) {
+        searchQuery.value = value
+    }
+
     private object Models {
         data class NodeState(
             val folder: Folder?,
@@ -710,7 +727,13 @@ class Library(
                 modifier: Modifier = Modifier,
                 path: StateFlow<List<Models.NodeState>>,
                 loadingItems: StateFlow<Boolean>,
-                currentFolder: StateFlow<Folder?>,
+                tags: StateFlow<List<Tag>>,
+                selectedTags: StateFlow<List<TagId>>,
+                searchQuery: StateFlow<String>,
+                tagSearchQuery: StateFlow<String>,
+                onSearchQueryChange: (String) -> Unit,
+                onTagSearchQueryChange: (String) -> Unit,
+                onSelectUnselectTag: (TagId) -> Unit,
                 folders: StateFlow<List<Folder>>,
                 playlists: StateFlow<List<Models.Playlist>>,
                 tracks: StateFlow<List<Models.Track>>,
@@ -759,11 +782,17 @@ class Library(
                             Spacer(Modifier.size(12.dp))
                             ToolBar(
                                 modifier = Modifier.fillMaxWidth(),
-                                currentFolder = currentFolder,
                                 path = path.mapNotNull { it.folder },
+                                tags = tags,
+                                selectedTags = selectedTags,
+                                searchQuery = searchQuery,
+                                tagSearchQuery = tagSearchQuery,
                                 onFolderClick = onFolderClick,
                                 onImportClick = onImportClick,
-                                onNewFolder = onNewFolder
+                                onNewFolder = onNewFolder,
+                                onSearchQueryChange = onSearchQueryChange,
+                                onTagSearchQueryChange = onTagSearchQueryChange,
+                                onSelectUnselectTag = onSelectUnselectTag
                             )
                             Box(modifier = Modifier) {
                                 LazyVerticalGrid(
@@ -833,90 +862,181 @@ class Library(
             @Composable
             private fun ToolBar(
                 modifier: Modifier = Modifier,
-                currentFolder: StateFlow<Folder?>,
                 path: List<Folder>,
+                tags: StateFlow<List<Tag>>,
+                selectedTags: StateFlow<List<TagId>>,
+                searchQuery: StateFlow<String>,
+                tagSearchQuery: StateFlow<String>,
                 onFolderClick: (Folder?) -> Unit,
                 onImportClick: () -> Unit,
-                onNewFolder: (name: String) -> Unit
+                onNewFolder: (name: String) -> Unit,
+                onSearchQueryChange: (String) -> Unit,
+                onTagSearchQueryChange: (String) -> Unit,
+                onSelectUnselectTag: (TagId) -> Unit
             ) {
-                val currentFolder by currentFolder.collectAsState()
                 val pathLazyListState = rememberLazyListState()
+                val tags by tags.collectAsState()
+                val selectedTags by selectedTags.collectAsState()
+                val searchQuery by searchQuery.collectAsState()
+                val tagSearchQuery by tagSearchQuery.collectAsState()
                 var newFolderFormVisible by remember { mutableStateOf(false) }
+                var isSearchVisible by remember { mutableStateOf(false) }
+                var isSearchTagVisible by remember { mutableStateOf(false) }
 
-                Row(
+                Column(
                     modifier = modifier,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Surface(
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.surfaceContainer
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        LazyRow(
-                            state = pathLazyListState,
-                            horizontalArrangement = Arrangement.Start,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            item {
+                        if (!isSearchVisible) {
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                shape = MaterialTheme.shapes.large,
+                                color = MaterialTheme.colorScheme.surfaceContainer
+                            ) {
                                 Row(
-                                    horizontalArrangement = Arrangement.Start,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    TextButton(
-                                        content = { Text(".") },
-                                        onClick = { onFolderClick(null) }
+                                    LazyRow(
+                                        modifier = Modifier.weight(1f),
+                                        state = pathLazyListState,
+                                        horizontalArrangement = Arrangement.Start,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        item {
+                                            Row(
+                                                horizontalArrangement = Arrangement.Start,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                TextButton(
+                                                    content = { Text(".") },
+                                                    onClick = { onFolderClick(null) }
+                                                )
+                                                Text("/")
+                                            }
+                                        }
+                                        items(items = path) { folder ->
+                                            Row(
+                                                horizontalArrangement = Arrangement.Start,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                TextButton(
+                                                    content = { Text(folder.name) },
+                                                    onClick = { onFolderClick(folder) }
+                                                )
+                                                Text("/")
+                                            }
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = { isSearchVisible = true },
+                                        content = { Icon(Icons.Default.Search, null) }
                                     )
-                                    Text("/")
                                 }
                             }
-                            items(items = path, key = { it.id.value }) { folder ->
-                                Row(
-                                    horizontalArrangement = Arrangement.Start,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    TextButton(
-                                        content = { Text(folder.name) },
-                                        onClick = { onFolderClick(folder) }
+                        } else {
+                            OutlinedTextField(
+                                modifier = Modifier.weight(1f),
+                                leadingIcon = { Icon(Icons.Default.Search, null) },
+                                label = { Text("Search") },
+                                value = searchQuery,
+                                onValueChange = onSearchQueryChange,
+                                trailingIcon = {
+                                    IconButton(
+                                        onClick = { isSearchVisible = false },
+                                        content = { Icon(Icons.Default.Close, null) }
                                     )
-                                    Text("/")
                                 }
+                            )
+                        }
+                        Surface(
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.surfaceContainer
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = { /* todo - sort by alpha */ },
+                                    content = { Icon(Icons.Default.SortByAlpha, null) }
+                                )
+                                IconButton(
+                                    onClick = { /* todo - sort by date */ },
+                                    content = { Icon(Icons.AutoMirrored.Default.Sort, null) }
+                                )
+                            }
+                        }
+                        Surface(
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.surfaceContainer
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = onImportClick,
+                                    content = { Icon(Icons.Default.ImportExport, null) }
+                                )
+                                IconButton(
+                                    onClick = { newFolderFormVisible = true },
+                                    content = { Icon(Icons.Default.CreateNewFolder, null) }
+                                )
                             }
                         }
                     }
-                    Surface(
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.surfaceContainer
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(
-                                onClick = { /* todo - sort by alpha */ },
-                                content = { Icon(Icons.Default.SortByAlpha, null) }
-                            )
-                            IconButton(
-                                onClick = { /* todo - sort by date */ },
-                                content = { Icon(Icons.AutoMirrored.Default.Sort, null) }
-                            )
+                        stickyHeader {
+                            if (isSearchTagVisible) {
+                                OutlinedTextField(
+                                    leadingIcon = { Icon(Icons.Default.Search, null) },
+                                    label = { Text("Search tags") },
+                                    value = tagSearchQuery,
+                                    maxLines = 1,
+                                    onValueChange = onTagSearchQueryChange,
+                                    trailingIcon = {
+                                        IconButton(
+                                            onClick = { isSearchTagVisible = false },
+                                            content = { Icon(Icons.Default.Close, null) }
+                                        )
+                                    }
+                                )
+                            } else {
+                                IconButton(
+                                    onClick = { isSearchTagVisible = true },
+                                    content = { Icon(Icons.Default.Search, null) }
+                                )
+                            }
                         }
-                    }
-                    Surface(
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.surfaceContainer
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(
-                                onClick = onImportClick,
-                                content = { Icon(Icons.Default.ImportExport, null) }
-                            )
-                            IconButton(
-                                onClick = { newFolderFormVisible = true },
-                                content = { Icon(Icons.Default.CreateNewFolder, null) }
+                        items(items = tags, key = { it.id.value }) { tag ->
+                            val selected = selectedTags.contains(tag.id)
+                            FilterChip(
+                                label = { Text(text = tag.name) },
+                                leadingIcon = if (selected) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Filled.Done,
+                                            contentDescription = "Done icon",
+                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
+                                selected = selected,
+                                onClick = { onSelectUnselectTag(tag.id) }
                             )
                         }
                     }
@@ -1416,7 +1536,13 @@ class Library(
                 modifier: Modifier = Modifier,
                 path: StateFlow<List<Models.NodeState>>,
                 loadingItems: StateFlow<Boolean>,
-                currentFolder: StateFlow<Folder?>,
+                tags: StateFlow<List<Tag>>,
+                selectedTags: StateFlow<List<TagId>>,
+                searchQuery: StateFlow<String>,
+                tagSearchQuery: StateFlow<String>,
+                onSearchQueryChange: (String) -> Unit,
+                onTagSearchQueryChange: (String) -> Unit,
+                onSelectUnselectTag: (TagId) -> Unit,
                 folders: StateFlow<List<Folder>>,
                 playlists: StateFlow<List<Models.Playlist>>,
                 tracks: StateFlow<List<Models.Track>>,
@@ -1465,11 +1591,17 @@ class Library(
                             Spacer(Modifier.size(12.dp))
                             ToolBar(
                                 modifier = Modifier.fillMaxWidth(),
-                                currentFolder = currentFolder,
                                 path = path.mapNotNull { it.folder },
+                                tags = tags,
+                                selectedTags = selectedTags,
+                                searchQuery = searchQuery,
+                                tagSearchQuery = tagSearchQuery,
                                 onFolderClick = onFolderClick,
                                 onImportClick = onImportClick,
-                                onNewFolder = onNewFolder
+                                onNewFolder = onNewFolder,
+                                onSearchQueryChange = onSearchQueryChange,
+                                onTagSearchQueryChange = onTagSearchQueryChange,
+                                onSelectUnselectTag = onSelectUnselectTag
                             )
                             LazyVerticalGrid(
                                 modifier = Modifier.fillMaxSize().padding(12.dp),
@@ -1537,56 +1669,94 @@ class Library(
             @Composable
             private fun ToolBar(
                 modifier: Modifier = Modifier,
-                currentFolder: StateFlow<Folder?>,
                 path: List<Folder>,
+                tags: StateFlow<List<Tag>>,
+                selectedTags: StateFlow<List<TagId>>,
+                searchQuery: StateFlow<String>,
+                tagSearchQuery: StateFlow<String>,
                 onFolderClick: (Folder?) -> Unit,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
+                onSearchQueryChange: (String) -> Unit,
+                onTagSearchQueryChange: (String) -> Unit,
+                onSelectUnselectTag: (TagId) -> Unit
             ) {
-                val currentFolder by currentFolder.collectAsState()
                 val pathLazyListState = rememberLazyListState()
+                val tags by tags.collectAsState()
+                val selectedTags by selectedTags.collectAsState()
+                val searchQuery by searchQuery.collectAsState()
+                val tagSearchQuery by tagSearchQuery.collectAsState()
                 var newFolderFormVisible by remember { mutableStateOf(false) }
+                var isSearchVisible by remember { mutableStateOf(false) }
+                var isSearchTagVisible by remember { mutableStateOf(false) }
 
                 Column(
                     modifier = modifier,
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.surfaceContainer
-                    ) {
-                        LazyRow(
-                            state = pathLazyListState,
-                            horizontalArrangement = Arrangement.Start,
-                            verticalAlignment = Alignment.CenterVertically
+                    if (!isSearchVisible) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.surfaceContainer
                         ) {
-                            item {
-                                Row(
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                LazyRow(
+                                    modifier = Modifier.weight(1f),
+                                    state = pathLazyListState,
                                     horizontalArrangement = Arrangement.Start,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    TextButton(
-                                        content = { Text(".") },
-                                        onClick = { onFolderClick(null) }
-                                    )
-                                    Text("/")
+                                    item {
+                                        Row(
+                                            horizontalArrangement = Arrangement.Start,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            TextButton(
+                                                content = { Text(".") },
+                                                onClick = { onFolderClick(null) }
+                                            )
+                                            Text("/")
+                                        }
+                                    }
+                                    items(items = path) { folder ->
+                                        Row(
+                                            horizontalArrangement = Arrangement.Start,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            TextButton(
+                                                content = { Text(folder.name) },
+                                                onClick = { onFolderClick(folder) }
+                                            )
+                                            Text("/")
+                                        }
+                                    }
                                 }
-                            }
-                            items(items = path, key = { it.id.value }) { folder ->
-                                Row(
-                                    horizontalArrangement = Arrangement.Start,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    TextButton(
-                                        content = { Text(folder.name) },
-                                        onClick = { onFolderClick(folder) }
-                                    )
-                                    Text("/")
-                                }
+                                IconButton(
+                                    onClick = { isSearchVisible = true },
+                                    content = { Icon(Icons.Default.Search, null) }
+                                )
                             }
                         }
+                    } else {
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            leadingIcon = { Icon(Icons.Default.Search, null) },
+                            label = { Text("Search") },
+                            value = searchQuery,
+                            onValueChange = onSearchQueryChange,
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = { isSearchVisible = false },
+                                    content = { Icon(Icons.Default.Close, null) }
+                                )
+                            }
+                        )
                     }
                     Row(
                         modifier = modifier.fillMaxWidth(),
@@ -1628,6 +1798,55 @@ class Library(
                                     content = { Icon(Icons.Default.CreateNewFolder, null) }
                                 )
                             }
+                        }
+                    }
+                    if (isSearchTagVisible) {
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            leadingIcon = { Icon(Icons.Default.Search, null) },
+                            label = { Text("Search tags") },
+                            value = tagSearchQuery,
+                            maxLines = 1,
+                            onValueChange = onTagSearchQueryChange,
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = { isSearchTagVisible = false },
+                                    content = { Icon(Icons.Default.Close, null) }
+                                )
+                            }
+                        )
+                    }
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (!isSearchTagVisible) {
+                            stickyHeader {
+                                IconButton(
+                                    onClick = { isSearchTagVisible = true },
+                                    content = { Icon(Icons.Default.Search, null) }
+                                )
+                            }
+                        }
+                        items(items = tags, key = { it.id.value }) { tag ->
+                            val selected = selectedTags.contains(tag.id)
+                            FilterChip(
+                                label = { Text(text = tag.name) },
+                                leadingIcon = if (selected) {
+                                    {
+                                        Icon(
+                                            modifier = Modifier.size(FilterChipDefaults.IconSize),
+                                            imageVector = Icons.Filled.Done,
+                                            contentDescription = null
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
+                                selected = selected,
+                                onClick = { onSelectUnselectTag(tag.id) }
+                            )
                         }
                     }
                 }

@@ -1,9 +1,6 @@
 package dev.younesgouyd.apps.music.client.data.repoes
 
-import dev.younesgouyd.apps.music.client.data.ArtistId
-import dev.younesgouyd.apps.music.client.data.FolderId
-import dev.younesgouyd.apps.music.client.data.PlaylistId
-import dev.younesgouyd.apps.music.client.data.TrackId
+import dev.younesgouyd.apps.music.client.data.*
 import dev.younesgouyd.apps.music.client.data.room.entities.Track
 import dev.younesgouyd.apps.music.client.data.room.entities.TrackDao
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
@@ -23,9 +20,10 @@ class TrackRepo(
 
     fun searchFolder(
         folderId: FolderId?,
-        nameQuery: String
+        nameQuery: String,
+        tags: List<TagId>
     ): Flow<List<Track>> {
-        return dao.searchFolder(folderId, nameQuery.toSearchQuery())
+        return dao.searchFolder(folderId, nameQuery.toSearchQuery(), tags)
     }
 
     fun searchArtist(
@@ -62,7 +60,7 @@ class TrackRepo(
         albumTrackNumber: Int?,
         duration: Duration
     ): TrackId {
-        require(name.isNotEmpty())
+        require(name.isNotBlank())
         val currentTime = System.currentTimeMillis()
         val id = dao.add(
             name = name,

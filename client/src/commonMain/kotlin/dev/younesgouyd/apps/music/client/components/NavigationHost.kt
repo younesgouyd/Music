@@ -176,6 +176,7 @@ class NavigationHost(
                 return when (destination) {
                     is Destination.Library -> Library(
                         server = repoStore.server,
+                        tagRepo = repoStore.tagRepo,
                         folderRepo = repoStore.folderRepo,
                         playlistRepo = repoStore.playlistRepo,
                         trackRepo = repoStore.trackRepo,

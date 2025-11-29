@@ -121,3 +121,19 @@ value class SettingId(val value: Long) {
         return value.toString()
     }
 }
+
+@Serializable
+@JvmInline
+value class TagId(val value: Long) {
+    override fun toString(): String {
+        return value.toString()
+    }
+}
+
+@Serializable
+@JvmInline
+value class TagTrackCrossRefId(val value: Long) {
+    override fun toString(): String {
+        return value.toString()
+    }
+}

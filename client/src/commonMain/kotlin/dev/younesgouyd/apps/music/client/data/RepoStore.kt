@@ -31,6 +31,8 @@ class RepoStore(
     lateinit var mediaFileImportSessionItemCrossRefRepo: MediaFileImportSessionItemCrossRefRepo private set
     lateinit var mediaFileArtistCrossRefRepo: MediaFileArtistCrossRefRepo private set
     lateinit var mediaFilePlaylistCrossRefRepo: MediaFilePlaylistCrossRefRepo private set
+    lateinit var tagRepo: TagRepo private set
+    lateinit var tagTrackCrossRefRepo: TagTrackCrossRefRepo private set
 
     suspend fun init() {
         println("--> RepoStore::init")
@@ -60,6 +62,8 @@ class RepoStore(
         mediaFileImportSessionItemCrossRefRepo = MediaFileImportSessionItemCrossRefRepo(database.mediaFileImportSessionItemCrossRefDao())
         mediaFileArtistCrossRefRepo = MediaFileArtistCrossRefRepo(database.mediaFileArtistCrossRefDao())
         mediaFilePlaylistCrossRefRepo = MediaFilePlaylistCrossRefRepo(database.mediaFilePlaylistCrossRefDao())
+        tagRepo = TagRepo(database.tagDao())
+        tagTrackCrossRefRepo = TagTrackCrossRefRepo(database.tagTrackCrossRefDao())
 
         settingsRepo.init()
 

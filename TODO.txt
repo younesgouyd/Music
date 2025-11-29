@@ -1,3 +1,7 @@
+
+- refactor Library component
+- implement track details screen (tags, imports, artists, album... etc)
+- fix player ui
 - verify SaveAudioFileAsTrackUseCase logic
 - support showing the destination folder from import session
 - update date and creation date in daos
@@ -7,13 +11,13 @@
 - create Detect Duplicates Component
 - implement android events (back navigation, configuration changes... etc)
 - implement play next (add to the queue items of the desired queue after the current index)
-- implement tags
 - implement genres
 - implement showing and editing lyrics
 - implement sorting playlists/albums/folders
 - verify not null assertions (!!)
 
 done:
+- implement tags
 - fix id types causing crash in compose lazy lists
 - implement export and re-importing from the export
 - make app compatible with Android 10

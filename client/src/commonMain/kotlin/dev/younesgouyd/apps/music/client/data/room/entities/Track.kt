@@ -1,10 +1,7 @@
 package dev.younesgouyd.apps.music.client.data.room.entities
 
 import androidx.room.*
-import dev.younesgouyd.apps.music.client.data.ArtistId
-import dev.younesgouyd.apps.music.client.data.FolderId
-import dev.younesgouyd.apps.music.client.data.PlaylistId
-import dev.younesgouyd.apps.music.client.data.TrackId
+import dev.younesgouyd.apps.music.client.data.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
@@ -45,20 +42,47 @@ interface TrackDao {
     @Query("select * from track where id = :id")
     fun get(id: TrackId): Flow<Track>
 
-    fun searchFolder(folderId: FolderId?, nameQuery: String): Flow<List<Track>> {
-        val _nameQ = nameQuery.ifEmpty { "%" }
+    fun searchFolder(folderId: FolderId?, nameQuery: String, tags: List<TagId>): Flow<List<Track>> {
         return if (folderId == null) {
-            searchRootFolder(_nameQ)
+            if (tags.isEmpty()) {
+                searchRootFolder(nameQuery)
+            } else {
+                searchRootFolder(nameQuery, tags)
+            }
         } else {
-            searchFolder(folderId, _nameQ)
+            if (tags.isEmpty()) {
+                searchFolder(folderId, nameQuery)
+            } else {
+                searchFolder(folderId, nameQuery, tags)
+            }
         }
     }
 
     @Query("select * from track where folderId is null and name like :nameQuery")
     fun searchRootFolder(nameQuery: String): Flow<List<Track>>
 
+    @Query("""
+        select t.*
+        from track t
+        join tagtrackcrossref cr on cr.trackId = t.id
+        where t.folderId is null
+        and t.name like :nameQuery
+        and cr.tagId in (:tags)
+    """)
+    fun searchRootFolder(nameQuery: String, tags: List<TagId>): Flow<List<Track>>
+
     @Query("select * from track where folderId = :folderId and name like :nameQuery")
     fun searchFolder(folderId: FolderId, nameQuery: String): Flow<List<Track>>
+
+    @Query("""
+        select t.*
+        from track t
+        join tagtrackcrossref cr on cr.trackId = t.id
+        where t.folderId = :folderId
+        and t.name like :nameQuery
+        and cr.tagId in (:tags)
+    """)
+    fun searchFolder(folderId: FolderId, nameQuery: String, tags: List<TagId>): Flow<List<Track>>
 
     @Query(
         """
@@ -107,6 +131,14 @@ interface TrackDao {
     """
     )
     fun getPlaylistTracks(playlistId: PlaylistId): Flow<List<Track>>
+
+    @Query("""
+        select tr.*
+        from track tr
+        join tagtrackcrossref cr on cr.trackId = tr.id
+        where cr.tagId = :tagId
+    """)
+    fun getTagTracks(tagId: TagId): Flow<List<Track>>
 
     @Query(
         """

@@ -19,7 +19,9 @@ import dev.younesgouyd.apps.music.client.data.room.entities.*
         MediaFileImportSessionCrossRef::class,
         MediaFileImportSessionItemCrossRef::class,
         MediaFileArtistCrossRef::class,
-        MediaFilePlaylistCrossRef::class
+        MediaFilePlaylistCrossRef::class,
+        Tag::class,
+        TagTrackCrossRef::class
     ],
     version = 1
 )
@@ -42,26 +44,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun mediaFileArtistCrossRefDao(): MediaFileArtistCrossRefDao
     abstract fun mediaFilePlaylistCrossRefDao(): MediaFilePlaylistCrossRefDao
     abstract fun mediaFileImportSessionCrossRefDao(): MediaFileImportSessionCrossRefDao
-
-    // TODO: delete
-//    @Dao
-//    interface SpecialDao {
-//        @Insert suspend fun insert1(artist: List<Artist>)
-//        @Insert suspend fun insert2(artistTrackCrossRef: List<ArtistTrackCrossRef>)
-//        @Insert suspend fun insert3(folder: List<Folder>)
-//        @Insert suspend fun insert4(importSession: List<ImportSession>)
-//        @Insert suspend fun insert5(importSessionItem: List<ImportSessionItem>)
-//        @Insert suspend fun insert6(mediaFile: List<MediaFile>)
-//        @Insert suspend fun insert7(playlist: List<Playlist>)
-//        @Insert suspend fun insert8(playlistTrackCrossRef: List<PlaylistTrackCrossRef>)
-//        @Insert suspend fun insert9(setting: List<Setting>)
-//        @Insert suspend fun insert10(track: List<Track>)
-//        @Insert suspend fun insert11(mediaFileTrackCrossRef: List<MediaFileTrackCrossRef>)
-//        @Insert suspend fun insert12(mediaFileImportSessionItemCrossRef: List<MediaFileImportSessionItemCrossRef>)
-//        @Insert suspend fun insert13(mediaFileArtistCrossRef: List<MediaFileArtistCrossRef>)
-//        @Insert suspend fun insert14(mediaFilePlaylistCrossRef: List<MediaFilePlaylistCrossRef>)
-//        @Insert suspend fun insert15(mediaFileImportSessionCrossRef: List<MediaFileImportSessionCrossRef>)
-//    }
+    abstract fun tagDao(): TagDao
+    abstract fun tagTrackCrossRefDao(): TagTrackCrossRefDao
 }
 
 @Suppress("NO_ACTUAL_FOR_EXPECT")
