@@ -1,5 +1,4 @@
 
-- refactor Library component
 - implement track details screen (tags, imports, artists, album... etc)
 - fix player ui
 - verify SaveAudioFileAsTrackUseCase logic
@@ -17,6 +16,7 @@
 - verify not null assertions (!!)
 
 done:
+- refactor Library component
 - implement tags
 - fix id types causing crash in compose lazy lists
 - implement export and re-importing from the export

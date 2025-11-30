@@ -29,9 +29,7 @@ import dev.younesgouyd.apps.music.client.components.util.compose.SystemFolderPic
 import dev.younesgouyd.apps.music.client.components.util.compose.widgets.*
 import dev.younesgouyd.apps.music.client.data.*
 import dev.younesgouyd.apps.music.client.data.repoes.*
-import dev.younesgouyd.apps.music.client.data.room.entities.Folder
-import dev.younesgouyd.apps.music.client.data.room.entities.MediaFile
-import dev.younesgouyd.apps.music.client.data.room.entities.Tag
+import dev.younesgouyd.apps.music.client.data.room.entities.*
 import dev.younesgouyd.apps.music.client.scanFolder
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -55,127 +53,236 @@ class Library(
     private val mediaFileImportSessionCrossRefRepo: MediaFileImportSessionCrossRefRepo,
     private val mediaFileImportSessionItemCrossRefRepo: MediaFileImportSessionItemCrossRefRepo,
     private val mediaController: MediaController,
-    private val showPlaylist: (PlaylistId) -> Unit,
-    private val showArtistDetails: (ArtistId) -> Unit
+    showPlaylist: (PlaylistId) -> Unit,
+    showArtistDetails: (ArtistId) -> Unit
 ) : Component() {
     override val title: String = "Library"
     private val currentFolder: MutableStateFlow<Folder?> = MutableStateFlow(null)
-    private val path: StateFlow<List<Models.NodeState>>
-    private val tags: StateFlow<List<Tag>>
     private val selectedTags = MutableStateFlow(emptyList<TagId>())
-    private val folders: StateFlow<List<Folder>>
-    private val playlists: StateFlow<List<Models.Playlist>>
-    private val tracks: StateFlow<List<Models.Track>>
-    private val loadingItems: StateFlow<Boolean>
-    private val loadingFolders: MutableStateFlow<Boolean>
-    private val loadingPlaylists: MutableStateFlow<Boolean>
-    private val loadingTracks: MutableStateFlow<Boolean>
-    private val importingFolder: MutableStateFlow<Boolean>
+    private val loadingFolders: MutableStateFlow<Boolean> = MutableStateFlow(true)
+    private val loadingPlaylists: MutableStateFlow<Boolean> = MutableStateFlow(true)
+    private val loadingTracks: MutableStateFlow<Boolean> = MutableStateFlow(true)
+    private val importingFolder: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val addToPlaylistDialogVisible = MutableStateFlow(false)
     private val inspectionDialogVisible = MutableStateFlow(false)
     private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
     private val inspection: MutableStateFlow<Inspection?> = MutableStateFlow(null)
     private val searchQuery = MutableStateFlow("")
     private val tagSearchQuery = MutableStateFlow("")
+    private val uiState: UiState
 
     init {
-        loadingFolders = MutableStateFlow(true)
-        loadingPlaylists = MutableStateFlow(true)
-        loadingTracks = MutableStateFlow(true)
-        importingFolder = MutableStateFlow(false)
-        loadingItems = combine(
-            loadingFolders,
-            loadingPlaylists,
-            loadingTracks,
-            importingFolder
-        ) { loading1, loading2, loading3, loading4 ->
-            loading1 || loading2 || loading3 || loading4
-        }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = true)
+        val root = UiState.NodeState(null, LazyGridState())
+        var list: List<UiState.NodeState> = listOf(root)
 
-        val root = Models.NodeState(null, LazyGridState())
-        var list: List<Models.NodeState> = listOf(root)
-        path = flow {
-            fun <T> List<T>.takeUntil(predicate: (T) -> Boolean): List<T> {
-                val list = mutableListOf<T>()
-                for (item in this) {
-                    list.add(item)
-                    if (predicate(item)) {
-                        break
-                    }
-                }
-                return list
-            }
-            currentFolder.collect { folder ->
-                if (folder == null) {
-                    list = listOf(root)
-                    emit(list)
-                } else {
-                    val temp = list.takeUntil { it.folder?.id == folder.id }.toMutableList()
-                    if (!temp.any { it.folder?.id == folder.id }) {
-                        temp.add(Models.NodeState(folder, LazyGridState()))
-                    }
-                    list = temp
-                    emit(list)
-                }
-            }
-        }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = list)
-
-        tags = tagSearchQuery.flatMapLatest {
-            tagRepo.search(it)
-        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
-
-        folders = currentFolder.flatMapLatest { parentFolder ->
-            loadingFolders.value = true
-            searchQuery.flatMapLatest { search ->
-                folderRepo.searchFolder(parentFolder?.id, search)
-                    .also {
-                        loadingFolders.value = false
-                    }
-            }
-        }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
-
-        playlists = currentFolder.flatMapLatest { parentFolder ->
-            loadingPlaylists.value = true
-            searchQuery.flatMapLatest { search ->
-                playlistRepo.searchFolder(parentFolder?.id, search)
-                    .map { list ->
-                        list.map { dbPlaylist ->
-                            Models.Playlist(
-                                id = dbPlaylist.id,
-                                name = dbPlaylist.name,
-                                image = mediaFileRepo.getPlaylistImage(dbPlaylist.id)
-                            )
+        uiState = UiState(
+            path = flow {
+                fun <T> List<T>.takeUntil(predicate: (T) -> Boolean): List<T> {
+                    val list = mutableListOf<T>()
+                    for (item in this) {
+                        list.add(item)
+                        if (predicate(item)) {
+                            break
                         }
                     }
-                    .also {
-                        loadingPlaylists.value = false
+                    return list
+                }
+                currentFolder.collect { folder ->
+                    if (folder == null) {
+                        list = listOf(root)
+                        emit(list)
+                    } else {
+                        val temp = list.takeUntil { it.folder?.id == folder.id }.toMutableList()
+                        if (!temp.any { it.folder?.id == folder.id }) {
+                            temp.add(UiState.NodeState(folder, LazyGridState()))
+                        }
+                        list = temp
+                        emit(list)
                     }
-            }
-        }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = emptyList())
-
-        tracks = combine(currentFolder, searchQuery, selectedTags) { folder, search, tags ->
-            Triple(folder, search, tags)
-        }.onEach {
-            loadingTracks.value = true
-        }.flatMapLatest { (folder, search, tags) ->
-            trackRepo.searchFolder(folder?.id, search, tags)
-        }.map { dbTracks ->
-            dbTracks.map { dbTrack ->
-                Models.Track(
-                    id = dbTrack.id,
-                    name = dbTrack.name,
-                    image = mediaFileRepo.getTrackImage(dbTrack.id),
-                    artists = artistRepo.getTrackArtists(dbTrack.id)
-                        .first()
-                        .map { Models.Track.Artist(id = it.id, name = it.name) }
+                }
+            }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = list),
+            loadingItems = combine(
+                loadingFolders, loadingPlaylists,
+                loadingTracks, importingFolder
+            ) { l1, l2, l3, l4 -> l1 || l2 || l3 || l4 }
+                .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), true),
+            tags = tagSearchQuery.flatMapLatest { tagRepo.search(it) }
+                .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
+            selectedTags = selectedTags.asStateFlow(),
+            searchQuery = searchQuery.asStateFlow(),
+            tagSearchQuery = tagSearchQuery.asStateFlow(),
+            folders = combine(currentFolder, searchQuery) { folder, search -> Pair(folder, search) }
+                .onEach { loadingFolders.value = true }
+                .flatMapLatest { (folder, search) -> folderRepo.searchFolder(folder?.id, search) }
+                .onEach { loadingFolders.value = false }
+                .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
+            playlists = combine(currentFolder, searchQuery) { folder, search -> Pair(folder, search) }
+                .onEach { loadingPlaylists.value = true }
+                .flatMapLatest { (folder, search) -> playlistRepo.searchFolder(folder?.id, search) }
+                .map { dbPlaylists -> dbPlaylists.toPlaylistModels() }
+                .onEach { loadingPlaylists.value = false }
+                .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
+            tracks = combine(currentFolder, searchQuery, selectedTags) { folder, search, tags -> Triple(folder, search, tags) }
+                .onEach { loadingTracks.value = true }
+                .flatMapLatest { (folder, search, tags) -> trackRepo.searchFolder(folder?.id, search, tags) }
+                .map { dbTracks -> dbTracks.toTrackModels() }
+                .onEach { loadingTracks.value = false }
+                .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
+            onNewFolder = ::addFolder,
+            onFolderClick = { currentFolder.value = it },
+            onSearchQueryChange = { value: String ->
+                searchQuery.value = value
+            },
+            onTagSearchQueryChange = { value: String ->
+                tagSearchQuery.value = value
+            },
+            onSelectUnselectTag = { id: TagId ->
+                selectedTags.update {
+                    if (it.contains(id)) {
+                        it.filter { it == id }
+                    } else {
+                        it.toMutableList().also { it.add(id) }
+                    }
+                }
+            },
+            onAddFolderToPlaylistClick = { folderId: FolderId ->
+                addToPlaylist.update {
+                    if (it != null) TODO()
+                    AddToPlaylist(
+                        itemToAdd = AddToPlaylist.Item.Folder(folderId),
+                        playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                        trackRepo = trackRepo,
+                        folderRepo = folderRepo,
+                        artistRepo = artistRepo,
+                        mediaFileRepo = mediaFileRepo,
+                        dismiss = ::dismissAddToPlaylistDialog,
+                        playlistRepo = playlistRepo
+                    )
+                }
+                addToPlaylistDialogVisible.value = true
+            },
+            onAddFolderToQueueClick = { id: FolderId ->
+                suspend fun getFolderItems(_id: FolderId): List<MediaController.QueueItemParameter> {
+                    val tracks = trackRepo.getFolderTracks(_id).first()
+                        .map { dbTrack -> MediaController.QueueItemParameter.Track(dbTrack.id) }
+                    val playlists = playlistRepo.getFolderPlaylists(_id).first()
+                        .map { dbPlaylist -> MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
+                    return tracks + playlists + folderRepo.getSubfolders(_id).first().flatMap { getFolderItems(it.id) }
+                }
+                coroutineScope.launch {
+                    val queue = getFolderItems(id)
+                    mediaController.addToQueue(queue)
+                }
+            },
+            onPlayFolder = { folderId: FolderId ->
+                suspend fun getFolderItems(_folderId: FolderId): List<MediaController.QueueItemParameter> {
+                    val tracks = trackRepo.getFolderTracks(_folderId).first()
+                        .map { dbTrack -> MediaController.QueueItemParameter.Track(dbTrack.id) }
+                    val playlists = playlistRepo.getFolderPlaylists(_folderId).first()
+                        .map { dbPlaylist -> MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
+                    return tracks + playlists + folderRepo.getSubfolders(_folderId).first().flatMap { getFolderItems(it.id) }
+                }
+                coroutineScope.launch {
+                    val queue = getFolderItems(folderId)
+                    mediaController.playQueue(queue)
+                }
+            },
+            onPlaylistClick = showPlaylist,
+            onPlayPlaylistClick = { id: PlaylistId ->
+                mediaController.playQueue(
+                    listOf(MediaController.QueueItemParameter.Playlist(id))
                 )
+            },
+            onAddPlaylistToPlaylistClick = { playlistId: PlaylistId ->
+                addToPlaylist.update {
+                    AddToPlaylist(
+                        itemToAdd = AddToPlaylist.Item.Playlist(playlistId),
+                        playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                        trackRepo = trackRepo,
+                        folderRepo = folderRepo,
+                        artistRepo = artistRepo,
+                        mediaFileRepo = mediaFileRepo,
+                        dismiss = ::dismissAddToPlaylistDialog,
+                        playlistRepo = playlistRepo
+                    )
+                }
+                addToPlaylistDialogVisible.value = true
+            },
+            onAddPlaylistToQueueClick = { id: PlaylistId ->
+                mediaController.addToQueue(
+                    listOf(MediaController.QueueItemParameter.Playlist(id))
+                )
+            },
+            onTrackClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
+            onAddTrackToPlaylistClick = { trackId: TrackId ->
+                addToPlaylist.update {
+                    AddToPlaylist(
+                        itemToAdd = AddToPlaylist.Item.Track(trackId),
+                        playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                        trackRepo = trackRepo,
+                        folderRepo = folderRepo,
+                        artistRepo = artistRepo,
+                        mediaFileRepo = mediaFileRepo,
+                        dismiss = ::dismissAddToPlaylistDialog,
+                        playlistRepo = playlistRepo
+                    )
+                }
+                addToPlaylistDialogVisible.value = true
+            },
+            onArtistClick = showArtistDetails,
+            onRenameFolder = { id: FolderId, name: String ->
+                coroutineScope.launch {
+                    folderRepo.updateName(
+                        id = id,
+                        name = name
+                    )
+                }
+            },
+            onRenamePlaylist = { id: PlaylistId, name: String ->
+                coroutineScope.launch {
+                    playlistRepo.updateName(
+                        id = id,
+                        name = name
+                    )
+                }
+            },
+            onDeleteFolder = { coroutineScope.launch { folderRepo.delete(it) } },
+            onDeletePlaylist = { coroutineScope.launch { playlistRepo.delete(it) } },
+            onDeleteTrack = { coroutineScope.launch { trackRepo.delete(it) } },
+            onAddTrackToQueue = { mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
+            onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
+            onRenameTrack = { id: TrackId, name: String ->
+                coroutineScope.launch {
+                    trackRepo.updateName(
+                        id = id,
+                        name = name
+                    )
+                }
+            },
+            onMoveFolderToFolder = { id: FolderId, destination: FolderId ->
+                coroutineScope.launch {
+                    folderRepo.updateParentFolderId(
+                        id = id,
+                        parentFolderId = destination
+                    )
+                }
+            },
+            onMoveTrackToFolder = { id: TrackId, destination: FolderId ->
+                coroutineScope.launch {
+                    trackRepo.updateFolderId(
+                        id = id,
+                        folderId = destination
+                    )
+                }
+            },
+            onMovePlaylistToFolder = { id: PlaylistId, destination: FolderId ->
+                coroutineScope.launch {
+                    playlistRepo.updateFolderId(
+                        id = id,
+                        folderId = destination
+                    )
+                }
             }
-        }.onEach {
-            loadingTracks.value = false
-        }.stateIn(
-            scope = coroutineScope,
-            started = SharingStarted.WhileSubscribed(),
-            initialValue = emptyList()
         )
     }
 
@@ -183,25 +290,25 @@ class Library(
     override fun show(modifier: Modifier) {
         val inspectionDialogVisible by inspectionDialogVisible.collectAsState()
         val addToPlaylistDialogVisible by addToPlaylistDialogVisible.collectAsState()
-        var importTypeDialogVisible by remember { mutableStateOf(false) }
+        var isImportTypeDialogVisible by remember { mutableStateOf(false) }
         var preparingImportDialogVisible by remember { mutableStateOf(false) }
         val coroutineScope = rememberCoroutineScope()
         val inspection by inspection.collectAsState()
         val addToPlaylist by addToPlaylist.collectAsState()
 
-        if (importTypeDialogVisible) {
+        if (isImportTypeDialogVisible) {
             Ui.Common.ImportFormDialog(
                 onFolderPicked = {
                     coroutineScope.launch {
                         importFolder(it)
-                        importTypeDialogVisible = false
+                        isImportTypeDialogVisible = false
                     }
                 },
                 onUrlEntered = {
-                    importTypeDialogVisible = false
+                    isImportTypeDialogVisible = false
                     showInspectionDialog(it)
                 },
-                onDismiss = { importTypeDialogVisible = false }
+                onDismiss = { isImportTypeDialogVisible = false }
             )
         }
         if (preparingImportDialogVisible) {
@@ -230,143 +337,20 @@ class Library(
                 addToPlaylist!!.show(Modifier)
             }
         }
+
         AdaptiveUi(
             wide = {
                 Ui.Wide.Main(
                     modifier = modifier,
-                    path = path,
-                    loadingItems = loadingItems,
-                    tags = tags,
-                    selectedTags = selectedTags.asStateFlow(),
-                    searchQuery = searchQuery.asStateFlow(),
-                    tagSearchQuery = tagSearchQuery.asStateFlow(),
-                    folders = folders,
-                    playlists = playlists,
-                    tracks = tracks,
-                    onImportClick = { importTypeDialogVisible = true },
-                    onNewFolder = ::addFolder,
-                    onFolderClick = { currentFolder.value = it },
-                    onSearchQueryChange = ::updateSearchQuery,
-                    onTagSearchQueryChange = ::updateTagSearchQuery,
-                    onSelectUnselectTag = ::selectUnselectTag,
-                    onAddFolderToPlaylistClick = ::showAddFolderToPlaylistDialog,
-                    onAddFolderToQueueClick = ::addFolderToQueue,
-                    onPlayFolder = ::playFolder,
-                    onPlaylistClick = showPlaylist,
-                    onPlayPlaylistClick = ::playPlaylist,
-                    onAddPlaylistToPlaylistClick = ::showAddPlaylistToPlaylistDialog,
-                    onAddPlaylistToQueueClick = ::addPlaylistToQueue,
-                    onTrackClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
-                    onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
-                    onArtistClick = showArtistDetails,
-                    onRenameFolder = ::renameFolder,
-                    onRenamePlaylist = ::renamePlaylist,
-                    onDeleteFolder = { coroutineScope.launch { folderRepo.delete(it) } },
-                    onDeletePlaylist = { coroutineScope.launch { playlistRepo.delete(it) } },
-                    onDeleteTrack = { coroutineScope.launch { trackRepo.delete(it) } },
-                    onAddTrackToQueue = { mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
-                    onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
-                    onRenameTrack = { id: TrackId, name: String ->
-                        coroutineScope.launch {
-                            trackRepo.updateName(
-                                id = id,
-                                name = name
-                            )
-                        }
-                    },
-                    onMoveFolderToFolder = { id: FolderId, destination: FolderId ->
-                        coroutineScope.launch {
-                            folderRepo.updateParentFolderId(
-                                id = id,
-                                parentFolderId = destination
-                            )
-                        }
-                    },
-                    onMoveTrackToFolder = { id: TrackId, destination: FolderId ->
-                        coroutineScope.launch {
-                            trackRepo.updateFolderId(
-                                id = id,
-                                folderId = destination
-                            )
-                        }
-                    },
-                    onMovePlaylistToFolder = { id: PlaylistId, destination: FolderId ->
-                        coroutineScope.launch {
-                            playlistRepo.updateFolderId(
-                                id = id,
-                                folderId = destination
-                            )
-                        }
-                    }
+                    state = uiState,
+                    onImportClick = { isImportTypeDialogVisible = true }
                 )
             },
             compact = {
                 Ui.Compact.Main(
                     modifier = modifier,
-                    path = path,
-                    loadingItems = loadingItems,
-                    tags = tags,
-                    selectedTags = selectedTags.asStateFlow(),
-                    searchQuery = searchQuery.asStateFlow(),
-                    tagSearchQuery = tagSearchQuery.asStateFlow(),
-                    folders = folders,
-                    playlists = playlists,
-                    tracks = tracks,
-                    onImportClick = { importTypeDialogVisible = true },
-                    onNewFolder = ::addFolder,
-                    onFolderClick = { currentFolder.value = it },
-                    onSearchQueryChange = ::updateSearchQuery,
-                    onTagSearchQueryChange = ::updateTagSearchQuery,
-                    onSelectUnselectTag = ::selectUnselectTag,
-                    onAddFolderToPlaylistClick = ::showAddFolderToPlaylistDialog,
-                    onAddFolderToQueueClick = ::addFolderToQueue,
-                    onPlayFolder = ::playFolder,
-                    onPlaylistClick = showPlaylist,
-                    onPlayPlaylistClick = ::playPlaylist,
-                    onAddPlaylistToPlaylistClick = ::showAddPlaylistToPlaylistDialog,
-                    onAddPlaylistToQueueClick = ::addPlaylistToQueue,
-                    onTrackClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
-                    onAddTrackToPlaylistClick = ::showAddTrackToPlaylistDialog,
-                    onArtistClick = showArtistDetails,
-                    onRenameFolder = ::renameFolder,
-                    onRenamePlaylist = ::renamePlaylist,
-                    onDeleteFolder = { coroutineScope.launch { folderRepo.delete(it) } },
-                    onDeletePlaylist = { coroutineScope.launch { playlistRepo.delete(it) } },
-                    onDeleteTrack = { coroutineScope.launch { trackRepo.delete(it) } },
-                    onAddTrackToQueue = { mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
-                    onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
-                    onRenameTrack = { id: TrackId, name: String ->
-                        coroutineScope.launch {
-                            trackRepo.updateName(
-                                id = id,
-                                name = name
-                            )
-                        }
-                    },
-                    onMoveFolderToFolder = { id: FolderId, destination: FolderId ->
-                        coroutineScope.launch {
-                            folderRepo.updateParentFolderId(
-                                id = id,
-                                parentFolderId = destination
-                            )
-                        }
-                    },
-                    onMoveTrackToFolder = { id: TrackId, destination: FolderId ->
-                        coroutineScope.launch {
-                            trackRepo.updateFolderId(
-                                id = id,
-                                folderId = destination
-                            )
-                        }
-                    },
-                    onMovePlaylistToFolder = { id: PlaylistId, destination: FolderId ->
-                        coroutineScope.launch {
-                            playlistRepo.updateFolderId(
-                                id = id,
-                                folderId = destination
-                            )
-                        }
-                    }
+                    state = uiState,
+                    onImportClick = { isImportTypeDialogVisible = true }
                 )
             }
         )
@@ -374,6 +358,29 @@ class Library(
 
     override fun clear() {
         coroutineScope.cancel()
+    }
+
+    private suspend fun List<Track>.toTrackModels(): List<UiState.Track> {
+        return this.map { dbTrack ->
+            UiState.Track(
+                id = dbTrack.id,
+                name = dbTrack.name,
+                image = mediaFileRepo.getTrackImage(dbTrack.id),
+                artists = artistRepo.getTrackArtists(dbTrack.id)
+                    .first()
+                    .map { UiState.Track.Artist(id = it.id, name = it.name) }
+            )
+        }
+    }
+
+    private suspend fun List<Playlist>.toPlaylistModels(): List<UiState.Playlist> {
+        return this.map { dbPlaylist ->
+            UiState.Playlist(
+                id = dbPlaylist.id,
+                name = dbPlaylist.name,
+                image = mediaFileRepo.getPlaylistImage(dbPlaylist.id)
+            )
+        }
     }
 
     private fun importFolder(uri: String) {
@@ -443,69 +450,6 @@ class Library(
         }
     }
 
-    private fun playFolder(folderId: FolderId) {
-        suspend fun getFolderItems(_folderId: FolderId): List<MediaController.QueueItemParameter> {
-            val tracks = trackRepo.getFolderTracks(_folderId).first()
-                .map { dbTrack -> MediaController.QueueItemParameter.Track(dbTrack.id) }
-            val playlists = playlistRepo.getFolderPlaylists(_folderId).first()
-                .map { dbPlaylist -> MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
-            return tracks + playlists + folderRepo.getSubfolders(_folderId).first().flatMap { getFolderItems(it.id) }
-        }
-        coroutineScope.launch {
-            val queue = getFolderItems(folderId)
-            mediaController.playQueue(queue)
-        }
-    }
-
-    private fun showAddTrackToPlaylistDialog(trackId: TrackId) {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Track(trackId),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                folderRepo = folderRepo,
-                artistRepo = artistRepo,
-                mediaFileRepo = mediaFileRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.value = true
-    }
-
-    private fun showAddPlaylistToPlaylistDialog(playlistId: PlaylistId) {
-        addToPlaylist.update {
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Playlist(playlistId),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                folderRepo = folderRepo,
-                artistRepo = artistRepo,
-                mediaFileRepo = mediaFileRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.value = true
-    }
-
-    private fun showAddFolderToPlaylistDialog(folderId: FolderId) {
-        addToPlaylist.update {
-            if (it != null) TODO()
-            AddToPlaylist(
-                itemToAdd = AddToPlaylist.Item.Folder(folderId),
-                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                trackRepo = trackRepo,
-                folderRepo = folderRepo,
-                artistRepo = artistRepo,
-                mediaFileRepo = mediaFileRepo,
-                dismiss = ::dismissAddToPlaylistDialog,
-                playlistRepo = playlistRepo
-            )
-        }
-        addToPlaylistDialogVisible.value = true
-    }
-
     private fun showInspectionDialog(url: String) {
         inspection.update {
             if (it != null) TODO()
@@ -524,20 +468,6 @@ class Library(
             )
         }
         inspectionDialogVisible.value = true
-    }
-
-    private fun addFolderToQueue(id: FolderId) {
-        suspend fun getFolderItems(_id: FolderId): List<MediaController.QueueItemParameter> {
-            val tracks = trackRepo.getFolderTracks(_id).first()
-                .map { dbTrack -> MediaController.QueueItemParameter.Track(dbTrack.id) }
-            val playlists = playlistRepo.getFolderPlaylists(_id).first()
-                .map { dbPlaylist -> MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
-            return tracks + playlists + folderRepo.getSubfolders(_id).first().flatMap { getFolderItems(it.id) }
-        }
-        coroutineScope.launch {
-            val queue = getFolderItems(id)
-            mediaController.addToQueue(queue)
-        }
     }
 
     private fun dismissAddToPlaylistDialog() {
@@ -562,55 +492,43 @@ class Library(
         }
     }
 
-    private fun playPlaylist(id: PlaylistId) {
-        mediaController.playQueue(
-            listOf(MediaController.QueueItemParameter.Playlist(id))
-        )
-    }
-
-    private fun addPlaylistToQueue(id: PlaylistId) {
-        mediaController.addToQueue(
-            listOf(MediaController.QueueItemParameter.Playlist(id))
-        )
-    }
-
-    private fun renameFolder(id: FolderId, name: String) {
-        coroutineScope.launch {
-            folderRepo.updateName(
-                id = id,
-                name = name
-            )
-        }
-    }
-
-    private fun renamePlaylist(id: PlaylistId, name: String) {
-        coroutineScope.launch {
-            playlistRepo.updateName(
-                id = id,
-                name = name
-            )
-        }
-    }
-
-    private fun selectUnselectTag(id: TagId) {
-        selectedTags.update {
-            if (it.contains(id)) {
-                it.filter { it == id }
-            } else {
-                it.toMutableList().also { it.add(id) }
-            }
-        }
-    }
-
-    private fun updateTagSearchQuery(value: String) {
-        tagSearchQuery.value = value
-    }
-
-    private fun updateSearchQuery(value: String) {
-        searchQuery.value = value
-    }
-
-    private object Models {
+    private data class UiState(
+        val path: StateFlow<List<UiState.NodeState>>,
+        val loadingItems: StateFlow<Boolean>,
+        val tags: StateFlow<List<Tag>>,
+        val selectedTags: StateFlow<List<TagId>>,
+        val searchQuery: StateFlow<String>,
+        val tagSearchQuery: StateFlow<String>,
+        val onSearchQueryChange: (String) -> Unit,
+        val onTagSearchQueryChange: (String) -> Unit,
+        val onSelectUnselectTag: (TagId) -> Unit,
+        val folders: StateFlow<List<Folder>>,
+        val playlists: StateFlow<List<UiState.Playlist>>,
+        val tracks: StateFlow<List<UiState.Track>>,
+        val onNewFolder: (name: String) -> Unit,
+        val onFolderClick: (Folder?) -> Unit,
+        val onAddFolderToPlaylistClick: (FolderId) -> Unit,
+        val onAddFolderToQueueClick: (FolderId) -> Unit,
+        val onPlayFolder: (FolderId) -> Unit,
+        val onPlaylistClick: (PlaylistId) -> Unit,
+        val onPlayPlaylistClick: (PlaylistId) -> Unit,
+        val onAddPlaylistToPlaylistClick: (PlaylistId) -> Unit,
+        val onAddPlaylistToQueueClick: (PlaylistId) -> Unit,
+        val onTrackClick: (TrackId) -> Unit,
+        val onAddTrackToPlaylistClick: (TrackId) -> Unit,
+        val onArtistClick: (ArtistId) -> Unit,
+        val onRenameFolder: (id: FolderId, name: String) -> Unit,
+        val onRenamePlaylist: (id: PlaylistId, name: String) -> Unit,
+        val onDeleteFolder: (FolderId) -> Unit,
+        val onDeletePlaylist: (PlaylistId) -> Unit,
+        val onDeleteTrack: (TrackId) -> Unit,
+        val onAddTrackToQueue: (TrackId) -> Unit,
+        val onDismissAddToPlaylistDialog: () -> Unit,
+        val onRenameTrack: (id: TrackId, name: String) -> Unit,
+        val onMoveFolderToFolder: (id: FolderId, destination: FolderId) -> Unit,
+        val onMoveTrackToFolder: (id: TrackId, destination: FolderId) -> Unit,
+        val onMovePlaylistToFolder: (id: PlaylistId, destination: FolderId) -> Unit
+    ) {
         data class NodeState(
             val folder: Folder?,
             val scrollState: LazyGridState,
@@ -724,8 +642,55 @@ class Library(
         object Wide {
             @Composable
             fun Main(
+                modifier: Modifier,
+                state: UiState,
+                onImportClick: () -> Unit
+            ) {
+                Main(
+                    modifier = modifier,
+                    path = state.path,
+                    loadingItems = state.loadingItems,
+                    tags = state.tags,
+                    selectedTags = state.selectedTags,
+                    searchQuery = state.searchQuery,
+                    tagSearchQuery = state.tagSearchQuery,
+                    onSearchQueryChange = state.onSearchQueryChange,
+                    onTagSearchQueryChange = state.onTagSearchQueryChange,
+                    onSelectUnselectTag = state.onSelectUnselectTag,
+                    folders = state.folders,
+                    playlists = state.playlists,
+                    tracks = state.tracks,
+                    onImportClick = onImportClick,
+                    onNewFolder = state.onNewFolder,
+                    onFolderClick = state.onFolderClick,
+                    onAddFolderToPlaylistClick = state.onAddFolderToPlaylistClick,
+                    onAddFolderToQueueClick = state.onAddFolderToQueueClick,
+                    onPlayFolder = state.onPlayFolder,
+                    onPlaylistClick = state.onPlaylistClick,
+                    onPlayPlaylistClick = state.onPlayPlaylistClick,
+                    onAddPlaylistToPlaylistClick = state.onAddPlaylistToPlaylistClick,
+                    onAddPlaylistToQueueClick = state.onAddPlaylistToQueueClick,
+                    onTrackClick = state.onTrackClick,
+                    onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick,
+                    onArtistClick = state.onArtistClick,
+                    onRenameFolder = state.onRenameFolder,
+                    onRenamePlaylist = state.onRenamePlaylist,
+                    onDeleteFolder = state.onDeleteFolder,
+                    onDeletePlaylist = state.onDeletePlaylist,
+                    onDeleteTrack = state.onDeleteTrack,
+                    onAddTrackToQueue = state.onAddTrackToQueue,
+                    onDismissAddToPlaylistDialog = state.onDismissAddToPlaylistDialog,
+                    onRenameTrack = state.onRenameTrack,
+                    onMoveFolderToFolder = state.onMoveFolderToFolder,
+                    onMoveTrackToFolder = state.onMoveTrackToFolder,
+                    onMovePlaylistToFolder = state.onMovePlaylistToFolder
+                )
+            }
+
+            @Composable
+            private fun Main(
                 modifier: Modifier = Modifier,
-                path: StateFlow<List<Models.NodeState>>,
+                path: StateFlow<List<UiState.NodeState>>,
                 loadingItems: StateFlow<Boolean>,
                 tags: StateFlow<List<Tag>>,
                 selectedTags: StateFlow<List<TagId>>,
@@ -735,8 +700,8 @@ class Library(
                 onTagSearchQueryChange: (String) -> Unit,
                 onSelectUnselectTag: (TagId) -> Unit,
                 folders: StateFlow<List<Folder>>,
-                playlists: StateFlow<List<Models.Playlist>>,
-                tracks: StateFlow<List<Models.Track>>,
+                playlists: StateFlow<List<UiState.Playlist>>,
+                tracks: StateFlow<List<UiState.Track>>,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
                 onFolderClick: (Folder?) -> Unit,
@@ -1191,7 +1156,7 @@ class Library(
             @Composable
             private fun PlaylistItem(
                 modifier: Modifier = Modifier,
-                playlist: Models.Playlist,
+                playlist: UiState.Playlist,
                 onClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -1323,7 +1288,7 @@ class Library(
             @Composable
             private fun TrackItem(
                 modifier: Modifier = Modifier,
-                track: Models.Track,
+                track: UiState.Track,
                 onClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onArtistClick: (ArtistId) -> Unit,
@@ -1533,8 +1498,55 @@ class Library(
         object Compact {
             @Composable
             fun Main(
+                modifier: Modifier,
+                state: UiState,
+                onImportClick: () -> Unit
+            ) {
+                Main(
+                    modifier = modifier,
+                    path = state.path,
+                    loadingItems = state.loadingItems,
+                    tags = state.tags,
+                    selectedTags = state.selectedTags,
+                    searchQuery = state.searchQuery,
+                    tagSearchQuery = state.tagSearchQuery,
+                    onSearchQueryChange = state.onSearchQueryChange,
+                    onTagSearchQueryChange = state.onTagSearchQueryChange,
+                    onSelectUnselectTag = state.onSelectUnselectTag,
+                    folders = state.folders,
+                    playlists = state.playlists,
+                    tracks = state.tracks,
+                    onImportClick = onImportClick,
+                    onNewFolder = state.onNewFolder,
+                    onFolderClick = state.onFolderClick,
+                    onAddFolderToPlaylistClick = state.onAddFolderToPlaylistClick,
+                    onAddFolderToQueueClick = state.onAddFolderToQueueClick,
+                    onPlayFolder = state.onPlayFolder,
+                    onPlaylistClick = state.onPlaylistClick,
+                    onPlayPlaylistClick = state.onPlayPlaylistClick,
+                    onAddPlaylistToPlaylistClick = state.onAddPlaylistToPlaylistClick,
+                    onAddPlaylistToQueueClick = state.onAddPlaylistToQueueClick,
+                    onTrackClick = state.onTrackClick,
+                    onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick,
+                    onArtistClick = state.onArtistClick,
+                    onRenameFolder = state.onRenameFolder,
+                    onRenamePlaylist = state.onRenamePlaylist,
+                    onDeleteFolder = state.onDeleteFolder,
+                    onDeletePlaylist = state.onDeletePlaylist,
+                    onDeleteTrack = state.onDeleteTrack,
+                    onAddTrackToQueue = state.onAddTrackToQueue,
+                    onDismissAddToPlaylistDialog = state.onDismissAddToPlaylistDialog,
+                    onRenameTrack = state.onRenameTrack,
+                    onMoveFolderToFolder = state.onMoveFolderToFolder,
+                    onMoveTrackToFolder = state.onMoveTrackToFolder,
+                    onMovePlaylistToFolder = state.onMovePlaylistToFolder
+                )
+            }
+
+            @Composable
+            private fun Main(
                 modifier: Modifier = Modifier,
-                path: StateFlow<List<Models.NodeState>>,
+                path: StateFlow<List<UiState.NodeState>>,
                 loadingItems: StateFlow<Boolean>,
                 tags: StateFlow<List<Tag>>,
                 selectedTags: StateFlow<List<TagId>>,
@@ -1544,8 +1556,8 @@ class Library(
                 onTagSearchQueryChange: (String) -> Unit,
                 onSelectUnselectTag: (TagId) -> Unit,
                 folders: StateFlow<List<Folder>>,
-                playlists: StateFlow<List<Models.Playlist>>,
-                tracks: StateFlow<List<Models.Track>>,
+                playlists: StateFlow<List<UiState.Playlist>>,
+                tracks: StateFlow<List<UiState.Track>>,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
                 onFolderClick: (Folder?) -> Unit,
@@ -1579,6 +1591,7 @@ class Library(
                 val scrollState = remember(path.last().folder?.id) {
                     path.last().scrollState
                 }
+
                 Scaffold(
                     modifier = modifier,
                     floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) },
@@ -1991,7 +2004,7 @@ class Library(
             @Composable
             private fun PlaylistItem(
                 modifier: Modifier = Modifier,
-                playlist: Models.Playlist,
+                playlist: UiState.Playlist,
                 onClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -2114,7 +2127,7 @@ class Library(
             @Composable
             private fun TrackItem(
                 modifier: Modifier = Modifier,
-                track: Models.Track,
+                track: UiState.Track,
                 onClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onArtistClick: (ArtistId) -> Unit,
