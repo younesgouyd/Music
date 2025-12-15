@@ -3,6 +3,7 @@ package dev.younesgouyd.apps.music.client.data.room.entities
 import androidx.room.*
 import dev.younesgouyd.apps.music.client.data.ImportSessionId
 import dev.younesgouyd.apps.music.client.data.ImportSessionItemId
+import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.common.Inspection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.Serializable
@@ -72,6 +73,15 @@ interface ImportSessionItemDao {
         state: ImportSessionItem.State,
         titleQuery: String
     ): Flow<List<ImportSessionItem>>
+
+    @Query("""
+        select i.*
+        from importsessionitem i
+        join mediafileimportsessionitemcrossref mfisicr on mfisicr.importSessionItemId = i.id
+        join mediafiletrackcrossref mftcr on mftcr.mediaFileId = mfisicr.mediaFileId
+        where mftcr.trackId = :id
+    """)
+    fun getTrackImports(id: TrackId): Flow<List<ImportSessionItem>>
 
     @Query("update importsessionitem set state = :state, updateDatetime = :updateDatetime where id = :id")
     suspend fun updateState(state: ImportSessionItem.State, updateDatetime: Long, id: ImportSessionItemId)

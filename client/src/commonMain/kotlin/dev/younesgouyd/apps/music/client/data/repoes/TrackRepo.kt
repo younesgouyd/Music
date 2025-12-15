@@ -18,12 +18,17 @@ class TrackRepo(
         return dao.get(id)
     }
 
+    fun search(nameQuery: String, tags: List<TagId>, includeUntagged: Boolean): Flow<List<Track>> {
+        return dao.search(nameQuery.toSearchQuery(), tags, includeUntagged)
+    }
+
     fun searchFolder(
         folderId: FolderId?,
         nameQuery: String,
-        tags: List<TagId>
+        tags: List<TagId>,
+        includeUntagged: Boolean
     ): Flow<List<Track>> {
-        return dao.searchFolder(folderId, nameQuery.toSearchQuery(), tags)
+        return dao.searchFolder(folderId, nameQuery.toSearchQuery(), tags, includeUntagged)
     }
 
     fun searchArtist(
@@ -40,6 +45,10 @@ class TrackRepo(
         return dao.searchPlaylist(playlistId, nameQuery.toSearchQuery())
     }
 
+    fun searchTag(nameQuery: String, tag: TagId): Flow<List<Track>> {
+        return dao.searchTag(nameQuery.toSearchQuery(), tag)
+    }
+
     fun getFolderTracks(folderId: FolderId?): Flow<List<Track>> {
         return if (folderId != null) dao.getFolderTracks(folderId) else dao.getRootFolderTracks()
     }
@@ -50,6 +59,10 @@ class TrackRepo(
 
     fun getPlaylistTracks(playlistId: PlaylistId): Flow<List<Track>> {
         return dao.getPlaylistTracks(playlistId)
+    }
+
+    fun getImportSessionTrack(id: ImportSessionItemId): Flow<Track?> {
+        return dao.getImportSessionTrack(id)
     }
 
     suspend fun add(

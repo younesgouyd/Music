@@ -1,11 +1,13 @@
 package dev.younesgouyd.apps.music.client.components
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -54,7 +56,8 @@ class Library(
     private val mediaFileImportSessionItemCrossRefRepo: MediaFileImportSessionItemCrossRefRepo,
     private val mediaController: MediaController,
     showPlaylist: (PlaylistId) -> Unit,
-    showArtistDetails: (ArtistId) -> Unit
+    showArtistDetails: (ArtistId) -> Unit,
+    showTrack: (TrackId) -> Unit
 ) : Component() {
     override val title: String = "Library"
     private val currentFolder: MutableStateFlow<Folder?> = MutableStateFlow(null)
@@ -106,8 +109,18 @@ class Library(
                 loadingTracks, importingFolder
             ) { l1, l2, l3, l4 -> l1 || l2 || l3 || l4 }
                 .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), true),
-            tags = tagSearchQuery.flatMapLatest { tagRepo.search(it) }
-                .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
+            tags = combine(tagSearchQuery, selectedTags) { query, selected -> Pair(query, selected) }
+                .flatMapLatest { (query, selected) ->
+                    tagRepo.search(query).map { tags ->
+                        tags.sortedWith { first, second ->
+                            val b1 = selected.contains(first.id)
+                            val b2 = selected.contains(second.id)
+                            if (b1 && b2) 0
+                            else if (b1) -1
+                            else 1
+                        }
+                    }
+                }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
             selectedTags = selectedTags.asStateFlow(),
             searchQuery = searchQuery.asStateFlow(),
             tagSearchQuery = tagSearchQuery.asStateFlow(),
@@ -124,7 +137,7 @@ class Library(
                 .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
             tracks = combine(currentFolder, searchQuery, selectedTags) { folder, search, tags -> Triple(folder, search, tags) }
                 .onEach { loadingTracks.value = true }
-                .flatMapLatest { (folder, search, tags) -> trackRepo.searchFolder(folder?.id, search, tags) }
+                .flatMapLatest { (folder, search, tags) -> trackRepo.searchFolder(folder?.id, search, tags, false) }
                 .map { dbTracks -> dbTracks.toTrackModels() }
                 .onEach { loadingTracks.value = false }
                 .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
@@ -136,12 +149,12 @@ class Library(
             onTagSearchQueryChange = { value: String ->
                 tagSearchQuery.value = value
             },
-            onSelectUnselectTag = { id: TagId ->
-                selectedTags.update {
-                    if (it.contains(id)) {
-                        it.filter { it == id }
+            onTagClick = { id: TagId ->
+                selectedTags.update { list ->
+                    if (list.contains(id)) {
+                        list.filter { it != id }
                     } else {
-                        it.toMutableList().also { it.add(id) }
+                        list.toMutableList().also { it.add(id) }
                     }
                 }
             },
@@ -214,6 +227,7 @@ class Library(
                 )
             },
             onTrackClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
+            onTrackDetailsClick = showTrack,
             onAddTrackToPlaylistClick = { trackId: TrackId ->
                 addToPlaylist.update {
                     AddToPlaylist(
@@ -296,6 +310,23 @@ class Library(
         val inspection by inspection.collectAsState()
         val addToPlaylist by addToPlaylist.collectAsState()
 
+        AdaptiveUi(
+            wide = {
+                Ui.Wide.Main(
+                    modifier = modifier,
+                    state = uiState,
+                    onImportClick = { isImportTypeDialogVisible = true }
+                )
+            },
+            compact = {
+                Ui.Compact.Main(
+                    modifier = modifier,
+                    state = uiState,
+                    onImportClick = { isImportTypeDialogVisible = true }
+                )
+            }
+        )
+
         if (isImportTypeDialogVisible) {
             Ui.Common.ImportFormDialog(
                 onFolderPicked = {
@@ -337,23 +368,6 @@ class Library(
                 addToPlaylist!!.show(Modifier)
             }
         }
-
-        AdaptiveUi(
-            wide = {
-                Ui.Wide.Main(
-                    modifier = modifier,
-                    state = uiState,
-                    onImportClick = { isImportTypeDialogVisible = true }
-                )
-            },
-            compact = {
-                Ui.Compact.Main(
-                    modifier = modifier,
-                    state = uiState,
-                    onImportClick = { isImportTypeDialogVisible = true }
-                )
-            }
-        )
     }
 
     override fun clear() {
@@ -501,7 +515,7 @@ class Library(
         val tagSearchQuery: StateFlow<String>,
         val onSearchQueryChange: (String) -> Unit,
         val onTagSearchQueryChange: (String) -> Unit,
-        val onSelectUnselectTag: (TagId) -> Unit,
+        val onTagClick: (TagId) -> Unit,
         val folders: StateFlow<List<Folder>>,
         val playlists: StateFlow<List<UiState.Playlist>>,
         val tracks: StateFlow<List<UiState.Track>>,
@@ -515,6 +529,7 @@ class Library(
         val onAddPlaylistToPlaylistClick: (PlaylistId) -> Unit,
         val onAddPlaylistToQueueClick: (PlaylistId) -> Unit,
         val onTrackClick: (TrackId) -> Unit,
+        val onTrackDetailsClick: (TrackId) -> Unit,
         val onAddTrackToPlaylistClick: (TrackId) -> Unit,
         val onArtistClick: (ArtistId) -> Unit,
         val onRenameFolder: (id: FolderId, name: String) -> Unit,
@@ -637,6 +652,74 @@ class Library(
                     )
                 }
             }
+
+            @Composable
+            fun Tags(
+                modifier: Modifier,
+                tags: StateFlow<List<Tag>>,
+                selectedTags: StateFlow<List<TagId>>,
+                tagSearchQuery: StateFlow<String>,
+                onTagSearchQueryChange: (String) -> Unit,
+                onTagClick: (TagId) -> Unit
+            ) {
+                val tags by tags.collectAsState()
+                val selectedTags by selectedTags.collectAsState()
+                val tagSearchQuery by tagSearchQuery.collectAsState()
+                var isSearchTagVisible by remember { mutableStateOf(false) }
+
+                FlowRow(
+                    modifier = modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically,
+                    maxLines = 1
+                ) {
+                    if (isSearchTagVisible) {
+                        OutlinedTextField(
+                            leadingIcon = { Icon(Icons.Default.Search, null) },
+                            label = { Text("Search tags") },
+                            value = tagSearchQuery,
+                            maxLines = 1,
+                            onValueChange = onTagSearchQueryChange,
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = { isSearchTagVisible = false },
+                                    content = { Icon(Icons.Default.Close, null) }
+                                )
+                            }
+                        )
+                    } else {
+                        IconButton(
+                            onClick = { isSearchTagVisible = true },
+                            content = { Icon(Icons.Default.Search, null) }
+                        )
+                    }
+                    for (tag in tags) {
+                        val selected = selectedTags.contains(tag.id)
+                        FilterChip(
+                            leadingIcon = if (selected) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Default.Done,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                    )
+                                }
+                            } else {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Default.Tag,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                    )
+                                }
+                            },
+                            label = { Text(tag.name) },
+                            selected = selected,
+                            onClick = { onTagClick(tag.id) }
+                        )
+                    }
+                }
+            }
         }
 
         object Wide {
@@ -656,7 +739,7 @@ class Library(
                     tagSearchQuery = state.tagSearchQuery,
                     onSearchQueryChange = state.onSearchQueryChange,
                     onTagSearchQueryChange = state.onTagSearchQueryChange,
-                    onSelectUnselectTag = state.onSelectUnselectTag,
+                    onTagClick = state.onTagClick,
                     folders = state.folders,
                     playlists = state.playlists,
                     tracks = state.tracks,
@@ -671,6 +754,7 @@ class Library(
                     onAddPlaylistToPlaylistClick = state.onAddPlaylistToPlaylistClick,
                     onAddPlaylistToQueueClick = state.onAddPlaylistToQueueClick,
                     onTrackClick = state.onTrackClick,
+                    onTrackDetailsClick = state.onTrackDetailsClick,
                     onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick,
                     onArtistClick = state.onArtistClick,
                     onRenameFolder = state.onRenameFolder,
@@ -698,7 +782,7 @@ class Library(
                 tagSearchQuery: StateFlow<String>,
                 onSearchQueryChange: (String) -> Unit,
                 onTagSearchQueryChange: (String) -> Unit,
-                onSelectUnselectTag: (TagId) -> Unit,
+                onTagClick: (TagId) -> Unit,
                 folders: StateFlow<List<Folder>>,
                 playlists: StateFlow<List<UiState.Playlist>>,
                 tracks: StateFlow<List<UiState.Track>>,
@@ -713,6 +797,7 @@ class Library(
                 onAddPlaylistToPlaylistClick: (PlaylistId) -> Unit,
                 onAddPlaylistToQueueClick: (PlaylistId) -> Unit,
                 onTrackClick: (TrackId) -> Unit,
+                onTrackDetailsClick: (TrackId) -> Unit,
                 onAddTrackToPlaylistClick: (TrackId) -> Unit,
                 onArtistClick: (ArtistId) -> Unit,
                 onRenameFolder: (id: FolderId, name: String) -> Unit,
@@ -757,64 +842,63 @@ class Library(
                                 onNewFolder = onNewFolder,
                                 onSearchQueryChange = onSearchQueryChange,
                                 onTagSearchQueryChange = onTagSearchQueryChange,
-                                onSelectUnselectTag = onSelectUnselectTag
+                                onTagClick = onTagClick
                             )
-                            Box(modifier = Modifier) {
-                                LazyVerticalGrid(
-                                    modifier = Modifier.fillMaxSize().padding(16.dp),
-                                    state = scrollState,
-                                    contentPadding = PaddingValues(vertical = 12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(18.dp),
-                                    verticalArrangement = Arrangement.spacedBy(18.dp),
-                                    columns = GridCells.Adaptive(200.dp)
-                                ) {
-                                    items(folders, { "folder#${it.id}" }) { folder ->
-                                        FolderItem(
-                                            folder = folder,
-                                            onClick = { onFolderClick(folder) },
-                                            onAddToPlaylistClick = { onAddFolderToPlaylistClick(folder.id) },
-                                            onAddToQueueClick = { onAddFolderToQueueClick(folder.id) },
-                                            onPlayClick = { onPlayFolder(folder.id) },
-                                            onRenameClick = { onRenameFolder(folder.id, it) },
-                                            onDeleteClick = { onDeleteFolder(folder.id) },
-                                            onMoveToFolder = { onMoveFolderToFolder(folder.id, it) }
-                                        )
-                                    }
-                                    items(playlists, { "playlist#${it.id}" }) { playlist ->
-                                        PlaylistItem(
-                                            playlist = playlist,
-                                            onClick = { onPlaylistClick(playlist.id) },
-                                            onPlayClick = { onPlayPlaylistClick(playlist.id) },
-                                            onAddToPlaylistClick = { onAddPlaylistToPlaylistClick(playlist.id) },
-                                            onAddToQueueClick = { onAddPlaylistToQueueClick(playlist.id) },
-                                            onRenameClick = { onRenamePlaylist(playlist.id, it) },
-                                            onDeleteClick = { onDeletePlaylist(playlist.id) },
-                                            onMoveToFolder = { onMovePlaylistToFolder(playlist.id, it) }
-                                        )
-                                    }
-                                    items(tracks, { "track#${it.id}" }) { track ->
-                                        TrackItem(
-                                            track = track,
-                                            onClick = { onTrackClick(track.id) },
-                                            onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
-                                            onArtistClick = onArtistClick,
-                                            onDeleteClick = { onDeleteTrack(track.id) },
-                                            onAddToQueueClick = { onAddTrackToQueue(track.id) },
-                                            onRenameClick = { onRenameTrack(track.id, it) },
-                                            onMoveToFolder = { onMoveTrackToFolder(track.id, it) }
-                                        )
-                                    }
-                                    if (loadingItems) {
-                                        item(span = { GridItemSpan(maxLineSpan) }) {
-                                            Box(
-                                                modifier = Modifier.fillMaxWidth().padding(10.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(50.dp),
-                                                    strokeWidth = 2.dp
-                                                )
-                                            }
+                            LazyVerticalGrid(
+                                modifier = Modifier.fillMaxSize().padding(16.dp),
+                                state = scrollState,
+                                contentPadding = PaddingValues(vertical = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(18.dp),
+                                verticalArrangement = Arrangement.spacedBy(18.dp),
+                                columns = GridCells.Adaptive(200.dp)
+                            ) {
+                                items(folders, { "folder#${it.id}" }) { folder ->
+                                    FolderItem(
+                                        folder = folder,
+                                        onClick = { onFolderClick(folder) },
+                                        onAddToPlaylistClick = { onAddFolderToPlaylistClick(folder.id) },
+                                        onAddToQueueClick = { onAddFolderToQueueClick(folder.id) },
+                                        onPlayClick = { onPlayFolder(folder.id) },
+                                        onRenameClick = { onRenameFolder(folder.id, it) },
+                                        onDeleteClick = { onDeleteFolder(folder.id) },
+                                        onMoveToFolder = { onMoveFolderToFolder(folder.id, it) }
+                                    )
+                                }
+                                items(playlists, { "playlist#${it.id}" }) { playlist ->
+                                    PlaylistItem(
+                                        playlist = playlist,
+                                        onClick = { onPlaylistClick(playlist.id) },
+                                        onPlayClick = { onPlayPlaylistClick(playlist.id) },
+                                        onAddToPlaylistClick = { onAddPlaylistToPlaylistClick(playlist.id) },
+                                        onAddToQueueClick = { onAddPlaylistToQueueClick(playlist.id) },
+                                        onRenameClick = { onRenamePlaylist(playlist.id, it) },
+                                        onDeleteClick = { onDeletePlaylist(playlist.id) },
+                                        onMoveToFolder = { onMovePlaylistToFolder(playlist.id, it) }
+                                    )
+                                }
+                                items(tracks, { "track#${it.id}" }) { track ->
+                                    TrackItem(
+                                        track = track,
+                                        onClick = { onTrackClick(track.id) },
+                                        onDetailsClick = { onTrackDetailsClick(track.id) },
+                                        onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
+                                        onArtistClick = onArtistClick,
+                                        onDeleteClick = { onDeleteTrack(track.id) },
+                                        onAddToQueueClick = { onAddTrackToQueue(track.id) },
+                                        onRenameClick = { onRenameTrack(track.id, it) },
+                                        onMoveToFolder = { onMoveTrackToFolder(track.id, it) }
+                                    )
+                                }
+                                if (loadingItems) {
+                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(50.dp),
+                                                strokeWidth = 2.dp
+                                            )
                                         }
                                     }
                                 }
@@ -826,7 +910,7 @@ class Library(
 
             @Composable
             private fun ToolBar(
-                modifier: Modifier = Modifier,
+                modifier: Modifier,
                 path: List<Folder>,
                 tags: StateFlow<List<Tag>>,
                 selectedTags: StateFlow<List<TagId>>,
@@ -837,16 +921,12 @@ class Library(
                 onNewFolder: (name: String) -> Unit,
                 onSearchQueryChange: (String) -> Unit,
                 onTagSearchQueryChange: (String) -> Unit,
-                onSelectUnselectTag: (TagId) -> Unit
+                onTagClick: (TagId) -> Unit
             ) {
                 val pathLazyListState = rememberLazyListState()
-                val tags by tags.collectAsState()
-                val selectedTags by selectedTags.collectAsState()
                 val searchQuery by searchQuery.collectAsState()
-                val tagSearchQuery by tagSearchQuery.collectAsState()
                 var newFolderFormVisible by remember { mutableStateOf(false) }
                 var isSearchVisible by remember { mutableStateOf(false) }
-                var isSearchTagVisible by remember { mutableStateOf(false) }
 
                 Column(
                     modifier = modifier,
@@ -958,53 +1038,14 @@ class Library(
                             }
                         }
                     }
-                    LazyRow(
+                    Common.Tags(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        stickyHeader {
-                            if (isSearchTagVisible) {
-                                OutlinedTextField(
-                                    leadingIcon = { Icon(Icons.Default.Search, null) },
-                                    label = { Text("Search tags") },
-                                    value = tagSearchQuery,
-                                    maxLines = 1,
-                                    onValueChange = onTagSearchQueryChange,
-                                    trailingIcon = {
-                                        IconButton(
-                                            onClick = { isSearchTagVisible = false },
-                                            content = { Icon(Icons.Default.Close, null) }
-                                        )
-                                    }
-                                )
-                            } else {
-                                IconButton(
-                                    onClick = { isSearchTagVisible = true },
-                                    content = { Icon(Icons.Default.Search, null) }
-                                )
-                            }
-                        }
-                        items(items = tags, key = { it.id.value }) { tag ->
-                            val selected = selectedTags.contains(tag.id)
-                            FilterChip(
-                                label = { Text(text = tag.name) },
-                                leadingIcon = if (selected) {
-                                    {
-                                        Icon(
-                                            imageVector = Icons.Filled.Done,
-                                            contentDescription = "Done icon",
-                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                        )
-                                    }
-                                } else {
-                                    null
-                                },
-                                selected = selected,
-                                onClick = { onSelectUnselectTag(tag.id) }
-                            )
-                        }
-                    }
+                        tags = tags,
+                        selectedTags = selectedTags,
+                        tagSearchQuery = tagSearchQuery,
+                        onTagSearchQueryChange = onTagSearchQueryChange,
+                        onTagClick = onTagClick
+                    )
                 }
 
                 if (newFolderFormVisible) {
@@ -1290,6 +1331,7 @@ class Library(
                 modifier: Modifier = Modifier,
                 track: UiState.Track,
                 onClick: () -> Unit,
+                onDetailsClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onArtistClick: (ArtistId) -> Unit,
                 onDeleteClick: () -> Unit,
@@ -1392,6 +1434,11 @@ class Library(
                             }
                         },
                         options = {
+                            Option(
+                                label = "Details",
+                                icon = Icons.Default.Info,
+                                onClick = onDetailsClick
+                            )
                             Option(
                                 label = "Delete",
                                 icon = Icons.Default.Delete,
@@ -1512,7 +1559,7 @@ class Library(
                     tagSearchQuery = state.tagSearchQuery,
                     onSearchQueryChange = state.onSearchQueryChange,
                     onTagSearchQueryChange = state.onTagSearchQueryChange,
-                    onSelectUnselectTag = state.onSelectUnselectTag,
+                    onTagClick = state.onTagClick,
                     folders = state.folders,
                     playlists = state.playlists,
                     tracks = state.tracks,
@@ -1527,6 +1574,7 @@ class Library(
                     onAddPlaylistToPlaylistClick = state.onAddPlaylistToPlaylistClick,
                     onAddPlaylistToQueueClick = state.onAddPlaylistToQueueClick,
                     onTrackClick = state.onTrackClick,
+                    onTrackDetailsClick = state.onTrackDetailsClick,
                     onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick,
                     onArtistClick = state.onArtistClick,
                     onRenameFolder = state.onRenameFolder,
@@ -1554,7 +1602,7 @@ class Library(
                 tagSearchQuery: StateFlow<String>,
                 onSearchQueryChange: (String) -> Unit,
                 onTagSearchQueryChange: (String) -> Unit,
-                onSelectUnselectTag: (TagId) -> Unit,
+                onTagClick: (TagId) -> Unit,
                 folders: StateFlow<List<Folder>>,
                 playlists: StateFlow<List<UiState.Playlist>>,
                 tracks: StateFlow<List<UiState.Track>>,
@@ -1569,6 +1617,7 @@ class Library(
                 onAddPlaylistToPlaylistClick: (PlaylistId) -> Unit,
                 onAddPlaylistToQueueClick: (PlaylistId) -> Unit,
                 onTrackClick: (TrackId) -> Unit,
+                onTrackDetailsClick: (TrackId) -> Unit,
                 onAddTrackToPlaylistClick: (TrackId) -> Unit,
                 onArtistClick: (ArtistId) -> Unit,
                 onRenameFolder: (id: FolderId, name: String) -> Unit,
@@ -1614,7 +1663,7 @@ class Library(
                                 onNewFolder = onNewFolder,
                                 onSearchQueryChange = onSearchQueryChange,
                                 onTagSearchQueryChange = onTagSearchQueryChange,
-                                onSelectUnselectTag = onSelectUnselectTag
+                                onTagClick = onTagClick
                             )
                             LazyVerticalGrid(
                                 modifier = Modifier.fillMaxSize().padding(12.dp),
@@ -1652,6 +1701,7 @@ class Library(
                                     TrackItem(
                                         track = track,
                                         onClick = { onTrackClick(track.id) },
+                                        onDetailsClick = { onTrackDetailsClick(track.id) },
                                         onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
                                         onArtistClick = onArtistClick,
                                         onDeleteClick = { onDeleteTrack(track.id) },
@@ -1681,7 +1731,7 @@ class Library(
 
             @Composable
             private fun ToolBar(
-                modifier: Modifier = Modifier,
+                modifier: Modifier,
                 path: List<Folder>,
                 tags: StateFlow<List<Tag>>,
                 selectedTags: StateFlow<List<TagId>>,
@@ -1692,16 +1742,12 @@ class Library(
                 onNewFolder: (name: String) -> Unit,
                 onSearchQueryChange: (String) -> Unit,
                 onTagSearchQueryChange: (String) -> Unit,
-                onSelectUnselectTag: (TagId) -> Unit
+                onTagClick: (TagId) -> Unit
             ) {
                 val pathLazyListState = rememberLazyListState()
-                val tags by tags.collectAsState()
-                val selectedTags by selectedTags.collectAsState()
                 val searchQuery by searchQuery.collectAsState()
-                val tagSearchQuery by tagSearchQuery.collectAsState()
                 var newFolderFormVisible by remember { mutableStateOf(false) }
                 var isSearchVisible by remember { mutableStateOf(false) }
-                var isSearchTagVisible by remember { mutableStateOf(false) }
 
                 Column(
                     modifier = modifier,
@@ -1813,55 +1859,14 @@ class Library(
                             }
                         }
                     }
-                    if (isSearchTagVisible) {
-                        OutlinedTextField(
-                            modifier = Modifier.fillMaxWidth(),
-                            leadingIcon = { Icon(Icons.Default.Search, null) },
-                            label = { Text("Search tags") },
-                            value = tagSearchQuery,
-                            maxLines = 1,
-                            onValueChange = onTagSearchQueryChange,
-                            trailingIcon = {
-                                IconButton(
-                                    onClick = { isSearchTagVisible = false },
-                                    content = { Icon(Icons.Default.Close, null) }
-                                )
-                            }
-                        )
-                    }
-                    LazyRow(
+                    Common.Tags(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (!isSearchTagVisible) {
-                            stickyHeader {
-                                IconButton(
-                                    onClick = { isSearchTagVisible = true },
-                                    content = { Icon(Icons.Default.Search, null) }
-                                )
-                            }
-                        }
-                        items(items = tags, key = { it.id.value }) { tag ->
-                            val selected = selectedTags.contains(tag.id)
-                            FilterChip(
-                                label = { Text(text = tag.name) },
-                                leadingIcon = if (selected) {
-                                    {
-                                        Icon(
-                                            modifier = Modifier.size(FilterChipDefaults.IconSize),
-                                            imageVector = Icons.Filled.Done,
-                                            contentDescription = null
-                                        )
-                                    }
-                                } else {
-                                    null
-                                },
-                                selected = selected,
-                                onClick = { onSelectUnselectTag(tag.id) }
-                            )
-                        }
-                    }
+                        tags = tags,
+                        selectedTags = selectedTags,
+                        tagSearchQuery = tagSearchQuery,
+                        onTagSearchQueryChange = onTagSearchQueryChange,
+                        onTagClick = onTagClick
+                    )
                 }
 
                 if (newFolderFormVisible) {
@@ -2129,6 +2134,7 @@ class Library(
                 modifier: Modifier = Modifier,
                 track: UiState.Track,
                 onClick: () -> Unit,
+                onDetailsClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onArtistClick: (ArtistId) -> Unit,
                 onDeleteClick: () -> Unit,
@@ -2216,6 +2222,11 @@ class Library(
                             }
                         },
                         options = {
+                            Option(
+                                label = "Details",
+                                icon = Icons.Default.Info,
+                                onClick = onDetailsClick
+                            )
                             Option(
                                 label = "Delete",
                                 icon = Icons.Default.Delete,

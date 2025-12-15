@@ -34,7 +34,7 @@ fun AdaptiveUi(
     val widthDp = with(density) { windowInfo.containerSize.width.toDp() }
 
     when {
-        widthDp < 840.dp -> compact()
+        widthDp < 1000.dp -> compact()
         else -> wide()
     }
 }

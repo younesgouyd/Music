@@ -14,12 +14,20 @@ class TagRepo(
         return dao.getAll()
     }
 
+    fun get(id: TagId): Flow<Tag> {
+        return dao.get(id)
+    }
+
     fun search(nameQuery: String): Flow<List<Tag>> {
         return dao.search(nameQuery.toSearchQuery())
     }
 
-    fun getTrackTags(trackId: TrackId): Flow<List<Tag>> {
-        return dao.getTrackTags(trackId)
+    fun getTrackTags(id: TrackId): Flow<List<Tag>> {
+        return dao.getTrackTags(id)
+    }
+
+    fun getTrackUnsetTags(id: TrackId): Flow<List<Tag>> {
+        return dao.getTrackUnsetTags(id)
     }
 
     suspend fun add(name: String, description: String?) {
@@ -27,7 +35,7 @@ class TagRepo(
         val currentTime = System.currentTimeMillis()
         dao.add(
             name = name,
-            description = description,
+            description = description?.ifBlank { null },
             creationDatetime = currentTime,
             updateDatetime = currentTime
         )

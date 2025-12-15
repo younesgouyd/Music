@@ -3,6 +3,7 @@ package dev.younesgouyd.apps.music.client.data.repoes
 import dev.younesgouyd.apps.music.client.data.FolderId
 import dev.younesgouyd.apps.music.client.data.ImportSessionId
 import dev.younesgouyd.apps.music.client.data.PlaylistId
+import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.client.data.room.entities.Playlist
 import dev.younesgouyd.apps.music.client.data.room.entities.PlaylistDao
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
@@ -36,6 +37,10 @@ class PlaylistRepo(
 
     fun getFolderPlaylists(folderId: FolderId?): Flow<List<Playlist>> {
         return dao.getFolderPlaylists(folderId)
+    }
+
+    fun getTrackPlaylists(id: TrackId): Flow<List<Playlist>> {
+        return dao.getTrackPlaylists(id)
     }
 
     suspend fun add(

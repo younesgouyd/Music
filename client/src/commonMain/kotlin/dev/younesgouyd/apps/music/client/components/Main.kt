@@ -79,7 +79,7 @@ class Main(
         repoStore.settingsRepo,
         onReinitializeAppData = onReinitializeAppData
     )
-    private var navigationHost: NavigationHost = getNewNavHost(NavigationHost.Destination.Library)
+    private var navigationHost: NavigationHost = getNewNavHost(NavigationHost.Destination.TrackList)
     private val miniPlayer = MiniPlayer(
         mediaController = mediaController,
         showArtistDetails = {
@@ -104,7 +104,7 @@ class Main(
     )
 
     private val mainComponent: MutableStateFlow<Component> = MutableStateFlow(navigationHost)
-    private val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Library)
+    private val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Tracks)
 
     private val drawerState: MutableStateFlow<DrawerState> =
         MutableStateFlow(DrawerState(initialValue = DrawerValue.Closed))
@@ -170,24 +170,31 @@ class Main(
             NavigationDrawerItems.Settings -> {
                 mainComponent.value = settings
             }
+            NavigationDrawerItems.Tracks -> {
+                navigationHost.clear()
+                navigationHost = getNewNavHost(NavigationHost.Destination.TrackList)
+                mainComponent.value = navigationHost
+            }
             NavigationDrawerItems.Library -> {
                 navigationHost.clear()
                 navigationHost = getNewNavHost(NavigationHost.Destination.Library)
                 mainComponent.value = navigationHost
             }
-
             NavigationDrawerItems.Playlists -> {
                 navigationHost.clear()
                 navigationHost = getNewNavHost(NavigationHost.Destination.PlaylistList)
                 mainComponent.value = navigationHost
             }
-
             NavigationDrawerItems.Artists -> {
                 navigationHost.clear()
                 navigationHost = getNewNavHost(NavigationHost.Destination.ArtistList)
                 mainComponent.value = navigationHost
             }
-
+            NavigationDrawerItems.Tags -> {
+                navigationHost.clear()
+                navigationHost = getNewNavHost(NavigationHost.Destination.TagList)
+                mainComponent.value = navigationHost
+            }
             NavigationDrawerItems.Imports -> {
                 navigationHost.clear()
                 navigationHost = getNewNavHost(NavigationHost.Destination.ImportList)
@@ -396,9 +403,11 @@ class Main(
 
     private enum class NavigationDrawerItems(val label: String) {
         Settings("Settings"),
+        Tracks("Tracks"),
         Library("Library"),
         Playlists("Playlists"),
         Artists("Artists"),
+        Tags("Tags"),
         Imports("Imports"),
         Export("Export")
     }

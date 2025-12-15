@@ -15,10 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.components.util.MediaController
-import dev.younesgouyd.apps.music.client.data.ArtistId
-import dev.younesgouyd.apps.music.client.data.ImportSessionId
-import dev.younesgouyd.apps.music.client.data.PlaylistId
-import dev.younesgouyd.apps.music.client.data.RepoStore
+import dev.younesgouyd.apps.music.client.data.*
 import dev.younesgouyd.apps.music.client.usecases.ExportUseCaseImpl
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.cancel
@@ -91,15 +88,25 @@ class NavigationHost(
 
         data object PlaylistList : Destination()
 
-        data class PlaylistDetails(val playlistId: PlaylistId) : Destination()
+        data class PlaylistDetails(val id: PlaylistId) : Destination()
 
         data object ArtistList : Destination()
 
-        data class ArtistDetails(val artistId: ArtistId) : Destination()
+        data class ArtistDetails(val id: ArtistId) : Destination()
+
+        data object TagList : Destination()
+
+        data class TagDetails(val id: TagId) : Destination()
+
+        data object TrackList : Destination()
+
+        data class TrackDetails(val id: TrackId) : Destination()
 
         data object ImportList : Destination()
 
-        data class ImportDetails(val importId: ImportSessionId) : Destination()
+        data class ImportDetails(val id: ImportSessionId) : Destination()
+
+        data class ImportItemDetails(val id: ImportSessionItemId) : Destination()
 
         data object Export : Destination()
     }
@@ -188,10 +195,11 @@ class NavigationHost(
                         mediaFileImportSessionItemCrossRefRepo = repoStore.mediaFileImportSessionItemCrossRefRepo,
                         mediaController = mediaController,
                         showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },
-                        showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
+                        showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
+                        showTrack = { navigateTo(Destination.TrackDetails(it)) }
                     )
                     is Destination.ArtistDetails -> ArtistDetails(
-                        id = destination.artistId,
+                        id = destination.id,
                         artistRepo = repoStore.artistRepo,
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
                         trackRepo = repoStore.trackRepo,
@@ -208,7 +216,7 @@ class NavigationHost(
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
                     )
                     is Destination.PlaylistDetails -> PlaylistDetails(
-                        id = destination.playlistId,
+                        id = destination.id,
                         trackRepo = repoStore.trackRepo,
                         playlistRepo = repoStore.playlistRepo,
                         artistRepo = repoStore.artistRepo,
@@ -234,13 +242,63 @@ class NavigationHost(
                         showImportDetails = { navigateTo(Destination.ImportDetails(it)) }
                     )
                     is Destination.ImportDetails -> ImportDetails(
-                        id = destination.importId,
+                        id = destination.id,
                         importSessionRepo = repoStore.importSessionRepo,
                         importSessionItemRepo = repoStore.importSessionItemRepo,
                         mediaFileRepo = repoStore.mediaFileRepo,
+                        showImportItem = { navigateTo(Destination.ImportItemDetails(it)) }
                     )
                     is Destination.Export -> Export(
                         exportUseCase = ExportUseCaseImpl(repoStore)
+                    )
+                    is Destination.TagList -> TagList(
+                        tagRepo = repoStore.tagRepo,
+                        showTag = { navigateTo(Destination.TagDetails(it)) }
+                    )
+                    is Destination.TagDetails -> TagDetails(
+                        id = destination.id,
+                        tagRepo = repoStore.tagRepo,
+                        trackRepo = repoStore.trackRepo,
+                        mediaFileRepo = repoStore.mediaFileRepo,
+                        artistRepo = repoStore.artistRepo,
+                        tagTrackCrossRefRepo = repoStore.tagTrackCrossRefRepo,
+                        showTrack = { navigateTo(Destination.TrackDetails(it)) },
+                        showArtist = { navigateTo(Destination.ArtistDetails(it)) }
+                    )
+                    is Destination.TrackList -> TrackList(
+                        trackRepo = repoStore.trackRepo,
+                        tagRepo = repoStore.tagRepo,
+                        artistRepo = repoStore.artistRepo,
+                        mediaFileRepo = repoStore.mediaFileRepo,
+                        mediaController = mediaController,
+                        showTrack = { navigateTo(Destination.TrackDetails(it)) },
+                        showArtist = { navigateTo(Destination.ArtistDetails(it)) }
+                    )
+                    is Destination.TrackDetails -> TrackDetails(
+                        id = destination.id,
+                        trackRepo = repoStore.trackRepo,
+                        tagRepo = repoStore.tagRepo,
+                        importSessionItemRepo = repoStore.importSessionItemRepo,
+                        artistRepo = repoStore.artistRepo,
+                        playlistRepo = repoStore.playlistRepo,
+                        tagTrackCrossRefRepo = repoStore.tagTrackCrossRefRepo,
+                        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
+                        mediaFileRepo = repoStore.mediaFileRepo,
+                        showArtist = { navigateTo(Destination.ArtistDetails(it)) },
+                        showTag = { navigateTo(Destination.TagDetails(it)) },
+                        showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },
+                        showImportSessionItem = { navigateTo(Destination.ImportItemDetails(it)) }
+                    )
+                    is Destination.ImportItemDetails -> ImportItemDetails(
+                        id = destination.id,
+                        importSessionItemRepo = repoStore.importSessionItemRepo,
+                        importSessionRepo = repoStore.importSessionRepo,
+                        trackRepo = repoStore.trackRepo,
+                        mediaFileRepo = repoStore.mediaFileRepo,
+                        artistRepo = repoStore.artistRepo,
+                        showImportSession = { navigateTo(Destination.ImportDetails(it)) },
+                        showTrack = { navigateTo(Destination.TrackDetails(it)) },
+                        showArtist = { navigateTo(Destination.ArtistDetails(it)) }
                     )
                 }
             }

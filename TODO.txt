@@ -1,5 +1,5 @@
 
-- implement track details screen (tags, imports, artists, album... etc)
+- support get(id) returning null
 - fix player ui
 - verify SaveAudioFileAsTrackUseCase logic
 - support showing the destination folder from import session
@@ -16,6 +16,7 @@
 - verify not null assertions (!!)
 
 done:
+- implement track details screen (tags, imports, artists, album... etc)
 - refactor Library component
 - implement tags
 - fix id types causing crash in compose lazy lists

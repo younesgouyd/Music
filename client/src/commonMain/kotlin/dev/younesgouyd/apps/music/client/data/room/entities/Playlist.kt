@@ -4,6 +4,7 @@ import androidx.room.*
 import dev.younesgouyd.apps.music.client.data.FolderId
 import dev.younesgouyd.apps.music.client.data.ImportSessionId
 import dev.younesgouyd.apps.music.client.data.PlaylistId
+import dev.younesgouyd.apps.music.client.data.TrackId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.Serializable
 
@@ -67,6 +68,14 @@ interface PlaylistDao {
 
     @Query("select * from playlist where folderId = :folderId")
     fun getFolderPlaylists(folderId: FolderId?): Flow<List<Playlist>>
+
+    @Query("""
+        select p.*
+        from playlist p
+        join playlisttrackcrossref cr on cr.playlistId = p.id
+        where cr.trackId = :id
+    """)
+    fun getTrackPlaylists(id: TrackId): Flow<List<Playlist>>
 
     @Query(
         """

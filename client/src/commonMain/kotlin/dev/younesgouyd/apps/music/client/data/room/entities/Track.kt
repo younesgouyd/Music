@@ -42,18 +42,41 @@ interface TrackDao {
     @Query("select * from track where id = :id")
     fun get(id: TrackId): Flow<Track>
 
-    fun searchFolder(folderId: FolderId?, nameQuery: String, tags: List<TagId>): Flow<List<Track>> {
+    fun search(nameQuery: String, tags: List<TagId>, includeUntagged: Boolean): Flow<List<Track>> {
+        return if (tags.isEmpty()) {
+            search(nameQuery)
+        } else {
+            searchWithTags(nameQuery, tags, includeUntagged)
+        }
+    }
+
+    @Query("select * from track where name like :nameQuery")
+    fun search(nameQuery: String): Flow<List<Track>>
+
+    @Query("""
+        select distinct t.*
+        from track t
+        left join tagtrackcrossref cr on cr.trackId = t.id
+        where (
+            cr.tagId in (:tags)
+            or (:includeUntagged and cr.trackId is null)
+        )
+        and t.name like :nameQuery
+    """)
+    fun searchWithTags(nameQuery: String, tags: List<TagId>, includeUntagged: Boolean): Flow<List<Track>>
+
+    fun searchFolder(folderId: FolderId?, nameQuery: String, tags: List<TagId>, includeUntagged: Boolean): Flow<List<Track>> {
         return if (folderId == null) {
             if (tags.isEmpty()) {
                 searchRootFolder(nameQuery)
             } else {
-                searchRootFolder(nameQuery, tags)
+                searchRootFolder(nameQuery, tags, includeUntagged)
             }
         } else {
             if (tags.isEmpty()) {
                 searchFolder(folderId, nameQuery)
             } else {
-                searchFolder(folderId, nameQuery, tags)
+                searchFolder(folderId, nameQuery, tags, includeUntagged)
             }
         }
     }
@@ -62,27 +85,33 @@ interface TrackDao {
     fun searchRootFolder(nameQuery: String): Flow<List<Track>>
 
     @Query("""
-        select t.*
+        select distinct t.*
         from track t
-        join tagtrackcrossref cr on cr.trackId = t.id
+        left join tagtrackcrossref cr on cr.trackId = t.id
         where t.folderId is null
         and t.name like :nameQuery
-        and cr.tagId in (:tags)
+        and (
+            cr.tagId in (:tags)
+            or (:includeUntagged and cr.trackId is null)
+        )
     """)
-    fun searchRootFolder(nameQuery: String, tags: List<TagId>): Flow<List<Track>>
+    fun searchRootFolder(nameQuery: String, tags: List<TagId>, includeUntagged: Boolean): Flow<List<Track>>
 
     @Query("select * from track where folderId = :folderId and name like :nameQuery")
     fun searchFolder(folderId: FolderId, nameQuery: String): Flow<List<Track>>
 
     @Query("""
-        select t.*
+        select distinct t.*
         from track t
-        join tagtrackcrossref cr on cr.trackId = t.id
+        left join tagtrackcrossref cr on cr.trackId = t.id
         where t.folderId = :folderId
         and t.name like :nameQuery
-        and cr.tagId in (:tags)
+        and (
+            cr.tagId in (:tags)
+            or (:includeUntagged and cr.trackId is null)
+        )
     """)
-    fun searchFolder(folderId: FolderId, nameQuery: String, tags: List<TagId>): Flow<List<Track>>
+    fun searchFolder(folderId: FolderId, nameQuery: String, tags: List<TagId>, includeUntagged: Boolean): Flow<List<Track>>
 
     @Query(
         """
@@ -101,10 +130,19 @@ interface TrackDao {
         from track t
         join playlisttrackcrossref cr on cr.trackId = t.id
         where cr.playlistId = :playlistId
-        and name like :nameQuery
+        and t.name like :nameQuery
     """
     )
     fun searchPlaylist(playlistId: PlaylistId, nameQuery: String): Flow<List<Track>>
+
+    @Query("""
+        select t.*
+        from track t
+        join tagtrackcrossref cr on cr.trackId = t.id
+        where cr.tagId = :tag
+        and t.name like :nameQuery
+    """)
+    fun searchTag(nameQuery: String, tag: TagId): Flow<List<Track>>
 
     @Query("select * from track where folderId = :folderId")
     fun getFolderTracks(folderId: FolderId): Flow<List<Track>>
@@ -133,12 +171,13 @@ interface TrackDao {
     fun getPlaylistTracks(playlistId: PlaylistId): Flow<List<Track>>
 
     @Query("""
-        select tr.*
-        from track tr
-        join tagtrackcrossref cr on cr.trackId = tr.id
-        where cr.tagId = :tagId
+        select t.*
+        from track t
+        join mediafiletrackcrossref mftcr on mftcr.trackId = t.id
+        join mediafileimportsessionitemcrossref mfisicr on mfisicr.mediaFileId = mftcr.mediaFileId
+        where mfisicr.importSessionItemId = :id
     """)
-    fun getTagTracks(tagId: TagId): Flow<List<Track>>
+    fun getImportSessionTrack(id: ImportSessionItemId): Flow<Track?>
 
     @Query(
         """

@@ -26,16 +26,34 @@ interface TagDao {
     @Query("select * from tag")
     fun getAll(): Flow<List<Tag>>
 
+    @Query("select * from tag where id = :id")
+    fun get(id: TagId): Flow<Tag>
+
     @Query("select * from tag where name like :nameQuery")
     fun search(nameQuery: String): Flow<List<Tag>>
 
-    @Query("""
-        select tg.*
-        from tag tg
-        join tagtrackcrossref cr on cr.tagId = tg.id
-        where cr.trackId = :trackId
-    """)
-    fun getTrackTags(trackId: TrackId): Flow<List<Tag>>
+    @Query(
+        """
+        select t.*
+        from tag t
+        join tagtrackcrossref cr on cr.tagId = t.id
+        where cr.trackId = :id
+    """
+    )
+    fun getTrackTags(id: TrackId): Flow<List<Tag>>
+
+    @Query(
+        """
+        select t.*
+        from tag t
+        where t.id not in (
+            select cr.tagId
+            from tagtrackcrossref cr
+            where cr.trackId = :id
+        )
+    """
+    )
+    fun getTrackUnsetTags(id: TrackId): Flow<List<Tag>>
 
     @Query("""
         insert into tag (name, description, creationDatetime, updateDatetime)

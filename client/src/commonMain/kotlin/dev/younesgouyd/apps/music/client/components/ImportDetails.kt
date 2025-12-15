@@ -38,7 +38,8 @@ class ImportDetails(
     id: ImportSessionId,
     importSessionRepo: ImportSessionRepo,
     importSessionItemRepo: ImportSessionItemRepo,
-    mediaFileRepo: MediaFileRepo
+    mediaFileRepo: MediaFileRepo,
+    showImportItem: (ImportSessionItemId) -> Unit
 ) : Component() {
     override val title: String = "Import"
     private val state: MutableStateFlow<ImportDetailsState> = MutableStateFlow(ImportDetailsState.Loading)
@@ -131,6 +132,7 @@ class ImportDetails(
                 ),
                 searchQuery = searchQuery.asStateFlow(),
                 onSearchQueryChange = { searchQuery.value = it },
+                onItemClick = showImportItem,
                 onImportItemClick = {
                     coroutineScope.launch {
                         importSessionItemRepo.updateState(id = it, state = ImportSessionItem.State.Pending)
@@ -198,6 +200,7 @@ class ImportDetails(
             val items: Items,
             val searchQuery: StateFlow<String>,
             val onSearchQueryChange: (String) -> Unit,
+            val onItemClick: (ImportSessionItemId) -> Unit,
             val onImportItemClick: (ImportSessionItemId) -> Unit,
             val onCancelItemClick: (ImportSessionItemId) -> Unit,
             val onRetryItemClick: (ImportSessionItemId) -> Unit
@@ -239,21 +242,22 @@ class ImportDetails(
         fun Main(modifier: Modifier, state: ImportDetailsState) {
             when (state) {
                 is ImportDetailsState.Loading -> Text(modifier = modifier, text = "Loading...")
-                is ImportDetailsState.Loaded -> Main(modifier = modifier, state = state)
+                is ImportDetailsState.Loaded -> Main(modifier = modifier, loaded = state)
             }
         }
 
         @Composable
-        private fun Main(modifier: Modifier, state: ImportDetailsState.Loaded) {
+        private fun Main(modifier: Modifier, loaded: ImportDetailsState.Loaded) {
             Main(
                 modifier = modifier,
-                import = state.import,
-                items = state.items,
-                searchQuery = state.searchQuery,
-                onSearchQueryChange = state.onSearchQueryChange,
-                onImportItemClick = state.onImportItemClick,
-                onCancelItemClick = state.onCancelItemClick,
-                onRetryItemClick = state.onRetryItemClick
+                import = loaded.import,
+                items = loaded.items,
+                searchQuery = loaded.searchQuery,
+                onSearchQueryChange = loaded.onSearchQueryChange,
+                onItemClick = loaded.onItemClick,
+                onImportItemClick = loaded.onImportItemClick,
+                onCancelItemClick = loaded.onCancelItemClick,
+                onRetryItemClick = loaded.onRetryItemClick
             )
         }
 
@@ -265,6 +269,7 @@ class ImportDetails(
             items: ImportDetailsState.Loaded.Items,
             searchQuery: StateFlow<String>,
             onSearchQueryChange: (String) -> Unit,
+            onItemClick: (ImportSessionItemId) -> Unit,
             onImportItemClick: (ImportSessionItemId) -> Unit,
             onCancelItemClick: (ImportSessionItemId) -> Unit,
             onRetryItemClick: (ImportSessionItemId) -> Unit
@@ -335,6 +340,7 @@ class ImportDetails(
                                         ImportItem(
                                             modifier = Modifier.fillMaxWidth(),
                                             item = item,
+                                            onClick = { onItemClick(item.id) },
                                             onImportClick = { onImportItemClick(item.id) },
                                             onCancelClick = { onCancelItemClick(item.id) },
                                             onRetryClick = { onRetryItemClick(item.id) }
@@ -381,12 +387,14 @@ class ImportDetails(
         private fun ImportItem(
             modifier: Modifier,
             item: ImportDetailsState.Loaded.Items.Item,
+            onClick: () -> Unit,
             onImportClick: () -> Unit,
             onCancelClick: () -> Unit,
             onRetryClick: () -> Unit
         ) {
             Item(
                 modifier = modifier,
+                onClick = onClick,
                 contentPadding = PaddingValues(8.dp)
             ) {
                 Row(

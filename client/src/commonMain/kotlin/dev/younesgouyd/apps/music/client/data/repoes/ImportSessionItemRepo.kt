@@ -2,6 +2,7 @@ package dev.younesgouyd.apps.music.client.data.repoes
 
 import dev.younesgouyd.apps.music.client.data.ImportSessionId
 import dev.younesgouyd.apps.music.client.data.ImportSessionItemId
+import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItemDao
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
@@ -28,6 +29,10 @@ class ImportSessionItemRepo(
         titleQuery: String
     ): Flow<List<ImportSessionItem>> {
         return dao.search(importSessionId, state, titleQuery.toSearchQuery())
+    }
+
+    fun getTrackImports(id: TrackId): Flow<List<ImportSessionItem>> {
+        return dao.getTrackImports(id)
     }
 
     suspend fun updateState(

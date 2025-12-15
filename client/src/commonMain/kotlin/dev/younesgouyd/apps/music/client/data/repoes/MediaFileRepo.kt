@@ -29,6 +29,12 @@ class MediaFileRepo(
             .first()
     }
 
+    suspend fun getImportSessionItemAudioMediaFile(importSessionItemId: ImportSessionItemId): MediaFile? {
+        return dao.getImportSessionItemMediaFiles(importSessionItemId = importSessionItemId, type = MediaFile.Type.Audio)
+            .map { it.firstOrNull() }
+            .first()
+    }
+
     suspend fun getTrackAudioUri(trackId: TrackId): String {
         val mediaFile = dao.getTrackMediaFiles(trackId = trackId, type = MediaFile.Type.Audio)
             .map { it.first() }
