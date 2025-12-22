@@ -1,4 +1,4 @@
-package dev.younesgouyd.apps.music.client.components.util.compose
+package dev.younesgouyd.apps.music.client.components.util
 
 import androidx.compose.animation.core.*
 import androidx.compose.material3.Slider

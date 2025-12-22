@@ -12,9 +12,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.client.components.util.compose.formatted
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Image
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item
+import dev.younesgouyd.apps.music.client.components.util.Image
+import dev.younesgouyd.apps.music.client.components.util.Item
+import dev.younesgouyd.apps.music.client.components.util.formatted
 import dev.younesgouyd.apps.music.client.data.ImportSessionId
 import dev.younesgouyd.apps.music.client.data.ImportSessionItemId
 import dev.younesgouyd.apps.music.client.data.repoes.ImportSessionItemRepo

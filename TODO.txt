@@ -1,4 +1,5 @@
 
+- support reordering items in Playlist
 - support get(id) returning null
 - fix player ui
 - verify SaveAudioFileAsTrackUseCase logic

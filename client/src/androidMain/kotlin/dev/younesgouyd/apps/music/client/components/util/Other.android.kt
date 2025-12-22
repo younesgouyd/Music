@@ -1,4 +1,4 @@
-package dev.younesgouyd.apps.music.client.components.util.compose
+package dev.younesgouyd.apps.music.client.components.util
 
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult

@@ -38,6 +38,7 @@ kotlin {
                 implementation(libs.coroutines.core)
                 implementation(compose.material3)
                 implementation(compose.materialIconsExtended)
+                implementation(libs.reorderable)
                 implementation(libs.room.runtime)
                 implementation(libs.mp3agic)
                 implementation(libs.tika)

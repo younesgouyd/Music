@@ -13,8 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.ScrollToTopFloatingActionButton
+import dev.younesgouyd.apps.music.client.components.util.Item
+import dev.younesgouyd.apps.music.client.components.util.ScrollToTopFloatingActionButton
 import dev.younesgouyd.apps.music.client.data.TagId
 import dev.younesgouyd.apps.music.client.data.repoes.TagRepo
 import dev.younesgouyd.apps.music.client.data.room.entities.Tag

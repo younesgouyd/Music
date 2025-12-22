@@ -1,4 +1,4 @@
-package dev.younesgouyd.apps.music.client.components.util.compose.widgets
+package dev.younesgouyd.apps.music.client.components.util
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button

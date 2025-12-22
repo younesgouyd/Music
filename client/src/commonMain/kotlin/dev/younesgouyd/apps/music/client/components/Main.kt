@@ -10,8 +10,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.ImportService
-import dev.younesgouyd.apps.music.client.components.util.MediaController
-import dev.younesgouyd.apps.music.client.components.util.compose.AdaptiveUi
+import dev.younesgouyd.apps.music.client.MediaController
+import dev.younesgouyd.apps.music.client.components.util.AdaptiveUi
 import dev.younesgouyd.apps.music.client.data.RepoStore
 import dev.younesgouyd.apps.music.client.usecases.ImportFromInternetUseCase
 import dev.younesgouyd.apps.music.client.usecases.ImportLocalFileUseCaseImpl
@@ -79,7 +79,7 @@ class Main(
         repoStore.settingsRepo,
         onReinitializeAppData = onReinitializeAppData
     )
-    private var navigationHost: NavigationHost = getNewNavHost(NavigationHost.Destination.TrackList)
+    private var navigationHost: NavigationHost = getNewNavHost(NavigationHost.Destination.Library)
     private val miniPlayer = MiniPlayer(
         mediaController = mediaController,
         showArtistDetails = {
@@ -104,10 +104,9 @@ class Main(
     )
 
     private val mainComponent: MutableStateFlow<Component> = MutableStateFlow(navigationHost)
-    private val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Tracks)
+    private val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Library)
 
-    private val drawerState: MutableStateFlow<DrawerState> =
-        MutableStateFlow(DrawerState(initialValue = DrawerValue.Closed))
+    private val drawerState: MutableStateFlow<DrawerState> = MutableStateFlow(DrawerState(initialValue = DrawerValue.Closed))
 
     init {
         importService.start()
@@ -219,7 +218,37 @@ class Main(
         )
     }
 
+    private enum class NavigationDrawerItems(val label: String) {
+        Settings("Settings"),
+        Tracks("Tracks"),
+        Library("Library"),
+        Playlists("Playlists"),
+        Artists("Artists"),
+        Tags("Tags"),
+        Imports("Imports"),
+        Export("Export")
+    }
+
+    private enum class MainComponentType {
+        Content, Player, Queue
+    }
+
     private object Ui {
+        @Composable
+        fun YounesMusicTheme(
+            darkTheme: DarkThemeOptions = DarkThemeOptions.SystemDefault,
+            content: @Composable () -> Unit
+        ) {
+            MaterialTheme(
+                colorScheme = when (darkTheme) {
+                    DarkThemeOptions.SystemDefault -> if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()
+                    DarkThemeOptions.Disabled -> lightColorScheme()
+                    DarkThemeOptions.Enabled -> darkColorScheme()
+                },
+                content = content
+            )
+        }
+
         object Wide {
             @Composable
             fun Main(
@@ -296,21 +325,6 @@ class Main(
                     }
                 )
             }
-
-            @Composable
-            fun YounesMusicTheme(
-                darkTheme: DarkThemeOptions = DarkThemeOptions.SystemDefault,
-                content: @Composable () -> Unit
-            ) {
-                MaterialTheme(
-                    colorScheme = when (darkTheme) {
-                        DarkThemeOptions.SystemDefault -> if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()
-                        DarkThemeOptions.Disabled -> lightColorScheme()
-                        DarkThemeOptions.Enabled -> darkColorScheme()
-                    },
-                    content = content
-                )
-            }
         }
 
         object Compact {
@@ -383,36 +397,6 @@ class Main(
                     }
                 )
             }
-
-            @Composable
-            fun YounesMusicTheme(
-                darkTheme: DarkThemeOptions = DarkThemeOptions.SystemDefault,
-                content: @Composable () -> Unit
-            ) {
-                MaterialTheme(
-                    colorScheme = when (darkTheme) {
-                        DarkThemeOptions.SystemDefault -> if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()
-                        DarkThemeOptions.Disabled -> lightColorScheme()
-                        DarkThemeOptions.Enabled -> darkColorScheme()
-                    },
-                    content = content
-                )
-            }
         }
-    }
-
-    private enum class NavigationDrawerItems(val label: String) {
-        Settings("Settings"),
-        Tracks("Tracks"),
-        Library("Library"),
-        Playlists("Playlists"),
-        Artists("Artists"),
-        Tags("Tags"),
-        Imports("Imports"),
-        Export("Export")
-    }
-
-    private enum class MainComponentType {
-        Content, Player, Queue
     }
 }

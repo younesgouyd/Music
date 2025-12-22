@@ -49,7 +49,7 @@ actual class MusicImpl : Music() {
             val media3Controller = MediaController.Builder(context, sessionToken)
                 .buildAsync()
                 .get()
-            mediaPlayer = object : dev.younesgouyd.apps.music.client.components.util.MediaController.MediaPlayer() {
+            mediaPlayer = object : dev.younesgouyd.apps.music.client.MediaController.MediaPlayer() {
                 override fun registerEventListener(eventListener: EventListener) {
                     media3Controller.addListener(
                         object : Player.Listener {

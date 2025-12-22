@@ -18,8 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Image
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item
+import dev.younesgouyd.apps.music.client.components.util.Image
+import dev.younesgouyd.apps.music.client.components.util.Item
 import dev.younesgouyd.apps.music.client.data.ArtistId
 import dev.younesgouyd.apps.music.client.data.TagId
 import dev.younesgouyd.apps.music.client.data.TrackId

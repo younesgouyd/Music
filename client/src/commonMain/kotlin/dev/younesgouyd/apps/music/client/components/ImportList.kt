@@ -15,7 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item
+import dev.younesgouyd.apps.music.client.components.util.Item
 import dev.younesgouyd.apps.music.client.data.ImportSessionId
 import dev.younesgouyd.apps.music.client.data.repoes.ImportSessionRepo
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSession

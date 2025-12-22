@@ -21,11 +21,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.client.components.util.MediaController
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Image
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.TagsFilter
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.TagsFilterState
+import dev.younesgouyd.apps.music.client.MediaController
+import dev.younesgouyd.apps.music.client.components.util.Image
+import dev.younesgouyd.apps.music.client.components.util.Item
+import dev.younesgouyd.apps.music.client.components.util.TagsFilter
+import dev.younesgouyd.apps.music.client.components.util.TagsFilterState
 import dev.younesgouyd.apps.music.client.data.ArtistId
 import dev.younesgouyd.apps.music.client.data.TagId
 import dev.younesgouyd.apps.music.client.data.TrackId
@@ -233,10 +233,12 @@ class TrackList(
                     }
                 },
                 floatingActionButton = {
-                    LargeFloatingActionButton(
-                        content = { Icon(Icons.Default.PlayCircle, null) },
-                        onClick = onPlayClick
-                    )
+                    if (tracks.isNotEmpty()) {
+                        LargeFloatingActionButton(
+                            content = { Icon(Icons.Default.PlayCircle, null) },
+                            onClick = onPlayClick
+                        )
+                    }
                 }
             )
         }

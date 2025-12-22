@@ -1,63 +1,63 @@
 package dev.younesgouyd.apps.music.client.components
 
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.client.components.util.MediaController
-import dev.younesgouyd.apps.music.client.components.util.compose.AdaptiveUi
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Image
+import dev.younesgouyd.apps.music.client.MediaController
+import dev.younesgouyd.apps.music.client.Platform
+import dev.younesgouyd.apps.music.client.components.util.AdaptiveUi
+import dev.younesgouyd.apps.music.client.components.util.Image
+import dev.younesgouyd.apps.music.client.platform
 import dev.younesgouyd.apps.music.client.util.Component
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.stateIn
+import org.burnoutcrew.reorderable.*
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class Queue(
     private val mediaController: MediaController,
     close: () -> Unit
 ) : Component() {
     override val title: String = "Queue"
-    private val state: MutableStateFlow<QueueState> = MutableStateFlow(QueueState.Unavailable)
+    private val state: StateFlow<QueueState>
 
     init {
         var scrollState = LazyListState()
-        var queue: List<MediaController.MediaControllerState.Available.QueueItem> = emptyList()
-        coroutineScope.launch {
-            mediaController.state.collectLatest { mediaControllerState ->
-                state.value = when (mediaControllerState) {
-                    is MediaController.MediaControllerState.Unavailable -> QueueState.Unavailable
-                    is MediaController.MediaControllerState.Loading -> QueueState.Loading
-                    is MediaController.MediaControllerState.Available -> {
-                        scrollState = if (queue == mediaControllerState.queue) scrollState else LazyListState()
-                        queue = mediaControllerState.queue
-                        QueueState.Available(
-                            enabled = mediaControllerState.enabled,
-                            queue = mediaControllerState.queue,
-                            queueItemIndex = mediaControllerState.queueItemIndex,
-                            queueSubItemIndex = mediaControllerState.queueSubItemIndex,
-                            scrollState = scrollState,
-                            onPlayQueueItem = mediaController::playQueueItem,
-                            onPlayQueueSubItem = mediaController::playTrackInQueue,
-                            onCloseClick = close
-                        )
-                    }
+        state = mediaController.state.mapLatest { mediaControllerState ->
+            when (mediaControllerState) {
+                is MediaController.MediaControllerState.Unavailable -> QueueState.Unavailable
+                is MediaController.MediaControllerState.Loading -> QueueState.Loading
+                is MediaController.MediaControllerState.Available -> {
+                    QueueState.Available(
+                        enabled = mediaControllerState.enabled,
+                        queue = mediaControllerState.queue,
+                        queueItemIndex = mediaControllerState.queueItemIndex,
+                        scrollState = scrollState,
+                        onPlayQueueItem = mediaController::playItem,
+                        changeItemIndex = mediaController::changeItemIndex,
+                        onCloseClick = close
+                    )
                 }
             }
-        }
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), QueueState.Unavailable)
     }
 
     @Composable
@@ -81,12 +81,11 @@ class Queue(
 
         data class Available(
             val enabled: StateFlow<Boolean>,
-            val queue: List<MediaController.MediaControllerState.Available.QueueItem>,
-            val queueItemIndex: Int,
-            val queueSubItemIndex: Int,
+            val queue: StateFlow<List<MediaController.MediaControllerState.Available.QueueItem>>,
+            val queueItemIndex: StateFlow<Int>,
             val scrollState: LazyListState,
             val onPlayQueueItem: (queueItemIndex: Int) -> Unit,
-            val onPlayQueueSubItem: (queueItemIndex: Int, trackIndex: Int) -> Unit,
+            val changeItemIndex: (from: Int, to: Int) -> Unit,
             val onCloseClick: () -> Unit
         ) : QueueState()
     }
@@ -108,7 +107,12 @@ class Queue(
                 state: QueueState.Available
             ) {
                 val enabled by state.enabled.collectAsState()
-                val queue = state.queue
+                val queue by state.queue.collectAsState()
+                val queueItemIndex by state.queueItemIndex.collectAsState()
+                val reorderState = rememberReorderableLazyListState(
+                    onMove = { from, to -> state.changeItemIndex(from.index, to.index) },
+                    listState = state.scrollState
+                )
 
                 Surface(
                     modifier = modifier.fillMaxWidth(),
@@ -132,49 +136,38 @@ class Queue(
                             )
                         }
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize()
+                                .reorderable(reorderState)
+                                .then(
+                                    when (platform) {
+                                        Platform.ANDROID -> Modifier.detectReorderAfterLongPress(reorderState)
+                                        Platform.JVM -> Modifier.detectReorder(reorderState)
+                                    }
+                                ),
                             state = state.scrollState,
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             contentPadding = PaddingValues(12.dp)
                         ) {
                             itemsIndexed(
-                                items = queue
+                                items = queue,
+                                key = { _, item -> item.key.toString() }
                             ) { index: Int, queueItem: MediaController.MediaControllerState.Available.QueueItem ->
-                                when (queueItem) {
-                                    is MediaController.MediaControllerState.Available.QueueItem.Track -> {
-                                        TrackItem(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            item = queueItem,
-                                            isPlaying = state.queueItemIndex == index,
-                                            enabled = enabled,
-                                            onClick = { state.onPlayQueueItem(index) }
-                                        )
-                                    }
-                                    is MediaController.MediaControllerState.Available.QueueItem.Playlist -> {
-                                        PlaylistItem(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            item = queueItem,
-                                            enabled = enabled,
-                                            isPlaying = state.queueItemIndex == index,
-                                            playingItem = if (state.queueItemIndex == index) { state.queueSubItemIndex } else { null },
-                                            onTrackClick = { trackIndex ->
-                                                state.onPlayQueueSubItem(index, trackIndex)
-                                            }
-                                        )
-                                    }
-                                    is MediaController.MediaControllerState.Available.QueueItem.Artist -> {
-                                        ArtistItem(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            item = queueItem,
-                                            enabled = enabled,
-                                            isPlaying = state.queueItemIndex == index,
-                                            playingItem = if (state.queueItemIndex == index) { state.queueSubItemIndex } else { null },
-                                            onTrackClick = { trackIndex ->
-                                                state.onPlayQueueSubItem(index, trackIndex)
-                                            }
-                                        )
-                                    }
+                                ReorderableItem(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    state = reorderState,
+                                    key = queueItem.key.toString()
+                                ) { isDragging ->
+                                    val elevation by animateDpAsState(if (isDragging) 16.dp else 0.dp)
+                                    TrackItem(
+                                        modifier = Modifier.fillMaxWidth()
+                                            .animateItem(),
+                                        item = queueItem,
+                                        isPlaying = queueItemIndex == index,
+                                        enabled = enabled,
+                                        tonalElevation = elevation,
+                                        onClick = { state.onPlayQueueItem(index) }
+                                    )
                                 }
                             }
                         }
@@ -185,9 +178,10 @@ class Queue(
             @Composable
             private fun TrackItem(
                 modifier: Modifier = Modifier,
-                item: MediaController.MediaControllerState.Available.QueueItem.Track,
+                item: MediaController.MediaControllerState.Available.QueueItem,
                 isPlaying: Boolean,
                 enabled: Boolean,
+                tonalElevation: Dp,
                 onClick: () -> Unit
             ) {
                 Surface(
@@ -195,6 +189,7 @@ class Queue(
                     enabled = enabled,
                     shape = MaterialTheme.shapes.large,
                     color = if (isPlaying) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    tonalElevation = tonalElevation,
                     onClick = onClick
                 ) {
                     Row(
@@ -216,194 +211,6 @@ class Queue(
                     }
                 }
             }
-
-            @Composable
-            private fun PlaylistItem(
-                modifier: Modifier = Modifier,
-                item: MediaController.MediaControllerState.Available.QueueItem.Playlist,
-                isPlaying: Boolean,
-                playingItem: Int?,
-                enabled: Boolean,
-                onTrackClick: (index: Int) -> Unit
-            ) {
-                var isExpanded by remember { mutableStateOf(false) }
-
-                Surface(
-                    modifier = modifier,
-                    shape = MaterialTheme.shapes.large,
-                    color = if (isPlaying) {
-                        if (isExpanded) {
-                            MaterialTheme.colorScheme.surfaceContainerHighest
-                        } else {
-                            MaterialTheme.colorScheme.primaryContainer
-                        }
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHigh
-                    }
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().clickable { isExpanded = !isExpanded },
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(Modifier)
-                            Icon(Icons.AutoMirrored.Default.QueueMusic, null)
-                            Image(
-                                modifier = Modifier.size(80.dp),
-                                file = item.image
-                            )
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    modifier = Modifier.weight(1f),
-                                    text = item.name,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                when (isExpanded) {
-                                    true -> Icon(Icons.Default.ArrowDropUp, null)
-                                    false -> Icon(Icons.Default.ArrowDropDown, null)
-                                }
-                            }
-                        }
-                        if (isExpanded) {
-                            item.items.forEachIndexed { index, track ->
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth().height(80.dp).padding(horizontal = 12.dp),
-                                    enabled = enabled,
-                                    shape = MaterialTheme.shapes.large,
-                                    color = if (isPlaying) {
-                                        if (playingItem == index) {
-                                            MaterialTheme.colorScheme.primaryContainer
-                                        } else {
-                                            MaterialTheme.colorScheme.secondaryContainer
-                                        }
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainerHighest
-                                    },
-                                    onClick = { onTrackClick(index) }
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(Modifier)
-                                        Icon(Icons.Default.Audiotrack, null)
-                                        Text(
-                                            modifier = Modifier.weight(1f),
-                                            text = if (track.artists.isEmpty()) track.name else "${track.artists.first().name} - ${track.name}",
-                                            style = MaterialTheme.typography.titleMedium
-                                        )
-                                    }
-                                }
-                            }
-                            Box(Modifier)
-                        }
-                    }
-                }
-            }
-
-            @Composable
-            private fun ArtistItem(
-                modifier: Modifier = Modifier,
-                item: MediaController.MediaControllerState.Available.QueueItem.Artist,
-                isPlaying: Boolean,
-                playingItem: Int?,
-                enabled: Boolean,
-                onTrackClick: (index: Int) -> Unit
-            ) {
-                var isExpanded by remember { mutableStateOf(false) }
-
-                Surface(
-                    modifier = modifier,
-                    shape = MaterialTheme.shapes.large,
-                    color = if (isPlaying) {
-                        if (isExpanded) {
-                            MaterialTheme.colorScheme.surfaceContainerHighest
-                        } else {
-                            MaterialTheme.colorScheme.primaryContainer
-                        }
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHigh
-                    }
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().clickable { isExpanded = !isExpanded },
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(Modifier)
-                            Icon(Icons.AutoMirrored.Default.QueueMusic, null)
-                            Image(
-                                modifier = Modifier.size(80.dp),
-                                file = item.image
-                            )
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    modifier = Modifier.weight(1f),
-                                    text = item.name,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                when (isExpanded) {
-                                    true -> Icon(Icons.Default.ArrowDropUp, null)
-                                    false -> Icon(Icons.Default.ArrowDropDown, null)
-                                }
-                            }
-                        }
-                        if (isExpanded) {
-                            item.items.forEachIndexed { index, track ->
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth().height(80.dp).padding(horizontal = 12.dp),
-                                    enabled = enabled,
-                                    shape = MaterialTheme.shapes.large,
-                                    color = if (isPlaying) {
-                                        if (playingItem == index) {
-                                            MaterialTheme.colorScheme.primaryContainer
-                                        } else {
-                                            MaterialTheme.colorScheme.secondaryContainer
-                                        }
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainerHighest
-                                    },
-                                    onClick = { onTrackClick(index) }
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(Modifier)
-                                        Icon(Icons.Default.Audiotrack, null)
-                                        Text(
-                                            modifier = Modifier.weight(1f),
-                                            text = if (track.artists.isEmpty()) track.name else "${track.artists.first().name} - ${track.name}",
-                                            style = MaterialTheme.typography.titleMedium
-                                        )
-                                    }
-                                }
-                            }
-                            Box(Modifier)
-                        }
-                    }
-                }
-            }
         }
 
         object Compact {
@@ -422,7 +229,12 @@ class Queue(
                 state: QueueState.Available
             ) {
                 val enabled by state.enabled.collectAsState()
-                val queue = state.queue
+                val queue by state.queue.collectAsState()
+                val queueItemIndex by state.queueItemIndex.collectAsState()
+                val reorderState = rememberReorderableLazyListState(
+                    onMove = { from, to -> state.changeItemIndex(from.index, to.index) },
+                    listState = state.scrollState
+                )
 
                 Surface(
                     modifier = modifier,
@@ -446,49 +258,39 @@ class Queue(
                             )
                         }
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize().weight(1f),
+                            modifier = Modifier.fillMaxSize()
+                                .weight(1f)
+                                .reorderable(reorderState)
+                                .then(
+                                    when (platform) {
+                                        Platform.ANDROID -> Modifier.detectReorderAfterLongPress(reorderState)
+                                        Platform.JVM -> Modifier.detectReorder(reorderState)
+                                    }
+                                ),
                             state = state.scrollState,
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             contentPadding = PaddingValues(12.dp)
                         ) {
                             itemsIndexed(
-                                items = queue
+                                items = queue,
+                                key = { _, item -> item.key.toString() }
                             ) { index: Int, queueItem: MediaController.MediaControllerState.Available.QueueItem ->
-                                when (queueItem) {
-                                    is MediaController.MediaControllerState.Available.QueueItem.Track -> {
-                                        TrackItem(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            item = queueItem,
-                                            isPlaying = state.queueItemIndex == index,
-                                            enabled = enabled,
-                                            onClick = { state.onPlayQueueItem(index) }
-                                        )
-                                    }
-                                    is MediaController.MediaControllerState.Available.QueueItem.Playlist -> {
-                                        PlaylistItem(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            item = queueItem,
-                                            enabled = enabled,
-                                            isPlaying = state.queueItemIndex == index,
-                                            playingItem = if (state.queueItemIndex == index) { state.queueSubItemIndex } else { null },
-                                            onTrackClick = { trackIndex ->
-                                                state.onPlayQueueSubItem(index, trackIndex)
-                                            }
-                                        )
-                                    }
-                                    is MediaController.MediaControllerState.Available.QueueItem.Artist -> {
-                                        ArtistItem(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            item = queueItem,
-                                            enabled = enabled,
-                                            isPlaying = state.queueItemIndex == index,
-                                            playingItem = if (state.queueItemIndex == index) { state.queueSubItemIndex } else { null },
-                                            onTrackClick = { trackIndex ->
-                                                state.onPlayQueueSubItem(index, trackIndex)
-                                            }
-                                        )
-                                    }
+                                ReorderableItem(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    state = reorderState,
+                                    key = queueItem.key.toString()
+                                ) { isDragging ->
+                                    val elevation by animateDpAsState(if (isDragging) 16.dp else 0.dp)
+                                    TrackItem(
+                                        modifier = Modifier.fillMaxWidth()
+                                            .animateItem(),
+                                        item = queueItem,
+                                        isPlaying = queueItemIndex == index,
+                                        enabled = enabled,
+                                        tonalElevation = elevation,
+                                        onClick = { state.onPlayQueueItem(index) }
+                                    )
                                 }
                             }
                         }
@@ -504,9 +306,10 @@ class Queue(
             @Composable
             private fun TrackItem(
                 modifier: Modifier = Modifier,
-                item: MediaController.MediaControllerState.Available.QueueItem.Track,
+                item: MediaController.MediaControllerState.Available.QueueItem,
                 isPlaying: Boolean,
                 enabled: Boolean,
+                tonalElevation: Dp,
                 onClick: () -> Unit
             ) {
                 Surface(
@@ -514,6 +317,7 @@ class Queue(
                     enabled = enabled,
                     shape = MaterialTheme.shapes.large,
                     color = if (isPlaying) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    tonalElevation = tonalElevation,
                     onClick = onClick
                 ) {
                     Row(
@@ -532,194 +336,6 @@ class Queue(
                             text = if (item.artists.isEmpty()) item.name else "${item.artists.first().name} - ${item.name}",
                             style = MaterialTheme.typography.titleMedium
                         )
-                    }
-                }
-            }
-
-            @Composable
-            private fun PlaylistItem(
-                modifier: Modifier = Modifier,
-                item: MediaController.MediaControllerState.Available.QueueItem.Playlist,
-                isPlaying: Boolean,
-                playingItem: Int?,
-                enabled: Boolean,
-                onTrackClick: (index: Int) -> Unit
-            ) {
-                var isExpanded by remember { mutableStateOf(false) }
-
-                Surface(
-                    modifier = modifier,
-                    shape = MaterialTheme.shapes.large,
-                    color = if (isPlaying) {
-                        if (isExpanded) {
-                            MaterialTheme.colorScheme.surfaceContainerHighest
-                        } else {
-                            MaterialTheme.colorScheme.primaryContainer
-                        }
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHigh
-                    }
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().clickable { isExpanded = !isExpanded },
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(Modifier)
-                            Icon(Icons.AutoMirrored.Default.QueueMusic, null)
-                            Image(
-                                modifier = Modifier.size(80.dp),
-                                file = item.image
-                            )
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    modifier = Modifier.weight(1f),
-                                    text = item.name,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                when (isExpanded) {
-                                    true -> Icon(Icons.Default.ArrowDropUp, null)
-                                    false -> Icon(Icons.Default.ArrowDropDown, null)
-                                }
-                            }
-                        }
-                        if (isExpanded) {
-                            item.items.forEachIndexed { index, track ->
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth().height(80.dp).padding(horizontal = 12.dp),
-                                    enabled = enabled,
-                                    shape = MaterialTheme.shapes.large,
-                                    color = if (isPlaying) {
-                                        if (playingItem == index) {
-                                            MaterialTheme.colorScheme.primaryContainer
-                                        } else {
-                                            MaterialTheme.colorScheme.secondaryContainer
-                                        }
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainerHighest
-                                    },
-                                    onClick = { onTrackClick(index) }
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(Modifier)
-                                        Icon(Icons.Default.Audiotrack, null)
-                                        Text(
-                                            modifier = Modifier.weight(1f),
-                                            text = if (track.artists.isEmpty()) track.name else "${track.artists.first().name} - ${track.name}",
-                                            style = MaterialTheme.typography.titleMedium
-                                        )
-                                    }
-                                }
-                            }
-                            Box(Modifier)
-                        }
-                    }
-                }
-            }
-
-            @Composable
-            private fun ArtistItem(
-                modifier: Modifier = Modifier,
-                item: MediaController.MediaControllerState.Available.QueueItem.Artist,
-                isPlaying: Boolean,
-                playingItem: Int?,
-                enabled: Boolean,
-                onTrackClick: (index: Int) -> Unit
-            ) {
-                var isExpanded by remember { mutableStateOf(false) }
-
-                Surface(
-                    modifier = modifier,
-                    shape = MaterialTheme.shapes.large,
-                    color = if (isPlaying) {
-                        if (isExpanded) {
-                            MaterialTheme.colorScheme.surfaceContainerHighest
-                        } else {
-                            MaterialTheme.colorScheme.primaryContainer
-                        }
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHigh
-                    }
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().clickable { isExpanded = !isExpanded },
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(Modifier)
-                            Icon(Icons.AutoMirrored.Default.QueueMusic, null)
-                            Image(
-                                modifier = Modifier.size(80.dp),
-                                file = item.image
-                            )
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    modifier = Modifier.weight(1f),
-                                    text = item.name,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                when (isExpanded) {
-                                    true -> Icon(Icons.Default.ArrowDropUp, null)
-                                    false -> Icon(Icons.Default.ArrowDropDown, null)
-                                }
-                            }
-                        }
-                        if (isExpanded) {
-                            item.items.forEachIndexed { index, track ->
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth().height(80.dp).padding(horizontal = 12.dp),
-                                    enabled = enabled,
-                                    shape = MaterialTheme.shapes.large,
-                                    color = if (isPlaying) {
-                                        if (playingItem == index) {
-                                            MaterialTheme.colorScheme.primaryContainer
-                                        } else {
-                                            MaterialTheme.colorScheme.secondaryContainer
-                                        }
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainerHighest
-                                    },
-                                    onClick = { onTrackClick(index) }
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(Modifier)
-                                        Icon(Icons.Default.Audiotrack, null)
-                                        Text(
-                                            modifier = Modifier.weight(1f),
-                                            text = if (track.artists.isEmpty()) track.name else "${track.artists.first().name} - ${track.name}",
-                                            style = MaterialTheme.typography.titleMedium
-                                        )
-                                    }
-                                }
-                            }
-                            Box(Modifier)
-                        }
                     }
                 }
             }

@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.Item
+import dev.younesgouyd.apps.music.client.components.util.Item
 import dev.younesgouyd.apps.music.client.data.ArtistId
 import dev.younesgouyd.apps.music.client.data.FolderId
 import dev.younesgouyd.apps.music.client.data.PlaylistId
@@ -245,7 +245,7 @@ class AddToPlaylist(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            dev.younesgouyd.apps.music.client.components.util.compose.widgets.Image(
+                            dev.younesgouyd.apps.music.client.components.util.Image(
                                 modifier = Modifier.size(64.dp),
                                 file = itemToAdd.image
                             )
@@ -316,7 +316,7 @@ class AddToPlaylist(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            dev.younesgouyd.apps.music.client.components.util.compose.widgets.Image(
+                                            dev.younesgouyd.apps.music.client.components.util.Image(
                                                 modifier = Modifier.size(64.dp),
                                                 file = playlistOption.image
                                             )

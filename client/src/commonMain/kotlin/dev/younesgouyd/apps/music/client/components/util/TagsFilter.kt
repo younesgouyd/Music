@@ -1,4 +1,4 @@
-package dev.younesgouyd.apps.music.client.components.util.compose.widgets
+package dev.younesgouyd.apps.music.client.components.util
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -15,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.TagsFilterState.Tag
 import dev.younesgouyd.apps.music.client.data.TagId
 import kotlinx.coroutines.flow.StateFlow
 
@@ -39,7 +38,7 @@ fun TagsFilter(
 @Composable
 private fun TagsFilter(
     modifier: Modifier,
-    tags: StateFlow<List<Tag>>,
+    tags: StateFlow<List<TagsFilterState.Tag>>,
     includeUntagged: StateFlow<Boolean>,
     tagSearchQuery: StateFlow<String>,
     onTagSearchQueryChange: (String) -> Unit,

@@ -39,6 +39,7 @@ dependencyResolutionManagement {
                 }
                 val ktor = version("ktor", "3.2.3")
                 val compose = version("compose.jetbrains", "1.8.2")
+                val reorderable = version("reorderable", "0.9.6")
                 val android = object {
                     val agp = version("agp", "8.10.0")
                     val coreKtx = version("coreKtx", "1.16.0")
@@ -60,6 +61,8 @@ dependencyResolutionManagement {
             plugin("ksp", "com.google.devtools.ksp").versionRef(versions.ksp)
             plugin("room", "androidx.room").versionRef(versions.room)
             plugin("androidApplication", "com.android.application").versionRef(versions.android.agp)
+
+            library("reorderable", "org.burnoutcrew.composereorderable", "reorderable").versionRef(versions.reorderable)
 
             library("json", "org.jetbrains.kotlinx", "kotlinx-serialization-json").versionRef(versions.json)
             library("jsonJava", "org.json", "json").versionRef(versions.jsonJava)

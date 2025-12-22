@@ -24,11 +24,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import dev.younesgouyd.apps.music.client.MediaController
 import dev.younesgouyd.apps.music.client.Music
-import dev.younesgouyd.apps.music.client.components.util.MediaController
-import dev.younesgouyd.apps.music.client.components.util.compose.AdaptiveUi
-import dev.younesgouyd.apps.music.client.components.util.compose.SystemFolderPicker
-import dev.younesgouyd.apps.music.client.components.util.compose.widgets.*
+import dev.younesgouyd.apps.music.client.components.util.*
 import dev.younesgouyd.apps.music.client.data.*
 import dev.younesgouyd.apps.music.client.data.repoes.*
 import dev.younesgouyd.apps.music.client.data.room.entities.*
@@ -1250,7 +1248,7 @@ class Library(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Image(
+                        dev.younesgouyd.apps.music.client.components.util.Image(
                             modifier = Modifier.aspectRatio(1f),
                             file = playlist.image,
                             contentScale = ContentScale.FillWidth,
@@ -1383,7 +1381,7 @@ class Library(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Image(
+                        dev.younesgouyd.apps.music.client.components.util.Image(
                             modifier = Modifier.aspectRatio(1f),
                             file = track.image,
                             contentScale = ContentScale.FillWidth,
@@ -1453,7 +1451,7 @@ class Library(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Image(
+                                dev.younesgouyd.apps.music.client.components.util.Image(
                                     modifier = Modifier.size(64.dp),
                                     file = track.image
                                 )
@@ -2063,7 +2061,7 @@ class Library(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Image(
+                        dev.younesgouyd.apps.music.client.components.util.Image(
                             modifier = Modifier.aspectRatio(1f),
                             file = playlist.image,
                             contentScale = ContentScale.FillWidth,
@@ -2187,7 +2185,7 @@ class Library(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Image(
+                        dev.younesgouyd.apps.music.client.components.util.Image(
                             modifier = Modifier.aspectRatio(1f),
                             file = track.image,
                             contentScale = ContentScale.FillWidth,
@@ -2241,7 +2239,7 @@ class Library(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Image(
+                                dev.younesgouyd.apps.music.client.components.util.Image(
                                     modifier = Modifier.size(64.dp),
                                     file = track.image
                                 )

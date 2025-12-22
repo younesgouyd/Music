@@ -8,7 +8,6 @@ import androidx.compose.ui.Modifier
 import dev.younesgouyd.apps.music.client.components.Main
 import dev.younesgouyd.apps.music.client.components.ReinitializeAppData
 import dev.younesgouyd.apps.music.client.components.SplashScreen
-import dev.younesgouyd.apps.music.client.components.util.MediaController
 import dev.younesgouyd.apps.music.client.data.RepoStore
 import dev.younesgouyd.apps.music.client.data.room.AppDatabase
 import dev.younesgouyd.apps.music.client.util.Component

@@ -14,7 +14,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.client.components.util.MediaController
+import dev.younesgouyd.apps.music.client.MediaController
 import dev.younesgouyd.apps.music.client.data.*
 import dev.younesgouyd.apps.music.client.usecases.ExportUseCaseImpl
 import dev.younesgouyd.apps.music.client.util.Component

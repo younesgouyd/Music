@@ -13,7 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.Music
-import dev.younesgouyd.apps.music.client.components.util.compose.SystemFolderPicker
+import dev.younesgouyd.apps.music.client.components.util.SystemFolderPicker
 import dev.younesgouyd.apps.music.client.usecases.ExportUseCase
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.Job
