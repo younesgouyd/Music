@@ -33,6 +33,7 @@ class RepoStore(
     lateinit var mediaFilePlaylistCrossRefRepo: MediaFilePlaylistCrossRefRepo private set
     lateinit var tagRepo: TagRepo private set
     lateinit var tagTrackCrossRefRepo: TagTrackCrossRefRepo private set
+    lateinit var playlistTrackViewRepo: PlaylistTrackViewRepo private set
 
     suspend fun init() {
         println("--> RepoStore::init")
@@ -66,6 +67,8 @@ class RepoStore(
         tagTrackCrossRefRepo = TagTrackCrossRefRepo(database.tagTrackCrossRefDao())
 
         settingsRepo.init()
+
+        playlistTrackViewRepo = PlaylistTrackViewRepo(database.playlistTrackViewDao())
 
         server = Server(
             serverAddress = settingsRepo.getServerAddress().map { it!!.value }.stateIn(applicationScope),

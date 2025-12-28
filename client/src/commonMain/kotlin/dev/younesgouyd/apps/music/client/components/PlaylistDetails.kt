@@ -1,7 +1,7 @@
 package dev.younesgouyd.apps.music.client.components
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -17,20 +17,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.MediaController
+import dev.younesgouyd.apps.music.client.Platform
 import dev.younesgouyd.apps.music.client.components.util.*
-import dev.younesgouyd.apps.music.client.data.ArtistId
-import dev.younesgouyd.apps.music.client.data.ImportSessionId
-import dev.younesgouyd.apps.music.client.data.PlaylistId
-import dev.younesgouyd.apps.music.client.data.TrackId
+import dev.younesgouyd.apps.music.client.data.*
 import dev.younesgouyd.apps.music.client.data.repoes.*
+import dev.younesgouyd.apps.music.client.platform
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import org.burnoutcrew.reorderable.*
 import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -40,6 +41,7 @@ class PlaylistDetails(
     private val playlistRepo: PlaylistRepo,
     private val artistRepo: ArtistRepo,
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
+    private val playlistTrackViewRepo: PlaylistTrackViewRepo,
     private val folderRepo: FolderRepo,
     private val mediaController: MediaController,
     mediaFileRepo: MediaFileRepo,
@@ -66,14 +68,15 @@ class PlaylistDetails(
                         )
                     }.stateIn(coroutineScope),
                     tracks = searchQuery.flatMapLatest { nameQuery ->
-                        trackRepo.searchPlaylist(this@PlaylistDetails.id, nameQuery).mapLatest {
-                            it.map { dbTrack ->
+                        playlistTrackViewRepo.search(this@PlaylistDetails.id, nameQuery).mapLatest {
+                            it.map { dbView ->
                                 PlaylistDetailsState.Loaded.Track(
-                                    id = dbTrack.id,
-                                    name = dbTrack.name,
-                                    album = dbTrack.album,
-                                    image = mediaFileRepo.getTrackImage(dbTrack.id),
-                                    artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
+                                    key = dbView.playlistTrackCrossRefId,
+                                    id = dbView.trackId,
+                                    name = dbView.name,
+                                    album = dbView.album,
+                                    image = mediaFileRepo.getTrackImage(dbView.trackId),
+                                    artists = artistRepo.getTrackArtists(dbView.trackId).first().map { dbArtist ->
                                         PlaylistDetailsState.Loaded.Track.Artist(
                                             id = dbArtist.id,
                                             name = dbArtist.name
@@ -89,6 +92,11 @@ class PlaylistDetails(
                     scrollState = LazyListState(),
                     onPlayClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Playlist(id))) },
                     onSearchQueryChange = { searchQuery.value = it },
+                    changeItemPosition = { from, to ->
+                        coroutineScope.launch {
+                            playlistTrackCrossRefRepo.changeItemPosition(id, from, to)
+                        }
+                    },
                     onAddToQueueClick = { mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Playlist(id))) },
                     onAddToPlaylistClick = {
                         addToPlaylist.update {
@@ -179,6 +187,7 @@ class PlaylistDetails(
             val scrollState: LazyListState,
             val onPlayClick: () -> Unit,
             val onSearchQueryChange: (String) -> Unit,
+            val changeItemPosition: (from: Int, to: Int) -> Unit,
             val onAddToQueueClick: () -> Unit,
             val onAddToPlaylistClick: () -> Unit,
             val onTrackClick: (TrackId) -> Unit,
@@ -197,6 +206,7 @@ class PlaylistDetails(
             )
 
             data class Track(
+                val key: PlaylistTrackCrossRefId,
                 val id: TrackId,
                 val name: String,
                 val album: String?,
@@ -212,6 +222,10 @@ class PlaylistDetails(
     }
 
     private object Ui {
+        private const val KEY_PLAYLIST_INFO = "playlist_info"
+        private const val KEY_TOOLBAR = "toolbar"
+        private val itemHeight = 100.dp
+
         object Wide {
             @Composable
             fun Main(modifier: Modifier, state: PlaylistDetailsState) {
@@ -234,6 +248,7 @@ class PlaylistDetails(
                     scrollState = state.scrollState,
                     onPlayClick = state.onPlayClick,
                     onSearchQueryChange = state.onSearchQueryChange,
+                    changeItemPosition = state.changeItemPosition,
                     onAddToQueueClick = state.onAddToQueueClick,
                     onAddToPlaylistClick = state.onAddToPlaylistClick,
                     onTrackClick = state.onTrackClick,
@@ -260,6 +275,7 @@ class PlaylistDetails(
                 scrollState: LazyListState,
                 onPlayClick: () -> Unit,
                 onSearchQueryChange: (String) -> Unit,
+                changeItemPosition: (from: Int, to: Int) -> Unit,
                 onAddToQueueClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onTrackClick: (TrackId) -> Unit,
@@ -270,19 +286,50 @@ class PlaylistDetails(
             ) {
                 val playlist by playlist.collectAsState()
                 val items by tracks.collectAsState()
+                var orderedItems by remember { mutableStateOf(items) }
                 val searchQuery by searchQuery.collectAsState()
+                var isDragging by remember { mutableStateOf(false) }
+                val reorderState = rememberReorderableLazyListState(
+                    onMove = { fromItem, toItem ->
+                        isDragging = true
+                        if (fromItem.index >= 2 && toItem.index >= 2) {
+                            val some = orderedItems.toMutableList()
+                            some.add(toItem.index - 2, some.removeAt(fromItem.index - 2))
+                            orderedItems = some.toList()
+                        }
+                    },
+                    listState = scrollState,
+                    canDragOver = { from, to ->
+                        from.key != KEY_PLAYLIST_INFO && from.key != KEY_TOOLBAR
+                        && to.key != KEY_PLAYLIST_INFO && to.key != KEY_TOOLBAR
+                    },
+                    onDragEnd = { from, to ->
+                        isDragging = false
+                        if (from >= 2 && to >= 2) {
+                            changeItemPosition(from - 2, to - 2)
+                        }
+                    }
+                )
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
                     content = {
                         Box(modifier = Modifier.fillMaxSize().padding(it)) {
                             LazyColumn(
-                                modifier = Modifier.fillMaxSize().padding(end = 16.dp),
+                                modifier = Modifier.fillMaxSize()
+                                    .padding(end = 16.dp)
+                                    .reorderable(reorderState)
+                                    .then(
+                                        when (platform) {
+                                            Platform.ANDROID -> Modifier.detectReorderAfterLongPress(reorderState)
+                                            Platform.JVM -> Modifier.detectReorder(reorderState)
+                                        }
+                                    ),
                                 state = scrollState,
                                 verticalArrangement = Arrangement.Top,
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                item {
+                                item(key = KEY_PLAYLIST_INFO) {
                                     PlaylistInfo(
                                         modifier = Modifier.fillMaxWidth().height(400.dp),
                                         playlist = playlist,
@@ -291,15 +338,12 @@ class PlaylistDetails(
                                         onAddToPlaylistClick = onAddToPlaylistClick
                                     )
                                 }
-                                item {
-                                    Spacer(Modifier.size(8.dp))
-                                }
-                                stickyHeader {
-                                    Surface {
+                                stickyHeader(key = KEY_TOOLBAR) {
+                                    Surface(modifier = Modifier.fillMaxWidth()) {
                                         Column(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            verticalArrangement = Arrangement.Center
                                         ) {
                                             OutlinedTextField(
                                                 modifier = Modifier.fillMaxWidth(),
@@ -308,21 +352,34 @@ class PlaylistDetails(
                                                 value = searchQuery,
                                                 onValueChange = onSearchQueryChange
                                             )
+                                            Spacer(Modifier.height(8.dp))
                                             TracksHeader(modifier = Modifier.fillMaxWidth().height(64.dp))
                                             HorizontalDivider()
                                         }
                                     }
                                 }
-                                items(items = items) { track ->
-                                    TrackItem(
-                                        modifier = Modifier.fillMaxWidth().height(80.dp),
-                                        track = track,
-                                        onTrackClick = { onTrackClick(track.id) },
-                                        onArtistClick = onArtistClick,
-                                        onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
-                                        onAddToQueueClick = { onAddTrackToQueueClick(track.id) },
-                                        onRemoveFromPlaylistClick = { onRemoveTrackFromPlaylistClick(track.id) }
-                                    )
+                                items(
+                                    items = orderedItems,
+                                    key = { item -> item.key.toString() },
+                                ) { track ->
+                                    ReorderableItem(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        state = reorderState,
+                                        key = track.key.toString(),
+                                        defaultDraggingModifier = Modifier.animateItem()
+                                    ) { isDragging ->
+                                        val elevation by animateDpAsState(if (isDragging) 16.dp else 0.dp)
+                                        TrackItem(
+                                            modifier = Modifier.fillMaxWidth().height(itemHeight),
+                                            track = track,
+                                            tonalElevation = elevation,
+                                            onTrackClick = { onTrackClick(track.id) },
+                                            onArtistClick = onArtistClick,
+                                            onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
+                                            onAddToQueueClick = { onAddTrackToQueueClick(track.id) },
+                                            onRemoveFromPlaylistClick = { onRemoveTrackFromPlaylistClick(track.id) }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -333,6 +390,12 @@ class PlaylistDetails(
                         )
                     }
                 )
+
+                LaunchedEffect(items) {
+                    if (!isDragging) {
+                        orderedItems = items
+                    }
+                }
             }
 
             @Composable
@@ -425,7 +488,7 @@ class PlaylistDetails(
             private const val ACTIONS_WEIGHT = .1f
 
             @Composable
-            private fun TracksHeader(modifier: Modifier = Modifier) {
+            private fun TracksHeader(modifier: Modifier) {
                 Surface(
                     modifier = modifier
                 ) {
@@ -487,8 +550,9 @@ class PlaylistDetails(
 
             @Composable
             private fun TrackItem(
-                modifier: Modifier = Modifier,
+                modifier: Modifier,
                 track: PlaylistDetailsState.Loaded.Track,
+                tonalElevation: Dp,
                 onTrackClick: () -> Unit,
                 onArtistClick: (ArtistId) -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -497,117 +561,129 @@ class PlaylistDetails(
             ) {
                 var showContextMenu by remember { mutableStateOf(false) }
 
-                Row(
-                    modifier = modifier.clickable { onTrackClick() },
-                    horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.CenterVertically
+                Surface(
+                    modifier = modifier,
+                    onClick = onTrackClick,
+                    tonalElevation = tonalElevation
                 ) {
-                    // image + title + artists
-                    Box(
-                        modifier = Modifier.fillMaxSize().weight(TITLE_WEIGHT),
-                        contentAlignment = Alignment.CenterStart
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Start,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Image(
-                                modifier = Modifier.fillMaxHeight(),
-                                file = track.image,
-                                contentScale = ContentScale.FillHeight
-                            )
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                horizontalAlignment = Alignment.Start,
-                                verticalArrangement = Arrangement.Center
+                            // image + title + artists
+                            Box(
+                                modifier = Modifier.fillMaxSize().weight(TITLE_WEIGHT),
+                                contentAlignment = Alignment.CenterStart
                             ) {
-                                Text(
-                                    text = track.name,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                LazyRow(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    items(items = track.artists, key = { it.id.value }) { artist ->
-                                        TextButton(
-                                            onClick = { onArtistClick(artist.id) },
-                                            content = {
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Icon(Icons.Default.Person, null)
-                                                    Text(
-                                                        text = artist.name,
-                                                        style = MaterialTheme.typography.bodyMedium
-                                                    )
-                                                }
-                                            }
+                                    Image(
+                                        modifier = Modifier.fillMaxHeight().aspectRatio(1f),
+                                        file = track.image,
+                                        contentScale = ContentScale.Fit
+                                    )
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        horizontalAlignment = Alignment.Start,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = track.name,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
+                                        LazyRow(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            items(items = track.artists, key = { it.id.value }) { artist ->
+                                                TextButton(
+                                                    onClick = { onArtistClick(artist.id) },
+                                                    content = {
+                                                        Row(
+                                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Icon(Icons.Default.Person, null)
+                                                            Text(
+                                                                text = artist.name,
+                                                                style = MaterialTheme.typography.bodyMedium
+                                                            )
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        }
-                    }
 
-                    Spacer(Modifier.width(8.dp))
+                            Spacer(Modifier.width(8.dp))
 
-                    // album
-                    Box(
-                        modifier = Modifier.fillMaxSize().weight(ALBUM_WEIGHT),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        if (track.album != null) {
-                            Surface {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.Album, null)
-                                    Text(
-                                        text = track.album,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                            // album
+                            Box(
+                                modifier = Modifier.fillMaxSize().weight(ALBUM_WEIGHT),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (track.album != null) {
+                                    Surface {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.Album, null)
+                                            Text(
+                                                text = track.album,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
                                 }
                             }
+
+                            Spacer(Modifier.width(8.dp))
+
+                            // added at
+                            Box(
+                                modifier = Modifier.fillMaxSize().weight(ADDED_AT_WEIGHT),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "????-??-?? ??:??", // TODO
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            Spacer(Modifier.width(8.dp))
+
+                            // actions
+                            Box(
+                                modifier = Modifier.fillMaxSize().weight(ACTIONS_WEIGHT),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                IconButton(
+                                    content = { Icon(Icons.Default.MoreVert, null) },
+                                    onClick = { showContextMenu = true }
+                                )
+                            }
                         }
-                    }
-
-                    Spacer(Modifier.width(8.dp))
-
-                    // added at
-                    Box(
-                        modifier = Modifier.fillMaxSize().weight(ADDED_AT_WEIGHT),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "????-??-?? ??:??", // TODO
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    Spacer(Modifier.width(8.dp))
-
-                    // actions
-                    Box(
-                        modifier = Modifier.fillMaxSize().weight(ACTIONS_WEIGHT),
-                        contentAlignment = Alignment.CenterEnd
-                    ) {
-                        IconButton(
-                            content = { Icon(Icons.Default.MoreVert, null) },
-                            onClick = { showContextMenu = true }
-                        )
+                        HorizontalDivider()
                     }
                 }
-                HorizontalDivider()
 
                 if (showContextMenu) {
                     ItemContextMenu(
@@ -664,6 +740,7 @@ class PlaylistDetails(
                     scrollState = state.scrollState,
                     onPlayClick = state.onPlayClick,
                     onSearchQueryChange = state.onSearchQueryChange,
+                    changeItemPosition = state.changeItemPosition,
                     onAddToQueueClick = state.onAddToQueueClick,
                     onAddToPlaylistClick = state.onAddToPlaylistClick,
                     onTrackClick = state.onTrackClick,
@@ -690,6 +767,7 @@ class PlaylistDetails(
                 scrollState: LazyListState,
                 onPlayClick: () -> Unit,
                 onSearchQueryChange: (String) -> Unit,
+                changeItemPosition: (from: Int, to: Int) -> Unit,
                 onAddToQueueClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onTrackClick: (TrackId) -> Unit,
@@ -700,43 +778,75 @@ class PlaylistDetails(
             ) {
                 val playlist by playlist.collectAsState()
                 val items by tracks.collectAsState()
+                var orderedItems by remember { mutableStateOf(items) }
                 val searchQuery by searchQuery.collectAsState()
+                var isDragging by remember { mutableStateOf(false) }
+                val reorderState = rememberReorderableLazyListState(
+                    onMove = { fromItem, toItem ->
+                        isDragging = true
+                        if (fromItem.index >= 2 && toItem.index >= 2) {
+                            val some = orderedItems.toMutableList()
+                            some.add(toItem.index - 2, some.removeAt(fromItem.index - 2))
+                            orderedItems = some.toList()
+                        }
+                    },
+                    listState = scrollState,
+                    canDragOver = { from, to ->
+                        from.key != KEY_PLAYLIST_INFO && from.key != KEY_TOOLBAR
+                        && to.key != KEY_PLAYLIST_INFO && to.key != KEY_TOOLBAR
+                    },
+                    onDragEnd = { from, to ->
+                        isDragging = false
+                        if (from >= 2 && to >= 2) {
+                            changeItemPosition(from - 2, to - 2)
+                        }
+                    }
+                )
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
                     content = {
                         Box(modifier = Modifier.fillMaxSize().padding(it)) {
                             LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier.fillMaxSize()
+                                    .reorderable(reorderState)
+                                    .then(
+                                        when (platform) {
+                                            Platform.ANDROID -> Modifier.detectReorderAfterLongPress(reorderState)
+                                            Platform.JVM -> Modifier.detectReorder(reorderState)
+                                        }
+                                    ),
                                 state = scrollState,
                                 verticalArrangement = Arrangement.Top,
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                item {
-                                    PlaylistInfo(
+                                item(key = KEY_PLAYLIST_INFO) {
+                                    Column(
                                         modifier = Modifier.fillMaxWidth(),
-                                        playlist = playlist
-                                    )
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        PlaylistInfo(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            playlist = playlist
+                                        )
+                                        Actions(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            onPlayClick = onPlayClick,
+                                            onAddToQueueClick = onAddToQueueClick,
+                                            onAddToPlaylistClick = onAddToPlaylistClick
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+                                    }
                                 }
-                                item {
-                                    Actions(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        onPlayClick = onPlayClick,
-                                        onAddToQueueClick = onAddToQueueClick,
-                                        onAddToPlaylistClick = onAddToPlaylistClick
-                                    )
-                                }
-                                item {
-                                    Spacer(Modifier.size(8.dp))
-                                }
-                                stickyHeader {
+                                stickyHeader(key = KEY_TOOLBAR) {
                                     Surface(
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Column(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            verticalArrangement = Arrangement.Center
                                         ) {
                                             Text(
                                                 text = "Tracks",
@@ -754,16 +864,28 @@ class PlaylistDetails(
                                         }
                                     }
                                 }
-                                items(items = items) { track ->
-                                    TrackItem(
-                                        modifier = Modifier.fillMaxWidth().height(80.dp),
-                                        track = track,
-                                        onTrackClick = { onTrackClick(track.id) },
-                                        onArtistClick = onArtistClick,
-                                        onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
-                                        onAddToQueueClick = { onAddTrackToQueueClick(track.id) },
-                                        onRemoveFromPlaylistClick = { onRemoveTrackFromPlaylistClick(track.id) }
-                                    )
+                                items(
+                                    items = orderedItems,
+                                    key = { item -> item.key.toString() },
+                                ) { track ->
+                                    ReorderableItem(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        state = reorderState,
+                                        key = track.key.toString(),
+                                        defaultDraggingModifier = Modifier.animateItem()
+                                    ) { isDragging ->
+                                        val elevation by animateDpAsState(if (isDragging) 16.dp else 0.dp)
+                                        TrackItem(
+                                            modifier = Modifier.fillMaxWidth().height(itemHeight),
+                                            track = track,
+                                            tonalElevation = elevation,
+                                            onClick = { onTrackClick(track.id) },
+                                            onArtistClick = onArtistClick,
+                                            onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
+                                            onAddToQueueClick = { onAddTrackToQueueClick(track.id) },
+                                            onRemoveFromPlaylistClick = { onRemoveTrackFromPlaylistClick(track.id) }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -774,6 +896,12 @@ class PlaylistDetails(
                         )
                     }
                 )
+
+                LaunchedEffect(items) {
+                    if (!isDragging) {
+                        orderedItems = items
+                    }
+                }
             }
 
             @Composable
@@ -814,49 +942,53 @@ class PlaylistDetails(
                 onAddToQueueClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit
             ) {
-                LazyRow(
-                    modifier = modifier,
-                    horizontalArrangement = Arrangement.spacedBy(
-                        space = 12.dp,
-                        alignment = Alignment.CenterHorizontally
-                    ),
-                    verticalAlignment = Alignment.CenterVertically
+                Surface(
+                    modifier = modifier
                 ) {
-                    item {
-                        IconButton(
-                            onClick = onPlayClick
-                        ) {
-                            Icon(
-                                modifier = Modifier.fillMaxSize(),
-                                imageVector = Icons.Default.PlayCircle,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                    item {
-                        OutlinedButton(
-                            onClick = onAddToQueueClick
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(
+                            space = 12.dp,
+                            alignment = Alignment.CenterHorizontally
+                        ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        item {
+                            IconButton(
+                                onClick = onPlayClick
                             ) {
-                                Icon(Icons.Default.AddToQueue, null)
-                                Text(text = "Add to queue", style = MaterialTheme.typography.labelMedium)
+                                Icon(
+                                    modifier = Modifier.fillMaxSize(),
+                                    imageVector = Icons.Default.PlayCircle,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
                             }
                         }
-                    }
-                    item {
-                        OutlinedButton(
-                            onClick = onAddToPlaylistClick
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                        item {
+                            OutlinedButton(
+                                onClick = onAddToQueueClick
                             ) {
-                                Icon(Icons.AutoMirrored.Default.PlaylistAdd, null)
-                                Text(text = "Add to playlist", style = MaterialTheme.typography.labelMedium)
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.AddToQueue, null)
+                                    Text(text = "Add to queue", style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                        }
+                        item {
+                            OutlinedButton(
+                                onClick = onAddToPlaylistClick
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.AutoMirrored.Default.PlaylistAdd, null)
+                                    Text(text = "Add to playlist", style = MaterialTheme.typography.labelMedium)
+                                }
                             }
                         }
                     }
@@ -866,58 +998,12 @@ class PlaylistDetails(
             private const val TITLE_WEIGHT = .45f
             private const val ACTIONS_WEIGHT = .1f
 
-//        @Composable
-//        private fun TracksHeader(modifier: Modifier = Modifier) {
-//            Surface {
-//                Row(
-//                    modifier = modifier,
-//                    horizontalArrangement = Arrangement.Start,
-//                    verticalAlignment = Alignment.CenterVertically
-//                ) {
-//                    Box(modifier = Modifier.fillMaxSize().weight(TITLE_WEIGHT), contentAlignment = Alignment.Center) {
-//                        Text(
-//                            text = "Title",
-//                            style = MaterialTheme.typography.titleMedium,
-//                            maxLines = 1,
-//                            overflow = TextOverflow.Ellipsis
-//                        )
-//                    }
-//                    Spacer(Modifier.width(8.dp))
-//                    Box(modifier = Modifier.fillMaxSize().weight(ALBUM_WEIGHT), contentAlignment = Alignment.Center) {
-//                        Text(
-//                            text = "Album",
-//                            style = MaterialTheme.typography.titleMedium,
-//                            maxLines = 1,
-//                            overflow = TextOverflow.Ellipsis
-//                        )
-//                    }
-//                    Spacer(Modifier.width(8.dp))
-//                    Box(modifier = Modifier.fillMaxSize().weight(ADDED_AT_WEIGHT), contentAlignment = Alignment.Center) {
-//                        Text(
-//                            text = "Date added",
-//                            style = MaterialTheme.typography.titleMedium,
-//                            maxLines = 1,
-//                            overflow = TextOverflow.Ellipsis
-//                        )
-//                    }
-//                    Spacer(Modifier.width(8.dp))
-//                    Box(modifier = Modifier.fillMaxSize().weight(ACTIONS_WEIGHT), contentAlignment = Alignment.Center) {
-//                        Text(
-//                            text = "",
-//                            style = MaterialTheme.typography.titleMedium,
-//                            maxLines = 1,
-//                            overflow = TextOverflow.Ellipsis
-//                        )
-//                    }
-//                }
-//            }
-//        }
-
             @Composable
             private fun TrackItem(
                 modifier: Modifier = Modifier,
                 track: PlaylistDetailsState.Loaded.Track,
-                onTrackClick: () -> Unit,
+                tonalElevation: Dp,
+                onClick: () -> Unit,
                 onArtistClick: (ArtistId) -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onAddToQueueClick: () -> Unit,
@@ -925,75 +1011,101 @@ class PlaylistDetails(
             ) {
                 var showContextMenu by remember { mutableStateOf(false) }
 
-                Row(
-                    modifier = modifier.clickable { onTrackClick() },
-                    horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.CenterVertically
+                Surface(
+                    modifier = modifier,
+                    onClick = onClick,
+                    tonalElevation = tonalElevation
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize().weight(TITLE_WEIGHT),
-                        contentAlignment = Alignment.CenterStart
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalArrangement = Arrangement.Start,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Image(
-                                modifier = Modifier.fillMaxHeight(),
-                                file = track.image,
-                                contentScale = ContentScale.FillHeight
-                            )
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                horizontalAlignment = Alignment.Start,
-                                verticalArrangement = Arrangement.Center
+                            Box(
+                                modifier = Modifier.fillMaxSize().weight(TITLE_WEIGHT),
+                                contentAlignment = Alignment.CenterStart
                             ) {
-                                Text(
-                                    text = track.name,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                LazyRow(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    items(items = track.artists, key = { it.id.value }) { artist ->
-                                        TextButton(
-                                            onClick = { onArtistClick(artist.id) },
-                                            content = {
+                                    Image(
+                                        modifier = Modifier.fillMaxHeight().aspectRatio(1f),
+                                        file = track.image,
+                                        contentScale = ContentScale.Fit
+                                    )
+                                    Column(
+                                        modifier = Modifier.fillMaxHeight().weight(1f),
+                                        horizontalAlignment = Alignment.Start,
+                                        verticalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = track.name,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        if (track.album != null) {
+                                            Surface {
                                                 Row(
                                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    Icon(Icons.Default.Person, null)
+                                                    Icon(Icons.Default.Album, null)
                                                     Text(
-                                                        text = artist.name,
-                                                        style = MaterialTheme.typography.labelMedium
+                                                        text = track.album,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
                                                     )
                                                 }
                                             }
-                                        )
+                                        }
+                                        LazyRow(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            items(items = track.artists, key = { it.id.value }) { artist ->
+                                                TextButton(
+                                                    onClick = { onArtistClick(artist.id) },
+                                                    content = {
+                                                        Row(
+                                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Icon(Icons.Default.Person, null)
+                                                            Text(
+                                                                text = artist.name,
+                                                                style = MaterialTheme.typography.labelMedium
+                                                            )
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
+                            Spacer(Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier.fillMaxSize().weight(ACTIONS_WEIGHT),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                IconButton(
+                                    content = { Icon(Icons.Default.MoreVert, null) },
+                                    onClick = { showContextMenu = true }
+                                )
+                            }
                         }
-                    }
-
-                    Spacer(Modifier.width(8.dp))
-
-                    Box(
-                        modifier = Modifier.fillMaxSize().weight(ACTIONS_WEIGHT),
-                        contentAlignment = Alignment.CenterEnd
-                    ) {
-                        IconButton(
-                            content = { Icon(Icons.Default.MoreVert, null) },
-                            onClick = { showContextMenu = true }
-                        )
+                        HorizontalDivider()
                     }
                 }
-                HorizontalDivider()
 
                 if (showContextMenu) {
                     ItemContextMenu(

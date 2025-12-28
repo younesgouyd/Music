@@ -221,6 +221,7 @@ class NavigationHost(
                         playlistRepo = repoStore.playlistRepo,
                         artistRepo = repoStore.artistRepo,
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
+                        playlistTrackViewRepo = repoStore.playlistTrackViewRepo,
                         folderRepo = repoStore.folderRepo,
                         mediaController = mediaController,
                         mediaFileRepo = repoStore.mediaFileRepo,

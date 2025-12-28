@@ -10,9 +10,7 @@ import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
@@ -49,7 +47,7 @@ class Queue(
                     QueueState.Available(
                         enabled = mediaControllerState.enabled,
                         queue = mediaControllerState.queue,
-                        queueItemIndex = mediaControllerState.queueItemIndex,
+                        currentItem = mediaControllerState.currentItem,
                         scrollState = scrollState,
                         onPlayQueueItem = mediaController::playItem,
                         changeItemIndex = mediaController::changeItemIndex,
@@ -82,7 +80,7 @@ class Queue(
         data class Available(
             val enabled: StateFlow<Boolean>,
             val queue: StateFlow<List<MediaController.MediaControllerState.Available.QueueItem>>,
-            val queueItemIndex: StateFlow<Int>,
+            val currentItem: StateFlow<MediaController.MediaControllerState.Available.QueueItem>,
             val scrollState: LazyListState,
             val onPlayQueueItem: (queueItemIndex: Int) -> Unit,
             val changeItemIndex: (from: Int, to: Int) -> Unit,
@@ -108,10 +106,22 @@ class Queue(
             ) {
                 val enabled by state.enabled.collectAsState()
                 val queue by state.queue.collectAsState()
-                val queueItemIndex by state.queueItemIndex.collectAsState()
+                val currentItem by state.currentItem.collectAsState()
+                var orderedItems by remember { mutableStateOf(queue) }
+                var isDragging by remember { mutableStateOf(false) }
                 val reorderState = rememberReorderableLazyListState(
-                    onMove = { from, to -> state.changeItemIndex(from.index, to.index) },
-                    listState = state.scrollState
+                    onMove = { fromItem, toItem ->
+                        isDragging = true
+                        orderedItems = orderedItems.toMutableList().apply {
+                            add(toItem.index, removeAt(fromItem.index))
+                        }
+                    },
+                    listState = state.scrollState,
+                    canDragOver = { _, _ -> true },
+                    onDragEnd = { from, to ->
+                        isDragging = false
+                        state.changeItemIndex(from, to)
+                    }
                 )
 
                 Surface(
@@ -150,20 +160,20 @@ class Queue(
                             contentPadding = PaddingValues(12.dp)
                         ) {
                             itemsIndexed(
-                                items = queue,
+                                items = orderedItems,
                                 key = { _, item -> item.key.toString() }
                             ) { index: Int, queueItem: MediaController.MediaControllerState.Available.QueueItem ->
                                 ReorderableItem(
                                     modifier = Modifier.fillMaxWidth(),
                                     state = reorderState,
-                                    key = queueItem.key.toString()
+                                    key = queueItem.key.toString(),
+                                    defaultDraggingModifier = Modifier.animateItem()
                                 ) { isDragging ->
                                     val elevation by animateDpAsState(if (isDragging) 16.dp else 0.dp)
                                     TrackItem(
-                                        modifier = Modifier.fillMaxWidth()
-                                            .animateItem(),
+                                        modifier = Modifier.fillMaxWidth(),
                                         item = queueItem,
-                                        isPlaying = queueItemIndex == index,
+                                        isPlaying = currentItem.key == queueItem.key,
                                         enabled = enabled,
                                         tonalElevation = elevation,
                                         onClick = { state.onPlayQueueItem(index) }
@@ -171,6 +181,12 @@ class Queue(
                                 }
                             }
                         }
+                    }
+                }
+
+                LaunchedEffect(queue) {
+                    if (!isDragging) {
+                        orderedItems = queue
                     }
                 }
             }
@@ -230,10 +246,22 @@ class Queue(
             ) {
                 val enabled by state.enabled.collectAsState()
                 val queue by state.queue.collectAsState()
-                val queueItemIndex by state.queueItemIndex.collectAsState()
+                val currentItem by state.currentItem.collectAsState()
+                var orderedItems by remember { mutableStateOf(queue) }
+                var isDragging by remember { mutableStateOf(false) }
                 val reorderState = rememberReorderableLazyListState(
-                    onMove = { from, to -> state.changeItemIndex(from.index, to.index) },
-                    listState = state.scrollState
+                    onMove = { fromItem, toItem ->
+                        isDragging = true
+                        orderedItems = orderedItems.toMutableList().apply {
+                            add(toItem.index, removeAt(fromItem.index))
+                        }
+                    },
+                    listState = state.scrollState,
+                    canDragOver = { _, _ -> true },
+                    onDragEnd = { from, to ->
+                        isDragging = false
+                        state.changeItemIndex(from, to)
+                    }
                 )
 
                 Surface(
@@ -273,20 +301,20 @@ class Queue(
                             contentPadding = PaddingValues(12.dp)
                         ) {
                             itemsIndexed(
-                                items = queue,
+                                items = orderedItems,
                                 key = { _, item -> item.key.toString() }
                             ) { index: Int, queueItem: MediaController.MediaControllerState.Available.QueueItem ->
                                 ReorderableItem(
                                     modifier = Modifier.fillMaxWidth(),
                                     state = reorderState,
-                                    key = queueItem.key.toString()
+                                    key = queueItem.key.toString(),
+                                    defaultDraggingModifier = Modifier.animateItem()
                                 ) { isDragging ->
                                     val elevation by animateDpAsState(if (isDragging) 16.dp else 0.dp)
                                     TrackItem(
-                                        modifier = Modifier.fillMaxWidth()
-                                            .animateItem(),
+                                        modifier = Modifier.fillMaxWidth(),
                                         item = queueItem,
-                                        isPlaying = queueItemIndex == index,
+                                        isPlaying = currentItem.key == queueItem.key,
                                         enabled = enabled,
                                         tonalElevation = elevation,
                                         onClick = { state.onPlayQueueItem(index) }
@@ -299,6 +327,12 @@ class Queue(
                             onClick = state.onCloseClick,
                             content = { Icon(Icons.Default.Close, null) }
                         )
+                    }
+                }
+
+                LaunchedEffect(queue) {
+                    if (!isDragging) {
+                        orderedItems = queue
                     }
                 }
             }

@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.measureTime
@@ -307,18 +309,15 @@ class MediaController(
                     }
                 }
                 currentItemIndex.update { currentIndex ->
-                    val playingItemIsNotInvolved = currentIndex != oldIndex && currentIndex != newIndex
-                    if (playingItemIsNotInvolved) {
-                        currentIndex
+                    if (currentIndex == oldIndex) {
+                        newIndex
                     } else {
-                        if (currentIndex == oldIndex) { // dragged item is the one playing
-                            newIndex
-                        } else { // dragged item was placed at the index of playing item
-                            if (oldIndex < newIndex) {
-                                currentIndex - 1
-                            } else {
-                                currentIndex + 1
-                            }
+                        if (currentIndex in min(oldIndex, newIndex)..max(oldIndex, newIndex)) {
+                            if (oldIndex < newIndex) currentIndex - 1
+                            else if (oldIndex > newIndex) currentIndex + 1
+                            else currentIndex
+                        } else {
+                            currentIndex
                         }
                     }
                 }
@@ -387,14 +386,13 @@ class MediaController(
     }
 
     private fun List<MediaControllerState.Available.QueueItem>.setKeys() {
-        val time = measureTime {
+        measureTime {
             this.mapIndexed { index, item ->
                 if (item.key == null) {
                     item.key = index
                 }
             }
         }
-        println("::setKeys | took: $time")
     }
 
     fun release() {

@@ -23,6 +23,9 @@ import dev.younesgouyd.apps.music.client.data.room.entities.*
         Tag::class,
         TagTrackCrossRef::class
     ],
+    views = [
+        PlaylistTrackView::class
+    ],
     version = 1
 )
 @TypeConverters(Converters::class)
@@ -46,6 +49,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun mediaFileImportSessionCrossRefDao(): MediaFileImportSessionCrossRefDao
     abstract fun tagDao(): TagDao
     abstract fun tagTrackCrossRefDao(): TagTrackCrossRefDao
+    abstract fun playlistTrackViewDao(): PlaylistTrackViewDao
 }
 
 @Suppress("NO_ACTUAL_FOR_EXPECT")

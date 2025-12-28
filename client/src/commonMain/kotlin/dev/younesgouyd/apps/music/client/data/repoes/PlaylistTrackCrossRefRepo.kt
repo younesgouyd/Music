@@ -13,9 +13,16 @@ class PlaylistTrackCrossRefRepo(
         return dao.getAll()
     }
 
+    fun get(
+        playlistId: PlaylistId,
+        trackId: TrackId
+    ): Flow<PlaylistTrackCrossRef?> {
+        return dao.get(playlistId, trackId)
+    }
+
     suspend fun add(playlistId: PlaylistId, trackId: TrackId) {
         val currentTime = System.currentTimeMillis()
-        dao.add(
+        dao.addWithAutoPosition(
             playlistId = playlistId,
             trackId = trackId,
             creationDatetime = currentTime,
@@ -23,11 +30,9 @@ class PlaylistTrackCrossRefRepo(
         )
     }
 
-    fun get(
-        playlistId: PlaylistId,
-        trackId: TrackId
-    ): Flow<PlaylistTrackCrossRef?> {
-        return dao.get(playlistId, trackId)
+    suspend fun changeItemPosition(playlistId: PlaylistId, from: Int, to: Int) {
+        if (from == to) return
+        dao.changeItemPosition(playlistId, from, to)
     }
 
     suspend fun delete(playlistId: PlaylistId, trackId: TrackId) {
