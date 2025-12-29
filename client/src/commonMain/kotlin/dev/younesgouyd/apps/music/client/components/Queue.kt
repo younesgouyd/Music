@@ -2,13 +2,12 @@ package dev.younesgouyd.apps.music.client.components
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +18,7 @@ import dev.younesgouyd.apps.music.client.MediaController
 import dev.younesgouyd.apps.music.client.Platform
 import dev.younesgouyd.apps.music.client.components.util.AdaptiveUi
 import dev.younesgouyd.apps.music.client.components.util.Image
+import dev.younesgouyd.apps.music.client.data.ArtistId
 import dev.younesgouyd.apps.music.client.platform
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -31,7 +31,8 @@ import org.burnoutcrew.reorderable.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class Queue(
-    private val mediaController: MediaController,
+    mediaController: MediaController,
+    showArtist: (ArtistId) -> Unit,
     close: () -> Unit
 ) : Component() {
     override val title: String = "Queue"
@@ -51,6 +52,8 @@ class Queue(
                         scrollState = scrollState,
                         onPlayQueueItem = mediaController::playItem,
                         changeItemIndex = mediaController::changeItemIndex,
+                        onArtistClick = showArtist,
+                        onRemoveFromQueueClick = mediaController::removeItem,
                         onCloseClick = close
                     )
                 }
@@ -84,11 +87,84 @@ class Queue(
             val scrollState: LazyListState,
             val onPlayQueueItem: (queueItemIndex: Int) -> Unit,
             val changeItemIndex: (from: Int, to: Int) -> Unit,
+            val onArtistClick: (ArtistId) -> Unit,
+            val onRemoveFromQueueClick: (key: Int) -> Unit,
             val onCloseClick: () -> Unit
         ) : QueueState()
     }
 
     private object Ui {
+        @Composable
+        private fun QueueItem(
+            modifier: Modifier = Modifier,
+            item: MediaController.MediaControllerState.Available.QueueItem,
+            isPlaying: Boolean,
+            enabled: Boolean,
+            tonalElevation: Dp,
+            onClick: () -> Unit,
+            onArtistClick: (ArtistId) -> Unit,
+            onRemoveClick: () -> Unit
+        ) {
+            Surface(
+                modifier = modifier.fillMaxWidth().height(100.dp),
+                enabled = enabled,
+                shape = MaterialTheme.shapes.large,
+                color = if (isPlaying) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = tonalElevation,
+                onClick = onClick
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Image(
+                        modifier = Modifier.fillMaxHeight().aspectRatio(1f),
+                        file = item.image
+                    )
+                    Column(
+                        modifier = Modifier.fillMaxHeight().weight(1f),
+                        horizontalAlignment = Alignment.Start,
+                        verticalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Text(
+                            text = item.name,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            items(items = item.artists, key = { it.id.value }) { artist ->
+                                TextButton(
+                                    onClick = { onArtistClick(artist.id) },
+                                    content = {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.Person, null)
+                                            Text(
+                                                text = artist.name,
+                                                style = MaterialTheme.typography.bodyMedium
+                                            )
+                                        }
+                                    },
+                                    enabled = enabled
+                                )
+                            }
+                        }
+                    }
+                    IconButton(
+                        onClick = onRemoveClick,
+                        content = { Icon(Icons.Default.Remove, null) },
+                        enabled = enabled
+                    )
+                }
+            }
+        }
+
         object Wide {
             @Composable
             fun Main(modifier: Modifier = Modifier, state: QueueState) {
@@ -117,7 +193,7 @@ class Queue(
                         }
                     },
                     listState = state.scrollState,
-                    canDragOver = { _, _ -> true },
+                    canDragOver = { _, _ -> enabled },
                     onDragEnd = { from, to ->
                         isDragging = false
                         state.changeItemIndex(from, to)
@@ -170,13 +246,15 @@ class Queue(
                                     defaultDraggingModifier = Modifier.animateItem()
                                 ) { isDragging ->
                                     val elevation by animateDpAsState(if (isDragging) 16.dp else 0.dp)
-                                    TrackItem(
+                                    QueueItem(
                                         modifier = Modifier.fillMaxWidth(),
                                         item = queueItem,
                                         isPlaying = currentItem.key == queueItem.key,
                                         enabled = enabled,
                                         tonalElevation = elevation,
-                                        onClick = { state.onPlayQueueItem(index) }
+                                        onClick = { state.onPlayQueueItem(index) },
+                                        onArtistClick = state.onArtistClick,
+                                        onRemoveClick = { state.onRemoveFromQueueClick(queueItem.key!!) }
                                     )
                                 }
                             }
@@ -187,43 +265,6 @@ class Queue(
                 LaunchedEffect(queue) {
                     if (!isDragging) {
                         orderedItems = queue
-                    }
-                }
-            }
-
-            @Composable
-            private fun TrackItem(
-                modifier: Modifier = Modifier,
-                item: MediaController.MediaControllerState.Available.QueueItem,
-                isPlaying: Boolean,
-                enabled: Boolean,
-                tonalElevation: Dp,
-                onClick: () -> Unit
-            ) {
-                Surface(
-                    modifier = modifier,
-                    enabled = enabled,
-                    shape = MaterialTheme.shapes.large,
-                    color = if (isPlaying) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    tonalElevation = tonalElevation,
-                    onClick = onClick
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(Modifier)
-                        Icon(Icons.Default.Audiotrack, null)
-                        Image(
-                            modifier = Modifier.size(80.dp),
-                            file = item.image
-                        )
-                        Text(
-                            modifier = Modifier.weight(1f),
-                            text = if (item.artists.isEmpty()) item.name else "${item.artists.first().name} - ${item.name}",
-                            style = MaterialTheme.typography.titleMedium
-                        )
                     }
                 }
             }
@@ -257,7 +298,7 @@ class Queue(
                         }
                     },
                     listState = state.scrollState,
-                    canDragOver = { _, _ -> true },
+                    canDragOver = { _, _ -> enabled },
                     onDragEnd = { from, to ->
                         isDragging = false
                         state.changeItemIndex(from, to)
@@ -311,13 +352,15 @@ class Queue(
                                     defaultDraggingModifier = Modifier.animateItem()
                                 ) { isDragging ->
                                     val elevation by animateDpAsState(if (isDragging) 16.dp else 0.dp)
-                                    TrackItem(
-                                        modifier = Modifier.fillMaxWidth(),
+                                    QueueItem(
+                                        modifier = Modifier.fillMaxWidth().height(100.dp),
                                         item = queueItem,
                                         isPlaying = currentItem.key == queueItem.key,
                                         enabled = enabled,
                                         tonalElevation = elevation,
-                                        onClick = { state.onPlayQueueItem(index) }
+                                        onClick = { state.onPlayQueueItem(index) },
+                                        onArtistClick = state.onArtistClick,
+                                        onRemoveClick = { state.onRemoveFromQueueClick(queueItem.key!!) }
                                     )
                                 }
                             }
@@ -333,43 +376,6 @@ class Queue(
                 LaunchedEffect(queue) {
                     if (!isDragging) {
                         orderedItems = queue
-                    }
-                }
-            }
-
-            @Composable
-            private fun TrackItem(
-                modifier: Modifier = Modifier,
-                item: MediaController.MediaControllerState.Available.QueueItem,
-                isPlaying: Boolean,
-                enabled: Boolean,
-                tonalElevation: Dp,
-                onClick: () -> Unit
-            ) {
-                Surface(
-                    modifier = modifier,
-                    enabled = enabled,
-                    shape = MaterialTheme.shapes.large,
-                    color = if (isPlaying) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    tonalElevation = tonalElevation,
-                    onClick = onClick
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(Modifier)
-                        Icon(Icons.Default.Audiotrack, null)
-                        Image(
-                            modifier = Modifier.size(80.dp),
-                            file = item.image
-                        )
-                        Text(
-                            modifier = Modifier.weight(1f),
-                            text = if (item.artists.isEmpty()) item.name else "${item.artists.first().name} - ${item.name}",
-                            style = MaterialTheme.typography.titleMedium
-                        )
                     }
                 }
             }

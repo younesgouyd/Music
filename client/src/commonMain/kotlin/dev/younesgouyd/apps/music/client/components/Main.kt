@@ -100,6 +100,11 @@ class Main(
     )
     private val queue: Component = Queue(
         mediaController = mediaController,
+        showArtist = {
+            mainComponent.value = navigationHost
+            navigationHost.navigateTo(NavigationHost.Destination.ArtistDetails(it))
+            mainComponentType.value = MainComponentType.Content
+        },
         close = { mainComponentType.value = MainComponentType.Player }
     )
 

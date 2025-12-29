@@ -326,6 +326,54 @@ class MediaController(
         }
     }
 
+    fun removeItem(key: Int) {
+        coroutineScope.launch {
+            mutex.withLock {
+                this@MediaController.enabled.value = false
+                val currentState = _state.value
+                if (currentState is MediaControllerState.Unavailable || currentState is MediaControllerState.Loading) TODO()
+                val toBeRemoved = queue.value.indexOfFirst { it.key == key }
+                queue.update { queue ->
+                    queue.toMutableList().apply {
+                        removeAt(toBeRemoved)
+                    }
+                }
+                currentItemIndex.update { current ->
+                    if (toBeRemoved < current) current - 1
+                    else if (toBeRemoved > current) current
+                    else {
+                        tryPlayFrom(toBeRemoved)
+                        current
+                    }
+                }
+                this@MediaController.enabled.value = true
+            }
+        }
+    }
+
+    private suspend fun tryPlayFrom(index: Int) {
+        withContext(Dispatchers.Default) {
+            timePositionChange.value = 0.milliseconds
+            val wasPlaying = isPlaying.value
+            if (wasPlaying) {
+                mediaPlayer.stop()
+                isPlaying.value = false
+            }
+            val queue = queue.value
+            for (i in index ..< queue.size) {
+                val uri = queue[i].uri
+                if (uri != null) {
+                    mediaPlayer.setMedia(uri)
+                    if (wasPlaying) {
+                        mediaPlayer.play()
+                        isPlaying.value = true
+                    }
+                    break
+                }
+            }
+        }
+    }
+
     private suspend fun QueueItemParameter.toModel(): List<MediaControllerState.Available.QueueItem> {
         return when (this) {
             is QueueItemParameter.Track -> trackRepo.get(this.id).first().let { dbTrack ->

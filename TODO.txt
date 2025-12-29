@@ -1,4 +1,8 @@
 
+- improve queue
+    - support scrolling to the current selected item for playing.
+    - support scroll to top and scroll to bottom.
+    - implement mini queue to be displayed in the player.
 - check why when trying to launch system file picker on an old android os (android 10 if I remember), the app crashes
 - support reordering items in Playlist
 - support get(id) returning null
@@ -18,6 +22,9 @@
 - verify not null assertions (!!)
 
 done:
+- improve queue (remove music icon on the left)
+- improve queue (support clickable artist name)
+- improve queue (support removing items)
 - implement track details screen (tags, imports, artists, album... etc)
 - refactor Library component
 - implement tags

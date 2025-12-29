@@ -587,11 +587,10 @@ class PlaylistDetails(
                                 ) {
                                     Image(
                                         modifier = Modifier.fillMaxHeight().aspectRatio(1f),
-                                        file = track.image,
-                                        contentScale = ContentScale.Fit
+                                        file = track.image
                                     )
                                     Column(
-                                        modifier = Modifier.weight(1f),
+                                        modifier = Modifier.fillMaxHeight().weight(1f),
                                         horizontalAlignment = Alignment.Start,
                                         verticalArrangement = Arrangement.Center
                                     ) {
@@ -1036,8 +1035,7 @@ class PlaylistDetails(
                                 ) {
                                     Image(
                                         modifier = Modifier.fillMaxHeight().aspectRatio(1f),
-                                        file = track.image,
-                                        contentScale = ContentScale.Fit
+                                        file = track.image
                                     )
                                     Column(
                                         modifier = Modifier.fillMaxHeight().weight(1f),
