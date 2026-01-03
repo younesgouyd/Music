@@ -16,7 +16,6 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.measureTime
 
 class MediaController(
     private val mediaPlayer: MediaPlayer,
@@ -434,11 +433,9 @@ class MediaController(
     }
 
     private fun List<MediaControllerState.Available.QueueItem>.setKeys() {
-        measureTime {
-            this.mapIndexed { index, item ->
-                if (item.key == null) {
-                    item.key = index
-                }
+        this.forEachIndexed { index, item ->
+            if (item.key == null) {
+                item.key = index
             }
         }
     }

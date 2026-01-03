@@ -5,9 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,10 +21,8 @@ import dev.younesgouyd.apps.music.client.platform
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.mapLatest
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import org.burnoutcrew.reorderable.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -39,7 +35,8 @@ class Queue(
     private val state: StateFlow<QueueState>
 
     init {
-        var scrollState = LazyListState()
+        val listState = LazyListState()
+        val enableAutoScrollingToCurrentItem = MutableStateFlow(true)
         state = mediaController.state.mapLatest { mediaControllerState ->
             when (mediaControllerState) {
                 is MediaController.MediaControllerState.Unavailable -> QueueState.Unavailable
@@ -49,7 +46,10 @@ class Queue(
                         enabled = mediaControllerState.enabled,
                         queue = mediaControllerState.queue,
                         currentItem = mediaControllerState.currentItem,
-                        scrollState = scrollState,
+                        currentItemIndex = mediaControllerState.queueItemIndex,
+                        listState = listState,
+                        enableAutoScrollingToCurrentItem = enableAutoScrollingToCurrentItem.asStateFlow(),
+                        onEnableAutoScrollingToCurrentItemChange = { enableAutoScrollingToCurrentItem.value = it },
                         onPlayQueueItem = mediaController::playItem,
                         changeItemIndex = mediaController::changeItemIndex,
                         onArtistClick = showArtist,
@@ -65,10 +65,7 @@ class Queue(
     override fun show(modifier: Modifier) {
         val state by state.collectAsState()
 
-        AdaptiveUi(
-            wide = { Ui.Wide.Main(modifier = modifier, state = state) },
-            compact = { Ui.Compact.Main(modifier = modifier, state = state) }
-        )
+        Ui.Main(modifier = modifier, state = state)
     }
 
     override fun clear() {
@@ -84,7 +81,10 @@ class Queue(
             val enabled: StateFlow<Boolean>,
             val queue: StateFlow<List<MediaController.MediaControllerState.Available.QueueItem>>,
             val currentItem: StateFlow<MediaController.MediaControllerState.Available.QueueItem>,
-            val scrollState: LazyListState,
+            val currentItemIndex: StateFlow<Int>,
+            val listState: LazyListState,
+            val enableAutoScrollingToCurrentItem: StateFlow<Boolean>,
+            val onEnableAutoScrollingToCurrentItemChange: (Boolean) -> Unit,
             val onPlayQueueItem: (queueItemIndex: Int) -> Unit,
             val changeItemIndex: (from: Int, to: Int) -> Unit,
             val onArtistClick: (ArtistId) -> Unit,
@@ -94,6 +94,181 @@ class Queue(
     }
 
     private object Ui {
+        @Composable
+        fun Main(modifier: Modifier = Modifier, state: QueueState) {
+            when (state) {
+                is QueueState.Loading -> Unit
+                is QueueState.Unavailable -> Unit
+                is QueueState.Available -> Main(modifier = modifier, state = state)
+            }
+        }
+
+        @Composable
+        private fun Main(
+            modifier: Modifier = Modifier,
+            state: QueueState.Available
+        ) {
+            val enabled by state.enabled.collectAsState()
+            val queue by state.queue.collectAsState()
+            val currentItem by state.currentItem.collectAsState()
+            val currentItemIndex by state.currentItemIndex.collectAsState()
+            val enableAutoScrollingToCurrentItem by state.enableAutoScrollingToCurrentItem.collectAsState()
+            var orderedItems by remember { mutableStateOf(queue) }
+            var programmaticScrolling by remember { mutableStateOf(false) }
+            var isDragging by remember { mutableStateOf(false) }
+            val disableAutoScrollingToPlayingItem by remember {
+                derivedStateOf { isDragging || (state.listState.isScrollInProgress && !programmaticScrolling) }
+            }
+            var dragged by remember { mutableStateOf(false) }
+            val reorderState = rememberReorderableLazyListState(
+                onMove = { fromItem, toItem ->
+                    isDragging = true
+                    orderedItems = orderedItems.toMutableList().apply {
+                        add(toItem.index, removeAt(fromItem.index))
+                    }
+                },
+                listState = state.listState,
+                canDragOver = { _, _ -> enabled },
+                onDragEnd = { from, to ->
+                    isDragging = false
+                    dragged = true
+                    state.changeItemIndex(from, to)
+                }
+            )
+            val scope = rememberCoroutineScope()
+
+            Surface(
+                modifier = modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.AutoMirrored.Default.QueueMusic, null)
+                        Text(
+                            text = "Queue",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth()
+                            .weight(1f)
+                            .reorderable(reorderState)
+                            .then(
+                                when (platform) {
+                                    Platform.ANDROID -> Modifier.detectReorderAfterLongPress(reorderState)
+                                    Platform.JVM -> Modifier.detectReorder(reorderState)
+                                }
+                            ),
+                        state = state.listState,
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        itemsIndexed(
+                            items = orderedItems,
+                            key = { _, item -> item.key.toString() }
+                        ) { index: Int, queueItem: MediaController.MediaControllerState.Available.QueueItem ->
+                            ReorderableItem(
+                                modifier = Modifier.fillMaxWidth(),
+                                state = reorderState,
+                                key = queueItem.key.toString(),
+                                defaultDraggingModifier = Modifier.animateItem()
+                            ) { isDragging ->
+                                val elevation by animateDpAsState(if (isDragging) 16.dp else 0.dp)
+                                QueueItem(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    item = queueItem,
+                                    isPlaying = currentItem.key == queueItem.key,
+                                    enabled = enabled,
+                                    tonalElevation = elevation,
+                                    onClick = { state.onPlayQueueItem(index) },
+                                    onArtistClick = state.onArtistClick,
+                                    onRemoveClick = { state.onRemoveFromQueueClick(queueItem.key!!) }
+                                )
+                            }
+                        }
+                    }
+                    Surface(
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    scope.launch { state.listState.animateScrollToItem(0) }
+                                },
+                                content = { Icon(Icons.Default.KeyboardDoubleArrowUp, null) }
+                            )
+                            IconButton(
+                                onClick = {
+                                    scope.launch { state.listState.animateScrollToItem(state.listState.layoutInfo.totalItemsCount-1) }
+                                },
+                                content = { Icon(Icons.Default.KeyboardDoubleArrowDown, null) }
+                            )
+                            FilledIconToggleButton(
+                                checked = enableAutoScrollingToCurrentItem,
+                                onCheckedChange = { state.onEnableAutoScrollingToCurrentItemChange(it) }
+                            ) {
+                                Icon(
+                                    imageVector = if (enableAutoScrollingToCurrentItem) Icons.Default.Lock else Icons.Default.LockOpen,
+                                    contentDescription = null
+                                )
+                            }
+                        }
+                    }
+                    AdaptiveUi(
+                        wide = {},
+                        compact = {
+                            IconButton(
+                                modifier = Modifier.fillMaxWidth(),
+                                onClick = state.onCloseClick,
+                                content = { Icon(Icons.Default.Close, null) }
+                            )
+                        }
+                    )
+                }
+            }
+
+            LaunchedEffect(queue) {
+                if (!isDragging) {
+                    orderedItems = queue
+                }
+            }
+
+            LaunchedEffect(enableAutoScrollingToCurrentItem, currentItemIndex, isDragging, orderedItems) {
+                if (enableAutoScrollingToCurrentItem && !isDragging && !dragged && orderedItems.isNotEmpty()) {
+                    val index = currentItemIndex
+                    if (index in orderedItems.indices) {
+                        programmaticScrolling = true
+                        state.listState.animateScrollToItem(index)
+                        programmaticScrolling = false
+                    }
+                }
+                dragged = false
+            }
+
+            LaunchedEffect(disableAutoScrollingToPlayingItem) {
+                if (disableAutoScrollingToPlayingItem) {
+                    state.onEnableAutoScrollingToCurrentItemChange(false)
+                }
+            }
+        }
+
         @Composable
         private fun QueueItem(
             modifier: Modifier = Modifier,
@@ -161,222 +336,6 @@ class Queue(
                         content = { Icon(Icons.Default.Remove, null) },
                         enabled = enabled
                     )
-                }
-            }
-        }
-
-        object Wide {
-            @Composable
-            fun Main(modifier: Modifier = Modifier, state: QueueState) {
-                when (state) {
-                    is QueueState.Loading -> Unit
-                    is QueueState.Unavailable -> Unit
-                    is QueueState.Available -> Main(modifier = modifier, state = state)
-                }
-            }
-
-            @Composable
-            private fun Main(
-                modifier: Modifier = Modifier,
-                state: QueueState.Available
-            ) {
-                val enabled by state.enabled.collectAsState()
-                val queue by state.queue.collectAsState()
-                val currentItem by state.currentItem.collectAsState()
-                var orderedItems by remember { mutableStateOf(queue) }
-                var isDragging by remember { mutableStateOf(false) }
-                val reorderState = rememberReorderableLazyListState(
-                    onMove = { fromItem, toItem ->
-                        isDragging = true
-                        orderedItems = orderedItems.toMutableList().apply {
-                            add(toItem.index, removeAt(fromItem.index))
-                        }
-                    },
-                    listState = state.scrollState,
-                    canDragOver = { _, _ -> enabled },
-                    onDragEnd = { from, to ->
-                        isDragging = false
-                        state.changeItemIndex(from, to)
-                    }
-                )
-
-                Surface(
-                    modifier = modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.AutoMirrored.Default.QueueMusic, null)
-                            Text(
-                                text = "Queue",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                        }
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize()
-                                .reorderable(reorderState)
-                                .then(
-                                    when (platform) {
-                                        Platform.ANDROID -> Modifier.detectReorderAfterLongPress(reorderState)
-                                        Platform.JVM -> Modifier.detectReorder(reorderState)
-                                    }
-                                ),
-                            state = state.scrollState,
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            contentPadding = PaddingValues(12.dp)
-                        ) {
-                            itemsIndexed(
-                                items = orderedItems,
-                                key = { _, item -> item.key.toString() }
-                            ) { index: Int, queueItem: MediaController.MediaControllerState.Available.QueueItem ->
-                                ReorderableItem(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    state = reorderState,
-                                    key = queueItem.key.toString(),
-                                    defaultDraggingModifier = Modifier.animateItem()
-                                ) { isDragging ->
-                                    val elevation by animateDpAsState(if (isDragging) 16.dp else 0.dp)
-                                    QueueItem(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        item = queueItem,
-                                        isPlaying = currentItem.key == queueItem.key,
-                                        enabled = enabled,
-                                        tonalElevation = elevation,
-                                        onClick = { state.onPlayQueueItem(index) },
-                                        onArtistClick = state.onArtistClick,
-                                        onRemoveClick = { state.onRemoveFromQueueClick(queueItem.key!!) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                LaunchedEffect(queue) {
-                    if (!isDragging) {
-                        orderedItems = queue
-                    }
-                }
-            }
-        }
-
-        object Compact {
-            @Composable
-            fun Main(modifier: Modifier = Modifier, state: QueueState) {
-                when (state) {
-                    is QueueState.Loading -> Unit
-                    is QueueState.Unavailable -> Unit
-                    is QueueState.Available -> Main(modifier = modifier, state = state)
-                }
-            }
-
-            @Composable
-            private fun Main(
-                modifier: Modifier = Modifier,
-                state: QueueState.Available
-            ) {
-                val enabled by state.enabled.collectAsState()
-                val queue by state.queue.collectAsState()
-                val currentItem by state.currentItem.collectAsState()
-                var orderedItems by remember { mutableStateOf(queue) }
-                var isDragging by remember { mutableStateOf(false) }
-                val reorderState = rememberReorderableLazyListState(
-                    onMove = { fromItem, toItem ->
-                        isDragging = true
-                        orderedItems = orderedItems.toMutableList().apply {
-                            add(toItem.index, removeAt(fromItem.index))
-                        }
-                    },
-                    listState = state.scrollState,
-                    canDragOver = { _, _ -> enabled },
-                    onDragEnd = { from, to ->
-                        isDragging = false
-                        state.changeItemIndex(from, to)
-                    }
-                )
-
-                Surface(
-                    modifier = modifier,
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.AutoMirrored.Default.QueueMusic, null)
-                            Text(
-                                text = "Queue",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                        }
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize()
-                                .weight(1f)
-                                .reorderable(reorderState)
-                                .then(
-                                    when (platform) {
-                                        Platform.ANDROID -> Modifier.detectReorderAfterLongPress(reorderState)
-                                        Platform.JVM -> Modifier.detectReorder(reorderState)
-                                    }
-                                ),
-                            state = state.scrollState,
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            contentPadding = PaddingValues(12.dp)
-                        ) {
-                            itemsIndexed(
-                                items = orderedItems,
-                                key = { _, item -> item.key.toString() }
-                            ) { index: Int, queueItem: MediaController.MediaControllerState.Available.QueueItem ->
-                                ReorderableItem(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    state = reorderState,
-                                    key = queueItem.key.toString(),
-                                    defaultDraggingModifier = Modifier.animateItem()
-                                ) { isDragging ->
-                                    val elevation by animateDpAsState(if (isDragging) 16.dp else 0.dp)
-                                    QueueItem(
-                                        modifier = Modifier.fillMaxWidth().height(100.dp),
-                                        item = queueItem,
-                                        isPlaying = currentItem.key == queueItem.key,
-                                        enabled = enabled,
-                                        tonalElevation = elevation,
-                                        onClick = { state.onPlayQueueItem(index) },
-                                        onArtistClick = state.onArtistClick,
-                                        onRemoveClick = { state.onRemoveFromQueueClick(queueItem.key!!) }
-                                    )
-                                }
-                            }
-                        }
-                        IconButton(
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = state.onCloseClick,
-                            content = { Icon(Icons.Default.Close, null) }
-                        )
-                    }
-                }
-
-                LaunchedEffect(queue) {
-                    if (!isDragging) {
-                        orderedItems = queue
-                    }
                 }
             }
         }

@@ -1,12 +1,11 @@
-
-- improve queue
-    - support scrolling to the current selected item for playing.
-    - support scroll to top and scroll to bottom.
-    - implement mini queue to be displayed in the player.
+- in playlists, show and play items by the custom order
+- in media controller, play playlists by the custom order
+- improve Player:
+    - fix ui
+    - refactor to support showing: album art, queue, lyrics, track info...etc. maybe with tabs.
 - check why when trying to launch system file picker on an old android os (android 10 if I remember), the app crashes
 - support reordering items in Playlist
 - support get(id) returning null
-- fix player ui
 - verify SaveAudioFileAsTrackUseCase logic
 - support showing the destination folder from import session
 - update date and creation date in daos
@@ -22,6 +21,8 @@
 - verify not null assertions (!!)
 
 done:
+- improve queue (support scrolling to the current selected item for playing)
+- improve queue (support scroll to top and scroll to bottom)
 - improve queue (remove music icon on the left)
 - improve queue (support clickable artist name)
 - improve queue (support removing items)
