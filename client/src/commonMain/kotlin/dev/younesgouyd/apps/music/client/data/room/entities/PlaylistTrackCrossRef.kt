@@ -178,13 +178,15 @@ interface PlaylistTrackCrossRefDao {
 
 @Dao
 interface PlaylistTrackViewDao {
+    @Query("select * from playlist_track_view where playlistId = :id")
+    fun get(id: PlaylistId): Flow<List<PlaylistTrackView>>
+
     @Query(
         """
         select *
         from playlist_track_view
         where playlistId = :id
         and name like :nameQuery
-        order by position
     """
     )
     fun search(id: PlaylistId, nameQuery: String): Flow<List<PlaylistTrackView>>

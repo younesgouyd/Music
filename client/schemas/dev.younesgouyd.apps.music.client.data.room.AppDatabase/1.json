@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "9b5e7719485924e69427645a5ac77263",
+    "identityHash": "4bdcee48fe2a217736d425493f95aea2",
     "entities": [
       {
         "tableName": "Artist",
@@ -1154,12 +1154,12 @@
     "views": [
       {
         "viewName": "playlist_track_view",
-        "createSql": "CREATE VIEW `${VIEW_NAME}` AS select\n            cr.id as playlistTrackCrossRefId,\n            cr.playlistId,\n            cr.trackId,\n            cr.position,\n            t.name,\n            t.album\n        from track t\n        join playlisttrackcrossref cr on cr.trackId = t.id"
+        "createSql": "CREATE VIEW `${VIEW_NAME}` AS select\n            cr.id as playlistTrackCrossRefId,\n            cr.playlistId,\n            cr.trackId,\n            cr.position,\n            t.name,\n            t.album,\n            t.durationMillis\n        from track t\n        join playlisttrackcrossref cr on cr.trackId = t.id\n        order by cr.position"
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9b5e7719485924e69427645a5ac77263')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4bdcee48fe2a217736d425493f95aea2')"
     ]
   }
 }

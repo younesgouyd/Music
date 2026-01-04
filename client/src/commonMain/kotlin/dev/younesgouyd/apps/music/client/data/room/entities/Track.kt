@@ -166,6 +166,7 @@ interface TrackDao {
         from track t
         join playlisttrackcrossref cr on cr.trackId = t.id
         where cr.playlistId = :playlistId
+        order by cr.position
     """
     )
     fun getPlaylistTracks(playlistId: PlaylistId): Flow<List<Track>>

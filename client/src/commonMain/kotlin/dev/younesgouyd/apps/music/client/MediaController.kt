@@ -6,6 +6,7 @@ import dev.younesgouyd.apps.music.client.data.RepoStore
 import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.client.data.repoes.ArtistRepo
 import dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo
+import dev.younesgouyd.apps.music.client.data.repoes.PlaylistTrackViewRepo
 import dev.younesgouyd.apps.music.client.data.repoes.TrackRepo
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -30,12 +31,12 @@ class MediaController(
     private val currentItemIndex: MutableStateFlow<Int> = MutableStateFlow(0)
     private val timePositionChange: MutableStateFlow<Duration> = MutableStateFlow(0.milliseconds)
     private val isPlaying: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    private val repeatState: MutableStateFlow<MediaControllerState.Available.RepeatState> =
-        MutableStateFlow(MediaControllerState.Available.RepeatState.Off)
+    private val repeatState: MutableStateFlow<MediaControllerState.Available.RepeatState> = MutableStateFlow(MediaControllerState.Available.RepeatState.Off)
     private val _state: MutableStateFlow<MediaControllerState> = MutableStateFlow(MediaControllerState.Unavailable)
 
     private val mediaFileRepo: MediaFileRepo get() = repoStore.mediaFileRepo
     private val trackRepo: TrackRepo get() = repoStore.trackRepo
+    private val playlistTrackViewRepo: PlaylistTrackViewRepo get() = repoStore.playlistTrackViewRepo
     private val artistRepo: ArtistRepo get() = repoStore.artistRepo
 
     val state: StateFlow<MediaControllerState> get() = _state.asStateFlow()
@@ -60,7 +61,58 @@ class MediaController(
                 }
 
                 override fun onFinished() {
-                    next()
+                    coroutineScope.launch {
+                        mutex.withLock {
+                            enabled.value = false
+                            when (repeatState.value) {
+                                MediaControllerState.Available.RepeatState.Off -> {
+                                    val currentState = _state.value
+                                    if (currentState is MediaControllerState.Unavailable || currentState is MediaControllerState.Loading) TODO()
+                                    if (queue.value.isEmpty()) { TODO() }
+                                    val wasPlaying = isPlaying.value
+                                    if (wasPlaying) { mediaPlayer.stop() }
+                                    isPlaying.value = false
+                                    timePositionChange.value = 0.milliseconds
+                                    val queue = queue.value
+                                    val currentIndex = currentItemIndex.value
+                                    if (currentIndex < queue.lastIndex) {
+                                        val newIndex = currentIndex + 1
+                                        currentItemIndex.value = newIndex
+                                        val newTrack = queue[newIndex]
+                                        if (newTrack.uri != null) {
+                                            mediaPlayer.setMedia(newTrack.uri)
+                                            if (wasPlaying) {
+                                                mediaPlayer.play()
+                                            }
+                                        }
+                                        isPlaying.value = wasPlaying
+                                    }
+                                }
+                                MediaControllerState.Available.RepeatState.List -> {
+                                    _next()
+                                }
+                                MediaControllerState.Available.RepeatState.Track -> {
+                                    val currentState = _state.value
+                                    if (currentState is MediaControllerState.Unavailable || currentState is MediaControllerState.Loading) TODO()
+                                    if (queue.value.isEmpty()) { TODO() }
+                                    val wasPlaying = isPlaying.value
+                                    if (wasPlaying) { mediaPlayer.stop() }
+                                    isPlaying.value = false
+                                    val queue = queue.value
+                                    timePositionChange.value = 0.milliseconds
+                                    val track = queue[currentItemIndex.value]
+                                    if (track.uri != null) {
+                                        mediaPlayer.setMedia(track.uri)
+                                        if (wasPlaying) {
+                                            mediaPlayer.play()
+                                        }
+                                    }
+                                    isPlaying.value = wasPlaying
+                                }
+                            }
+                            enabled.value = true
+                        }
+                    }
                 }
             }
         )
@@ -176,29 +228,7 @@ class MediaController(
         coroutineScope.launch {
             mutex.withLock {
                 this@MediaController.enabled.value = false
-                val currentState = _state.value
-                if (currentState is MediaControllerState.Unavailable || currentState is MediaControllerState.Loading) TODO()
-                var wasPlaying: Boolean? = null
-                if (isPlaying.value) {
-                    wasPlaying = true
-                    mediaPlayer.stop()
-                } else {
-                    wasPlaying = false
-                }
-                isPlaying.value = false
-                val queue = queue.value
-                val currentIndex = currentItemIndex.value
-                val newIndex = if (currentIndex + 1 > queue.size - 1) 0 else currentIndex + 1
-                val newTrack = queue[newIndex]
-                if (newTrack.uri != null) {
-                    mediaPlayer.setMedia(newTrack.uri)
-                    timePositionChange.value = 0.milliseconds
-                    if (wasPlaying) {
-                        mediaPlayer.play()
-                    }
-                }
-                isPlaying.value = wasPlaying
-                currentItemIndex.value = newIndex
+                _next()
                 this@MediaController.enabled.value = true
             }
         }
@@ -350,6 +380,28 @@ class MediaController(
         }
     }
 
+    private suspend fun _next() {
+        val currentState = _state.value
+        if (currentState is MediaControllerState.Unavailable || currentState is MediaControllerState.Loading) TODO()
+        if (queue.value.isEmpty()) { TODO() }
+        val wasPlaying = isPlaying.value
+        if (wasPlaying) { mediaPlayer.stop() }
+        isPlaying.value = false
+        val queue = queue.value
+        val currentIndex = currentItemIndex.value
+        val newIndex = if (currentIndex < queue.lastIndex) currentIndex + 1 else 0
+        currentItemIndex.value = newIndex
+        timePositionChange.value = 0.milliseconds
+        val newTrack = queue[newIndex]
+        if (newTrack.uri != null) {
+            mediaPlayer.setMedia(newTrack.uri)
+            if (wasPlaying) {
+                mediaPlayer.play()
+            }
+        }
+        isPlaying.value = wasPlaying
+    }
+
     private suspend fun tryPlayFrom(index: Int) {
         withContext(Dispatchers.Default) {
             timePositionChange.value = 0.milliseconds
@@ -395,21 +447,21 @@ class MediaController(
                     )
                 )
             }
-            is QueueItemParameter.Playlist -> trackRepo.getPlaylistTracks(this.id).first().map { dbTrack ->
+            is QueueItemParameter.Playlist -> playlistTrackViewRepo.get(this.id).first().map { dbView ->
                 MediaControllerState.Available.QueueItem(
-                    id = dbTrack.id,
-                    name = dbTrack.name,
-                    album = dbTrack.album,
-                    image = mediaFileRepo.getTrackImage(dbTrack.id),
-                    artists = artistRepo.getTrackArtists(dbTrack.id).first().map { dbArtist ->
+                    id = dbView.trackId,
+                    name = dbView.name,
+                    album = dbView.album,
+                    image = mediaFileRepo.getTrackImage(dbView.trackId),
+                    artists = artistRepo.getTrackArtists(dbView.trackId).first().map { dbArtist ->
                         MediaControllerState.Available.QueueItem.Artist(
                             id = dbArtist.id,
                             name = dbArtist.name,
                             image = mediaFileRepo.getArtistImage(dbArtist.id)
                         )
                     },
-                    uri = mediaFileRepo.getTrackAudioUri(dbTrack.id),
-                    duration = dbTrack.duration
+                    uri = mediaFileRepo.getTrackAudioUri(dbView.trackId),
+                    duration = dbView.duration
                 )
             }
             is QueueItemParameter.Artist -> trackRepo.getArtistTracks(this.id).first().map { dbTrack ->

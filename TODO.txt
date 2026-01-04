@@ -1,5 +1,4 @@
-- in playlists, show and play items by the custom order
-- in media controller, play playlists by the custom order
+
 - improve Player:
     - fix ui
     - refactor to support showing: album art, queue, lyrics, track info...etc. maybe with tabs.
@@ -21,6 +20,7 @@
 - verify not null assertions (!!)
 
 done:
+- in media controller, play playlists by the custom order
 - improve queue (support scrolling to the current selected item for playing)
 - improve queue (support scroll to top and scroll to bottom)
 - improve queue (remove music icon on the left)

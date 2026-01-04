@@ -9,6 +9,10 @@ import kotlinx.coroutines.flow.Flow
 class PlaylistTrackViewRepo(
     val dao: PlaylistTrackViewDao
 ) {
+    fun get(id: PlaylistId): Flow<List<PlaylistTrackView>> {
+        return dao.get(id)
+    }
+
     fun search(id: PlaylistId, nameQuery: String): Flow<List<PlaylistTrackView>> {
         return dao.search(id, nameQuery.toSearchQuery())
     }
