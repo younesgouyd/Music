@@ -18,14 +18,16 @@ import dev.younesgouyd.apps.music.client.MediaController
 import dev.younesgouyd.apps.music.client.components.util.*
 import dev.younesgouyd.apps.music.client.data.ArtistId
 import dev.younesgouyd.apps.music.client.util.Component
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.stateIn
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class Player(
     mediaController: MediaController,
     showArtistDetails: (ArtistId) -> Unit,
@@ -33,33 +35,31 @@ class Player(
     minimizePlayer: () -> Unit
 ) : Component() {
     override val title: String = "Player"
-    private val state: MutableStateFlow<PlayerState> = MutableStateFlow(PlayerState.Unavailable)
+    private val state: StateFlow<PlayerState>
 
     init {
-        coroutineScope.launch {
-            mediaController.state.collectLatest { mediaControllerState ->
-                state.value = when (mediaControllerState) {
-                    is MediaController.MediaControllerState.Unavailable -> PlayerState.Unavailable
-                    is MediaController.MediaControllerState.Loading -> PlayerState.Loading
-                    is MediaController.MediaControllerState.Available -> PlayerState.Available(
-                        enabled = mediaControllerState.enabled,
-                        timePositionChange = mediaControllerState.timePositionChange,
-                        isPlaying = mediaControllerState.isPlaying,
-                        track = mediaControllerState.currentItem,
-                        onArtistClick = showArtistDetails,
-                        onShowQueueClick = showQueue,
-                        onTimeChange = mediaController::seek,
-                        onPreviousClick = mediaController::previous,
-                        onPlayClick = mediaController::play,
-                        onPauseClick = mediaController::pause,
-                        onNextClick = mediaController::next,
-                        onRepeatClick = mediaController::repeat,
-                        onPlayQueueItem = mediaController::playItem,
-                        onMinimizeClick = minimizePlayer
-                    )
-                }
+        state = mediaController.state.mapLatest { mediaControllerState ->
+            when (mediaControllerState) {
+                is MediaController.MediaControllerState.Unavailable -> PlayerState.Unavailable
+                is MediaController.MediaControllerState.Loading -> PlayerState.Loading
+                is MediaController.MediaControllerState.Available -> PlayerState.Available(
+                    enabled = mediaControllerState.enabled,
+                    timePositionChange = mediaControllerState.timePositionChange,
+                    isPlaying = mediaControllerState.isPlaying,
+                    track = mediaControllerState.currentItem,
+                    onArtistClick = showArtistDetails,
+                    onShowQueueClick = showQueue,
+                    onTimeChange = mediaController::seek,
+                    onPreviousClick = mediaController::previous,
+                    onPlayClick = mediaController::play,
+                    onPauseClick = mediaController::pause,
+                    onNextClick = mediaController::next,
+                    onRepeatClick = mediaController::repeat,
+                    onPlayQueueItem = mediaController::playItem,
+                    onMinimizeClick = minimizePlayer
+                )
             }
-        }
+        }.stateIn(coroutineScope, SharingStarted.Lazily, PlayerState.Unavailable)
     }
 
     @Composable

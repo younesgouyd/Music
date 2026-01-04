@@ -1,6 +1,8 @@
 package dev.younesgouyd.apps.music.client
 
 import android.content.ComponentName
+import android.os.Handler
+import android.os.Looper
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -49,29 +51,38 @@ actual class MusicImpl : Music() {
             val media3Controller = MediaController.Builder(context, sessionToken)
                 .buildAsync()
                 .get()
+            val handler = Handler(Looper.getMainLooper())
             mediaPlayer = object : dev.younesgouyd.apps.music.client.MediaController.MediaPlayer() {
                 override fun registerEventListener(eventListener: EventListener) {
-                    media3Controller.addListener(
-                        object : Player.Listener {
-                            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    val updateRunnable = object : Runnable {
+                        override fun run() {
+                            if (media3Controller.isPlaying) {
+                                eventListener.onTimePositionChange(
+                                    media3Controller.currentPosition.milliseconds
+                                )
+                            }
+                            handler.postDelayed(this, 250)
+                        }
+                    }
+
+                    media3Controller.addListener(object : Player.Listener {
+                        override fun onIsPlayingChanged(isPlaying: Boolean) {
+                            if (isPlaying) {
                                 eventListener.onPlaying()
-                            }
-
-                            override fun onPositionDiscontinuity(
-                                oldPosition: Player.PositionInfo,
-                                newPosition: Player.PositionInfo,
-                                reason: Int
-                            ) {
-                                eventListener.onTimePositionChange(newPosition.positionMs.milliseconds)
-                            }
-
-                            override fun onPlaybackStateChanged(playbackState: Int) {
-                                if (playbackState == Player.STATE_ENDED) {
-                                    eventListener.onFinished()
-                                }
+                                handler.post(updateRunnable)
+                            } else {
+                                eventListener.onPaused()
+                                handler.removeCallbacks(updateRunnable)
                             }
                         }
-                    )
+
+                        override fun onPlaybackStateChanged(state: Int) {
+                            if (state == Player.STATE_ENDED) {
+                                handler.removeCallbacks(updateRunnable)
+                                eventListener.onFinished()
+                            }
+                        }
+                    })
                 }
 
                 override fun setMedia(uri: String) {
@@ -97,6 +108,7 @@ actual class MusicImpl : Music() {
 
                 override fun release() {
                     media3Controller.release()
+                    handler.removeCallbacksAndMessages(null)
                 }
             }
         }

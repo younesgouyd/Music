@@ -11,53 +11,52 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.MediaController
 import dev.younesgouyd.apps.music.client.components.util.*
 import dev.younesgouyd.apps.music.client.data.ArtistId
 import dev.younesgouyd.apps.music.client.util.Component
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.stateIn
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class MiniPlayer(
     mediaController: MediaController,
     showArtistDetails: (ArtistId) -> Unit,
     expand: () -> Unit
 ) : Component() {
     override val title: String = "Mini Player"
-    private val state: MutableStateFlow<MiniPlayerState> = MutableStateFlow(MiniPlayerState.Unavailable)
+    private val state: StateFlow<MiniPlayerState>
 
     init {
-        coroutineScope.launch {
-            mediaController.state.collectLatest { mediaControllerState ->
-                state.value = when (mediaControllerState) {
-                    is MediaController.MediaControllerState.Unavailable -> MiniPlayerState.Unavailable
-                    is MediaController.MediaControllerState.Loading -> MiniPlayerState.Loading
-                    is MediaController.MediaControllerState.Available -> MiniPlayerState.Available(
-                        enabled = mediaControllerState.enabled,
-                        timePositionChange = mediaControllerState.timePositionChange,
-                        isPlaying = mediaControllerState.isPlaying,
-                        repeatState = mediaControllerState.repeatState,
-                        track = mediaControllerState.currentItem,
-                        onClick = expand,
-                        onArtistClick = showArtistDetails,
-                        onTimeChange = mediaController::seek,
-                        onPreviousClick = mediaController::previous,
-                        onPlayClick = mediaController::play,
-                        onPauseClick = mediaController::pause,
-                        onNextClick = mediaController::next,
-                        onRepeatClick = mediaController::repeat
-                    )
-                }
+        state = mediaController.state.mapLatest { mediaControllerState ->
+            when (mediaControllerState) {
+                is MediaController.MediaControllerState.Unavailable -> MiniPlayerState.Unavailable
+                is MediaController.MediaControllerState.Loading -> MiniPlayerState.Loading
+                is MediaController.MediaControllerState.Available -> MiniPlayerState.Available(
+                    enabled = mediaControllerState.enabled,
+                    timePositionChange = mediaControllerState.timePositionChange,
+                    isPlaying = mediaControllerState.isPlaying,
+                    repeatState = mediaControllerState.repeatState,
+                    track = mediaControllerState.currentItem,
+                    onClick = expand,
+                    onArtistClick = showArtistDetails,
+                    onTimeChange = mediaController::seek,
+                    onPreviousClick = mediaController::previous,
+                    onPlayClick = mediaController::play,
+                    onPauseClick = mediaController::pause,
+                    onNextClick = mediaController::next,
+                    onRepeatClick = mediaController::repeat
+                )
             }
-        }
+        }.stateIn(coroutineScope, SharingStarted.Lazily, MiniPlayerState.Unavailable)
     }
 
     @Composable
@@ -167,9 +166,8 @@ class MiniPlayer(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Image(
-                            modifier = Modifier.fillMaxHeight(),
-                            file = track.image,
-                            contentScale = ContentScale.FillHeight
+                            modifier = Modifier.fillMaxHeight().aspectRatio(1f),
+                            file = track.image
                         )
                         Column(
                             modifier = Modifier.fillMaxWidth(),
@@ -405,9 +403,8 @@ class MiniPlayer(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Image(
-                            modifier = Modifier.fillMaxHeight(),
-                            file = track.image,
-                            contentScale = ContentScale.FillHeight
+                            modifier = Modifier.fillMaxHeight().aspectRatio(1f),
+                            file = track.image
                         )
                         Column(
                             modifier = Modifier.weight(1f),
@@ -453,7 +450,7 @@ class MiniPlayer(
                                 progress = { animatedPosition.value }
                             )
                         }
-                        Spacer(Modifier.wrapContentWidth().size(4.dp))
+                        Spacer(Modifier.width(4.dp))
                     }
                 }
 
@@ -461,7 +458,7 @@ class MiniPlayer(
                     track.duration?.let { trackDuration ->
                         if (isPlaying) {
                             val remaining = 1f - animatedPosition.value
-                            val remainingDuration =
+                            val remainingDuration: Duration =
                                 (remaining * trackDuration.inWholeMilliseconds).toLong().milliseconds
                             animatedPosition.animateTo(
                                 targetValue = 1f,
@@ -474,9 +471,12 @@ class MiniPlayer(
                 }
 
                 LaunchedEffect(timePositionChange) {
-                    track.duration?.let { trackDuration ->
+                    val trackDuration = track.duration
+                    if (trackDuration != null) {
                         animatedPosition.stop()
-                        animatedPosition.snapTo(timePositionChange.inWholeMilliseconds.toFloat() / trackDuration.inWholeMilliseconds.toFloat())
+                        animatedPosition.snapTo(
+                            timePositionChange.inWholeMilliseconds.toFloat() / trackDuration.inWholeMilliseconds.toFloat()
+                        )
                         if (isPlaying) {
                             animatedPosition.animateTo(
                                 targetValue = 1f,
