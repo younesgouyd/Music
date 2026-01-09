@@ -803,7 +803,7 @@ class Library(
 
             @Composable
             private fun Main(
-                modifier: Modifier = Modifier,
+                modifier: Modifier,
                 path: StateFlow<List<UiState.NodeState>>,
                 loadingItems: StateFlow<Boolean>,
                 tags: StateFlow<List<Tag>>,
@@ -1623,7 +1623,7 @@ class Library(
 
             @Composable
             private fun Main(
-                modifier: Modifier = Modifier,
+                modifier: Modifier,
                 path: StateFlow<List<UiState.NodeState>>,
                 loadingItems: StateFlow<Boolean>,
                 tags: StateFlow<List<Tag>>,

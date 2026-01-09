@@ -384,11 +384,7 @@ class PlaylistDetails(
                             }
                         }
                     },
-                    floatingActionButton = {
-                        ScrollToTopFloatingActionButton(
-                            scrollState
-                        )
-                    }
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) }
                 )
 
                 LaunchedEffect(items) {

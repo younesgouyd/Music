@@ -17,6 +17,8 @@ import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.time.Instant
 
+private typealias FilePath = String
+
 @Composable
 fun Image(
     modifier: Modifier = Modifier,
@@ -24,33 +26,20 @@ fun Image(
     contentScale: ContentScale = ContentScale.Fit,
     alignment: Alignment = Alignment.Center
 ) {
-    var loading by remember { mutableStateOf(true) }
-    var image by remember { mutableStateOf<ImageBitmap?>(null) }
+    val image = produceState<Result<ImageBitmap>>(Result.Loading, file?.path) {
+        value = if (file?.path == null) Result.Error else Result.Success(Cache.get(file.path))
+    }
 
-    if (file == null) {
-        BrokenImage(modifier)
-    } else {
-        val path = file.path
-        LaunchedEffect(path) {
-            loading = true
-            image = Cache.get(path)
-            loading = false
-        }
-
-        when (loading) {
-            true -> LoadingImage(modifier)
-            false -> {
-                image?.let {
-                    Image(
-                        modifier = modifier,
-                        bitmap = it,
-                        contentDescription = null,
-                        contentScale = contentScale,
-                        alignment = alignment
-                    )
-                } ?: BrokenImage(modifier)
-            }
-        }
+    when (val img = image.value) {
+        is Result.Error -> BrokenImage(modifier)
+        is Result.Loading -> LoadingImage(modifier)
+        is Result.Success<ImageBitmap> -> Image(
+            modifier = modifier,
+            bitmap = img.value,
+            contentDescription = null,
+            contentScale = contentScale,
+            alignment = alignment
+        )
     }
 }
 
@@ -116,7 +105,11 @@ private fun BrokenImage(
     }
 }
 
-private typealias FilePath = String
+sealed class Result<out T> {
+    object Loading : Result<Nothing>()
+    object Error : Result<Nothing>()
+    class Success<T>(val value: T) : Result<T>()
+}
 
 private object Cache {
     private const val MAX_CACHE_SIZE = 100 * 1024 * 1024

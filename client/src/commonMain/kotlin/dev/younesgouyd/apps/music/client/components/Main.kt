@@ -2,6 +2,8 @@ package dev.younesgouyd.apps.music.client.components
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -29,7 +31,7 @@ class Main(
     onReinitializeAppData: () -> Unit
 ) : Component() {
     override val title: String = ""
-    private val darkTheme: StateFlow<DarkThemeOptions> =
+    private val darkTheme: StateFlow<DarkThemeOptions> = run {
         repoStore.settingsRepo.getDarkTheme()
             .map {
                 it!!.value?.let {
@@ -40,6 +42,7 @@ class Main(
                 started = SharingStarted.WhileSubscribed(),
                 initialValue = DarkThemeOptions.SystemDefault
             )
+    }
 
     private val mediaController = MediaController(
         mediaPlayer = mediaPlayer,
@@ -68,15 +71,11 @@ class Main(
         )
     }
 
-    private val mainComponentType: MutableStateFlow<MainComponentType> = MutableStateFlow(MainComponentType.Content)
-
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val playerExpanded: StateFlow<Boolean> = mainComponentType.mapLatest {
-        it == MainComponentType.Player
-    }.stateIn(coroutineScope, started = SharingStarted.WhileSubscribed(), false)
+    private val playerExpanded = MutableStateFlow(false)
 
     private val settings: Component = Settings(
-        repoStore.settingsRepo,
+        settingsRepo = repoStore.settingsRepo,
         onReinitializeAppData = onReinitializeAppData
     )
     private var navigationHost: NavigationHost = getNewNavHost(NavigationHost.Destination.Library)
@@ -86,26 +85,29 @@ class Main(
             mainComponent.value = navigationHost
             navigationHost.navigateTo(NavigationHost.Destination.ArtistDetails(it))
         },
-        expand = { mainComponentType.value = MainComponentType.Player }
-    )
-    private val player: Component = Player(
-        mediaController = mediaController,
-        showArtistDetails = {
-            mainComponent.value = navigationHost
-            navigationHost.navigateTo(NavigationHost.Destination.ArtistDetails(it))
-            mainComponentType.value = MainComponentType.Content
-        },
-        showQueue = { mainComponentType.value = MainComponentType.Queue },
-        minimizePlayer = { mainComponentType.value = MainComponentType.Content }
+        expand = ::expandPlayer
     )
     private val queue: Component = Queue(
         mediaController = mediaController,
         showArtist = {
             mainComponent.value = navigationHost
             navigationHost.navigateTo(NavigationHost.Destination.ArtistDetails(it))
-            mainComponentType.value = MainComponentType.Content
+            minimizePlayer()
+        }
+    )
+    private val player: Component = Player(
+        mediaController = mediaController,
+        showTack = {
+            mainComponent.value = navigationHost
+            navigationHost.navigateTo(NavigationHost.Destination.TrackDetails(it))
+            minimizePlayer()
         },
-        close = { mainComponentType.value = MainComponentType.Player }
+        showArtistDetails = {
+            mainComponent.value = navigationHost
+            navigationHost.navigateTo(NavigationHost.Destination.ArtistDetails(it))
+            minimizePlayer()
+        },
+        queue = queue::show
     )
 
     private val mainComponent: MutableStateFlow<Component> = MutableStateFlow(navigationHost)
@@ -121,35 +123,18 @@ class Main(
     override fun show(modifier: Modifier) {
         val darkTheme by darkTheme.collectAsState()
 
-        AdaptiveUi(
-            wide = {
-                Ui.Wide.Main(
-                    modifier = modifier,
-                    darkTheme = darkTheme,
-                    mainComponent = mainComponent.asStateFlow(),
-                    player = player,
-                    miniPlayer = miniPlayer,
-                    playerExpanded = playerExpanded,
-                    queue = queue,
-                    selectedNavigationDrawerItem = selectedNavigationDrawerItem.asStateFlow(),
-                    drawerState = drawerState.asStateFlow(),
-                    onNavigationDrawerItemClick = ::handleNavigationDrawerItemClick
-                )
-            },
-            compact = {
-                Ui.Compact.Main(
-                    modifier = modifier,
-                    darkTheme = darkTheme,
-                    mainComponentType = mainComponentType.asStateFlow(),
-                    mainComponent = mainComponent.asStateFlow(),
-                    player = player,
-                    miniPlayer = miniPlayer,
-                    queue = queue,
-                    selectedNavigationDrawerItem = selectedNavigationDrawerItem.asStateFlow(),
-                    drawerState = drawerState.asStateFlow(),
-                    onNavigationDrawerItemClick = ::handleNavigationDrawerItemClick
-                )
-            }
+        Ui.Main(
+            modifier = modifier,
+            darkTheme = darkTheme,
+            mainComponent = mainComponent.asStateFlow(),
+            player = player,
+            miniPlayer = miniPlayer,
+            playerExpanded = playerExpanded,
+            queue = queue,
+            selectedNavigationDrawerItem = selectedNavigationDrawerItem.asStateFlow(),
+            drawerState = drawerState.asStateFlow(),
+            onMinimizePlayerClick = ::minimizePlayer,
+            onNavigationDrawerItemClick = ::handleNavigationDrawerItemClick
         )
     }
 
@@ -160,6 +145,14 @@ class Main(
         }
         navigationHost.clear()
         coroutineScope.cancel()
+    }
+
+    private fun expandPlayer() {
+        playerExpanded.value = true
+    }
+
+    private fun minimizePlayer() {
+        playerExpanded.value = false
     }
 
     private suspend fun toggleDrawerState() {
@@ -210,7 +203,6 @@ class Main(
                 mainComponent.value = navigationHost
             }
         }
-        mainComponentType.value = MainComponentType.Content
         selectedNavigationDrawerItem.value = item
     }
 
@@ -234,10 +226,6 @@ class Main(
         Export("Export")
     }
 
-    private enum class MainComponentType {
-        Content, Player, Queue
-    }
-
     private object Ui {
         @Composable
         fun YounesMusicTheme(
@@ -254,153 +242,88 @@ class Main(
             )
         }
 
-        object Wide {
-            @Composable
-            fun Main(
-                modifier: Modifier,
-                darkTheme: DarkThemeOptions,
-                mainComponent: StateFlow<Component>,
-                player: Component,
-                miniPlayer: Component,
-                queue: Component,
-                playerExpanded: StateFlow<Boolean>,
-                selectedNavigationDrawerItem: StateFlow<NavigationDrawerItems>,
-                drawerState: StateFlow<DrawerState>,
-                onNavigationDrawerItemClick: (NavigationDrawerItems) -> Unit
-            ) {
-                val mainComponent by mainComponent.collectAsState()
-                val drawerState by drawerState.collectAsState()
-                val playerExpanded by playerExpanded.collectAsState()
-                val selectedNavigationDrawerItem by selectedNavigationDrawerItem.collectAsState()
+        @Composable
+        fun Main(
+            modifier: Modifier,
+            darkTheme: DarkThemeOptions,
+            mainComponent: StateFlow<Component>,
+            player: Component,
+            miniPlayer: Component,
+            queue: Component,
+            playerExpanded: StateFlow<Boolean>,
+            selectedNavigationDrawerItem: StateFlow<NavigationDrawerItems>,
+            drawerState: StateFlow<DrawerState>,
+            onMinimizePlayerClick: () -> Unit,
+            onNavigationDrawerItemClick: (NavigationDrawerItems) -> Unit
+        ) {
+            val mainComponent by mainComponent.collectAsState()
+            val drawerState by drawerState.collectAsState()
+            val playerExpanded by playerExpanded.collectAsState()
+            val selectedNavigationDrawerItem by selectedNavigationDrawerItem.collectAsState()
 
-                YounesMusicTheme(
-                    darkTheme = darkTheme,
-                    content = {
-                        Surface(
-                            modifier = modifier,
-                            color = MaterialTheme.colorScheme.background
-                        ) {
-                            ModalNavigationDrawer(
-                                drawerState = drawerState,
-                                drawerContent = {
-                                    ModalDrawerSheet {
-                                        Column(
-                                            modifier = Modifier.fillMaxWidth().padding(),
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.Top
-                                        ) {
-                                            NavigationDrawerItems.entries.forEach {
-                                                NavigationDrawerItem(
-                                                    label = { Text(it.label) },
-                                                    selected = it == selectedNavigationDrawerItem,
-                                                    onClick = { onNavigationDrawerItemClick(it) }
-                                                )
-                                            }
-                                        }
+            YounesMusicTheme(darkTheme) {
+                Surface(
+                    modifier = modifier,
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    ModalNavigationDrawer(
+                        drawerState = drawerState,
+                        drawerContent = {
+                            ModalDrawerSheet {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Top
+                                ) {
+                                    NavigationDrawerItems.entries.forEach {
+                                        NavigationDrawerItem(
+                                            label = { Text(it.label) },
+                                            selected = it == selectedNavigationDrawerItem,
+                                            onClick = { onNavigationDrawerItemClick(it) }
+                                        )
                                     }
-                                },
-                                content = {
-                                    Column(
-                                        modifier = Modifier.fillMaxSize(),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        if (playerExpanded) {
-                                            player.show(Modifier.fillMaxSize())
-                                        } else {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth()
-                                                    .weight(weight = 1f)
-                                            ) {
+                                }
+                            }
+                        }
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            when (playerExpanded) {
+                                true -> {
+                                    player.show(Modifier.fillMaxWidth().weight(1f, true))
+                                    IconButton(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        onClick = onMinimizePlayerClick,
+                                        content = { Icon(Icons.Default.KeyboardArrowDown, null) }
+                                    )
+                                }
+                                false -> {
+                                    AdaptiveUi(
+                                        wide = {
+                                            Row(Modifier.fillMaxWidth().weight(1f, true)) {
                                                 mainComponent.show(Modifier.weight(.7f))
-                                                queue.show(
-                                                    Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp).weight(.3f)
-                                                )
+                                                queue.show(Modifier.weight(.3f)
+                                                    .padding(start = 8.dp, top = 8.dp, end = 8.dp))
                                             }
                                             miniPlayer.show(
                                                 modifier = Modifier.fillMaxWidth()
-                                                    .padding(8.dp)
                                                     .height(180.dp)
+                                                    .padding(8.dp)
                                             )
+                                        },
+                                        compact = {
+                                            mainComponent.show(Modifier.fillMaxWidth().weight(weight = 0.88f))
+                                            miniPlayer.show(modifier = Modifier.fillMaxWidth().weight(0.12f))
                                         }
-                                    }
+                                    )
                                 }
-                            )
+                            }
                         }
                     }
-                )
-            }
-        }
-
-        object Compact {
-            @Composable
-            fun Main(
-                modifier: Modifier,
-                darkTheme: DarkThemeOptions,
-                mainComponentType: StateFlow<MainComponentType>,
-                mainComponent: StateFlow<Component>,
-                player: Component,
-                miniPlayer: Component,
-                queue: Component,
-                selectedNavigationDrawerItem: StateFlow<NavigationDrawerItems>,
-                drawerState: StateFlow<DrawerState>,
-                onNavigationDrawerItemClick: (NavigationDrawerItems) -> Unit
-            ) {
-                val mainComponentType by mainComponentType.collectAsState()
-                val mainComponent by mainComponent.collectAsState()
-                val drawerState by drawerState.collectAsState()
-                val selectedNavigationDrawerItem by selectedNavigationDrawerItem.collectAsState()
-
-                YounesMusicTheme(
-                    darkTheme = darkTheme,
-                    content = {
-                        Surface(
-                            modifier = modifier,
-                            color = MaterialTheme.colorScheme.background
-                        ) {
-                            ModalNavigationDrawer(
-                                drawerState = drawerState,
-                                drawerContent = {
-                                    ModalDrawerSheet {
-                                        Column(
-                                            modifier = Modifier.fillMaxWidth().padding(),
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.Top
-                                        ) {
-                                            NavigationDrawerItems.entries.forEach {
-                                                NavigationDrawerItem(
-                                                    label = { Text(it.label) },
-                                                    selected = it == selectedNavigationDrawerItem,
-                                                    onClick = { onNavigationDrawerItemClick(it) }
-                                                )
-                                            }
-                                        }
-                                    }
-                                },
-                                content = {
-                                    Column(
-                                        modifier = Modifier.fillMaxSize(),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        when (mainComponentType) {
-                                            MainComponentType.Content -> {
-                                                mainComponent.show(Modifier.fillMaxWidth().weight(weight = 0.88f))
-                                                miniPlayer.show(modifier = Modifier.fillMaxWidth().weight(0.12f))
-                                            }
-                                            MainComponentType.Player -> {
-                                                player.show(Modifier.fillMaxSize())
-                                            }
-                                            MainComponentType.Queue -> {
-                                                queue.show(Modifier.fillMaxSize())
-                                            }
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                    }
-                )
+                }
             }
         }
     }

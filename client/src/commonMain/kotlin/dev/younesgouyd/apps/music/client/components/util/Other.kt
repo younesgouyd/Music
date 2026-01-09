@@ -27,17 +27,31 @@ expect fun SystemFilePicker(
 @Composable
 fun AdaptiveUi(
     wide: @Composable () -> Unit,
-    compact: @Composable () -> Unit
+    compact: @Composable () -> Unit,
+    onStateChange: ((WindowSizeClass) -> Unit)? = null
 ) {
+    val latestOnStateChange by rememberUpdatedState(onStateChange)
     val windowInfo = LocalWindowInfo.current
     val density = LocalDensity.current
-    val widthDp = with(density) { windowInfo.containerSize.width.toDp() }
 
-    when {
-        widthDp < 1000.dp -> compact()
-        else -> wide()
+    val windowSizeClass = remember(windowInfo.containerSize.width, density) {
+        with(density) {
+            if (windowInfo.containerSize.width.toDp() < 1000.dp) WindowSizeClass.Compact
+            else WindowSizeClass.Wide
+        }
+    }
+
+    LaunchedEffect(windowSizeClass) {
+        latestOnStateChange?.invoke(windowSizeClass)
+    }
+
+    when (windowSizeClass) {
+        WindowSizeClass.Compact -> compact()
+        WindowSizeClass.Wide -> wide()
     }
 }
+
+enum class WindowSizeClass { Wide, Compact }
 
 fun <T> linearAnimation(duration: Duration): TweenSpec<T> {
     return tween(

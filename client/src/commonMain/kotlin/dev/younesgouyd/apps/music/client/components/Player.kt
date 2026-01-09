@@ -11,33 +11,35 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.MediaController
+import dev.younesgouyd.apps.music.client.MediaController.MediaControllerState.Available.RepeatState
 import dev.younesgouyd.apps.music.client.components.util.*
 import dev.younesgouyd.apps.music.client.data.ArtistId
+import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.mapLatest
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class Player(
     mediaController: MediaController,
+    showTack: (TrackId) -> Unit,
     showArtistDetails: (ArtistId) -> Unit,
-    showQueue: () -> Unit,
-    minimizePlayer: () -> Unit
+    queue: @Composable (Modifier) -> Unit
 ) : Component() {
     override val title: String = "Player"
+    private var windowSizeClass: WindowSizeClass? = null
     private val state: StateFlow<PlayerState>
 
     init {
+        val isTrackVisible = MutableStateFlow(true)
+        val isQueueVisible = MutableStateFlow(false)
+
         state = mediaController.state.mapLatest { mediaControllerState ->
             when (mediaControllerState) {
                 is MediaController.MediaControllerState.Unavailable -> PlayerState.Unavailable
@@ -47,16 +49,42 @@ class Player(
                     timePositionChange = mediaControllerState.timePositionChange,
                     isPlaying = mediaControllerState.isPlaying,
                     track = mediaControllerState.currentItem,
+                    isTrackVisible = isTrackVisible.asStateFlow(),
+                    isQueueVisible = isQueueVisible.asStateFlow(),
+                    repeatState = mediaControllerState.repeatState,
+                    queue = queue,
+                    onToggleTrackVisibility = {
+                        when (windowSizeClass) {
+                            WindowSizeClass.Wide -> isTrackVisible.update { !it }
+                            WindowSizeClass.Compact -> {
+                                isTrackVisible.update {
+                                    if (!it) { isQueueVisible.value = false }
+                                    !it
+                                }
+                            }
+                            null -> TODO()
+                        }
+                    },
+                    onToggleQueueVisibility = {
+                        when (windowSizeClass) {
+                            WindowSizeClass.Wide -> isQueueVisible.update { !it }
+                            WindowSizeClass.Compact -> {
+                                isQueueVisible.update {
+                                    if (!it) { isTrackVisible.value = false }
+                                    !it
+                                }
+                            }
+                            null -> TODO()
+                        }
+                    },
+                    onTrackNameClick = showTack,
                     onArtistClick = showArtistDetails,
-                    onShowQueueClick = showQueue,
                     onTimeChange = mediaController::seek,
                     onPreviousClick = mediaController::previous,
                     onPlayClick = mediaController::play,
                     onPauseClick = mediaController::pause,
                     onNextClick = mediaController::next,
-                    onRepeatClick = mediaController::repeat,
-                    onPlayQueueItem = mediaController::playItem,
-                    onMinimizeClick = minimizePlayer
+                    onRepeatClick = mediaController::repeat
                 )
             }
         }.stateIn(coroutineScope, SharingStarted.Lazily, PlayerState.Unavailable)
@@ -68,7 +96,8 @@ class Player(
 
         AdaptiveUi(
             wide = { Ui.Wide.Main(modifier = modifier, state = state) },
-            compact = { Ui.Compact.Main(modifier = modifier, state = state) }
+            compact = { Ui.Compact.Main(modifier = modifier, state = state) },
+            onStateChange = { windowSizeClass = it }
         )
     }
 
@@ -86,129 +115,30 @@ class Player(
             val timePositionChange: StateFlow<Duration>,
             val isPlaying: StateFlow<Boolean>,
             val track: StateFlow<MediaController.MediaControllerState.Available.QueueItem>,
+            val isTrackVisible: StateFlow<Boolean>,
+            val isQueueVisible: StateFlow<Boolean>,
+            val repeatState: StateFlow<RepeatState>,
+            val queue: @Composable (Modifier) -> Unit,
+            val onToggleQueueVisibility: () -> Unit,
+            val onToggleTrackVisibility: () -> Unit,
+            val onTrackNameClick: (TrackId) -> Unit,
             val onArtistClick: (ArtistId) -> Unit,
-            val onShowQueueClick: () -> Unit,
             val onTimeChange: (Duration) -> Unit,
             val onPreviousClick: () -> Unit,
             val onPlayClick: () -> Unit,
             val onPauseClick: () -> Unit,
             val onNextClick: () -> Unit,
-            val onRepeatClick: () -> Unit,
-            val onPlayQueueItem: (queueItemIndex: Int) -> Unit,
-            val onMinimizeClick: () -> Unit
+            val onRepeatClick: () -> Unit
         ) : PlayerState()
     }
 
     private object Ui {
-        object Wide {
+        private object Common {
             @Composable
-            fun Main(modifier: Modifier = Modifier, state: PlayerState) {
-                when (state) {
-                    is PlayerState.Loading -> Unit
-                    is PlayerState.Unavailable -> Unit
-                    is PlayerState.Available -> Main(modifier = modifier, state = state)
-                }
-            }
-
-            @Composable
-            private fun Main(modifier: Modifier = Modifier, state: PlayerState.Available) {
-                Main(
-                    modifier = modifier,
-                    enabled = state.enabled,
-                    track = state.track,
-                    timePositionChange = state.timePositionChange,
-                    isPlaying = state.isPlaying,
-                    onMinimizeClick = state.onMinimizeClick,
-                    onArtistClick = state.onArtistClick,
-                    onTimeChange = state.onTimeChange,
-                    onPreviousClick = state.onPreviousClick,
-                    onPlayClick = state.onPlayClick,
-                    onPauseClick = state.onPauseClick,
-                    onNextClick = state.onNextClick
-                )
-            }
-
-            @Composable
-            private fun Main(
-                modifier: Modifier = Modifier,
-                enabled: StateFlow<Boolean>,
-                track: StateFlow<MediaController.MediaControllerState.Available.QueueItem>,
-                timePositionChange: StateFlow<Duration>,
-                isPlaying: StateFlow<Boolean>,
-                onMinimizeClick: () -> Unit,
-                onArtistClick: (ArtistId) -> Unit,
-                onTimeChange: (Duration) -> Unit,
-                onPreviousClick: () -> Unit,
-                onPlayClick: () -> Unit,
-                onPauseClick: () -> Unit,
-                onNextClick: () -> Unit
-            ) {
-                val track by track.collectAsState()
-
-                Surface(
-                    modifier = modifier,
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Image(
-                                modifier = Modifier.fillMaxWidth(0.4f),
-                                file = track.image,
-                                contentScale = ContentScale.FillWidth
-                            )
-                            TrackInfo(
-                                modifier = Modifier.weight(1f),
-                                track = track,
-                                onArtistClick = onArtistClick
-                            )
-                        }
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.CenterStart,
-                            content = {
-                                IconButton(
-                                    modifier = Modifier.size(50.dp),
-                                    onClick = onMinimizeClick
-                                ) {
-                                    Icon(
-                                        modifier = Modifier.fillMaxSize(),
-                                        imageVector = Icons.Default.UnfoldLess,
-                                        contentDescription = null
-                                    )
-                                }
-                            }
-                        )
-                        PlaybackControls(
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = enabled,
-                            track = track,
-                            isPlaying = isPlaying,
-                            timePositionChange = timePositionChange,
-                            onTimeChange = onTimeChange,
-                            onPreviousClick = onPreviousClick,
-                            onPlayClick = onPlayClick,
-                            onPauseClick = onPauseClick,
-                            onNextClick = onNextClick
-                        )
-                        Spacer(Modifier.size(14.dp))
-                    }
-
-                }
-            }
-
-            @Composable
-            private fun TrackInfo(
+            fun TrackInfo(
                 modifier: Modifier,
                 track: MediaController.MediaControllerState.Available.QueueItem,
+                onTrackNameClick: () -> Unit,
                 onArtistClick: (ArtistId) -> Unit
             ) {
                 Column(
@@ -216,13 +146,17 @@ class Player(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text(
-                        text = track.name,
-                        style = MaterialTheme.typography.displayMedium,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    track.album?.let { album ->
+                    TextButton(
+                        onClick = onTrackNameClick
+                    ) {
+                        Text(
+                            text = track.name,
+                            style = MaterialTheme.typography.displayMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    if (track.album != null) {
                         Surface {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -265,20 +199,23 @@ class Player(
             }
 
             @Composable
-            private fun PlaybackControls(
+            fun PlaybackControls(
                 modifier: Modifier,
                 enabled: StateFlow<Boolean>,
                 track: MediaController.MediaControllerState.Available.QueueItem,
                 isPlaying: StateFlow<Boolean>,
+                repeatState: StateFlow<RepeatState>,
                 timePositionChange: StateFlow<Duration>,
                 onTimeChange: (Duration) -> Unit,
                 onPreviousClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onPauseClick: () -> Unit,
-                onNextClick: () -> Unit
+                onNextClick: () -> Unit,
+                onRepeatClick: () -> Unit
             ) {
                 val enabled by enabled.collectAsState()
                 val isPlaying by isPlaying.collectAsState()
+                val repeatState by repeatState.collectAsState()
                 val timePositionChange by timePositionChange.collectAsState()
                 val animatedPosition = remember { Animatable(0f) }
                 val formattedDuration = remember(track.duration) { track.duration.formatted() }
@@ -301,79 +238,48 @@ class Player(
                         text = "${track.duration?.inWholeMilliseconds?.let { (animatedPosition.value * it) }?.toLong()?.milliseconds.formatted()}/${formattedDuration}",
                         style = MaterialTheme.typography.labelMedium
                     )
+                    Spacer(Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceAround,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(
-                            modifier = Modifier.size(40.dp),
-                            enabled = false, // TODO
-                            onClick = {} // TODO
-                        ) {
-                            Icon(
-                                modifier = Modifier.fillMaxSize(),
-                                imageVector = Icons.Default.Shuffle,
-                                contentDescription = null
-                            )
-                        }
-                        IconButton(
+                        Box(Modifier.size(32.dp))
+                        FilledTonalIconButton(
                             modifier = Modifier.size(40.dp),
                             enabled = enabled,
-                            onClick = onPreviousClick
+                            onClick = onPreviousClick,
+                            content = { Icon(Icons.Default.SkipPrevious, null) }
+                        )
+                        FilledIconToggleButton(
+                            modifier = Modifier.size(56.dp),
+                            checked = isPlaying,
+                            enabled = enabled,
+                            onCheckedChange = { if (isPlaying) onPauseClick() else onPlayClick() }
                         ) {
-                            Icon(
-                                modifier = Modifier.fillMaxSize(),
-                                imageVector = Icons.Default.SkipPrevious,
-                                contentDescription = null
-                            )
-                        }
-                        when (isPlaying) {
-                            true -> IconButton(
-                                modifier = Modifier.size(70.dp),
-                                enabled = enabled,
-                                onClick = onPauseClick
-                            ) {
-                                Icon(
-                                    modifier = Modifier.fillMaxSize(),
-                                    imageVector = Icons.Default.PauseCircle,
-                                    contentDescription = null
-                                )
-                            }
-
-                            false -> IconButton(
-                                modifier = Modifier.size(70.dp),
-                                enabled = enabled,
-                                onClick = onPlayClick
-                            ) {
-                                Icon(
-                                    modifier = Modifier.fillMaxSize(),
-                                    imageVector = Icons.Default.PlayCircle,
-                                    contentDescription = null
-                                )
+                            if (isPlaying) {
+                                Icon(Icons.Default.Pause, null)
+                            } else {
+                                Icon(Icons.Default.PlayArrow, null)
                             }
                         }
-                        IconButton(
+                        FilledTonalIconButton(
                             modifier = Modifier.size(40.dp),
                             enabled = enabled,
-                            onClick = onNextClick
+                            onClick = onNextClick,
+                            content = { Icon(Icons.Default.SkipNext, null) }
+                        )
+                        FilledIconToggleButton(
+                            modifier = Modifier.size(32.dp),
+                            enabled = enabled,
+                            checked = repeatState != RepeatState.Off,
+                            onCheckedChange = { onRepeatClick() }
                         ) {
-                            Icon(
-                                modifier = Modifier.fillMaxSize(),
-                                imageVector = Icons.Default.SkipNext,
-                                contentDescription = null
-                            )
-                        }
-                        IconButton(
-                            modifier = Modifier.size(40.dp),
-                            enabled = false, // TODO
-                            onClick = {} // TODO
-                        ) {
-                            Icon(
-                                modifier = Modifier.fillMaxSize(),
-                                imageVector = Icons.Default.Repeat,
-                                contentDescription = null
-                            )
+                            when (repeatState) {
+                                RepeatState.Off -> Icon(Icons.Default.Repeat, null)
+                                RepeatState.List -> Icon(Icons.Default.Repeat, null)
+                                RepeatState.Track -> Icon(Icons.Default.RepeatOne, null)
+                            }
                         }
                     }
                 }
@@ -411,9 +317,9 @@ class Player(
             }
         }
 
-        object Compact {
+        object Wide {
             @Composable
-            fun Main(modifier: Modifier = Modifier, state: PlayerState) {
+            fun Main(modifier: Modifier, state: PlayerState) {
                 when (state) {
                     is PlayerState.Loading -> Unit
                     is PlayerState.Unavailable -> Unit
@@ -422,41 +328,55 @@ class Player(
             }
 
             @Composable
-            private fun Main(modifier: Modifier = Modifier, state: PlayerState.Available) {
+            private fun Main(modifier: Modifier, state: PlayerState.Available) {
                 Main(
                     modifier = modifier,
                     enabled = state.enabled,
                     track = state.track,
+                    isQueueVisible = state.isQueueVisible,
+                    isTrackVisible = state.isTrackVisible,
+                    repeatState = state.repeatState,
+                    queue = state.queue,
+                    onToggleTrackVisibility = state.onToggleTrackVisibility,
+                    onToggleQueueVisibility = state.onToggleQueueVisibility,
                     timePositionChange = state.timePositionChange,
                     isPlaying = state.isPlaying,
+                    onTrackNameClick = state.onTrackNameClick,
                     onArtistClick = state.onArtistClick,
-                    onShowQueueClick = state.onShowQueueClick,
                     onTimeChange = state.onTimeChange,
                     onPreviousClick = state.onPreviousClick,
                     onPlayClick = state.onPlayClick,
                     onPauseClick = state.onPauseClick,
                     onNextClick = state.onNextClick,
-                    onMinimizeClick = state.onMinimizeClick
+                    onRepeatClick = state.onRepeatClick
                 )
             }
 
             @Composable
             private fun Main(
-                modifier: Modifier = Modifier,
+                modifier: Modifier,
                 enabled: StateFlow<Boolean>,
                 track: StateFlow<MediaController.MediaControllerState.Available.QueueItem>,
+                isQueueVisible: StateFlow<Boolean>,
+                isTrackVisible: StateFlow<Boolean>,
+                repeatState: StateFlow<RepeatState>,
+                queue: @Composable (Modifier) -> Unit,
+                onToggleTrackVisibility: () -> Unit,
+                onToggleQueueVisibility: () -> Unit,
                 timePositionChange: StateFlow<Duration>,
                 isPlaying: StateFlow<Boolean>,
-                onShowQueueClick: () -> Unit,
+                onTrackNameClick: (TrackId) -> Unit,
                 onArtistClick: (ArtistId) -> Unit,
                 onTimeChange: (Duration) -> Unit,
                 onPreviousClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onPauseClick: () -> Unit,
                 onNextClick: () -> Unit,
-                onMinimizeClick: () -> Unit
+                onRepeatClick: () -> Unit
             ) {
                 val track by track.collectAsState()
+                val isQueueVisible by isQueueVisible.collectAsState()
+                val isTrackVisible by isTrackVisible.collectAsState()
 
                 Surface(
                     modifier = modifier,
@@ -468,261 +388,258 @@ class Player(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Image(
-                            modifier = Modifier.fillMaxWidth(),
-                            file = track.image,
-                            contentScale = ContentScale.FillWidth
-                        )
-                        TrackInfo(
-                            modifier = Modifier.fillMaxWidth(),
-                            track = track,
-                            onArtistClick = onArtistClick
-                        )
-                        PlaybackControls(
+                        Row(
+                            modifier = Modifier.fillMaxWidth().weight(1f),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (isTrackVisible) {
+                                Track(
+                                    modifier = Modifier.weight(1f),
+                                    track = track,
+                                    isQueueVisible = isQueueVisible,
+                                    onTrackNameClick = { onTrackNameClick(track.id) },
+                                    onArtistClick = onArtistClick
+                                )
+                            }
+                            if (isQueueVisible) {
+                                if (isTrackVisible) {
+                                    queue(Modifier.weight(.45f))
+                                } else {
+                                    queue(Modifier.fillMaxWidth(.45f))
+                                }
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = Alignment.End),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            FilledIconToggleButton(
+                                checked = isTrackVisible,
+                                onCheckedChange = { onToggleTrackVisibility() },
+                                content = { Icon(Icons.Default.ArtTrack, null) }
+                            )
+                            FilledIconToggleButton(
+                                checked = isQueueVisible,
+                                onCheckedChange = { onToggleQueueVisibility() },
+                                content = { Icon(Icons.AutoMirrored.Default.QueueMusic, null) }
+                            )
+                        }
+                        Common.PlaybackControls(
                             modifier = Modifier.fillMaxWidth(),
                             enabled = enabled,
                             track = track,
                             isPlaying = isPlaying,
+                            repeatState = repeatState,
                             timePositionChange = timePositionChange,
-                            onShowQueueClick = onShowQueueClick,
                             onTimeChange = onTimeChange,
                             onPreviousClick = onPreviousClick,
                             onPlayClick = onPlayClick,
                             onPauseClick = onPauseClick,
-                            onNextClick = onNextClick
-                        )
-                        IconButton(
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = onMinimizeClick,
-                            content = {
-                                Icon(
-                                    modifier = Modifier.fillMaxSize(),
-                                    imageVector = Icons.Default.KeyboardArrowDown,
-                                    contentDescription = null
-                                )
-                            }
+                            onNextClick = onNextClick,
+                            onRepeatClick = onRepeatClick
                         )
                     }
-
                 }
             }
 
             @Composable
-            private fun TrackInfo(
+            private fun Track(
                 modifier: Modifier,
                 track: MediaController.MediaControllerState.Available.QueueItem,
+                isQueueVisible: Boolean,
+                onTrackNameClick: () -> Unit,
                 onArtistClick: (ArtistId) -> Unit
             ) {
-                Column(
-                    modifier = modifier,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                Surface(
+                    modifier = modifier
                 ) {
-                    Text(
-                        text = track.name,
-                        style = MaterialTheme.typography.displayMedium,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    track.album?.let { album ->
-                        Surface {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                    when (isQueueVisible) {
+                        true -> {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Icon(Icons.Default.Album, null)
-                                Text(
-                                    text = track.album,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                Image(
+                                    modifier = Modifier.weight(1f).aspectRatio(1f),
+                                    file = track.image
+                                )
+                                Common.TrackInfo(
+                                    modifier = Modifier.padding(top = 12.dp),
+                                    track = track,
+                                    onTrackNameClick = onTrackNameClick,
+                                    onArtistClick = onArtistClick
                                 )
                             }
                         }
-                    }
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        items(track.artists) { artist ->
-                            TextButton(
-                                onClick = { onArtistClick(artist.id) }
+                        false -> {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.Person, null)
-                                    Text(
-                                        text = artist.name,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
+                                Image(
+                                    modifier = Modifier.weight(1f)
+                                        .aspectRatio(1f, true),
+                                    file = track.image
+                                )
+                                Common.TrackInfo(
+                                    modifier = Modifier.weight(1f),
+                                    track = track,
+                                    onTrackNameClick = onTrackNameClick,
+                                    onArtistClick = onArtistClick
+                                )
                             }
                         }
                     }
                 }
             }
+        }
+
+        object Compact {
+            @Composable
+            fun Main(modifier: Modifier, state: PlayerState) {
+                when (state) {
+                    is PlayerState.Loading -> Unit
+                    is PlayerState.Unavailable -> Unit
+                    is PlayerState.Available -> Main(modifier = modifier, state = state)
+                }
+            }
 
             @Composable
-            private fun PlaybackControls(
+            private fun Main(modifier: Modifier, state: PlayerState.Available) {
+                Main(
+                    modifier = modifier,
+                    enabled = state.enabled,
+                    track = state.track,
+                    isQueueVisible = state.isQueueVisible,
+                    isTrackVisible = state.isTrackVisible,
+                    repeatState = state.repeatState,
+                    queue = state.queue,
+                    onToggleTrackVisibility = state.onToggleTrackVisibility,
+                    onToggleQueueVisibility = state.onToggleQueueVisibility,
+                    timePositionChange = state.timePositionChange,
+                    isPlaying = state.isPlaying,
+                    onTrackNameClick = state.onTrackNameClick,
+                    onArtistClick = state.onArtistClick,
+                    onTimeChange = state.onTimeChange,
+                    onPreviousClick = state.onPreviousClick,
+                    onPlayClick = state.onPlayClick,
+                    onPauseClick = state.onPauseClick,
+                    onNextClick = state.onNextClick,
+                    onRepeatClick = state.onRepeatClick
+                )
+            }
+
+            @Composable
+            private fun Main(
                 modifier: Modifier,
                 enabled: StateFlow<Boolean>,
-                track: MediaController.MediaControllerState.Available.QueueItem,
-                isPlaying: StateFlow<Boolean>,
+                track: StateFlow<MediaController.MediaControllerState.Available.QueueItem>,
+                isQueueVisible: StateFlow<Boolean>,
+                isTrackVisible: StateFlow<Boolean>,
+                repeatState: StateFlow<RepeatState>,
+                queue: @Composable (Modifier) -> Unit,
+                onToggleTrackVisibility: () -> Unit,
+                onToggleQueueVisibility: () -> Unit,
                 timePositionChange: StateFlow<Duration>,
-                onShowQueueClick: () -> Unit,
+                isPlaying: StateFlow<Boolean>,
+                onTrackNameClick: (TrackId) -> Unit,
+                onArtistClick: (ArtistId) -> Unit,
                 onTimeChange: (Duration) -> Unit,
                 onPreviousClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onPauseClick: () -> Unit,
-                onNextClick: () -> Unit
+                onNextClick: () -> Unit,
+                onRepeatClick: () -> Unit
             ) {
-                val enabled by enabled.collectAsState()
-                val isPlaying by isPlaying.collectAsState()
-                val timePositionChange by timePositionChange.collectAsState()
-                val animatedPosition = remember { Animatable(0f) }
-                val formattedDuration = remember(track.duration) { track.duration.formatted() }
-                val isUserInteracting = remember { mutableStateOf(false) }
+                val track by track.collectAsState()
+                val isQueueVisible by isQueueVisible.collectAsState()
+                val isTrackVisible by isTrackVisible.collectAsState()
 
-                Column(
+                Surface(
                     modifier = modifier,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = MaterialTheme.shapes.medium
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = Alignment.End),
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        IconButton(
-                            onClick = onShowQueueClick,
-                            content = { Icon(Icons.AutoMirrored.Default.QueueMusic, null) }
-                        )
-                    }
-                    PlaybackSlider(
-                        modifier = Modifier.fillMaxWidth().padding(8.dp),
-                        enabled = enabled,
-                        duration = track.duration,
-                        animatedPosition = animatedPosition,
-                        onSeek = onTimeChange,
-                        isInteracting = isUserInteracting
-                    )
-                    Text(
-                        text = "${
-                            track.duration?.inWholeMilliseconds?.let { (animatedPosition.value * it) }
-                                ?.toLong()?.milliseconds.formatted()
-                        }/${formattedDuration}",
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceAround,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            modifier = Modifier.size(40.dp),
-                            enabled = false, // TODO
-                            onClick = {} // TODO
+                        Box(
+                            modifier = Modifier.fillMaxWidth().weight(1f)
                         ) {
-                            Icon(
-                                modifier = Modifier.fillMaxSize(),
-                                imageVector = Icons.Default.Shuffle,
-                                contentDescription = null
-                            )
-                        }
-                        IconButton(
-                            modifier = Modifier.size(40.dp),
-                            enabled = enabled,
-                            onClick = onPreviousClick
-                        ) {
-                            Icon(
-                                modifier = Modifier.fillMaxSize(),
-                                imageVector = Icons.Default.SkipPrevious,
-                                contentDescription = null
-                            )
-                        }
-                        when (isPlaying) {
-                            true -> IconButton(
-                                modifier = Modifier.size(70.dp),
-                                enabled = enabled,
-                                onClick = onPauseClick
-                            ) {
-                                Icon(
-                                    modifier = Modifier.fillMaxSize(),
-                                    imageVector = Icons.Default.PauseCircle,
-                                    contentDescription = null
+                            if (isTrackVisible) {
+                                Track(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    track = track,
+                                    onTrackNameClick = { onTrackNameClick(track.id) },
+                                    onArtistClick = onArtistClick
                                 )
-                            }
-
-                            false -> IconButton(
-                                modifier = Modifier.size(70.dp),
-                                enabled = enabled,
-                                onClick = onPlayClick
-                            ) {
-                                Icon(
-                                    modifier = Modifier.fillMaxSize(),
-                                    imageVector = Icons.Default.PlayCircle,
-                                    contentDescription = null
-                                )
+                            } else if (isQueueVisible) {
+                                queue(Modifier.fillMaxWidth())
                             }
                         }
-                        IconButton(
-                            modifier = Modifier.size(40.dp),
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = Alignment.End),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            FilledIconToggleButton(
+                                checked = isTrackVisible,
+                                onCheckedChange = { onToggleTrackVisibility() },
+                                content = { Icon(Icons.Default.ArtTrack, null) }
+                            )
+                            FilledIconToggleButton(
+                                checked = isQueueVisible,
+                                onCheckedChange = { onToggleQueueVisibility() },
+                                content = { Icon(Icons.AutoMirrored.Default.QueueMusic, null) }
+                            )
+                        }
+                        Common.PlaybackControls(
+                            modifier = Modifier.fillMaxWidth(),
                             enabled = enabled,
-                            onClick = onNextClick
-                        ) {
-                            Icon(
-                                modifier = Modifier.fillMaxSize(),
-                                imageVector = Icons.Default.SkipNext,
-                                contentDescription = null
-                            )
-                        }
-                        IconButton(
-                            modifier = Modifier.size(40.dp),
-                            enabled = false, // TODO
-                            onClick = {} // TODO
-                        ) {
-                            Icon(
-                                modifier = Modifier.fillMaxSize(),
-                                imageVector = Icons.Default.Repeat,
-                                contentDescription = null
-                            )
-                        }
-                    }
-                }
-
-                LaunchedEffect(isPlaying) {
-                    if (track.duration != null) {
-                        if (isPlaying) {
-                            val remaining = 1f - animatedPosition.value
-                            val remainingDuration: Duration =
-                                (remaining * track.duration.inWholeMilliseconds).toLong().milliseconds
-                            animatedPosition.animateTo(
-                                targetValue = 1f,
-                                animationSpec = linearAnimation(remainingDuration)
-                            )
-                        } else {
-                            animatedPosition.stop()
-                        }
-                    }
-                }
-
-                LaunchedEffect(timePositionChange) {
-                    if (!isUserInteracting.value && track.duration != null) {
-                        animatedPosition.stop()
-                        animatedPosition.snapTo(
-                            timePositionChange.inWholeMilliseconds.toFloat() / track.duration.inWholeMilliseconds.toFloat()
+                            track = track,
+                            isPlaying = isPlaying,
+                            repeatState = repeatState,
+                            timePositionChange = timePositionChange,
+                            onTimeChange = onTimeChange,
+                            onPreviousClick = onPreviousClick,
+                            onPlayClick = onPlayClick,
+                            onPauseClick = onPauseClick,
+                            onNextClick = onNextClick,
+                            onRepeatClick = onRepeatClick
                         )
-                        if (isPlaying) {
-                            animatedPosition.animateTo(
-                                targetValue = 1f,
-                                animationSpec = linearAnimation(track.duration - timePositionChange)
-                            )
-                        }
                     }
+                }
+            }
+
+            @Composable
+            private fun Track(
+                modifier: Modifier,
+                track: MediaController.MediaControllerState.Available.QueueItem,
+                onTrackNameClick: () -> Unit,
+                onArtistClick: (ArtistId) -> Unit
+            ) {
+                Column(
+                    modifier = modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Image(
+                        modifier = Modifier.weight(1f)
+                            .aspectRatio(1f),
+                        file = track.image
+                    )
+                    Common.TrackInfo(
+                        modifier = Modifier.padding(top = 12.dp),
+                        track = track,
+                        onTrackNameClick = onTrackNameClick,
+                        onArtistClick = onArtistClick
+                    )
                 }
             }
         }

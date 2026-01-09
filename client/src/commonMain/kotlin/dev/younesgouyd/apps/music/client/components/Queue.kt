@@ -14,7 +14,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.MediaController
 import dev.younesgouyd.apps.music.client.Platform
-import dev.younesgouyd.apps.music.client.components.util.AdaptiveUi
 import dev.younesgouyd.apps.music.client.components.util.Image
 import dev.younesgouyd.apps.music.client.data.ArtistId
 import dev.younesgouyd.apps.music.client.platform
@@ -28,8 +27,7 @@ import org.burnoutcrew.reorderable.*
 @OptIn(ExperimentalCoroutinesApi::class)
 class Queue(
     mediaController: MediaController,
-    showArtist: (ArtistId) -> Unit,
-    close: () -> Unit
+    showArtist: (ArtistId) -> Unit
 ) : Component() {
     override val title: String = "Queue"
     private val state: StateFlow<QueueState>
@@ -53,8 +51,7 @@ class Queue(
                         onPlayQueueItem = mediaController::playItem,
                         changeItemIndex = mediaController::changeItemIndex,
                         onArtistClick = showArtist,
-                        onRemoveFromQueueClick = mediaController::removeItem,
-                        onCloseClick = close
+                        onRemoveFromQueueClick = mediaController::removeItem
                     )
                 }
             }
@@ -88,8 +85,7 @@ class Queue(
             val onPlayQueueItem: (queueItemIndex: Int) -> Unit,
             val changeItemIndex: (from: Int, to: Int) -> Unit,
             val onArtistClick: (ArtistId) -> Unit,
-            val onRemoveFromQueueClick: (key: Int) -> Unit,
-            val onCloseClick: () -> Unit
+            val onRemoveFromQueueClick: (key: Int) -> Unit
         ) : QueueState()
     }
 
@@ -108,17 +104,49 @@ class Queue(
             modifier: Modifier = Modifier,
             state: QueueState.Available
         ) {
-            val enabled by state.enabled.collectAsState()
-            val queue by state.queue.collectAsState()
-            val currentItem by state.currentItem.collectAsState()
-            val currentItemIndex by state.currentItemIndex.collectAsState()
-            val enableAutoScrollingToCurrentItem by state.enableAutoScrollingToCurrentItem.collectAsState()
+            Main(
+                modifier = modifier,
+                enabled = state.enabled,
+                queue = state.queue,
+                currentItem = state.currentItem,
+                currentItemIndex = state.currentItemIndex,
+                listState = state.listState,
+                enableAutoScrollingToCurrentItem = state.enableAutoScrollingToCurrentItem,
+                onEnableAutoScrollingToCurrentItemChange = state.onEnableAutoScrollingToCurrentItemChange,
+                onPlayQueueItem = state.onPlayQueueItem,
+                changeItemIndex = state.changeItemIndex,
+                onArtistClick = state.onArtistClick,
+                onRemoveFromQueueClick = state.onRemoveFromQueueClick
+            )
+        }
+
+        @Composable
+        private fun Main(
+            modifier: Modifier = Modifier,
+            enabled: StateFlow<Boolean>,
+            queue: StateFlow<List<MediaController.MediaControllerState.Available.QueueItem>>,
+            currentItem: StateFlow<MediaController.MediaControllerState.Available.QueueItem>,
+            currentItemIndex: StateFlow<Int>,
+            listState: LazyListState,
+            enableAutoScrollingToCurrentItem: StateFlow<Boolean>,
+            onEnableAutoScrollingToCurrentItemChange: (Boolean) -> Unit,
+            onPlayQueueItem: (queueItemIndex: Int) -> Unit,
+            changeItemIndex: (from: Int, to: Int) -> Unit,
+            onArtistClick: (ArtistId) -> Unit,
+            onRemoveFromQueueClick: (key: Int) -> Unit
+        ) {
+            val enabled by enabled.collectAsState()
+            val queue by queue.collectAsState()
+            val currentItem by currentItem.collectAsState()
+            val currentItemIndex by currentItemIndex.collectAsState()
+            val enableAutoScrollingToCurrentItem by enableAutoScrollingToCurrentItem.collectAsState()
             var orderedItems by remember { mutableStateOf(queue) }
             var programmaticScrolling by remember { mutableStateOf(false) }
             var isDragging by remember { mutableStateOf(false) }
             val disableAutoScrollingToPlayingItem by remember {
-                derivedStateOf { isDragging || (state.listState.isScrollInProgress && !programmaticScrolling) }
+                derivedStateOf { isDragging || (listState.isScrollInProgress && !programmaticScrolling) }
             }
+
             var dragged by remember { mutableStateOf(false) }
             val reorderState = rememberReorderableLazyListState(
                 onMove = { fromItem, toItem ->
@@ -127,18 +155,18 @@ class Queue(
                         add(toItem.index, removeAt(fromItem.index))
                     }
                 },
-                listState = state.listState,
+                listState = listState,
                 canDragOver = { _, _ -> enabled },
                 onDragEnd = { from, to ->
                     isDragging = false
                     dragged = true
-                    state.changeItemIndex(from, to)
+                    changeItemIndex(from, to)
                 }
             )
             val scope = rememberCoroutineScope()
 
             Surface(
-                modifier = modifier.fillMaxWidth(),
+                modifier = modifier,
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 shape = MaterialTheme.shapes.medium
             ) {
@@ -170,7 +198,7 @@ class Queue(
                                     Platform.JVM -> Modifier.detectReorder(reorderState)
                                 }
                             ),
-                        state = state.listState,
+                        state = listState,
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         contentPadding = PaddingValues(vertical = 8.dp)
@@ -192,9 +220,9 @@ class Queue(
                                     isPlaying = currentItem.key == queueItem.key,
                                     enabled = enabled,
                                     tonalElevation = elevation,
-                                    onClick = { state.onPlayQueueItem(index) },
-                                    onArtistClick = state.onArtistClick,
-                                    onRemoveClick = { state.onRemoveFromQueueClick(queueItem.key!!) }
+                                    onClick = { onPlayQueueItem(index) },
+                                    onArtistClick = onArtistClick,
+                                    onRemoveClick = { onRemoveFromQueueClick(queueItem.key!!) }
                                 )
                             }
                         }
@@ -210,19 +238,19 @@ class Queue(
                         ) {
                             IconButton(
                                 onClick = {
-                                    scope.launch { state.listState.animateScrollToItem(0) }
+                                    scope.launch { listState.animateScrollToItem(0) }
                                 },
                                 content = { Icon(Icons.Default.KeyboardDoubleArrowUp, null) }
                             )
                             IconButton(
                                 onClick = {
-                                    scope.launch { state.listState.animateScrollToItem(state.listState.layoutInfo.totalItemsCount-1) }
+                                    scope.launch { listState.animateScrollToItem(listState.layoutInfo.totalItemsCount-1) }
                                 },
                                 content = { Icon(Icons.Default.KeyboardDoubleArrowDown, null) }
                             )
                             FilledIconToggleButton(
                                 checked = enableAutoScrollingToCurrentItem,
-                                onCheckedChange = { state.onEnableAutoScrollingToCurrentItemChange(it) }
+                                onCheckedChange = { onEnableAutoScrollingToCurrentItemChange(it) }
                             ) {
                                 Icon(
                                     imageVector = if (enableAutoScrollingToCurrentItem) Icons.Default.Lock else Icons.Default.LockOpen,
@@ -231,16 +259,6 @@ class Queue(
                             }
                         }
                     }
-                    AdaptiveUi(
-                        wide = {},
-                        compact = {
-                            IconButton(
-                                modifier = Modifier.fillMaxWidth(),
-                                onClick = state.onCloseClick,
-                                content = { Icon(Icons.Default.Close, null) }
-                            )
-                        }
-                    )
                 }
             }
 
@@ -255,7 +273,7 @@ class Queue(
                     val index = currentItemIndex
                     if (index in orderedItems.indices) {
                         programmaticScrolling = true
-                        state.listState.animateScrollToItem(index)
+                        listState.animateScrollToItem(index)
                         programmaticScrolling = false
                     }
                 }
@@ -264,7 +282,7 @@ class Queue(
 
             LaunchedEffect(disableAutoScrollingToPlayingItem) {
                 if (disableAutoScrollingToPlayingItem) {
-                    state.onEnableAutoScrollingToCurrentItemChange(false)
+                    onEnableAutoScrollingToCurrentItemChange(false)
                 }
             }
         }
