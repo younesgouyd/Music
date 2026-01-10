@@ -1,6 +1,5 @@
 package dev.younesgouyd.apps.music.client.components
 
-import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -8,7 +7,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -23,7 +25,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class Player(
@@ -217,9 +218,7 @@ class Player(
                 val isPlaying by isPlaying.collectAsState()
                 val repeatState by repeatState.collectAsState()
                 val timePositionChange by timePositionChange.collectAsState()
-                val animatedPosition = remember { Animatable(0f) }
                 val formattedDuration = remember(track.duration) { track.duration.formatted() }
-                val isUserInteracting = remember { mutableStateOf(false) }
 
                 Column(
                     modifier = modifier,
@@ -230,12 +229,11 @@ class Player(
                         modifier = Modifier.fillMaxWidth().padding(8.dp),
                         enabled = enabled,
                         duration = track.duration,
-                        animatedPosition = animatedPosition,
-                        onSeek = onTimeChange,
-                        isInteracting = isUserInteracting
+                        currentPosition = timePositionChange,
+                        onSeek = onTimeChange
                     )
                     Text(
-                        text = "${track.duration?.inWholeMilliseconds?.let { (animatedPosition.value * it) }?.toLong()?.milliseconds.formatted()}/${formattedDuration}",
+                        text = "${timePositionChange.formatted()}/${formattedDuration}",
                         style = MaterialTheme.typography.labelMedium
                     )
                     Spacer(Modifier.height(8.dp))
@@ -280,37 +278,6 @@ class Player(
                                 RepeatState.List -> Icon(Icons.Default.Repeat, null)
                                 RepeatState.Track -> Icon(Icons.Default.RepeatOne, null)
                             }
-                        }
-                    }
-                }
-
-                LaunchedEffect(isPlaying) {
-                    if (track.duration != null) {
-                        if (isPlaying) {
-                            val remaining = 1f - animatedPosition.value
-                            val remainingDuration: Duration =
-                                (remaining * track.duration.inWholeMilliseconds).toLong().milliseconds
-                            animatedPosition.animateTo(
-                                targetValue = 1f,
-                                animationSpec = linearAnimation(remainingDuration)
-                            )
-                        } else {
-                            animatedPosition.stop()
-                        }
-                    }
-                }
-
-                LaunchedEffect(timePositionChange) {
-                    if (!isUserInteracting.value && track.duration != null) {
-                        animatedPosition.stop()
-                        animatedPosition.snapTo(
-                            timePositionChange.inWholeMilliseconds.toFloat() / track.duration.inWholeMilliseconds.toFloat()
-                        )
-                        if (isPlaying) {
-                            animatedPosition.animateTo(
-                                targetValue = 1f,
-                                animationSpec = linearAnimation(track.duration - timePositionChange)
-                            )
                         }
                     }
                 }

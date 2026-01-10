@@ -1,6 +1,5 @@
 package dev.younesgouyd.apps.music.client.components
 
-import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -8,13 +7,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.MediaController
-import dev.younesgouyd.apps.music.client.components.util.*
+import dev.younesgouyd.apps.music.client.components.util.AdaptiveUi
+import dev.younesgouyd.apps.music.client.components.util.Image
+import dev.younesgouyd.apps.music.client.components.util.PlaybackSlider
+import dev.younesgouyd.apps.music.client.components.util.formatted
 import dev.younesgouyd.apps.music.client.data.ArtistId
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,7 +29,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MiniPlayer(
@@ -150,9 +154,7 @@ class MiniPlayer(
                 val timePositionChange by timePositionChange.collectAsState()
                 val isPlaying by isPlaying.collectAsState()
                 val repeatState by repeatState.collectAsState()
-                val animatedPosition = remember { Animatable(0f) }
                 val formattedDuration = remember(track.duration) { track.duration.formatted() }
-                val isUserInteracting = remember { mutableStateOf(false) }
 
                 Surface(
                     modifier = modifier,
@@ -307,52 +309,16 @@ class MiniPlayer(
                                     modifier = Modifier.weight(1f),
                                     enabled = enabled,
                                     duration = track.duration,
-                                    animatedPosition = animatedPosition,
-                                    onSeek = onTimeChange,
-                                    isInteracting = isUserInteracting
+                                    currentPosition = timePositionChange,
+                                    onSeek = onTimeChange
                                 )
                                 Text(
-                                    text = "${
-                                        track.duration?.inWholeMilliseconds?.let { (animatedPosition.value * it) }
-                                            ?.toLong()?.milliseconds.formatted()
-                                    }/${formattedDuration}",
+                                    text = "${timePositionChange.formatted()}/${formattedDuration}",
                                     style = MaterialTheme.typography.labelMedium
                                 )
                             }
                         }
                         Spacer(Modifier.size(8.dp))
-                    }
-                }
-
-                LaunchedEffect(isPlaying) {
-                    track.duration?.let { trackDuration ->
-                        if (isPlaying) {
-                            val remaining = 1f - animatedPosition.value
-                            val remainingDuration: Duration =
-                                (remaining * trackDuration.inWholeMilliseconds).toLong().milliseconds
-                            animatedPosition.animateTo(
-                                targetValue = 1f,
-                                animationSpec = linearAnimation(remainingDuration)
-                            )
-                        } else {
-                            animatedPosition.stop()
-                        }
-                    }
-                }
-
-                LaunchedEffect(timePositionChange) {
-                    val trackDuration = track.duration
-                    if (!isUserInteracting.value && trackDuration != null) {
-                        animatedPosition.stop()
-                        animatedPosition.snapTo(
-                            timePositionChange.inWholeMilliseconds.toFloat() / trackDuration.inWholeMilliseconds.toFloat()
-                        )
-                        if (isPlaying) {
-                            animatedPosition.animateTo(
-                                targetValue = 1f,
-                                animationSpec = linearAnimation(trackDuration - timePositionChange)
-                            )
-                        }
                     }
                 }
             }
@@ -388,9 +354,7 @@ class MiniPlayer(
                 onClick: () -> Unit
             ) {
                 val track by track.collectAsState()
-                val isPlaying by isPlaying.collectAsState()
                 val timePositionChange by timePositionChange.collectAsState()
-                val animatedPosition = remember { Animatable(0f) }
                 val formattedDuration = remember(track.duration) { track.duration.formatted() }
 
                 Surface(
@@ -438,51 +402,20 @@ class MiniPlayer(
                                     }
                                 }
                                 Text(
-                                    text = "${
-                                        track.duration?.inWholeMilliseconds?.let { (animatedPosition.value * it) }
-                                            ?.toLong()?.milliseconds.formatted()
-                                    }/${formattedDuration}",
+                                    text = "${timePositionChange.formatted()}/${formattedDuration}",
                                     style = MaterialTheme.typography.labelMedium
                                 )
                             }
                             LinearProgressIndicator(
                                 modifier = Modifier.fillMaxWidth(),
-                                progress = { animatedPosition.value }
+                                progress = {
+                                    track.duration?.let {
+                                        timePositionChange.inWholeMilliseconds.toFloat() / it.inWholeMilliseconds.toFloat()
+                                    } ?: 0f
+                                }
                             )
                         }
                         Spacer(Modifier.width(4.dp))
-                    }
-                }
-
-                LaunchedEffect(isPlaying) {
-                    track.duration?.let { trackDuration ->
-                        if (isPlaying) {
-                            val remaining = 1f - animatedPosition.value
-                            val remainingDuration: Duration =
-                                (remaining * trackDuration.inWholeMilliseconds).toLong().milliseconds
-                            animatedPosition.animateTo(
-                                targetValue = 1f,
-                                animationSpec = linearAnimation(remainingDuration)
-                            )
-                        } else {
-                            animatedPosition.stop()
-                        }
-                    }
-                }
-
-                LaunchedEffect(timePositionChange) {
-                    val trackDuration = track.duration
-                    if (trackDuration != null) {
-                        animatedPosition.stop()
-                        animatedPosition.snapTo(
-                            timePositionChange.inWholeMilliseconds.toFloat() / trackDuration.inWholeMilliseconds.toFloat()
-                        )
-                        if (isPlaying) {
-                            animatedPosition.animateTo(
-                                targetValue = 1f,
-                                animationSpec = linearAnimation(trackDuration - timePositionChange)
-                            )
-                        }
                     }
                 }
             }

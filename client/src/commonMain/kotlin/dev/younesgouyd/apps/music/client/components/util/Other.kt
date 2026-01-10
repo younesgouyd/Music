@@ -1,6 +1,8 @@
 package dev.younesgouyd.apps.music.client.components.util
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.TweenSpec
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.Slider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -79,13 +81,13 @@ fun Duration?.formatted(): String {
 fun PlaybackSlider(
     modifier: Modifier = Modifier,
     duration: Duration?,
-    animatedPosition: Animatable<Float, AnimationVector1D>,
+    currentPosition: Duration,
     enabled: Boolean,
     onSeek: (Duration) -> Unit,
-    isInteracting: MutableState<Boolean>
 ) {
+    var isInteracting by remember { mutableStateOf(false) }
     var sliderPosition by remember { mutableFloatStateOf(0f) }
-    val sliderValue = if (isInteracting.value) sliderPosition else animatedPosition.value
+    val sliderValue = if (isInteracting) sliderPosition else currentPosition.inWholeMilliseconds.toFloat()
 
     if (duration == null) {
         Slider(
@@ -99,13 +101,14 @@ fun PlaybackSlider(
             modifier = modifier,
             enabled = enabled,
             value = sliderValue,
+            valueRange = 0f..duration.inWholeMilliseconds.toFloat(),
             onValueChange = { newValue ->
-                isInteracting.value = true
+                isInteracting = true
                 sliderPosition = newValue
             },
             onValueChangeFinished = {
-                isInteracting.value = false
-                onSeek((sliderPosition * duration.inWholeMilliseconds.toFloat()).toLong().milliseconds)
+                isInteracting = false
+                onSeek(sliderPosition.toLong().milliseconds)
             }
         )
     }
