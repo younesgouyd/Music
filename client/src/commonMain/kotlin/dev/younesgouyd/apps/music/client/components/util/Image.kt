@@ -4,7 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,7 +31,7 @@ fun Image(
 
     when (val img = image.value) {
         is Result.Error -> BrokenImage(modifier)
-        is Result.Loading -> LoadingImage(modifier)
+        is Result.Loading -> BrokenImage(modifier)
         is Result.Success<ImageBitmap> -> Image(
             modifier = modifier,
             bitmap = img.value,
@@ -63,7 +62,7 @@ fun Image(
         }
 
         when (loading) {
-            true -> LoadingImage(modifier)
+            true -> BrokenImage(modifier)
             false -> {
                 image?.let {
                     Image(
@@ -80,19 +79,8 @@ fun Image(
 }
 
 @Composable
-private fun LoadingImage(
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center,
-        content = { CircularProgressIndicator() }
-    )
-}
-
-@Composable
 private fun BrokenImage(
-    modifier: Modifier = Modifier
+    modifier: Modifier
 ) {
     Box(
         modifier = modifier,
