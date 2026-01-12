@@ -1,4 +1,5 @@
-
+- implement pagination. 
+- in Library, support dragging items into folders.
 - check why when trying to launch system file picker on an old android os (android 10 if I remember), the app crashes
 - support get(id) returning null
 - verify SaveAudioFileAsTrackUseCase logic
