@@ -1,5 +1,18 @@
-- implement pagination. 
+
+- improve "Import Folder" feature:
+    - show "scanning folder for items" in import folder flow.
+    - preserve file tree when importing folders.
+- link tracks with imports instead of media files directly.
 - in Library, support dragging items into folders.
+- clearing an import item or deleting a track means deleting the media file and setting the import item's state to non-selected.
+- implement pagination.
+- implement spotify API (SpotifyTrack, SpotifyArtist, SpotifyAlbum...):
+    - Track entity should not contain information like name, album, artists... etc. instead, we should get this information
+      from SpotifyTrack. if SpotifyTrack doesn't exist, we get it from its import inspection.
+    - delete Spotify entities (SpotifyTrack, SpotifyArtist, SpotifyAlbum) automatically when they're no longer linked to anything else:
+        - Track -> SpotifyTrack.
+        - SpotifyTrack (deleted automatically) -> SpotifyArtist, SpotifyAlbum
+    - if multiple tracks are linked to the same SpotifyTrack, they're considered duplicates.
 - check why when trying to launch system file picker on an old android os (android 10 if I remember), the app crashes
 - support get(id) returning null
 - verify SaveAudioFileAsTrackUseCase logic

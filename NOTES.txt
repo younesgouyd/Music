@@ -1,0 +1,2 @@
+
+- deleting an import session or it's items should not be possible. at least at this stage of development.
