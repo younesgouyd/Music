@@ -1,6 +1,4 @@
 
-- improve "Import Folder" feature:
-    - preserve file tree when importing folders.
 - link tracks with imports instead of media files directly.
 - in Library, support dragging items into folders.
 - clearing an import item or deleting a track means deleting the media file and setting the import item's state to non-selected.

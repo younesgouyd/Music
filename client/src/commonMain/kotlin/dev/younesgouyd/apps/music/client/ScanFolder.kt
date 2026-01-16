@@ -12,7 +12,7 @@ typealias FileUri = String
 
 expect suspend fun scanFolder(uri: FileUri): List<Inspection.ItemInspection.LocalFileTrack>
 
-suspend fun scanMetadata(file: File, uri: String): Inspection.ItemInspection.LocalFileTrack {
+suspend fun scanMetadata(file: File, uri: String, path: List<String>): Inspection.ItemInspection.LocalFileTrack {
     var title: String? = null
     var durationMilliseconds: Long? = null
     var albumTrackNumber: Int? = null
@@ -53,6 +53,7 @@ suspend fun scanMetadata(file: File, uri: String): Inspection.ItemInspection.Loc
         albumTrackNumber = albumTrackNumber,
         artists = artist.toNullIfBlank()?.let { listOf(it) } ?: emptyList(),
         album = album.toNullIfBlank(),
+        path = path,
         lyrics = lyrics.toNullIfBlank(),
         year = year,
         albumImage = albumImage?.let { Base64.encode(it) }

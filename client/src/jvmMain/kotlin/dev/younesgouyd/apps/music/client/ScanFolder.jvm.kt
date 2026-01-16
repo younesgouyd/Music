@@ -9,22 +9,22 @@ import kotlin.io.path.toPath
 
 actual suspend fun scanFolder(uri: FileUri): List<Inspection.ItemInspection.LocalFileTrack> {
     val folder = URI(uri).toPath().toFile()
-    return scanFolder(folder)
+    return scanFolder(folder, emptyList())
 }
 
-private suspend fun scanFolder(file: File): List<Inspection.ItemInspection.LocalFileTrack> {
+private suspend fun scanFolder(file: File, path: List<String>): List<Inspection.ItemInspection.LocalFileTrack> {
     val result = mutableListOf<Inspection.ItemInspection.LocalFileTrack>()
     withContext(Dispatchers.IO) {
         for (file in file.listFiles()!!) {
             if (file.isDirectory) {
                 if (!file.isHidden) {
-                    result.addAll(scanFolder(file))
+                    result.addAll(scanFolder(file, path + listOf(file.name)))
                 }
             } else if (file.isAudioFile()) {
                 if (file.extension.lowercase() != "mp3") { // TODO
                     println("::scanMetadata | this file is not mp3 and will be skipped: ${file.absolutePath}")
                 } else {
-                    result.add(scanMetadata(file, file.toURI().toString()))
+                    result.add(scanMetadata(file, file.toURI().toString(), path))
                 }
             }
         }

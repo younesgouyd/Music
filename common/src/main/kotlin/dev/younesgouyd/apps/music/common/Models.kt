@@ -70,6 +70,7 @@ sealed class Inspection {
             override val durationMilliseconds: Long,
             override val artists: List<String>,
             override val album: String?,
+            val path: List<String>,
             val albumTrackNumber: Int?,
             val lyrics: String?,
             val year: Int?,

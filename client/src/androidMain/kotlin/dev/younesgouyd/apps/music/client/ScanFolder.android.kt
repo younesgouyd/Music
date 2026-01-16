@@ -10,10 +10,10 @@ import java.io.File
 
 actual suspend fun scanFolder(uri: FileUri): List<Inspection.ItemInspection.LocalFileTrack> {
     val folder = uri.toUri()
-    return scanFolder(folder)
+    return scanFolder(folder, emptyList())
 }
 
-private suspend fun scanFolder(folderUri: Uri): List<Inspection.ItemInspection.LocalFileTrack> {
+private suspend fun scanFolder(folderUri: Uri, path: List<String>): List<Inspection.ItemInspection.LocalFileTrack> {
     val context = MusicAndroidApp.instance // TODO
     val result = mutableListOf<Inspection.ItemInspection.LocalFileTrack>()
     withContext(Dispatchers.IO) {
@@ -42,7 +42,7 @@ private suspend fun scanFolder(folderUri: Uri): List<Inspection.ItemInspection.L
                 val childUri = DocumentsContract.buildDocumentUriUsingTree(folderUri, childDocumentId)
                 if (mimeType == DocumentsContract.Document.MIME_TYPE_DIR) {
                     if (!childUri.isHiddenFolder()) {
-                        result.addAll(scanFolder(childUri))
+                        result.addAll(scanFolder(childUri, path + listOf(getFileName(childUri))))
                     }
                 } else if (mimeType == "audio/mpeg") {
                     val extension = getFileName(childUri).substringAfterLast(".").lowercase()
@@ -58,7 +58,7 @@ private suspend fun scanFolder(folderUri: Uri): List<Inspection.ItemInspection.L
                         contentResolver.openInputStream(childUri)!!.use { input ->
                             tempFile.outputStream().use { output -> input.copyTo(output) }
                         }
-                        result.add(scanMetadata(tempFile, childUri.toString()))
+                        result.add(scanMetadata(tempFile, childUri.toString(), path))
                         tempFile.delete()
                     }
                 }
