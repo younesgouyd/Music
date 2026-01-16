@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.client.components.util.DbOrder
 import dev.younesgouyd.apps.music.client.components.util.Image
 import dev.younesgouyd.apps.music.client.components.util.Item
 import dev.younesgouyd.apps.music.client.components.util.formatted
@@ -36,6 +37,7 @@ import kotlin.time.Instant
 @OptIn(ExperimentalCoroutinesApi::class, ExperimentalTime::class)
 class ImportDetails(
     id: ImportSessionId,
+    defaultTab: ImportSessionItem.State,
     importSessionRepo: ImportSessionRepo,
     importSessionItemRepo: ImportSessionItemRepo,
     mediaFileRepo: MediaFileRepo,
@@ -48,6 +50,7 @@ class ImportDetails(
     init {
         coroutineScope.launch {
             state.value = ImportDetailsState.Loaded(
+                defaultTab = defaultTab,
                 import = importSessionRepo.get(id).mapLatest { dbImport ->
                     when (dbImport.inspection) {
                         is Inspection.ContainerInspection.Folder -> {
@@ -79,7 +82,8 @@ class ImportDetails(
                         importSessionItemRepo.search(
                             id,
                             ImportSessionItem.State.Nonselected,
-                            it
+                            it,
+                            DbOrder.Ascending
                         ).mapLatest { list ->
                             list.map { it.toModel(mediaFileRepo) }
                         }
@@ -88,7 +92,8 @@ class ImportDetails(
                         importSessionItemRepo.search(
                             id,
                             ImportSessionItem.State.Pending,
-                            it
+                            it,
+                            DbOrder.Ascending
                         ).mapLatest { list ->
                             list.map { it.toModel(mediaFileRepo) }
                         }
@@ -97,7 +102,8 @@ class ImportDetails(
                         importSessionItemRepo.search(
                             id,
                             ImportSessionItem.State.InProgress,
-                            it
+                            it,
+                            DbOrder.Ascending
                         ).mapLatest { list ->
                             list.map { it.toModel(mediaFileRepo) }
                         }
@@ -106,7 +112,8 @@ class ImportDetails(
                         importSessionItemRepo.search(
                             id,
                             ImportSessionItem.State.Completed,
-                            it
+                            it,
+                            DbOrder.Descending
                         ).mapLatest { list ->
                             list.map { it.toModel(mediaFileRepo) }
                         }
@@ -115,7 +122,8 @@ class ImportDetails(
                         importSessionItemRepo.search(
                             id,
                             ImportSessionItem.State.Cancelled,
-                            it
+                            it,
+                            DbOrder.Ascending
                         ).mapLatest { list ->
                             list.map { it.toModel(mediaFileRepo) }
                         }
@@ -124,7 +132,8 @@ class ImportDetails(
                         importSessionItemRepo.search(
                             id,
                             ImportSessionItem.State.Failed,
-                            it
+                            it,
+                            DbOrder.Ascending
                         ).mapLatest { list ->
                             list.map { it.toModel(mediaFileRepo) }
                         }
@@ -196,6 +205,7 @@ class ImportDetails(
         data object Loading : ImportDetailsState()
 
         data class Loaded(
+            val defaultTab: ImportSessionItem.State,
             val import: StateFlow<Import>,
             val items: Items,
             val searchQuery: StateFlow<String>,
@@ -250,6 +260,7 @@ class ImportDetails(
         private fun Main(modifier: Modifier, loaded: ImportDetailsState.Loaded) {
             Main(
                 modifier = modifier,
+                defaultTab = loaded.defaultTab,
                 import = loaded.import,
                 items = loaded.items,
                 searchQuery = loaded.searchQuery,
@@ -265,6 +276,7 @@ class ImportDetails(
         @Composable
         private fun Main(
             modifier: Modifier,
+            defaultTab: ImportSessionItem.State,
             import: StateFlow<ImportDetailsState.Loaded.Import>,
             items: ImportDetailsState.Loaded.Items,
             searchQuery: StateFlow<String>,
@@ -290,7 +302,7 @@ class ImportDetails(
                 ImportSessionItem.State.Cancelled to cancelled,
                 ImportSessionItem.State.Failed to failed
             )
-            var selected: Pair<Int, ImportSessionItem.State> by remember { mutableStateOf(0 to ImportSessionItem.State.Nonselected) }
+            var selected: Pair<Int, ImportSessionItem.State> by remember { mutableStateOf(items.keys.indexOf(defaultTab) to defaultTab) }
             val currentItems = items[selected.second]!!
 
             Scaffold(

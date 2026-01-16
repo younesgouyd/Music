@@ -1,6 +1,5 @@
 
 - improve "Import Folder" feature:
-    - show "scanning folder for items" in import folder flow.
     - preserve file tree when importing folders.
 - link tracks with imports instead of media files directly.
 - in Library, support dragging items into folders.
@@ -30,6 +29,7 @@
 - verify not null assertions (!!)
 
 done:
+- improve "Import Folder" feature: show "scanning folder for items" in import folder flow.
 - refactor player to support showing: album art, queue, lyrics, track info...etc. maybe with tabs.
 - support reordering items in Playlist
 - in media controller, play playlists by the custom order

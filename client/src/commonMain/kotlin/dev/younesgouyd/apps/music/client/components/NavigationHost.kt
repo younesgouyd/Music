@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.MediaController
 import dev.younesgouyd.apps.music.client.data.*
+import dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem
 import dev.younesgouyd.apps.music.client.usecases.ExportUseCaseImpl
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.cancel
@@ -104,9 +105,11 @@ class NavigationHost(
 
         data object ImportList : Destination()
 
-        data class ImportDetails(val id: ImportSessionId) : Destination()
+        data class ImportDetails(val id: ImportSessionId, val defaultTab: ImportSessionItem.State = ImportSessionItem.State.Completed) : Destination()
 
         data class ImportItemDetails(val id: ImportSessionItemId) : Destination()
+
+        data class ImportFolderFlow(val destinationFolderId: FolderId?) : Destination()
 
         data object Export : Destination()
     }
@@ -130,6 +133,10 @@ class NavigationHost(
 
         fun navigateTo(destination: Destination) {
             backStack.push(destinationFactory.get(destination))
+        }
+
+        fun replaceCurrentWith(destination: Destination) {
+            backStack.replace(destinationFactory.get(destination))
         }
 
         fun navigateBack() {
@@ -156,6 +163,13 @@ class NavigationHost(
             }
 
             fun push(component: Component) {
+                stack.push(component)
+                currentDestination.update { stack.peek() }
+                inHome.update { false }
+            }
+
+            fun replace(component: Component) {
+                stack.pop()
                 stack.push(component)
                 currentDestination.update { stack.peek() }
                 inHome.update { false }
@@ -194,6 +208,7 @@ class NavigationHost(
                         mediaFileImportSessionCrossRefRepo = repoStore.mediaFileImportSessionCrossRefRepo,
                         mediaFileImportSessionItemCrossRefRepo = repoStore.mediaFileImportSessionItemCrossRefRepo,
                         mediaController = mediaController,
+                        showImportFolderFlow = { navigateTo(Destination.ImportFolderFlow(it)) },
                         showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
                         showTrack = { navigateTo(Destination.TrackDetails(it)) }
@@ -244,6 +259,7 @@ class NavigationHost(
                     )
                     is Destination.ImportDetails -> ImportDetails(
                         id = destination.id,
+                        defaultTab = destination.defaultTab,
                         importSessionRepo = repoStore.importSessionRepo,
                         importSessionItemRepo = repoStore.importSessionItemRepo,
                         mediaFileRepo = repoStore.mediaFileRepo,
@@ -300,6 +316,14 @@ class NavigationHost(
                         showImportSession = { navigateTo(Destination.ImportDetails(it)) },
                         showTrack = { navigateTo(Destination.TrackDetails(it)) },
                         showArtist = { navigateTo(Destination.ArtistDetails(it)) }
+                    )
+                    is Destination.ImportFolderFlow -> ImportFolderFlow(
+                        destinationFolder = destination.destinationFolderId,
+                        folderRepo = repoStore.folderRepo,
+                        importSessionWithItemsRepo = repoStore.importSessionWithItemsRepo,
+                        mediaFileRepo = repoStore.mediaFileRepo,
+                        mediaFileImportSessionItemCrossRefRepo = repoStore.mediaFileImportSessionItemCrossRefRepo,
+                        showImportSession = { id, tab -> replaceCurrentWith(Destination.ImportDetails(id, tab)) }
                     )
                 }
             }

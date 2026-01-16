@@ -2,6 +2,7 @@ package dev.younesgouyd.apps.music.client.components.util
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.TweenSpec
+
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.Slider
 import androidx.compose.runtime.*
@@ -13,6 +14,8 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 typealias Uri = String
+
+enum class DbOrder { Ascending, Descending }
 
 @Composable
 expect fun SystemFolderPicker(

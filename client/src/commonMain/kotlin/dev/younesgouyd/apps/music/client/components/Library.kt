@@ -25,12 +25,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.MediaController
-import dev.younesgouyd.apps.music.client.Music
 import dev.younesgouyd.apps.music.client.components.util.*
 import dev.younesgouyd.apps.music.client.data.*
 import dev.younesgouyd.apps.music.client.data.repoes.*
 import dev.younesgouyd.apps.music.client.data.room.entities.*
-import dev.younesgouyd.apps.music.client.scanFolder
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -53,6 +51,7 @@ class Library(
     private val mediaFileImportSessionCrossRefRepo: MediaFileImportSessionCrossRefRepo,
     private val mediaFileImportSessionItemCrossRefRepo: MediaFileImportSessionItemCrossRefRepo,
     private val mediaController: MediaController,
+    private val showImportFolderFlow: (FolderId?) -> Unit,
     showPlaylist: (PlaylistId) -> Unit,
     showArtistDetails: (ArtistId) -> Unit,
     showTrack: (TrackId) -> Unit
@@ -346,11 +345,9 @@ class Library(
 
         if (isImportTypeDialogVisible) {
             Ui.Common.ImportFormDialog(
-                onFolderPicked = {
-                    coroutineScope.launch {
-                        importFolder(it)
-                        isImportTypeDialogVisible = false
-                    }
+                onImportFolderClick = {
+                    isImportTypeDialogVisible = false
+                    showImportFolderFlow(currentFolder.value?.id)
                 },
                 onUrlEntered = {
                     isImportTypeDialogVisible = false
@@ -416,32 +413,6 @@ class Library(
                 name = dbPlaylist.name,
                 image = mediaFileRepo.getPlaylistImage(dbPlaylist.id)
             )
-        }
-    }
-
-    private fun importFolder(uri: String) {
-        Music.coroutineScope.launch {
-            val items = scanFolder(uri)
-            val (_, itemsWithId) = importSessionWithItemsRepo.addLocalSession(
-                inspection = dev.younesgouyd.apps.music.common.Inspection.Folder(
-                    container = dev.younesgouyd.apps.music.common.Inspection.ContainerInspection.Folder(uri = uri),
-                    items = items
-                ),
-                destinationFolderId = currentFolder.value?.id
-            )
-            for ((id, item) in itemsWithId) {
-                item.albumImage?.let { albumImage ->
-                    val mediaFileId = mediaFileRepo.add(
-                        type = MediaFile.Type.Image,
-                        fileName = null,
-                        data = Base64.decode(albumImage)
-                    )
-                    mediaFileImportSessionItemCrossRefRepo.add(
-                        mediaFileId = mediaFileId,
-                        importSessionItemId = id
-                    )
-                }
-            }
         }
     }
 
@@ -602,11 +573,10 @@ class Library(
         object Common {
             @Composable
             fun ImportFormDialog(
-                onFolderPicked: (uri: String) -> Unit,
+                onImportFolderClick: () -> Unit,
                 onUrlEntered: (url: String) -> Unit,
                 onDismiss: () -> Unit
             ) {
-                var showSystemFilePicker: Boolean by remember { mutableStateOf(false) }
                 val (url, setUrl) = remember { mutableStateOf("") }
 
                 Dialog(onDismissRequest = onDismiss) {
@@ -631,11 +601,10 @@ class Library(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Text("Import from local folder")
                                     Button(
                                         modifier = Modifier.fillMaxWidth(),
-                                        onClick = { showSystemFilePicker = true },
-                                        content = { Text("Open System File Picker") }
+                                        onClick = onImportFolderClick,
+                                        content = { Text("Import Folder") }
                                     )
                                 }
                             }
@@ -671,15 +640,6 @@ class Library(
                             }
                         }
                     }
-                }
-                if (showSystemFilePicker) {
-                    SystemFolderPicker(
-                        onFolderChosen = {
-                            showSystemFilePicker = false
-                            onFolderPicked(it)
-                        },
-                        onCancelled = { showSystemFilePicker = false }
-                    )
                 }
             }
 

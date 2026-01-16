@@ -1,9 +1,11 @@
 package dev.younesgouyd.apps.music.client.data.room.entities
 
 import androidx.room.*
+import dev.younesgouyd.apps.music.client.components.util.DbOrder
 import dev.younesgouyd.apps.music.client.data.ImportSessionId
 import dev.younesgouyd.apps.music.client.data.ImportSessionItemId
 import dev.younesgouyd.apps.music.client.data.TrackId
+import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
 import dev.younesgouyd.apps.music.common.Inspection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.Serializable
@@ -58,6 +60,34 @@ interface ImportSessionItemDao {
     )
     fun getOldest(state: ImportSessionItem.State): Flow<ImportSessionItem?>
 
+    fun search(
+        importSessionId: ImportSessionId,
+        state: ImportSessionItem.State,
+        titleQuery: String,
+        order: DbOrder
+    ): Flow<List<ImportSessionItem>> {
+        return when (order) {
+            DbOrder.Ascending -> searchAsc(importSessionId, state, titleQuery.toSearchQuery())
+            DbOrder.Descending -> searchDesc(importSessionId, state, titleQuery.toSearchQuery())
+        }
+    }
+
+    @Query(
+        """
+        select *
+        from importsessionitem
+        where importSessionId = :importSessionId
+        and state = :state
+        and inspection like '%"title":"' || :titleQuery || '"%' -- TODO: this is not working
+        order by creationDatetime asc
+    """
+    )
+    fun searchAsc(
+        importSessionId: ImportSessionId,
+        state: ImportSessionItem.State,
+        titleQuery: String
+    ): Flow<List<ImportSessionItem>>
+
     @Query(
         """
         select *
@@ -68,7 +98,7 @@ interface ImportSessionItemDao {
         order by creationDatetime desc
     """
     )
-    fun search(
+    fun searchDesc(
         importSessionId: ImportSessionId,
         state: ImportSessionItem.State,
         titleQuery: String
