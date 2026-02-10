@@ -19,7 +19,7 @@ dependencies {
     implementation(libs.logback.jvm)
     implementation(libs.ktor.serialization)
     implementation(libs.ktor.server.core)
-    implementation(libs.ktor.server.engine)
+    implementation(libs.ktor.server.engine.cio)
     implementation(libs.ktor.server.logging)
     implementation(libs.ktor.server.contentNegotiation)
     implementation(libs.ktor.server.sse)

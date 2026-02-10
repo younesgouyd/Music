@@ -1,0 +1,1444 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "fa22cdb124969ba176850ed9e0b20c5e",
+    "entities": [
+      {
+        "tableName": "Folder",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `parentFolderId` INTEGER, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`parentFolderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parentFolderId",
+            "columnName": "parentFolderId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updateDatetime",
+            "columnName": "updateDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_Folder_parentFolderId",
+            "unique": false,
+            "columnNames": [
+              "parentFolderId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_Folder_parentFolderId` ON `${TABLE_NAME}` (`parentFolderId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "Folder",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "parentFolderId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "ImportSession",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uri` TEXT NOT NULL, `sourceType` TEXT NOT NULL, `inspection` TEXT NOT NULL, `destinationFolderId` INTEGER NOT NULL, `imgId` INTEGER, `creationDatetime` INTEGER NOT NULL, FOREIGN KEY(`destinationFolderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE SET NULL , FOREIGN KEY(`imgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "uri",
+            "columnName": "uri",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceType",
+            "columnName": "sourceType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "inspection",
+            "columnName": "inspection",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "destinationFolderId",
+            "columnName": "destinationFolderId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "imgId",
+            "columnName": "imgId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_ImportSession_destinationFolderId",
+            "unique": false,
+            "columnNames": [
+              "destinationFolderId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ImportSession_destinationFolderId` ON `${TABLE_NAME}` (`destinationFolderId`)"
+          },
+          {
+            "name": "index_ImportSession_imgId",
+            "unique": true,
+            "columnNames": [
+              "imgId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_ImportSession_imgId` ON `${TABLE_NAME}` (`imgId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "Folder",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "destinationFolderId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "MediaFile",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "imgId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "ImportSessionItem",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uri` TEXT NOT NULL, `importSessionId` INTEGER NOT NULL, `state` TEXT NOT NULL, `title` TEXT NOT NULL, `durationMilliseconds` INTEGER NOT NULL, `artists` TEXT NOT NULL, `album` TEXT, `inspection` TEXT NOT NULL, `localFilePath` TEXT, `albumTrackNumber` INTEGER, `lyrics` TEXT, `year` INTEGER, `imgId` INTEGER, `audioFileId` INTEGER, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`importSessionId`) REFERENCES `ImportSession`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`imgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`audioFileId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "uri",
+            "columnName": "uri",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "importSessionId",
+            "columnName": "importSessionId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMilliseconds",
+            "columnName": "durationMilliseconds",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "artists",
+            "columnName": "artists",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "album",
+            "columnName": "album",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "inspection",
+            "columnName": "inspection",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localFilePath",
+            "columnName": "localFilePath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "albumTrackNumber",
+            "columnName": "albumTrackNumber",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lyrics",
+            "columnName": "lyrics",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "year",
+            "columnName": "year",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "imgId",
+            "columnName": "imgId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "audioFileId",
+            "columnName": "audioFileId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updateDatetime",
+            "columnName": "updateDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_ImportSessionItem_importSessionId",
+            "unique": false,
+            "columnNames": [
+              "importSessionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ImportSessionItem_importSessionId` ON `${TABLE_NAME}` (`importSessionId`)"
+          },
+          {
+            "name": "index_ImportSessionItem_imgId",
+            "unique": true,
+            "columnNames": [
+              "imgId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_ImportSessionItem_imgId` ON `${TABLE_NAME}` (`imgId`)"
+          },
+          {
+            "name": "index_ImportSessionItem_audioFileId",
+            "unique": true,
+            "columnNames": [
+              "audioFileId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_ImportSessionItem_audioFileId` ON `${TABLE_NAME}` (`audioFileId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "ImportSession",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "importSessionId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "MediaFile",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "imgId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "MediaFile",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "audioFileId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "MediaFile",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `fileName` TEXT, `creationDatetime` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fileName",
+            "columnName": "fileName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "Playlist",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `folderId` INTEGER, `importSessionId` INTEGER, `importUri` TEXT, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`importSessionId`) REFERENCES `ImportSession`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "folderId",
+            "columnName": "folderId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "importSessionId",
+            "columnName": "importSessionId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "importUri",
+            "columnName": "importUri",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updateDatetime",
+            "columnName": "updateDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_Playlist_folderId",
+            "unique": false,
+            "columnNames": [
+              "folderId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_Playlist_folderId` ON `${TABLE_NAME}` (`folderId`)"
+          },
+          {
+            "name": "index_Playlist_importSessionId",
+            "unique": false,
+            "columnNames": [
+              "importSessionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_Playlist_importSessionId` ON `${TABLE_NAME}` (`importSessionId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "Folder",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "folderId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "ImportSession",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "importSessionId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "PlaylistTrackCrossRef",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `playlistId` INTEGER NOT NULL, `trackId` INTEGER NOT NULL, `position` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`playlistId`) REFERENCES `Playlist`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`trackId`) REFERENCES `Track`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "playlistId",
+            "columnName": "playlistId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trackId",
+            "columnName": "trackId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updateDatetime",
+            "columnName": "updateDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_PlaylistTrackCrossRef_playlistId_trackId",
+            "unique": true,
+            "columnNames": [
+              "playlistId",
+              "trackId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_PlaylistTrackCrossRef_playlistId_trackId` ON `${TABLE_NAME}` (`playlistId`, `trackId`)"
+          },
+          {
+            "name": "index_PlaylistTrackCrossRef_playlistId_position",
+            "unique": true,
+            "columnNames": [
+              "playlistId",
+              "position"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_PlaylistTrackCrossRef_playlistId_position` ON `${TABLE_NAME}` (`playlistId`, `position`)"
+          },
+          {
+            "name": "index_PlaylistTrackCrossRef_playlistId",
+            "unique": false,
+            "columnNames": [
+              "playlistId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_PlaylistTrackCrossRef_playlistId` ON `${TABLE_NAME}` (`playlistId`)"
+          },
+          {
+            "name": "index_PlaylistTrackCrossRef_trackId",
+            "unique": false,
+            "columnNames": [
+              "trackId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_PlaylistTrackCrossRef_trackId` ON `${TABLE_NAME}` (`trackId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "Playlist",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "playlistId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "Track",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "trackId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "Setting",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `value` TEXT NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updateDatetime",
+            "columnName": "updateDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_Setting_name",
+            "unique": true,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_Setting_name` ON `${TABLE_NAME}` (`name`)"
+          }
+        ]
+      },
+      {
+        "tableName": "SpotifyAlbum",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `spotifyId` TEXT NOT NULL, `name` TEXT NOT NULL, `albumType` TEXT NOT NULL, `releaseDate` TEXT NOT NULL, `releaseDatePrecision` TEXT NOT NULL, `smallImgId` INTEGER NOT NULL, `mediumImgId` INTEGER NOT NULL, `largeImgId` INTEGER NOT NULL, `apiResponse` TEXT NOT NULL, `creationDatetime` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`smallImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`mediumImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`largeImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "spotifyId",
+            "columnName": "spotifyId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "albumType",
+            "columnName": "albumType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "releaseDate",
+            "columnName": "releaseDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "releaseDatePrecision",
+            "columnName": "releaseDatePrecision",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "smallImgId",
+            "columnName": "smallImgId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediumImgId",
+            "columnName": "mediumImgId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "largeImgId",
+            "columnName": "largeImgId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "apiResponse",
+            "columnName": "apiResponse",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_SpotifyAlbum_spotifyId",
+            "unique": true,
+            "columnNames": [
+              "spotifyId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_SpotifyAlbum_spotifyId` ON `${TABLE_NAME}` (`spotifyId`)"
+          },
+          {
+            "name": "index_SpotifyAlbum_smallImgId",
+            "unique": true,
+            "columnNames": [
+              "smallImgId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_SpotifyAlbum_smallImgId` ON `${TABLE_NAME}` (`smallImgId`)"
+          },
+          {
+            "name": "index_SpotifyAlbum_mediumImgId",
+            "unique": true,
+            "columnNames": [
+              "mediumImgId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_SpotifyAlbum_mediumImgId` ON `${TABLE_NAME}` (`mediumImgId`)"
+          },
+          {
+            "name": "index_SpotifyAlbum_largeImgId",
+            "unique": true,
+            "columnNames": [
+              "largeImgId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_SpotifyAlbum_largeImgId` ON `${TABLE_NAME}` (`largeImgId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "MediaFile",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "smallImgId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "MediaFile",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "mediumImgId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "MediaFile",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "largeImgId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "SpotifyArtist",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `spotifyId` TEXT NOT NULL, `name` TEXT NOT NULL, `smallImgId` INTEGER NOT NULL, `mediumImgId` INTEGER NOT NULL, `largeImgId` INTEGER NOT NULL, `apiResponse` TEXT NOT NULL, `creationDatetime` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`smallImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`mediumImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`largeImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "spotifyId",
+            "columnName": "spotifyId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "smallImgId",
+            "columnName": "smallImgId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediumImgId",
+            "columnName": "mediumImgId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "largeImgId",
+            "columnName": "largeImgId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "apiResponse",
+            "columnName": "apiResponse",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_SpotifyArtist_spotifyId",
+            "unique": true,
+            "columnNames": [
+              "spotifyId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_SpotifyArtist_spotifyId` ON `${TABLE_NAME}` (`spotifyId`)"
+          },
+          {
+            "name": "index_SpotifyArtist_smallImgId",
+            "unique": true,
+            "columnNames": [
+              "smallImgId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_SpotifyArtist_smallImgId` ON `${TABLE_NAME}` (`smallImgId`)"
+          },
+          {
+            "name": "index_SpotifyArtist_mediumImgId",
+            "unique": true,
+            "columnNames": [
+              "mediumImgId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_SpotifyArtist_mediumImgId` ON `${TABLE_NAME}` (`mediumImgId`)"
+          },
+          {
+            "name": "index_SpotifyArtist_largeImgId",
+            "unique": true,
+            "columnNames": [
+              "largeImgId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_SpotifyArtist_largeImgId` ON `${TABLE_NAME}` (`largeImgId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "MediaFile",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "smallImgId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "MediaFile",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "mediumImgId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "MediaFile",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "largeImgId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "SpotifyArtistSpotifyAlbumCrossRef",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `spotifyArtistId` INTEGER NOT NULL, `spotifyAlbumId` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, FOREIGN KEY(`spotifyArtistId`) REFERENCES `SpotifyArtist`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`spotifyAlbumId`) REFERENCES `SpotifyAlbum`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "spotifyArtistId",
+            "columnName": "spotifyArtistId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "spotifyAlbumId",
+            "columnName": "spotifyAlbumId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_SpotifyArtistSpotifyAlbumCrossRef_spotifyArtistId_spotifyAlbumId",
+            "unique": true,
+            "columnNames": [
+              "spotifyArtistId",
+              "spotifyAlbumId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_SpotifyArtistSpotifyAlbumCrossRef_spotifyArtistId_spotifyAlbumId` ON `${TABLE_NAME}` (`spotifyArtistId`, `spotifyAlbumId`)"
+          },
+          {
+            "name": "index_SpotifyArtistSpotifyAlbumCrossRef_spotifyArtistId",
+            "unique": false,
+            "columnNames": [
+              "spotifyArtistId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_SpotifyArtistSpotifyAlbumCrossRef_spotifyArtistId` ON `${TABLE_NAME}` (`spotifyArtistId`)"
+          },
+          {
+            "name": "index_SpotifyArtistSpotifyAlbumCrossRef_spotifyAlbumId",
+            "unique": false,
+            "columnNames": [
+              "spotifyAlbumId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_SpotifyArtistSpotifyAlbumCrossRef_spotifyAlbumId` ON `${TABLE_NAME}` (`spotifyAlbumId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "SpotifyArtist",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "spotifyArtistId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "SpotifyAlbum",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "spotifyAlbumId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "SpotifyArtistSpotifyTrackCrossRef",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `spotifyArtistId` INTEGER NOT NULL, `spotifyTrackId` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, FOREIGN KEY(`spotifyArtistId`) REFERENCES `SpotifyArtist`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`spotifyTrackId`) REFERENCES `SpotifyTrack`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "spotifyArtistId",
+            "columnName": "spotifyArtistId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "spotifyTrackId",
+            "columnName": "spotifyTrackId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_SpotifyArtistSpotifyTrackCrossRef_spotifyArtistId_spotifyTrackId",
+            "unique": true,
+            "columnNames": [
+              "spotifyArtistId",
+              "spotifyTrackId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_SpotifyArtistSpotifyTrackCrossRef_spotifyArtistId_spotifyTrackId` ON `${TABLE_NAME}` (`spotifyArtistId`, `spotifyTrackId`)"
+          },
+          {
+            "name": "index_SpotifyArtistSpotifyTrackCrossRef_spotifyArtistId",
+            "unique": false,
+            "columnNames": [
+              "spotifyArtistId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_SpotifyArtistSpotifyTrackCrossRef_spotifyArtistId` ON `${TABLE_NAME}` (`spotifyArtistId`)"
+          },
+          {
+            "name": "index_SpotifyArtistSpotifyTrackCrossRef_spotifyTrackId",
+            "unique": false,
+            "columnNames": [
+              "spotifyTrackId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_SpotifyArtistSpotifyTrackCrossRef_spotifyTrackId` ON `${TABLE_NAME}` (`spotifyTrackId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "SpotifyArtist",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "spotifyArtistId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "SpotifyTrack",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "spotifyTrackId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "SpotifyTrack",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `spotifyId` TEXT NOT NULL, `name` TEXT NOT NULL, `spotifyAlbumId` INTEGER NOT NULL, `discNumber` INTEGER, `trackNumber` INTEGER, `durationMs` INTEGER, `explicit` INTEGER, `apiResponse` TEXT NOT NULL, `creationDatetime` INTEGER NOT NULL, FOREIGN KEY(`spotifyAlbumId`) REFERENCES `SpotifyAlbum`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "spotifyId",
+            "columnName": "spotifyId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "spotifyAlbumId",
+            "columnName": "spotifyAlbumId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "discNumber",
+            "columnName": "discNumber",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "trackNumber",
+            "columnName": "trackNumber",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "durationMs",
+            "columnName": "durationMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "explicit",
+            "columnName": "explicit",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "apiResponse",
+            "columnName": "apiResponse",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_SpotifyTrack_spotifyId",
+            "unique": true,
+            "columnNames": [
+              "spotifyId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_SpotifyTrack_spotifyId` ON `${TABLE_NAME}` (`spotifyId`)"
+          },
+          {
+            "name": "index_SpotifyTrack_spotifyAlbumId_discNumber_trackNumber",
+            "unique": true,
+            "columnNames": [
+              "spotifyAlbumId",
+              "discNumber",
+              "trackNumber"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_SpotifyTrack_spotifyAlbumId_discNumber_trackNumber` ON `${TABLE_NAME}` (`spotifyAlbumId`, `discNumber`, `trackNumber`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "SpotifyAlbum",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "spotifyAlbumId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "Tag",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `description` TEXT, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updateDatetime",
+            "columnName": "updateDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "TagTrackCrossRef",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `tagId` INTEGER NOT NULL, `trackId` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, FOREIGN KEY(`tagId`) REFERENCES `Tag`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`trackId`) REFERENCES `Track`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tagId",
+            "columnName": "tagId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trackId",
+            "columnName": "trackId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_TagTrackCrossRef_tagId_trackId",
+            "unique": true,
+            "columnNames": [
+              "tagId",
+              "trackId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_TagTrackCrossRef_tagId_trackId` ON `${TABLE_NAME}` (`tagId`, `trackId`)"
+          },
+          {
+            "name": "index_TagTrackCrossRef_tagId",
+            "unique": false,
+            "columnNames": [
+              "tagId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_TagTrackCrossRef_tagId` ON `${TABLE_NAME}` (`tagId`)"
+          },
+          {
+            "name": "index_TagTrackCrossRef_trackId",
+            "unique": false,
+            "columnNames": [
+              "trackId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_TagTrackCrossRef_trackId` ON `${TABLE_NAME}` (`trackId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "Tag",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "tagId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "Track",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "trackId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "Track",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `importSessionItemId` INTEGER NOT NULL, `spotifyTrackId` INTEGER, `folderId` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`importSessionItemId`) REFERENCES `ImportSessionItem`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`spotifyTrackId`) REFERENCES `SpotifyTrack`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "importSessionItemId",
+            "columnName": "importSessionItemId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "spotifyTrackId",
+            "columnName": "spotifyTrackId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "folderId",
+            "columnName": "folderId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creationDatetime",
+            "columnName": "creationDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updateDatetime",
+            "columnName": "updateDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_Track_importSessionItemId",
+            "unique": true,
+            "columnNames": [
+              "importSessionItemId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_Track_importSessionItemId` ON `${TABLE_NAME}` (`importSessionItemId`)"
+          },
+          {
+            "name": "index_Track_spotifyTrackId",
+            "unique": true,
+            "columnNames": [
+              "spotifyTrackId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_Track_spotifyTrackId` ON `${TABLE_NAME}` (`spotifyTrackId`)"
+          },
+          {
+            "name": "index_Track_folderId",
+            "unique": false,
+            "columnNames": [
+              "folderId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_Track_folderId` ON `${TABLE_NAME}` (`folderId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "ImportSessionItem",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "importSessionItemId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "SpotifyTrack",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "spotifyTrackId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "Folder",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "folderId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'fa22cdb124969ba176850ed9e0b20c5e')"
+    ]
+  }
+}

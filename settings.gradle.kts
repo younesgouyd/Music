@@ -1,6 +1,7 @@
 rootProject.name = "Music"
 
-include(":client")
+include(":client:app")
+include(":client:spotifyapi")
 include(":server")
 include(":common")
 
@@ -61,6 +62,7 @@ dependencyResolutionManagement {
             plugin("ksp", "com.google.devtools.ksp").versionRef(versions.ksp)
             plugin("room", "androidx.room").versionRef(versions.room)
             plugin("androidApplication", "com.android.application").versionRef(versions.android.agp)
+            plugin("androidLibrary", "com.android.library").versionRef(versions.android.agp)
 
             library("reorderable", "org.burnoutcrew.composereorderable", "reorderable").versionRef(versions.reorderable)
 
@@ -88,7 +90,8 @@ dependencyResolutionManagement {
 
             library("ktor.serialization", "io.ktor", "ktor-serialization-kotlinx-json").versionRef(versions.ktor)
             library("ktor.server.core", "io.ktor", "ktor-server-core").versionRef(versions.ktor)
-            library("ktor.server.engine", "io.ktor", "ktor-server-cio").versionRef(versions.ktor)
+            library("ktor.server.engine.cio", "io.ktor", "ktor-server-cio").versionRef(versions.ktor)
+            library("ktor.server.engine.netty", "io.ktor", "ktor-server-netty").versionRef(versions.ktor)
             library("ktor.server.logging", "io.ktor", "ktor-server-call-logging").versionRef(versions.ktor)
             library("ktor.server.contentNegotiation", "io.ktor", "ktor-server-content-negotiation").versionRef(versions.ktor)
             library("ktor.server.sse", "io.ktor", "ktor-server-sse").versionRef(versions.ktor)

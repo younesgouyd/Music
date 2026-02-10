@@ -1,14 +1,9 @@
 
-- implement spotify API (SpotifyTrack, SpotifyArtist, SpotifyAlbum...):
-    - link tracks with imports instead of media files directly.
-    - Track entity should not contain information like name, album, artists... etc. instead, we should get this information
-      from SpotifyTrack. if SpotifyTrack doesn't exist, we get it from its import inspection.
-    - clearing an import item or deleting a track means deleting the media file and setting the import item's state to non-selected.
-    - delete Spotify entities (SpotifyTrack, SpotifyArtist, SpotifyAlbum) automatically when they're no longer linked to anything else:
-        - Track -> SpotifyTrack.
-        - SpotifyTrack (deleted automatically) -> SpotifyArtist, SpotifyAlbum
-    - if multiple tracks are linked to the same SpotifyTrack, they're considered duplicates.
+- handle the case of clicking on non-observable deleted entity (e.g. tracks of MediaController's QueueItem)
 - implement pagination.
+- the items of import session containers may change in the source. so re-importing items is only possible
+  if it still exists in the source (youtube playlist for example). consider refreshing the inspection before
+  trying to re-import or remove this feature altogether.
 - in Library, support dragging items into folders.
 - check why when trying to launch system file picker on an old android os (android 10 if I remember), the app crashes
 - support get(id) returning null
@@ -16,7 +11,6 @@
 - support showing the destination folder from import session
 - update date and creation date in daos
 - make material3 theme parametrable in settings
-- delete non-referenced files
 - find the most precise way to represent time: check: https://en.wikipedia.org/wiki/Unix_time
 - create Detect Duplicates Component
 - implement android events (back navigation, configuration changes... etc)
@@ -27,6 +21,16 @@
 - verify not null assertions (!!)
 
 done:
+- implement spotify API (SpotifyTrack, SpotifyArtist, SpotifyAlbum...):
+    - link tracks with imports instead of media files directly.
+    - Track entity should not contain information like name, album, artists... etc. instead, we should get this information
+      from SpotifyTrack. if SpotifyTrack doesn't exist, we get it from its import inspection.
+    - clearing an import item or deleting a track means deleting the media file and setting the import item's state to non-selected.
+    - delete Spotify entities (SpotifyTrack, SpotifyArtist, SpotifyAlbum) automatically when they're no longer linked to anything else:
+        - Track -> SpotifyTrack.
+        - SpotifyTrack (deleted automatically) -> SpotifyArtist, SpotifyAlbum
+    - SpotifyTrack is set on Track. the same SpotifyTrack may be set on only one track.
+- delete non-referenced files
 - improve "Import Folder" feature: show "scanning folder for items" in import folder flow.
 - refactor player to support showing: album art, queue, lyrics, track info...etc. maybe with tabs.
 - support reordering items in Playlist

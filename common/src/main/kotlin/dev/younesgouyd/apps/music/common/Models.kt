@@ -1,9 +1,6 @@
 package dev.younesgouyd.apps.music.common
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 typealias Base64String = String
 
@@ -46,7 +43,6 @@ sealed class Inspection {
         abstract val durationMilliseconds: Long
         abstract val artists: List<String>
         abstract val album: String?
-        abstract val duration: Duration
 
         @Serializable
         data class InternetTrack(
@@ -58,10 +54,7 @@ sealed class Inspection {
             val id: Long,
             val thumbnailUrl: String?,
             val thumbnail: Base64String?
-        ) : ItemInspection() {
-            @Transient
-            override val duration: Duration = durationMilliseconds.milliseconds
-        }
+        ) : ItemInspection()
 
         @Serializable
         data class LocalFileTrack(
@@ -75,9 +68,6 @@ sealed class Inspection {
             val lyrics: String?,
             val year: Int?,
             val albumImage: Base64String?
-        ) : ItemInspection() {
-            @Transient
-            override val duration: Duration = durationMilliseconds.milliseconds
-        }
+        ) : ItemInspection()
     }
 }

@@ -1,0 +1,325 @@
+package dev.younesgouyd.apps.music.client.components
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.client.MediaController
+import dev.younesgouyd.apps.music.client.components.util.*
+import dev.younesgouyd.apps.music.client.data.SpotifyAlbumId
+import dev.younesgouyd.apps.music.client.data.SpotifyArtistId
+import dev.younesgouyd.apps.music.client.data.SpotifyTrackId
+import dev.younesgouyd.apps.music.client.data.TrackId
+import dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo
+import dev.younesgouyd.apps.music.client.data.repoes.SpotifyAlbumRepo
+import dev.younesgouyd.apps.music.client.data.repoes.SpotifyArtistRepo
+import dev.younesgouyd.apps.music.client.data.repoes.SpotifyTrackRepo
+import dev.younesgouyd.apps.music.client.util.Component
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import java.io.File
+
+class AlbumDetails(
+    id: SpotifyAlbumId,
+    albumRepo: SpotifyAlbumRepo,
+    mediaFileRepo: MediaFileRepo,
+    artistRepo: SpotifyArtistRepo,
+    spotifyTrackRepo: SpotifyTrackRepo,
+    mediaController: MediaController,
+    showTrack: (TrackId) -> Unit,
+    showArtist: (SpotifyArtistId) -> Unit
+) : Component() {
+    override val title: String = "Album"
+    private val state: MutableStateFlow<UiState> = MutableStateFlow(UiState.Loading)
+
+    init {
+        coroutineScope.launch {
+            val spotifyTracks = spotifyTrackRepo.getAlbumTracks(id).map { dbList ->
+                dbList.map { dbTrack ->
+                    UiState.Loaded.Track(
+                        id = dbTrack.spotifyTrack.id,
+                        trackId = dbTrack.track?.id,
+                        name = dbTrack.spotifyTrack.name,
+                        artists = artistRepo.getSpotifyTrackSpotifyArtists(dbTrack.spotifyTrack.id).first().map { dbArtist ->
+                            Pair(dbArtist.id, dbArtist.name)
+                        }
+                    )
+                }
+            }.stateIn(coroutineScope)
+            state.value = UiState.Loaded(
+                scrollState = LazyListState(),
+                album = albumRepo.get(id).map { dbAlbum ->
+                    UiState.Loaded.Album(
+                        name = dbAlbum.name,
+                        image = mediaFileRepo.getSpotifyAlbumImage(id),
+                        artists = artistRepo.getSpotifyAlbumSpotifyArtists(id).first().map { dbArtist ->
+                            Pair(dbArtist.id, dbArtist.name)
+                        }
+                    )
+                }.stateIn(coroutineScope),
+                tracks = spotifyTracks,
+                onPlayClick = {
+                    mediaController.playQueue(listOf(MediaController.QueueItemParameter.Album(id)))
+                },
+                onAddToQueueClick = {
+                    mediaController.addToQueue(
+                        items = spotifyTracks.value.mapNotNull { it.trackId?.let { MediaController.QueueItemParameter.Track(it) } }
+                    )
+                },
+                onTrackClick = { trackId ->
+                    val tracks = spotifyTracks.value.mapNotNull { it.trackId }
+                    mediaController.playQueue(
+                        queue = tracks.map { MediaController.QueueItemParameter.Track(it) },
+                        queueItemIndex = tracks.indexOfFirst { it == trackId }
+                    )
+                },
+                onArtistClick = showArtist,
+                onAddTrackToQueueClick = { trackId ->
+                    mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(trackId)))
+                },
+                onShowTrackDetailsClick = showTrack
+            )
+        }
+    }
+
+    @Composable
+    override fun show(modifier: Modifier) {
+        val state by state.collectAsState()
+
+        Ui.Main(modifier, state)
+    }
+
+    override fun clear() {
+        coroutineScope.cancel()
+    }
+
+    sealed class UiState {
+        data object Loading : UiState()
+
+        data class Loaded(
+            val scrollState: LazyListState,
+            val album: StateFlow<Album>,
+            val tracks: StateFlow<List<Track>>,
+            val onPlayClick: () -> Unit,
+            val onAddToQueueClick: () -> Unit,
+            val onTrackClick: (TrackId) -> Unit,
+            val onArtistClick: (SpotifyArtistId) -> Unit,
+            val onAddTrackToQueueClick: (TrackId) -> Unit,
+            val onShowTrackDetailsClick: (TrackId) -> Unit
+        ) : UiState() {
+            data class Album(
+                val name: String,
+                val image: File,
+                val artists: List<Pair<SpotifyArtistId, String>>
+            )
+
+            data class Track(
+                val id: SpotifyTrackId,
+                val trackId: TrackId?,
+                val name: String,
+                val artists: List<Pair<SpotifyArtistId, String>>
+            )
+        }
+    }
+
+    private object Ui {
+        private const val KEY_ALBUM_INFO = "album_info"
+        private val itemHeight = 100.dp
+
+        @Composable
+        fun Main(modifier: Modifier, state: UiState) {
+            when (state) {
+                is UiState.Loading -> Text(modifier = modifier, text = "Loading...")
+                is UiState.Loaded -> Main(modifier = modifier, state = state)
+            }
+        }
+
+        @Composable
+        private fun Main(modifier: Modifier, state: UiState.Loaded) {
+            Main(
+                modifier = modifier,
+                scrollState = state.scrollState,
+                album = state.album,
+                tracks = state.tracks,
+                onPlayClick = state.onPlayClick,
+                onAddToQueueClick = state.onAddToQueueClick,
+                onTrackClick = state.onTrackClick,
+                onArtistClick = state.onArtistClick,
+                onAddTrackToQueueClick = state.onAddTrackToQueueClick,
+                onShowTrackDetailsClick = state.onShowTrackDetailsClick
+            )
+        }
+
+        @Composable
+        private fun Main(
+            modifier: Modifier,
+            scrollState: LazyListState,
+            album: StateFlow<UiState.Loaded.Album>,
+            tracks: StateFlow<List<UiState.Loaded.Track>>,
+            onPlayClick: () -> Unit,
+            onAddToQueueClick: () -> Unit,
+            onTrackClick: (TrackId) -> Unit,
+            onArtistClick: (SpotifyArtistId) -> Unit,
+            onAddTrackToQueueClick: (TrackId) -> Unit,
+            onShowTrackDetailsClick: (TrackId) -> Unit
+        ) {
+            val album by album.collectAsState()
+            val tracks by tracks.collectAsState()
+
+            Scaffold(
+                modifier = modifier.fillMaxSize(),
+                content = {
+                    Box(modifier = Modifier.fillMaxSize().padding(it)) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            state = scrollState,
+                            verticalArrangement = Arrangement.Top,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            item(key = KEY_ALBUM_INFO) {
+                                AdaptiveUi(
+                                    wide = {
+                                        ItemDetailsHeaderWide(
+                                            modifier = Modifier.height(500.dp),
+                                            title = album.name,
+                                            image = album.image,
+                                            itemAttributes = {
+                                                Artists(
+                                                    artists = album.artists,
+                                                    onArtistClick = onArtistClick
+                                                )
+                                            },
+                                            mainAction = HeaderAction("Play", Icons.Default.PlayCircle, onPlayClick),
+                                            actions = listOf(
+                                                HeaderAction("Add to queue", Icons.Default.AddToQueue, onAddToQueueClick)
+                                            )
+                                        )
+                                    },
+                                    compact = {
+                                        ItemDetailsHeaderCompact(
+                                            title = album.name,
+                                            image = album.image,
+                                            itemAttributes = {
+                                                Artists(
+                                                    artists = album.artists,
+                                                    onArtistClick = onArtistClick
+                                                )
+                                            },
+                                            mainAction = HeaderAction("Play", Icons.Default.PlayCircle, onPlayClick),
+                                            actions = listOf(
+                                                HeaderAction("Add to queue", Icons.Default.AddToQueue, onAddToQueueClick)
+                                            )
+                                        )
+                                    }
+                                )
+                            }
+                            items(
+                                items = tracks,
+                                key = { item -> item.id.value.toString() },
+                            ) { track ->
+                                TrackItem(
+                                    modifier = Modifier.fillMaxWidth().height(itemHeight),
+                                    track = track,
+                                    albumImage = album.image,
+                                    enabled = track.trackId != null,
+                                    onTrackClick = { onTrackClick(track.trackId!!) },
+                                    onArtistClick = onArtistClick,
+                                    onAddToQueueClick = { onAddTrackToQueueClick(track.trackId!!) },
+                                    onDetailsClick = { onShowTrackDetailsClick(track.trackId!!) }
+                                )
+                                HorizontalDivider()
+                            }
+                        }
+                    }
+                },
+                floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) }
+            )
+        }
+
+        @Composable
+        private fun TrackItem(
+            modifier: Modifier,
+            track: UiState.Loaded.Track,
+            albumImage: File,
+            enabled: Boolean,
+            onTrackClick: () -> Unit,
+            onArtistClick: (SpotifyArtistId) -> Unit,
+            onAddToQueueClick: () -> Unit,
+            onDetailsClick: () -> Unit
+        ) {
+            var showContextMenu by remember { mutableStateOf(false) }
+
+            Surface(
+                modifier = modifier,
+                onClick = onTrackClick,
+                enabled = enabled
+            ) {
+                Row(
+                    modifier = modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize().weight(1f),
+                        horizontalAlignment = Alignment.Start,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = track.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (enabled) Color.Unspecified else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Artists(
+                            artists = track.artists,
+                            onArtistClick = onArtistClick
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    IconButton(
+                        content = { Icon(Icons.Default.MoreVert, null) },
+                        onClick = { showContextMenu = true },
+                        enabled = enabled
+                    )
+                }
+            }
+
+            if (showContextMenu && enabled) {
+                ItemContextMenu(
+                    item = Item(
+                        name = track.name,
+                        image = albumImage
+                    ),
+                    onDismiss = { showContextMenu = false }
+                ) {
+                    Option(
+                        label = "Details",
+                        icon = Icons.Default.Info,
+                        onClick = { onDetailsClick(); showContextMenu = false }
+                    )
+                    Option(
+                        label = "Add to queue",
+                        icon = Icons.Default.AddToQueue,
+                        onClick = { onAddToQueueClick(); showContextMenu = false }
+                    )
+                    Option(
+                        label = "Play next",
+                        icon = Icons.Default.QueuePlayNext,
+                        onClick = { TODO() }
+                    )
+                }
+            }
+        }
+    }
+}
