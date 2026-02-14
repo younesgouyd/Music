@@ -1,7 +1,12 @@
 package dev.younesgouyd.apps.music.client.data.room
 
 import androidx.room.*
+import dev.younesgouyd.apps.music.client.data.room.daos.*
 import dev.younesgouyd.apps.music.client.data.room.entities.*
+import dev.younesgouyd.apps.music.client.data.room.transactions.ClearImportSessionItem
+import dev.younesgouyd.apps.music.client.data.room.transactions.Import
+import dev.younesgouyd.apps.music.client.data.room.transactions.SetTrackMetadataFromSpotify
+import dev.younesgouyd.apps.music.client.data.room.transactions.UnsetSpotifyTrack
 
 @Database(
     entities = [
@@ -40,9 +45,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun tagTrackCrossRefDao(): TagTrackCrossRefDao
     abstract fun trackDao(): TrackDao
 
-    abstract fun clearImportSessionItemDao(): ClearImportSessionItemDao
-    abstract fun setTrackMetadataFromSpotifyDao(): SetTrackMetadataFromSpotifyDao
-    abstract fun unsetSpotifyTrackDao(): UnsetSpotifyTrackDao
+    abstract fun clearImportSessionItem(): ClearImportSessionItem
+    abstract fun importTrx(): Import
+    abstract fun setTrackMetadataFromSpotify(): SetTrackMetadataFromSpotify
+    abstract fun unsetSpotifyTrack(): UnsetSpotifyTrack
 }
 
 @Suppress("NO_ACTUAL_FOR_EXPECT")

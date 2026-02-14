@@ -65,7 +65,7 @@ class MoveToFolder(
             is ItemToMove.Playlist -> playlistRepo.get(itemToMove.id).filterNotNull().map { dbPlaylist ->
                 Ui.State.Loaded.ItemToAdd(
                     name = dbPlaylist.name,
-                    image = dbPlaylist.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) }
+                    image = null
                 )
             }
             is ItemToMove.Folder -> folderRepo.get(itemToMove.id).filterNotNull().map { dbFolder ->

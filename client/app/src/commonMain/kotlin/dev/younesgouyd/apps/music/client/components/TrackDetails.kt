@@ -183,7 +183,7 @@ class TrackDetails(
                                 Ui.State.Loaded.Playlist(
                                     id = it.id,
                                     name = it.name,
-                                    image = it.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) }
+                                    image = null
                                 )
                             }
                         }.stateIn(coroutineScope),

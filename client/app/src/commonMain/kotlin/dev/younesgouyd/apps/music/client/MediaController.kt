@@ -1,7 +1,13 @@
 package dev.younesgouyd.apps.music.client
 
-import dev.younesgouyd.apps.music.client.data.*
-import dev.younesgouyd.apps.music.client.data.repoes.*
+import dev.younesgouyd.apps.music.client.data.PlaylistId
+import dev.younesgouyd.apps.music.client.data.SpotifyAlbumId
+import dev.younesgouyd.apps.music.client.data.SpotifyArtistId
+import dev.younesgouyd.apps.music.client.data.TrackId
+import dev.younesgouyd.apps.music.client.data.repoes.MediaFileRepo
+import dev.younesgouyd.apps.music.client.data.repoes.SpotifyAlbumRepo
+import dev.younesgouyd.apps.music.client.data.repoes.SpotifyArtistRepo
+import dev.younesgouyd.apps.music.client.data.repoes.TrackRepo
 import dev.younesgouyd.apps.music.client.data.room.entities.TrackRelation
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -15,7 +21,10 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class MediaController(
     private val mediaPlayer: MediaPlayer,
-    private val repoStore: RepoStore
+    private val mediaFileRepo: MediaFileRepo,
+    private val trackRepo: TrackRepo,
+    private val artistRepo: SpotifyArtistRepo,
+    private val albumRepo: SpotifyAlbumRepo
 ) {
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
     private val mutex = Mutex()
@@ -28,12 +37,6 @@ class MediaController(
     private val isPlaying: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val repeatState: MutableStateFlow<MediaControllerState.Available.RepeatState> = MutableStateFlow(MediaControllerState.Available.RepeatState.Off)
     private val _state: MutableStateFlow<MediaControllerState> = MutableStateFlow(MediaControllerState.Unavailable)
-
-    private val mediaFileRepo: MediaFileRepo get() = repoStore.mediaFileRepo
-    private val trackRepo: TrackRepo get() = repoStore.trackRepo
-    private val artistRepo: SpotifyArtistRepo get() = repoStore.spotifyArtistRepo
-    private val albumRepo: SpotifyAlbumRepo get() = repoStore.spotifyAlbumRepo
-    private val importSessionItemRepo: ImportSessionItemRepo get() = repoStore.importSessionItemRepo
 
     val state: StateFlow<MediaControllerState> get() = _state.asStateFlow()
 

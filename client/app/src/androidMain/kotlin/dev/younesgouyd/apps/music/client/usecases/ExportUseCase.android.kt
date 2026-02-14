@@ -3,14 +3,20 @@ package dev.younesgouyd.apps.music.client.usecases
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
 import dev.younesgouyd.apps.music.client.MusicAndroidApp
-import dev.younesgouyd.apps.music.client.data.RepoStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 actual class ExportUseCaseImpl actual constructor(
-    repoStore: RepoStore
-) : ExportUseCase(repoStore) {
+    dbDir: File,
+    inspectionDir: File,
+    mediaDir: File
+) : ExportUseCase(
+    dbDir,
+    inspectionDir,
+    mediaDir
+) {
     val context = MusicAndroidApp.instance
 
     override suspend fun execute(destination: String) {

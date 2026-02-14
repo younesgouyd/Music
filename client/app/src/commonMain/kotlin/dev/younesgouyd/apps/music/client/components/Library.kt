@@ -50,7 +50,6 @@ class Library(
     private val trackRepo: TrackRepo,
     private val artistRepo: SpotifyArtistRepo,
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
-    private val importSessionItemRepo: ImportSessionItemRepo,
     private val mediaFileRepo: MediaFileRepo,
     deleteFolderUseCase: DeleteFolderUseCase,
     clearImportItemUseCase: ClearImportItemUseCase,
@@ -142,7 +141,7 @@ class Library(
                 .flatMapLatest { (folder, search, tags) ->
                     if (folder == null) flow { emit(emptyList<TrackRelation>()) }
                     else trackRepo.searchFolder(folder.id, search, tags, false)
-                }.map { dbTracks -> dbTracks.toTrackModels() }
+                }.mapLatest { dbTracks -> dbTracks.toTrackModels() }
                 .onEach { loadingTracks.value = false }
                 .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
             onNewFolder = ::addFolder,
@@ -414,12 +413,11 @@ class Library(
         }
     }
 
-    private suspend fun List<Playlist>.toPlaylistModels(): List<Ui.State.Playlist> {
+    private fun List<Playlist>.toPlaylistModels(): List<Ui.State.Playlist> {
         return this.map { dbPlaylist ->
             Ui.State.Playlist(
                 id = dbPlaylist.id,
-                name = dbPlaylist.name,
-                image = dbPlaylist.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) }
+                name = dbPlaylist.name
             )
         }
     }
@@ -506,8 +504,7 @@ class Library(
 
             data class Playlist(
                 val id: PlaylistId,
-                val name: String,
-                val image: File?
+                val name: String
             )
         }
 
@@ -1123,7 +1120,7 @@ class Library(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            file = playlist.image,
+                            file = null,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -1166,7 +1163,7 @@ class Library(
                     ItemContextMenu(
                         item = Item(
                             name = playlist.name,
-                            image = playlist.image
+                            image = null
                         ),
                         onDismiss = { showContextMenu = false }
                     ) {
@@ -1911,7 +1908,7 @@ class Library(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            file = playlist.image,
+                            file = null,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -1939,7 +1936,7 @@ class Library(
                     ItemContextMenu(
                         item = Item(
                             name = playlist.name,
-                            image = playlist.image
+                            image = null
                         ),
                         onDismiss = { showContextMenu = false }
                     ) {

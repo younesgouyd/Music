@@ -1,14 +1,19 @@
 package dev.younesgouyd.apps.music.client.usecases
 
-import dev.younesgouyd.apps.music.client.data.RepoStore
 import java.io.File
 import java.net.URI
 import kotlin.io.path.toPath
 
 @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 actual class ExportUseCaseImpl actual constructor(
-    repoStore: RepoStore
-) : ExportUseCase(repoStore) {
+    dbDir: File,
+    inspectionDir: File,
+    mediaDir: File
+) : ExportUseCase(
+    dbDir,
+    inspectionDir,
+    mediaDir
+) {
     override suspend fun execute(destination: String) {
         val dest = URI(destination)
             .toPath()

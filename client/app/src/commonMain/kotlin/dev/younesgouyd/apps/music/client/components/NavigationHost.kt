@@ -14,10 +14,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.client.MediaController
 import dev.younesgouyd.apps.music.client.data.*
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem
-import dev.younesgouyd.apps.music.client.usecases.ExportUseCaseImpl
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,11 +28,10 @@ import java.util.*
 class NavigationHost(
     private val toggleDrawerState: suspend () -> Unit,
     repoStore: RepoStore,
-    mediaController: MediaController,
     startDestination: Destination
 ) : Component() {
     override val title: String = ""
-    private val navController = NavigationController(repoStore, mediaController, startDestination)
+    private val navController = NavigationController(repoStore, startDestination)
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
@@ -120,7 +117,6 @@ class NavigationHost(
 
     private class NavigationController(
         private val repoStore: RepoStore,
-        private val mediaController: MediaController,
         startDestination: Destination
     ) {
         val inHome: StateFlow<Boolean>
@@ -209,13 +205,12 @@ class NavigationHost(
                         mediaFileRepo = repoStore.mediaFileRepo,
                         deleteFolderUseCase = repoStore.deleteFolderUseCase,
                         clearImportItemUseCase = repoStore.clearImportItemUseCase,
-                        mediaController = mediaController,
+                        mediaController = repoStore.mediaController,
                         showImportFolderFlow = { navigateTo(Destination.ImportFolderFlow(it)) },
                         showImportFromInternetFlow = { navigateTo(Destination.ImportFromInternetFlow(it)) },
                         showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
                         showTrack = { navigateTo(Destination.TrackDetails(it)) },
-                        importSessionItemRepo = repoStore.importSessionItemRepo,
                         albumRepo = repoStore.spotifyAlbumRepo
                     )
                     is Destination.ArtistDetails -> ArtistDetails(
@@ -226,7 +221,7 @@ class NavigationHost(
                         folderRepo = repoStore.folderRepo,
                         playlistRepo = repoStore.playlistRepo,
                         mediaFileRepo = repoStore.mediaFileRepo,
-                        mediaController = mediaController,
+                        mediaController = repoStore.mediaController,
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
                         albumRepo = repoStore.spotifyAlbumRepo,
                         showAlbum = { navigateTo(Destination.AlbumDetails(it)) },
@@ -238,14 +233,14 @@ class NavigationHost(
                         mediaFileRepo = repoStore.mediaFileRepo,
                         artistRepo = repoStore.spotifyArtistRepo,
                         spotifyTrackRepo = repoStore.spotifyTrackRepo,
-                        mediaController = mediaController,
+                        mediaController = repoStore.mediaController,
                         showTrack = { navigateTo(Destination.TrackDetails(it)) },
                         showArtist = { navigateTo(Destination.ArtistDetails(it)) }
                     )
                     is Destination.ArtistList -> ArtistList(
                         artistRepo = repoStore.spotifyArtistRepo,
                         mediaFileRepo = repoStore.mediaFileRepo,
-                        mediaController = mediaController,
+                        mediaController = repoStore.mediaController,
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
                     )
                     is Destination.PlaylistDetails -> PlaylistDetails(
@@ -255,11 +250,9 @@ class NavigationHost(
                         artistRepo = repoStore.spotifyArtistRepo,
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
                         folderRepo = repoStore.folderRepo,
-                        mediaController = mediaController,
+                        mediaController = repoStore.mediaController,
                         mediaFileRepo = repoStore.mediaFileRepo,
-                        showImport = { navigateTo(Destination.ImportDetails(it)) },
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
-                        importSessionItemRepo = repoStore.importSessionItemRepo,
                         albumRepo = repoStore.spotifyAlbumRepo,
                         showTrack = { navigateTo(Destination.TrackDetails(it)) }
                     )
@@ -269,7 +262,7 @@ class NavigationHost(
                         trackRepo = repoStore.trackRepo,
                         folderRepo = repoStore.folderRepo,
                         artistRepo = repoStore.spotifyArtistRepo,
-                        mediaController = mediaController,
+                        mediaController = repoStore.mediaController,
                         mediaFileRepo = repoStore.mediaFileRepo,
                         showPlaylistDetails = { navigateTo(Destination.PlaylistDetails(it)) },
                         albumRepo = repoStore.spotifyAlbumRepo
@@ -288,7 +281,7 @@ class NavigationHost(
                         showImportItem = { navigateTo(Destination.ImportItemDetails(it)) }
                     )
                     is Destination.Export -> Export(
-                        exportUseCase = ExportUseCaseImpl(repoStore)
+                        exportUseCase = repoStore.exportUseCaseImpl
                     )
                     is Destination.TagList -> TagList(
                         tagRepo = repoStore.tagRepo,
@@ -310,7 +303,7 @@ class NavigationHost(
                         tagRepo = repoStore.tagRepo,
                         artistRepo = repoStore.spotifyArtistRepo,
                         mediaFileRepo = repoStore.mediaFileRepo,
-                        mediaController = mediaController,
+                        mediaController = repoStore.mediaController,
                         showTrack = { navigateTo(Destination.TrackDetails(it)) },
                         showArtist = { navigateTo(Destination.ArtistDetails(it)) },
                         importSessionItemRepo = repoStore.importSessionItemRepo
@@ -328,7 +321,7 @@ class NavigationHost(
                         mediaFileRepo = repoStore.mediaFileRepo,
                         setTrackMetadataFromSpotifyUseCase = repoStore.setTrackMetadataFromSpotifyUseCase,
                         unsetSpotifyTrackUseCase = repoStore.unsetSpotifyTrackUseCase,
-                        mediaController = mediaController,
+                        mediaController = repoStore.mediaController,
                         spotifyApi = repoStore.spotifyApi,
                         showTag = { navigateTo(Destination.TagDetails(it)) },
                         showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },

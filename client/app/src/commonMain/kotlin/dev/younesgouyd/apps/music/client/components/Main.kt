@@ -11,22 +11,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.client.ImportService
-import dev.younesgouyd.apps.music.client.MediaController
 import dev.younesgouyd.apps.music.client.components.util.AdaptiveUi
 import dev.younesgouyd.apps.music.client.data.RepoStore
-import dev.younesgouyd.apps.music.client.usecases.ImportFromInternetUseCase
-import dev.younesgouyd.apps.music.client.usecases.ImportLocalFileUseCaseImpl
 import dev.younesgouyd.apps.music.client.util.Component
 import dev.younesgouyd.apps.music.client.util.DarkThemeOptions
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.runBlocking
 
 class Main(
     private val repoStore: RepoStore,
-    mediaPlayer: MediaController.MediaPlayer,
     onReinitializeAppData: () -> Unit
 ) : Component() {
     override val title: String = ""
@@ -35,26 +29,6 @@ class Main(
             .map { DarkThemeOptions.valueOf(it.value) }
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), DarkThemeOptions.SystemDefault)
     }
-
-    private val mediaController = MediaController(
-        mediaPlayer = mediaPlayer,
-        repoStore = repoStore
-    )
-    private val importService = ImportService(
-        importSessionRepo = repoStore.importSessionRepo,
-        importSessionItemRepo = repoStore.importSessionItemRepo,
-        playlistRepo = repoStore.playlistRepo,
-        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
-        importLocalFileUseCase = ImportLocalFileUseCaseImpl(
-            trackRepo = repoStore.trackRepo,
-            mediaFileRepo = repoStore.mediaFileRepo
-        ),
-        importFromInternetUseCase = ImportFromInternetUseCase(
-            server = repoStore.server,
-            trackRepo = repoStore.trackRepo,
-            mediaFileRepo = repoStore.mediaFileRepo
-        )
-    )
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val playerExpanded = MutableStateFlow(false)
@@ -66,7 +40,7 @@ class Main(
     )
     private var navigationHost: NavigationHost = getNewNavHost(NavigationHost.Destination.Library)
     private val miniPlayer = MiniPlayer(
-        mediaController = mediaController,
+        mediaController = repoStore.mediaController,
         showAlbum = {
             mainComponent.value = navigationHost
             navigationHost.navigateTo(NavigationHost.Destination.AlbumDetails(it))
@@ -78,7 +52,7 @@ class Main(
         expand = ::expandPlayer
     )
     private val queue: Component = Queue(
-        mediaController = mediaController,
+        mediaController = repoStore.mediaController,
         showArtist = {
             mainComponent.value = navigationHost
             navigationHost.navigateTo(NavigationHost.Destination.ArtistDetails(it))
@@ -86,7 +60,7 @@ class Main(
         }
     )
     private val player: Component = Player(
-        mediaController = mediaController,
+        mediaController = repoStore.mediaController,
         showTack = {
             mainComponent.value = navigationHost
             navigationHost.navigateTo(NavigationHost.Destination.TrackDetails(it))
@@ -110,10 +84,6 @@ class Main(
 
     private val drawerState: MutableStateFlow<DrawerState> = MutableStateFlow(DrawerState(initialValue = DrawerValue.Closed))
 
-    init {
-        importService.start()
-    }
-
     @Composable
     override fun show(modifier: Modifier) {
         val darkTheme by darkTheme.collectAsState()
@@ -134,11 +104,7 @@ class Main(
     }
 
     override fun clear() {
-        mediaController.release()
         repoStore.release()
-        runBlocking {
-            importService.stop()
-        }
         navigationHost.clear()
         coroutineScope.cancel()
     }
@@ -206,7 +172,6 @@ class Main(
         return NavigationHost(
             toggleDrawerState = ::toggleDrawerState,
             repoStore = repoStore,
-            mediaController = mediaController,
             startDestination = startDestination
         )
     }

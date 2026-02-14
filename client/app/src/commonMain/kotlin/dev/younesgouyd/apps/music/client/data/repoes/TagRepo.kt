@@ -2,8 +2,8 @@ package dev.younesgouyd.apps.music.client.data.repoes
 
 import dev.younesgouyd.apps.music.client.data.TagId
 import dev.younesgouyd.apps.music.client.data.TrackId
+import dev.younesgouyd.apps.music.client.data.room.daos.TagDao
 import dev.younesgouyd.apps.music.client.data.room.entities.Tag
-import dev.younesgouyd.apps.music.client.data.room.entities.TagDao
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
 import kotlinx.coroutines.flow.Flow
 

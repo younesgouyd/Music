@@ -58,7 +58,7 @@ class PlaylistList(
                             Ui.State.Loaded.PlaylistListItem(
                                 id = dbPlaylist.id,
                                 name = dbPlaylist.name,
-                                image = dbPlaylist.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) }
+                                image = null
                             )
                         }
                     }

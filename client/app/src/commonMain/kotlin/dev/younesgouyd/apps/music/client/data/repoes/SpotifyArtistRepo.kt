@@ -3,8 +3,8 @@ package dev.younesgouyd.apps.music.client.data.repoes
 import dev.younesgouyd.apps.music.client.data.SpotifyAlbumId
 import dev.younesgouyd.apps.music.client.data.SpotifyArtistId
 import dev.younesgouyd.apps.music.client.data.SpotifyTrackId
+import dev.younesgouyd.apps.music.client.data.room.daos.SpotifyArtistDao
 import dev.younesgouyd.apps.music.client.data.room.entities.SpotifyArtist
-import dev.younesgouyd.apps.music.client.data.room.entities.SpotifyArtistDao
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
 import kotlinx.coroutines.flow.Flow
 

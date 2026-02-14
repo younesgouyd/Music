@@ -1,30 +1,29 @@
 package dev.younesgouyd.apps.music.client
 
+import dev.younesgouyd.apps.music.client.data.FileManager
 import dev.younesgouyd.apps.music.client.data.ImportSessionItemId
-import dev.younesgouyd.apps.music.client.data.MediaFileId
-import dev.younesgouyd.apps.music.client.data.PlaylistId
-import dev.younesgouyd.apps.music.client.data.TrackId
+import dev.younesgouyd.apps.music.client.data.Server
 import dev.younesgouyd.apps.music.client.data.repoes.ImportSessionItemRepo
 import dev.younesgouyd.apps.music.client.data.repoes.ImportSessionRepo
-import dev.younesgouyd.apps.music.client.data.repoes.PlaylistRepo
-import dev.younesgouyd.apps.music.client.data.repoes.PlaylistTrackCrossRefRepo
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSession
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem
-import dev.younesgouyd.apps.music.client.usecases.ImportFromInternetUseCase
-import dev.younesgouyd.apps.music.client.usecases.ImportLocalFileUseCase
-import dev.younesgouyd.apps.music.common.Inspection
-import kotlinx.coroutines.*
+import dev.younesgouyd.apps.music.client.data.room.transactions.Import
+import dev.younesgouyd.apps.music.client.util.getFileName
+import dev.younesgouyd.apps.music.client.util.getInputStream
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
 
 class ImportService(
     private val importSessionRepo: ImportSessionRepo,
     private val importSessionItemRepo: ImportSessionItemRepo,
-    private val playlistRepo: PlaylistRepo,
-    private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
-    private val importLocalFileUseCase: ImportLocalFileUseCase,
-    private val importFromInternetUseCase: ImportFromInternetUseCase
+    private val transaction: Import,
+    private val server: Server,
+    private val fileManager: FileManager
 ) {
     private val coroutineScope = Music.coroutineScope
     private var started: Boolean = false
@@ -126,46 +125,14 @@ class ImportService(
     }
 
     private suspend fun import(session: ImportSession, item: ImportSessionItem) {
-        withContext(Dispatchers.IO) {
-            println("Working on session ${session.id} item ${item.id}")
-            val playlistName: String
-            val track: Pair<TrackId, MediaFileId>? = when (session.sourceType) {
-                ImportSession.SourceType.Local -> {
-                    playlistName = "from import ${session.id}"
-                    importLocalFileUseCase.execute(
-                        uri = item.inspection.uri,
-                        importSessionItemId = item.id,
-                        folderId = session.destinationFolderId
-                    )
-                }
-                ImportSession.SourceType.Internet -> {
-                    val container = (session.inspection as Inspection.ContainerInspection.Webpage)
-                    playlistName = container.title ?: "from import ${session.id}"
-                    importFromInternetUseCase.execute(
-                        uri = item.inspection.uri,
-                        importSessionItemId = item.id,
-                        folderId = session.destinationFolderId
-                    )
-                }
-            }
-            val state = if (track != null) ImportSessionItem.State.Completed else ImportSessionItem.State.Failed
-            importSessionItemRepo.updateState(
-                id = item.id,
-                state = state,
-                audioFileId = track?.second
-            )
-            if (track != null) {
-                val playlist = playlistRepo.getImportSessionPlaylist(session.id).first()
-                val playlistId: PlaylistId = playlist?.id
-                    ?: playlistRepo.add(
-                        name = playlistName,
-                        folderId = session.destinationFolderId,
-                        importSessionId = session.id,
-                        importUri = session.uri
-                    )
-                playlistTrackCrossRefRepo.add(playlistId, track.first)
-            }
-        }
+        transaction.execute(
+            session = session,
+            item = item,
+            server = server,
+            fileManager = fileManager,
+            getFileName = ::getFileName,
+            getFileInputStream = ::getInputStream
+        )
     }
 
     private class IntendedCancellation : Throwable(null, null, false, false) {

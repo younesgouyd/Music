@@ -1,7 +1,7 @@
 package dev.younesgouyd.apps.music.client.data.repoes
 
 import dev.younesgouyd.apps.music.client.data.*
-import dev.younesgouyd.apps.music.client.data.room.entities.MediaFileDao
+import dev.younesgouyd.apps.music.client.data.room.daos.MediaFileDao
 import kotlinx.coroutines.flow.first
 import java.io.File
 import java.io.InputStream

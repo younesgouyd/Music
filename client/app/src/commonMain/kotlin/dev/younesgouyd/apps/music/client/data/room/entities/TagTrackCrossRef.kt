@@ -1,6 +1,9 @@
 package dev.younesgouyd.apps.music.client.data.room.entities
 
-import androidx.room.*
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
 import dev.younesgouyd.apps.music.client.data.TagId
 import dev.younesgouyd.apps.music.client.data.TagTrackCrossRefId
 import dev.younesgouyd.apps.music.client.data.TrackId
@@ -35,15 +38,3 @@ data class TagTrackCrossRef(
     val trackId: TrackId,
     val creationDatetime: Long
 )
-
-@Dao
-interface TagTrackCrossRefDao {
-    @Query("""
-        insert into tagtrackcrossref (tagId, trackId, creationDatetime)
-        values (:tagId, :trackId, :creationDatetime)
-    """)
-    suspend fun add(tagId: TagId, trackId: TrackId, creationDatetime: Long)
-
-    @Query("delete from tagtrackcrossref where tagId = :tagId and trackId = :trackId")
-    suspend fun delete(tagId: TagId, trackId: TrackId)
-}

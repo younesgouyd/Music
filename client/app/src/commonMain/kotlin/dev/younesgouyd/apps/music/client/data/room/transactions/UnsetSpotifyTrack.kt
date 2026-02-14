@@ -1,12 +1,14 @@
-package dev.younesgouyd.apps.music.client.data.room.entities
+package dev.younesgouyd.apps.music.client.data.room.transactions
 
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
 import dev.younesgouyd.apps.music.client.data.*
+import dev.younesgouyd.apps.music.client.data.room.entities.SpotifyAlbum
+import dev.younesgouyd.apps.music.client.data.room.entities.SpotifyArtist
 
 @Dao
-abstract class UnsetSpotifyTrackDao {
+abstract class UnsetSpotifyTrack {
     @Transaction
     open suspend fun execute(
         trackId: TrackId,

@@ -3,7 +3,6 @@ package dev.younesgouyd.apps.music.client.data.room.entities
 import androidx.room.*
 import dev.younesgouyd.apps.music.client.data.SpotifyAlbumId
 import dev.younesgouyd.apps.music.client.data.SpotifyTrackId
-import kotlinx.coroutines.flow.Flow
 
 @Entity(
     foreignKeys = [
@@ -42,13 +41,3 @@ data class SpotifyTrackRelation(
     )
     val track: Track?
 )
-
-@Dao
-interface SpotifyTrackDao {
-    @Query("select id from spotifytrack where spotifyId = :spotifyId")
-    suspend fun getId(spotifyId: String): Long?
-
-    @Transaction
-    @Query("select * from spotifytrack where spotifyAlbumId = :id order by discNumber, trackNumber")
-    fun getAlbumTracks(id: SpotifyAlbumId): Flow<List<SpotifyTrackRelation>>
-}

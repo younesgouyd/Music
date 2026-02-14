@@ -67,13 +67,14 @@ abstract class Music {
             }
         }
         initDb()
+        createMediaPlayer()
         this.repoStore = RepoStore(
             appDir = appDir,
             dbDir = dbDir,
             applicationScope = coroutineScope,
-            database = db
+            database = db,
+            mediaPlayer = mediaPlayer
         ).also { it.init() }
-        createMediaPlayer()
     }
 
     protected fun reinitApp(sourceFileUri: String) {
@@ -105,7 +106,6 @@ abstract class Music {
             it.clear()
             Main(
                 repoStore = repoStore,
-                mediaPlayer = mediaPlayer,
                 onReinitializeAppData = ::showReInitializeAppData
             )
         }

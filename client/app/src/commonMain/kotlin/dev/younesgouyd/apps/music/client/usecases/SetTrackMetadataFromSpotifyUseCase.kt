@@ -5,7 +5,7 @@ import dev.younesgouyd.apps.music.client.data.SpotifyTrackId
 import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.client.data.repoes.SpotifyAlbumRepo
 import dev.younesgouyd.apps.music.client.data.repoes.TrackRepo
-import dev.younesgouyd.apps.music.client.data.room.entities.SetTrackMetadataFromSpotifyDao
+import dev.younesgouyd.apps.music.client.data.room.transactions.SetTrackMetadataFromSpotify
 import dev.younesgouyd.libs.music.spotifyapi.SpotifyApi
 import dev.younesgouyd.libs.music.spotifyapi.models.Track
 import kotlinx.coroutines.Dispatchers
@@ -16,7 +16,7 @@ class SetTrackMetadataFromSpotifyUseCase(
     private val unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase,
     private val trackRepo: TrackRepo,
     private val spotifyAlbumRepo: SpotifyAlbumRepo,
-    private val dao: SetTrackMetadataFromSpotifyDao,
+    private val transaction: SetTrackMetadataFromSpotify,
     private val spotifyApi: SpotifyApi,
     private val fileManager: FileManager
 ) {
@@ -32,11 +32,11 @@ class SetTrackMetadataFromSpotifyUseCase(
                     unsetSpotifyTrackUseCase.execute(trackId, track.spotifyTrack.id, track.spotifyTrack.spotifyAlbumId)
                 }
             }
-            val spotifyTrackId = dao.getSpotifyTrackId(spotifyApiTrack.id.value)?.let { SpotifyTrackId(it) }
+            val spotifyTrackId = transaction.getSpotifyTrackId(spotifyApiTrack.id.value)?.let { SpotifyTrackId(it) }
             if (spotifyTrackId != null) {
-                dao.updateTrackSpotifyTrackId(spotifyTrackId, System.currentTimeMillis(), trackId)
+                transaction.updateTrackSpotifyTrackId(spotifyTrackId, System.currentTimeMillis(), trackId)
             } else {
-                dao.addAlbumAndSet(
+                transaction.addAlbumAndSet(
                     trackId = trackId,
                     spotifyApiTrack = spotifyApiTrack,
                     spotifyApi = spotifyApi,

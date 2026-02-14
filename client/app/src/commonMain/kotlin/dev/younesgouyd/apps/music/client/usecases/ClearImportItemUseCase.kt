@@ -3,13 +3,13 @@ package dev.younesgouyd.apps.music.client.usecases
 import dev.younesgouyd.apps.music.client.data.FileManager
 import dev.younesgouyd.apps.music.client.data.ImportSessionItemId
 import dev.younesgouyd.apps.music.client.data.repoes.TrackRepo
-import dev.younesgouyd.apps.music.client.data.room.entities.ClearImportSessionItemDao
+import dev.younesgouyd.apps.music.client.data.room.transactions.ClearImportSessionItem
 import kotlinx.coroutines.flow.first
 
 class ClearImportItemUseCase(
     private val unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase,
     private val trackRepo: TrackRepo,
-    private val clearImportSessionItemDao: ClearImportSessionItemDao,
+    private val transaction: ClearImportSessionItem,
     private val fileManager: FileManager
 ) {
     suspend fun execute(id: ImportSessionItemId) {
@@ -21,7 +21,7 @@ class ClearImportItemUseCase(
                 spotifyAlbumId = track.spotifyTrack.spotifyAlbumId
             )
         }
-        val file = clearImportSessionItemDao.execute(id)
+        val file = transaction.execute(id)
         fileManager.delete(setOf(file))
     }
 }

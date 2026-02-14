@@ -1,4 +1,4 @@
-package dev.younesgouyd.apps.music.client.data.room.entities
+package dev.younesgouyd.apps.music.client.data.room.transactions
 
 import androidx.room.Dao
 import androidx.room.Query
@@ -16,7 +16,7 @@ import kotlinx.coroutines.withContext
 import java.net.URI
 
 @Dao
-abstract class SetTrackMetadataFromSpotifyDao {
+abstract class SetTrackMetadataFromSpotify {
     @Transaction
     open suspend fun addAlbumAndSet(
         trackId: TrackId,

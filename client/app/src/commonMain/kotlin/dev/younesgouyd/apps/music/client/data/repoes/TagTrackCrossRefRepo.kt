@@ -2,7 +2,7 @@ package dev.younesgouyd.apps.music.client.data.repoes
 
 import dev.younesgouyd.apps.music.client.data.TagId
 import dev.younesgouyd.apps.music.client.data.TrackId
-import dev.younesgouyd.apps.music.client.data.room.entities.TagTrackCrossRefDao
+import dev.younesgouyd.apps.music.client.data.room.daos.TagTrackCrossRefDao
 
 class TagTrackCrossRefRepo(
     private val dao: TagTrackCrossRefDao

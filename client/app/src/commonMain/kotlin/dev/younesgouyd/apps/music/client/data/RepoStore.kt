@@ -1,30 +1,34 @@
 package dev.younesgouyd.apps.music.client.data
 
+import dev.younesgouyd.apps.music.client.ImportService
+import dev.younesgouyd.apps.music.client.MediaController
 import dev.younesgouyd.apps.music.client.data.repoes.*
 import dev.younesgouyd.apps.music.client.data.room.AppDatabase
-import dev.younesgouyd.apps.music.client.usecases.ClearImportItemUseCase
-import dev.younesgouyd.apps.music.client.usecases.DeleteFolderUseCase
-import dev.younesgouyd.apps.music.client.usecases.SetTrackMetadataFromSpotifyUseCase
-import dev.younesgouyd.apps.music.client.usecases.UnsetSpotifyTrackUseCase
+import dev.younesgouyd.apps.music.client.usecases.*
 import dev.younesgouyd.libs.music.spotifyapi.SpotifyApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.runBlocking
 import java.io.File
 
 class RepoStore(
     private val appDir: File,
     private val dbDir: File,
     private val applicationScope: CoroutineScope,
-    private val database: AppDatabase
+    private val database: AppDatabase,
+    private val mediaPlayer: MediaController.MediaPlayer
 ) {
     lateinit var fileManager: FileManager private set
     lateinit var server: Server private set
     lateinit var spotifyApi: SpotifyApi private set
+    lateinit var mediaController: MediaController
+    private lateinit var importService: ImportService
 
     lateinit var clearImportItemUseCase: ClearImportItemUseCase private set
     lateinit var deleteFolderUseCase: DeleteFolderUseCase private set
+    lateinit var exportUseCaseImpl: ExportUseCaseImpl
     lateinit var setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase private set
     lateinit var unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase private set
 
@@ -107,22 +111,38 @@ class RepoStore(
             }
         )
 
+        mediaController = MediaController(
+            mediaPlayer = mediaPlayer,
+            mediaFileRepo = mediaFileRepo,
+            trackRepo = trackRepo,
+            artistRepo = spotifyArtistRepo,
+            albumRepo = spotifyAlbumRepo,
+        )
+
+        importService = ImportService(
+            importSessionRepo = importSessionRepo,
+            importSessionItemRepo = importSessionItemRepo,
+            transaction = database.importTrx(),
+            server = server,
+            fileManager = fileManager,
+        )
+
         unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(
-            dao = database.unsetSpotifyTrackDao(),
+            transaction = database.unsetSpotifyTrack(),
             fileManager = fileManager
         )
         setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(
             unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
             trackRepo = trackRepo,
             spotifyAlbumRepo = spotifyAlbumRepo,
-            dao = database.setTrackMetadataFromSpotifyDao(),
+            transaction = database.setTrackMetadataFromSpotify(),
             spotifyApi = spotifyApi,
             fileManager = fileManager
         )
         clearImportItemUseCase = ClearImportItemUseCase(
             unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
             trackRepo = trackRepo,
-            clearImportSessionItemDao = database.clearImportSessionItemDao(),
+            transaction = database.clearImportSessionItem(),
             fileManager = fileManager
         )
         deleteFolderUseCase = DeleteFolderUseCase(
@@ -131,12 +151,22 @@ class RepoStore(
             clearImportItemUseCase = clearImportItemUseCase,
             folderRepo = folderRepo
         )
+        exportUseCaseImpl = ExportUseCaseImpl(
+            dbDir = fileManager.dbDir,
+            inspectionDir = fileManager.inspectionDir,
+            mediaDir = fileManager.mediaDir
+        )
 
+        importService.start()
         println("<-- RepoStore::init")
     }
 
     fun release() {
+        mediaController.release()
         spotifyApi.close()
         server.close()
+        runBlocking {
+            importService.stop()
+        }
     }
 }

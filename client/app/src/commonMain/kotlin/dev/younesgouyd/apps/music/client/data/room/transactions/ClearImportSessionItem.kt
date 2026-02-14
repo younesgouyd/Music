@@ -1,13 +1,14 @@
-package dev.younesgouyd.apps.music.client.data.room.entities
+package dev.younesgouyd.apps.music.client.data.room.transactions
 
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
 import dev.younesgouyd.apps.music.client.data.ImportSessionItemId
 import dev.younesgouyd.apps.music.client.data.MediaFileId
+import dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem
 
 @Dao
-abstract class ClearImportSessionItemDao {
+abstract class ClearImportSessionItem {
     @Transaction
     open suspend fun execute(id: ImportSessionItemId): MediaFileId {
         val mediaFileId = MediaFileId(getMediaFileId(id))

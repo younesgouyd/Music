@@ -22,7 +22,10 @@ import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.MediaController
 import dev.younesgouyd.apps.music.client.Platform
 import dev.younesgouyd.apps.music.client.components.util.*
-import dev.younesgouyd.apps.music.client.data.*
+import dev.younesgouyd.apps.music.client.data.PlaylistId
+import dev.younesgouyd.apps.music.client.data.PlaylistTrackCrossRefId
+import dev.younesgouyd.apps.music.client.data.SpotifyArtistId
+import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.client.data.repoes.*
 import dev.younesgouyd.apps.music.client.platform
 import dev.younesgouyd.apps.music.client.util.Component
@@ -41,11 +44,9 @@ class PlaylistDetails(
     artistRepo: SpotifyArtistRepo,
     playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     folderRepo: FolderRepo,
-    importSessionItemRepo: ImportSessionItemRepo,
     albumRepo: SpotifyAlbumRepo,
     mediaController: MediaController,
     mediaFileRepo: MediaFileRepo,
-    showImport: (ImportSessionId) -> Unit,
     showArtistDetails: (SpotifyArtistId) -> Unit,
     showTrack: (TrackId) -> Unit
 ) : Component() {
@@ -59,9 +60,7 @@ class PlaylistDetails(
         val playlist = playlistRepo.get(id).filterNotNull().map { dbPlaylist ->
             Ui.State.Loaded.Playlist(
                 name = dbPlaylist.name,
-                image = dbPlaylist.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) },
-                importUri = dbPlaylist.importUri,
-                onImportClick = { dbPlaylist.importSessionId?.let { showImport(it) } }
+                image = null
             )
         }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
         var loaded: Ui.State.Loaded? = null
@@ -219,9 +218,7 @@ class PlaylistDetails(
             ) : State() {
                 data class Playlist(
                     val name: String,
-                    val image: File?,
-                    val importUri: String?,
-                    val onImportClick: () -> Unit
+                    val image: File?
                 )
 
                 data class Track(
@@ -357,14 +354,6 @@ class PlaylistDetails(
                                         modifier = Modifier.height(500.dp),
                                         title = playlist.name,
                                         image = playlist.image,
-                                        itemAttributes = {
-                                            if (playlist.importUri != null) {
-                                                TextButton(
-                                                    content = { Text("from: ${playlist.importUri}") },
-                                                    onClick = playlist.onImportClick
-                                                )
-                                            }
-                                        },
                                         mainAction = HeaderAction("Play", Icons.Default.PlayCircle, onPlayClick),
                                         actions = listOf(
                                             HeaderAction("Add to queue", Icons.Default.AddToQueue, onAddToQueueClick),
@@ -785,14 +774,6 @@ class PlaylistDetails(
                                         ItemDetailsHeaderCompact(
                                             title = playlist.name,
                                             image = playlist.image,
-                                            itemAttributes = {
-                                                if (playlist.importUri != null) {
-                                                    TextButton(
-                                                        content = { Text("from: ${playlist.importUri}") },
-                                                        onClick = playlist.onImportClick
-                                                    )
-                                                }
-                                            },
                                             mainAction = HeaderAction("Play", Icons.Default.PlayCircle, onPlayClick),
                                             actions = listOf(
                                                 HeaderAction("Add to queue", Icons.Default.AddToQueue, onAddToQueueClick),

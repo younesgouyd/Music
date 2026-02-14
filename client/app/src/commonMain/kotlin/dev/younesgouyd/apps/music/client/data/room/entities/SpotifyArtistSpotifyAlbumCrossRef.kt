@@ -14,15 +14,15 @@ import dev.younesgouyd.apps.music.client.data.SpotifyArtistSpotifyAlbumCrossRefI
             entity = SpotifyArtist::class,
             parentColumns = ["id"],
             childColumns = ["spotifyArtistId"],
-            onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.CASCADE
+            onUpdate = ForeignKey.Companion.CASCADE,
+            onDelete = ForeignKey.Companion.CASCADE
         ),
         ForeignKey(
             entity = SpotifyAlbum::class,
             parentColumns = ["id"],
             childColumns = ["spotifyAlbumId"],
-            onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.CASCADE
+            onUpdate = ForeignKey.Companion.CASCADE,
+            onDelete = ForeignKey.Companion.CASCADE
         )
     ],
     indices = [
@@ -38,4 +38,3 @@ data class SpotifyArtistSpotifyAlbumCrossRef(
     val spotifyAlbumId: SpotifyAlbumId,
     val creationDatetime: Long
 )
-

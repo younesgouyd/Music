@@ -14,15 +14,15 @@ import dev.younesgouyd.apps.music.client.data.SpotifyTrackId
             entity = SpotifyArtist::class,
             parentColumns = ["id"],
             childColumns = ["spotifyArtistId"],
-            onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.CASCADE
+            onUpdate = ForeignKey.Companion.CASCADE,
+            onDelete = ForeignKey.Companion.CASCADE
         ),
         ForeignKey(
             entity = SpotifyTrack::class,
             parentColumns = ["id"],
             childColumns = ["spotifyTrackId"],
-            onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.CASCADE
+            onUpdate = ForeignKey.Companion.CASCADE,
+            onDelete = ForeignKey.Companion.CASCADE
         )
     ],
     indices = [

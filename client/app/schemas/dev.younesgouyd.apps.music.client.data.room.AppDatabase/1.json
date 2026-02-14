@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "8c79c8dc86253cdf5177deeaa9703456",
+    "identityHash": "c269c9a928a3cde8d6f98bedc6d16049",
     "entities": [
       {
         "tableName": "Folder",
@@ -362,7 +362,7 @@
       },
       {
         "tableName": "Playlist",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `folderId` INTEGER, `importSessionId` INTEGER, `importUri` TEXT, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`importSessionId`) REFERENCES `ImportSession`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `folderId` INTEGER, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -380,16 +380,6 @@
             "fieldPath": "folderId",
             "columnName": "folderId",
             "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "importSessionId",
-            "columnName": "importSessionId",
-            "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "importUri",
-            "columnName": "importUri",
-            "affinity": "TEXT"
           },
           {
             "fieldPath": "creationDatetime",
@@ -419,15 +409,6 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_Playlist_folderId` ON `${TABLE_NAME}` (`folderId`)"
-          },
-          {
-            "name": "index_Playlist_importSessionId",
-            "unique": false,
-            "columnNames": [
-              "importSessionId"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_Playlist_importSessionId` ON `${TABLE_NAME}` (`importSessionId`)"
           }
         ],
         "foreignKeys": [
@@ -437,17 +418,6 @@
             "onUpdate": "CASCADE",
             "columns": [
               "folderId"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          },
-          {
-            "table": "ImportSession",
-            "onDelete": "SET NULL",
-            "onUpdate": "CASCADE",
-            "columns": [
-              "importSessionId"
             ],
             "referencedColumns": [
               "id"
@@ -1421,7 +1391,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8c79c8dc86253cdf5177deeaa9703456')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c269c9a928a3cde8d6f98bedc6d16049')"
     ]
   }
 }

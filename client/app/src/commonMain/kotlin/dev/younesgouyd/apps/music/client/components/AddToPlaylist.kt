@@ -55,7 +55,7 @@ class AddToPlaylist(
             is Item.Playlist -> playlistRepo.get(itemToAdd.id).filterNotNull().map { dbPlaylist ->
                 Ui.State.Loaded.ItemToAdd(
                     name = dbPlaylist.name,
-                    image = dbPlaylist.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) }
+                    image = null
                 )
             }
             is Item.Folder -> folderRepo.get(itemToAdd.id).filterNotNull().map { dbFolder ->
@@ -88,7 +88,7 @@ class AddToPlaylist(
                             Ui.State.Loaded.PlaylistOption(
                                 id = dbPlaylist.id,
                                 name = dbPlaylist.name,
-                                image = dbPlaylist.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) }
+                                image = null
                             )
                         }
                     }.stateIn(coroutineScope),
@@ -99,9 +99,7 @@ class AddToPlaylist(
                                 is Ui.State.Loaded.PlaylistToAddTo.Id -> playlistToAddTo.value
                                 is Ui.State.Loaded.PlaylistToAddTo.New -> playlistRepo.add(
                                     name = playlistToAddTo.name,
-                                    folderId = null,
-                                    importSessionId = null,
-                                    importUri = null
+                                    folderId = null
                                 )
                             }
                             when (itemToAdd) {

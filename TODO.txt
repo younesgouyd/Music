@@ -1,17 +1,14 @@
 
-- put import logic in a database transaction for each import item
 - implement pagination.
+- in Library, support dragging items into folders.
+- check why when trying to launch system file picker on an old android os (android 10 if I remember), the app crashes
 - the items of import session containers may change in the source. so re-importing items is only possible
   if it still exists in the source (youtube playlist for example). consider refreshing the inspection before
   trying to re-import or remove this feature altogether.
-- in Library, support dragging items into folders.
-- check why when trying to launch system file picker on an old android os (android 10 if I remember), the app crashes
-- verify SaveAudioFileAsTrackUseCase logic
 - support showing the destination folder from import session
 - update date and creation date in daos
 - make material3 theme parametrable in settings
 - find the most precise way to represent time: check: https://en.wikipedia.org/wiki/Unix_time
-- create Detect Duplicates Component
 - implement android events (back navigation, configuration changes... etc)
 - implement play next (add to the queue items of the desired queue after the current index)
 - implement genres
@@ -19,6 +16,7 @@
 - implement sorting playlists/albums/folders
 
 done:
+- put import logic in a database transaction for each import item
 - verify not null assertions (!!)
 - support get(id) returning null
 - handle the case of clicking on non-observable deleted entity (e.g. tracks of MediaController's QueueItem)
@@ -31,6 +29,7 @@ done:
         - Track -> SpotifyTrack.
         - SpotifyTrack (deleted automatically) -> SpotifyArtist, SpotifyAlbum
     - SpotifyTrack is set on Track. the same SpotifyTrack may be set on only one track.
+- verify SaveAudioFileAsTrackUseCase logic
 - delete non-referenced files
 - improve "Import Folder" feature: show "scanning folder for items" in import folder flow.
 - refactor player to support showing: album art, queue, lyrics, track info...etc. maybe with tabs.

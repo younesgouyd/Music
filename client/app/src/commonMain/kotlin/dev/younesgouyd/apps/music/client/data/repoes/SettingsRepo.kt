@@ -1,7 +1,7 @@
 package dev.younesgouyd.apps.music.client.data.repoes
 
+import dev.younesgouyd.apps.music.client.data.room.daos.SettingDao
 import dev.younesgouyd.apps.music.client.data.room.entities.Setting
-import dev.younesgouyd.apps.music.client.data.room.entities.SettingDao
 import dev.younesgouyd.apps.music.client.util.DarkThemeOptions
 import kotlinx.coroutines.flow.Flow
 

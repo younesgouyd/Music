@@ -1,9 +1,9 @@
 package dev.younesgouyd.apps.music.client.data.repoes
 
 import dev.younesgouyd.apps.music.client.data.*
+import dev.younesgouyd.apps.music.client.data.room.daos.TrackDao
 import dev.younesgouyd.apps.music.client.data.room.entities.PlaylistTrack
 import dev.younesgouyd.apps.music.client.data.room.entities.Track
-import dev.younesgouyd.apps.music.client.data.room.entities.TrackDao
 import dev.younesgouyd.apps.music.client.data.room.entities.TrackRelation
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
 import kotlinx.coroutines.flow.Flow
@@ -11,10 +11,6 @@ import kotlinx.coroutines.flow.Flow
 class TrackRepo(
     private val dao: TrackDao
 ) {
-    fun getAll(): Flow<List<TrackRelation>> {
-        return dao.getAll()
-    }
-
     fun get(id: TrackId): Flow<TrackRelation?> {
         return dao.get(id)
     }

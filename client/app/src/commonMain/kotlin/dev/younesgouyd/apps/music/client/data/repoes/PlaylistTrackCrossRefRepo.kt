@@ -2,8 +2,8 @@ package dev.younesgouyd.apps.music.client.data.repoes
 
 import dev.younesgouyd.apps.music.client.data.PlaylistId
 import dev.younesgouyd.apps.music.client.data.TrackId
+import dev.younesgouyd.apps.music.client.data.room.daos.PlaylistTrackCrossRefDao
 import dev.younesgouyd.apps.music.client.data.room.entities.PlaylistTrackCrossRef
-import dev.younesgouyd.apps.music.client.data.room.entities.PlaylistTrackCrossRefDao
 import kotlinx.coroutines.flow.Flow
 
 class PlaylistTrackCrossRefRepo(
