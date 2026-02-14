@@ -35,11 +35,11 @@ class ImportList(
     showImportDetails: (ImportSessionId) -> Unit
 ) : Component() {
     override val title: String = "Imports"
-    private val state: MutableStateFlow<ImportListState> = MutableStateFlow(ImportListState.Loading)
+    private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
 
     init {
         coroutineScope.launch {
-            state.value = ImportListState.Loaded(
+            state.value = Ui.State.Loaded(
                 imports = importSessionRepo.getAll().stateIn(coroutineScope),
                 scrollState = LazyListState(),
                 onItemClick = showImportDetails
@@ -58,27 +58,27 @@ class ImportList(
         coroutineScope.cancel()
     }
 
-    private sealed class ImportListState {
-        data object Loading : ImportListState()
-
-        data class Loaded(
-            val imports: StateFlow<List<ImportSession>>,
-            val scrollState: LazyListState,
-            val onItemClick: (ImportSessionId) -> Unit
-        ) : ImportListState()
-    }
-
     private object Ui {
+        sealed class State {
+            data object Loading : State()
+
+            data class Loaded(
+                val imports: StateFlow<List<ImportSession>>,
+                val scrollState: LazyListState,
+                val onItemClick: (ImportSessionId) -> Unit
+            ) : State()
+        }
+
         @Composable
-        fun Main(modifier: Modifier = Modifier, state: ImportListState) {
+        fun Main(modifier: Modifier = Modifier, state: State) {
             when (state) {
-                is ImportListState.Loading -> Text(modifier = modifier, text = "Loading...")
-                is ImportListState.Loaded -> Main(modifier = modifier, state = state)
+                is State.Loading -> Text(modifier = modifier, text = "Loading...")
+                is State.Loaded -> Main(modifier = modifier, state = state)
             }
         }
 
         @Composable
-        private fun Main(modifier: Modifier, state: ImportListState.Loaded) {
+        private fun Main(modifier: Modifier, state: State.Loaded) {
             Main(
                 modifier = modifier,
                 imports = state.imports,

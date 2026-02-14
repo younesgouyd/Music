@@ -10,11 +10,7 @@ import kotlinx.coroutines.flow.Flow
 class TagRepo(
     private val dao: TagDao
 ) {
-    fun getAll(): Flow<List<Tag>> {
-        return dao.getAll()
-    }
-
-    fun get(id: TagId): Flow<Tag> {
+    fun get(id: TagId): Flow<Tag?> {
         return dao.get(id)
     }
 
@@ -30,22 +26,12 @@ class TagRepo(
         return dao.getTrackUnsetTags(id)
     }
 
-    suspend fun add(name: String, description: String?) {
+    suspend fun add(name: String) {
         require(name.isNotBlank())
         val currentTime = System.currentTimeMillis()
         dao.add(
             name = name,
-            description = description?.ifBlank { null },
-            creationDatetime = currentTime,
-            updateDatetime = currentTime
-        )
-    }
-
-    suspend fun updateDescription(id: TagId, description: String?) {
-        dao.updateDescription(
-            description = description,
-            updateDatetime = System.currentTimeMillis(),
-            id = id
+            creationDatetime = currentTime
         )
     }
 

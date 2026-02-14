@@ -25,9 +25,9 @@ class SetTrackMetadataFromSpotifyUseCase(
         spotifyApiTrack: Track
     ) {
         withContext(Dispatchers.IO) {
-            val track = trackRepo.get(trackId).first()
+            val track = trackRepo.get(trackId).first()!! // TODO
             if (track.spotifyTrack != null) {
-                val album = spotifyAlbumRepo.get(track.spotifyTrack.spotifyAlbumId).first()
+                val album = spotifyAlbumRepo.get(track.spotifyTrack.spotifyAlbumId).first()!! // TODO
                 if (album.spotifyId != spotifyApiTrack.album.id.value) {
                     unsetSpotifyTrackUseCase.execute(trackId, track.spotifyTrack.id, track.spotifyTrack.spotifyAlbumId)
                 }

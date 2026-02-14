@@ -30,7 +30,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import org.json.JSONArray
 import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -47,18 +46,21 @@ class TagDetails(
 ) : Component() {
     override val title: String = "Tag"
     private val searchQuery = MutableStateFlow("")
-    private val state: MutableStateFlow<TagDetailsState> = MutableStateFlow(TagDetailsState.Loading)
+    private val state: StateFlow<Ui.State>
 
     init {
-        coroutineScope.launch {
-            state.value = TagDetailsState.Loaded(
-                tag = tagRepo.get(id).stateIn(coroutineScope),
-                scrollState = LazyListState(),
-                searchQuery = searchQuery.asStateFlow(),
-                tracks = searchQuery.flatMapLatest {
-                    trackRepo.searchWithTag(it, id) }.map { dbList ->
+        val tag = tagRepo.get(id).filterNotNull().stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
+        var loaded: Ui.State.Loaded? = null
+        state = tag.onEach {
+            if (it != null && loaded == null) {
+                loaded = Ui.State.Loaded(
+                    scrollState = LazyListState(),
+                    tag = tag.filterNotNull().stateIn(coroutineScope),
+                    searchQuery = searchQuery.asStateFlow(),
+                    tracks = searchQuery.flatMapLatest {
+                        trackRepo.searchWithTag(it, id) }.mapLatest { dbList ->
                         dbList.map { dbTrack ->
-                            TagDetailsState.Loaded.Track(
+                            Ui.State.Loaded.Track(
                                 id = dbTrack.track.id,
                                 name = dbTrack.spotifyTrack?.name ?: dbTrack.originalImport.title,
                                 image = if (dbTrack.spotifyTrack != null) {
@@ -68,34 +70,33 @@ class TagDetails(
                                 },
                                 artists = if (dbTrack.spotifyTrack != null) {
                                     artistRepo.getSpotifyTrackSpotifyArtists(dbTrack.spotifyTrack.id).first().map { dbArtist ->
-                                        TagDetailsState.Loaded.Track.Artist(dbArtist.id, dbArtist.name)
+                                        Ui.State.Loaded.Track.Artist(dbArtist.id, dbArtist.name)
                                     }
                                 } else {
-                                    val json = JSONArray(importSessionItemRepo.get(dbTrack.track.importSessionItemId).first().artists)
-                                    buildList {
-                                        for (i in 0 until json.length()) {
-                                            add(
-                                                TagDetailsState.Loaded.Track.Artist(
-                                                    id = null,
-                                                    name = json.getString(i)
-                                                )
-                                            )
-                                        }
+                                    dbTrack.originalImport.inspection.artists.map {
+                                        Ui.State.Loaded.Track.Artist(null, it)
                                     }
                                 }
                             )
                         }
                     }.stateIn(coroutineScope),
-                onSearchQueryChange = { searchQuery.value = it },
-                onTrackClick = showTrack,
-                onArtistClick = showArtist,
-                onRemoveTrackClick = {
-                    coroutineScope.launch {
-                        tagTrackCrossRefRepo.delete(id, it)
+                    onSearchQueryChange = { searchQuery.value = it },
+                    onTrackClick = showTrack,
+                    onArtistClick = showArtist,
+                    onRemoveTrackClick = {
+                        coroutineScope.launch {
+                            tagTrackCrossRefRepo.delete(id, it)
+                        }
                     }
-                }
-            )
-        }
+                )
+            }
+        }.map {
+            if (it == null) {
+                Ui.State.ItemDoesNotExist
+            } else {
+                loaded!!
+            }
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Loading)
     }
 
     @Composable
@@ -109,54 +110,58 @@ class TagDetails(
         coroutineScope.cancel()
     }
 
-    private sealed class TagDetailsState() {
-        data object Loading : TagDetailsState()
-
-        data class Loaded(
-            val tag: StateFlow<Tag>,
-            val scrollState: LazyListState,
-            val searchQuery: StateFlow<String>,
-            val tracks: StateFlow<List<Track>>,
-            val onSearchQueryChange: (String) -> Unit,
-            val onTrackClick: (TrackId) -> Unit,
-            val onArtistClick: (SpotifyArtistId) -> Unit,
-            val onRemoveTrackClick: (TrackId) -> Unit
-        ) : TagDetailsState() {
-            data class Track(
-                val id: TrackId,
-                val name: String,
-                val image: File?,
-                val artists: List<Artist>
-            ) {
-                data class Artist(
-                    val id: SpotifyArtistId?,
-                    val name: String
-                )
-            }
-        }
-    }
 
     private object Ui {
+        sealed class State() {
+            data object Loading : State()
+
+            data class Loaded(
+                val scrollState: LazyListState,
+                val tag: StateFlow<Tag>,
+                val searchQuery: StateFlow<String>,
+                val tracks: StateFlow<List<Track>>,
+                val onSearchQueryChange: (String) -> Unit,
+                val onTrackClick: (TrackId) -> Unit,
+                val onArtistClick: (SpotifyArtistId) -> Unit,
+                val onRemoveTrackClick: (TrackId) -> Unit
+            ) : State() {
+                data class Track(
+                    val id: TrackId,
+                    val name: String,
+                    val image: File?,
+                    val artists: List<Artist>
+                ) {
+                    data class Artist(
+                        val id: SpotifyArtistId?,
+                        val name: String
+                    )
+                }
+            }
+
+            data object ItemDoesNotExist : State()
+        }
+
         @Composable
         fun Main(
             modifier: Modifier,
-            state: TagDetailsState
+            state: State
         ) {
             when (state) {
-                is TagDetailsState.Loading -> Text(modifier = modifier, text = "Loading...")
-                is TagDetailsState.Loaded -> Main(modifier = modifier, loaded = state)
+                is State.Loading -> Text(modifier = modifier, text = "Loading...")
+                is State.Loaded -> Main(modifier = modifier, loaded = state)
+                is State.ItemDoesNotExist -> Text(modifier = modifier, text = "This item no long exists")
             }
         }
 
         @Composable
         private fun Main(
             modifier: Modifier,
-            loaded: TagDetailsState.Loaded
+            loaded: State.Loaded
         ) {
             Main(
                 modifier = modifier,
-                tag = loaded.tag,
                 scrollState = loaded.scrollState,
+                tag = loaded.tag,
                 searchQuery = loaded.searchQuery,
                 tracks = loaded.tracks,
                 onSearchQueryChange = loaded.onSearchQueryChange,
@@ -169,10 +174,10 @@ class TagDetails(
         @Composable
         private fun Main(
             modifier: Modifier,
-            tag: StateFlow<Tag>,
             scrollState: LazyListState,
+            tag: StateFlow<Tag>,
             searchQuery: StateFlow<String>,
-            tracks: StateFlow<List<TagDetailsState.Loaded.Track>>,
+            tracks: StateFlow<List<State.Loaded.Track>>,
             onSearchQueryChange: (String) -> Unit,
             onTrackClick: (TrackId) -> Unit,
             onArtistClick: (SpotifyArtistId) -> Unit,
@@ -243,29 +248,18 @@ class TagDetails(
             Surface(
                 modifier = modifier
             ) {
-                Column(
+                Text(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = tag.name,
-                        style = MaterialTheme.typography.displayMedium
-                    )
-                    if (tag.description != null) {
-                        Text(
-                            modifier = Modifier.fillMaxWidth(),
-                            text = tag.description
-                        )
-                    }
-                }
+                    text = tag.name,
+                    style = MaterialTheme.typography.displayMedium
+                )
             }
         }
 
         @Composable
         private fun TrackItem(
             modifier: Modifier,
-            track: TagDetailsState.Loaded.Track,
+            track: State.Loaded.Track,
             onClick: () -> Unit,
             onArtistClick: (SpotifyArtistId) -> Unit,
             onRemoveClick: () -> Unit

@@ -47,118 +47,129 @@ class ImportDetails(
     showImportItem: (ImportSessionItemId) -> Unit
 ) : Component() {
     override val title: String = "Import"
-    private val state: MutableStateFlow<ImportDetailsState> = MutableStateFlow(ImportDetailsState.Loading)
-    private val searchQuery = MutableStateFlow("")
+    private val state: StateFlow<Ui.State>
 
     init {
-        coroutineScope.launch {
-            state.value = ImportDetailsState.Loaded(
-                defaultTab = defaultTab,
-                import = importSessionRepo.get(id).mapLatest { dbImport ->
-                    when (dbImport.inspection) {
-                        is Inspection.ContainerInspection.Folder -> {
-                            ImportDetailsState.Loaded.Import(
-                                id = dbImport.id,
-                                uri = dbImport.uri,
-                                sourceType = dbImport.sourceType,
-                                title = null,
-                                description = null,
-                                image = mediaFileRepo.getImportSessionImage(dbImport.id),
-                                createdAt = Instant.fromEpochMilliseconds(dbImport.creationDatetime).toString()
-                            )
+        val searchQuery = MutableStateFlow("")
+        val import = importSessionRepo.get(id).filterNotNull().mapLatest { dbImport ->
+            when (dbImport.inspection) {
+                is Inspection.ContainerInspection.Folder -> {
+                    Ui.State.Loaded.Import(
+                        id = dbImport.id,
+                        uri = dbImport.uri,
+                        sourceType = dbImport.sourceType,
+                        title = null,
+                        description = null,
+                        image = mediaFileRepo.getImportSessionImage(dbImport.id),
+                        createdAt = Instant.fromEpochMilliseconds(dbImport.creationDatetime).toString()
+                    )
+                }
+                is Inspection.ContainerInspection.Webpage -> {
+                    Ui.State.Loaded.Import(
+                        id = dbImport.id,
+                        uri = dbImport.uri,
+                        sourceType = dbImport.sourceType,
+                        title = dbImport.inspection.title,
+                        description = dbImport.inspection.description,
+                        image = mediaFileRepo.getImportSessionImage(dbImport.id),
+                        createdAt = Instant.fromEpochMilliseconds(dbImport.creationDatetime).toString()
+                    )
+                }
+            }
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
+        var loaded: Ui.State.Loaded? = null
+        state = import.onEach {
+            if (it != null && loaded == null) {
+                loaded = Ui.State.Loaded(
+                    defaultTab = defaultTab,
+                    import = import.filterNotNull().stateIn(coroutineScope),
+                    items = Ui.State.Loaded.Items(
+                        nonselected = searchQuery.flatMapLatest {
+                            importSessionItemRepo.search(
+                                id,
+                                ImportSessionItem.State.Nonselected,
+                                it,
+                                DbOrder.Ascending
+                            ).mapLatest { list ->
+                                list.map { it.toModel(mediaFileRepo) }
+                            }
+                        }.stateIn(coroutineScope),
+                        pending = searchQuery.flatMapLatest {
+                            importSessionItemRepo.search(
+                                id,
+                                ImportSessionItem.State.Pending,
+                                it,
+                                DbOrder.Ascending
+                            ).mapLatest { list ->
+                                list.map { it.toModel(mediaFileRepo) }
+                            }
+                        }.stateIn(coroutineScope),
+                        inProgress = searchQuery.flatMapLatest {
+                            importSessionItemRepo.search(
+                                id,
+                                ImportSessionItem.State.InProgress,
+                                it,
+                                DbOrder.Ascending
+                            ).mapLatest { list ->
+                                list.map { it.toModel(mediaFileRepo) }
+                            }
+                        }.stateIn(coroutineScope),
+                        completed = searchQuery.flatMapLatest {
+                            importSessionItemRepo.search(
+                                id,
+                                ImportSessionItem.State.Completed,
+                                it,
+                                DbOrder.Descending
+                            ).mapLatest { list ->
+                                list.map { it.toModel(mediaFileRepo) }
+                            }
+                        }.stateIn(coroutineScope),
+                        cancelled = searchQuery.flatMapLatest {
+                            importSessionItemRepo.search(
+                                id,
+                                ImportSessionItem.State.Cancelled,
+                                it,
+                                DbOrder.Ascending
+                            ).mapLatest { list ->
+                                list.map { it.toModel(mediaFileRepo) }
+                            }
+                        }.stateIn(coroutineScope),
+                        failed = searchQuery.flatMapLatest {
+                            importSessionItemRepo.search(
+                                id,
+                                ImportSessionItem.State.Failed,
+                                it,
+                                DbOrder.Ascending
+                            ).mapLatest { list ->
+                                list.map { it.toModel(mediaFileRepo) }
+                            }
+                        }.stateIn(coroutineScope),
+                    ),
+                    searchQuery = searchQuery.asStateFlow(),
+                    onSearchQueryChange = { searchQuery.value = it },
+                    onItemClick = showImportItem,
+                    onImportItemClick = {
+                        coroutineScope.launch {
+                            importSessionItemRepo.updateState(id = it, state = ImportSessionItem.State.Pending)
                         }
-                        is Inspection.ContainerInspection.Webpage -> {
-                            ImportDetailsState.Loaded.Import(
-                                id = dbImport.id,
-                                uri = dbImport.uri,
-                                sourceType = dbImport.sourceType,
-                                title = dbImport.inspection.title,
-                                description = dbImport.inspection.description,
-                                image = mediaFileRepo.getImportSessionImage(dbImport.id),
-                                createdAt = Instant.fromEpochMilliseconds(dbImport.creationDatetime).toString()
-                            )
+                    },
+                    onCancelItemClick = { TODO() },
+                    onClearItemClick = { id ->
+                        coroutineScope.launch {
+                            clearImportItemUseCase.execute(id)
                         }
-                    }
-                }.stateIn(coroutineScope),
-                items = ImportDetailsState.Loaded.Items(
-                    nonselected = searchQuery.flatMapLatest {
-                        importSessionItemRepo.search(
-                            id,
-                            ImportSessionItem.State.Nonselected,
-                            it,
-                            DbOrder.Ascending
-                        ).mapLatest { list ->
-                            list.map { it.toModel(mediaFileRepo) }
-                        }
-                    }.stateIn(coroutineScope),
-                    pending = searchQuery.flatMapLatest {
-                        importSessionItemRepo.search(
-                            id,
-                            ImportSessionItem.State.Pending,
-                            it,
-                            DbOrder.Ascending
-                        ).mapLatest { list ->
-                            list.map { it.toModel(mediaFileRepo) }
-                        }
-                    }.stateIn(coroutineScope),
-                    inProgress = searchQuery.flatMapLatest {
-                        importSessionItemRepo.search(
-                            id,
-                            ImportSessionItem.State.InProgress,
-                            it,
-                            DbOrder.Ascending
-                        ).mapLatest { list ->
-                            list.map { it.toModel(mediaFileRepo) }
-                        }
-                    }.stateIn(coroutineScope),
-                    completed = searchQuery.flatMapLatest {
-                        importSessionItemRepo.search(
-                            id,
-                            ImportSessionItem.State.Completed,
-                            it,
-                            DbOrder.Descending
-                        ).mapLatest { list ->
-                            list.map { it.toModel(mediaFileRepo) }
-                        }
-                    }.stateIn(coroutineScope),
-                    cancelled = searchQuery.flatMapLatest {
-                        importSessionItemRepo.search(
-                            id,
-                            ImportSessionItem.State.Cancelled,
-                            it,
-                            DbOrder.Ascending
-                        ).mapLatest { list ->
-                            list.map { it.toModel(mediaFileRepo) }
-                        }
-                    }.stateIn(coroutineScope),
-                    failed = searchQuery.flatMapLatest {
-                        importSessionItemRepo.search(
-                            id,
-                            ImportSessionItem.State.Failed,
-                            it,
-                            DbOrder.Ascending
-                        ).mapLatest { list ->
-                            list.map { it.toModel(mediaFileRepo) }
-                        }
-                    }.stateIn(coroutineScope)
-                ),
-                searchQuery = searchQuery.asStateFlow(),
-                onSearchQueryChange = { searchQuery.value = it },
-                onItemClick = showImportItem,
-                onImportItemClick = {
-                    coroutineScope.launch {
-                        importSessionItemRepo.updateState(id = it, state = ImportSessionItem.State.Pending)
-                    }
-                },
-                onCancelItemClick = { TODO() },
-                onClearItemClick = { id ->
-                    coroutineScope.launch {
-                        clearImportItemUseCase.execute(id)
-                    }
-                },
-                onRetryItemClick = { TODO() }
-            )
-        }
+                    },
+                    onRetryItemClick = { TODO() }
+                )
+            }
+        }.map {
+            if (it == null) {
+                Ui.State.ItemDoesNotExist
+            } else {
+                loaded!!
+            }
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Loading)
+
     }
 
     @Composable
@@ -172,10 +183,10 @@ class ImportDetails(
         coroutineScope.cancel()
     }
 
-    private suspend fun ImportSessionItem.toModel(mediaFileRepo: MediaFileRepo): ImportDetailsState.Loaded.Items.Item {
+    private suspend fun ImportSessionItem.toModel(mediaFileRepo: MediaFileRepo): Ui.State.Loaded.Items.Item {
         return when (this.inspection) {
             is Inspection.ItemInspection.LocalFileTrack -> {
-                ImportDetailsState.Loaded.Items.Item(
+                Ui.State.Loaded.Items.Item(
                     id = this.id,
                     uri = this.uri,
                     state = this.state,
@@ -187,7 +198,7 @@ class ImportDetails(
                 )
             }
             is Inspection.ItemInspection.InternetTrack -> {
-                ImportDetailsState.Loaded.Items.Item(
+                Ui.State.Loaded.Items.Item(
                     id = this.id,
                     uri = this.uri,
                     state = this.state,
@@ -201,64 +212,68 @@ class ImportDetails(
         }
     }
 
-    private sealed class ImportDetailsState {
-        data object Loading : ImportDetailsState()
-
-        data class Loaded(
-            val defaultTab: ImportSessionItem.State,
-            val import: StateFlow<Import>,
-            val items: Items,
-            val searchQuery: StateFlow<String>,
-            val onSearchQueryChange: (String) -> Unit,
-            val onItemClick: (ImportSessionItemId) -> Unit,
-            val onImportItemClick: (ImportSessionItemId) -> Unit,
-            val onCancelItemClick: (ImportSessionItemId) -> Unit,
-            val onClearItemClick: (ImportSessionItemId) -> Unit,
-            val onRetryItemClick: (ImportSessionItemId) -> Unit
-        ) : ImportDetailsState() {
-            data class Import(
-                val id: ImportSessionId,
-                val uri: String,
-                val sourceType: SourceType,
-                val title: String?,
-                val description: String?,
-                val image: File?,
-                val createdAt: String
-            )
-
-            data class Items(
-                val nonselected: StateFlow<List<Item>>,
-                val pending: StateFlow<List<Item>>,
-                val inProgress: StateFlow<List<Item>>,
-                val completed: StateFlow<List<Item>>,
-                val cancelled: StateFlow<List<Item>>,
-                val failed: StateFlow<List<Item>>
-            ) {
-                data class Item(
-                    val id: ImportSessionItemId,
-                    val uri: String,
-                    val state: ImportSessionItem.State,
-                    val title: String,
-                    val duration: Duration,
-                    val artists: List<String>,
-                    val album: String?,
-                    val image: File?
-                )
-            }
-        }
-    }
 
     private object Ui {
+        sealed class State {
+            data object Loading : State()
+
+            data class Loaded(
+                val defaultTab: ImportSessionItem.State,
+                val import: StateFlow<Import>,
+                val items: Items,
+                val searchQuery: StateFlow<String>,
+                val onSearchQueryChange: (String) -> Unit,
+                val onItemClick: (ImportSessionItemId) -> Unit,
+                val onImportItemClick: (ImportSessionItemId) -> Unit,
+                val onCancelItemClick: (ImportSessionItemId) -> Unit,
+                val onClearItemClick: (ImportSessionItemId) -> Unit,
+                val onRetryItemClick: (ImportSessionItemId) -> Unit
+            ) : State() {
+                data class Import(
+                    val id: ImportSessionId,
+                    val uri: String,
+                    val sourceType: SourceType,
+                    val title: String?,
+                    val description: String?,
+                    val image: File?,
+                    val createdAt: String
+                )
+
+                data class Items(
+                    val nonselected: StateFlow<List<Item>>,
+                    val pending: StateFlow<List<Item>>,
+                    val inProgress: StateFlow<List<Item>>,
+                    val completed: StateFlow<List<Item>>,
+                    val cancelled: StateFlow<List<Item>>,
+                    val failed: StateFlow<List<Item>>
+                ) {
+                    data class Item(
+                        val id: ImportSessionItemId,
+                        val uri: String,
+                        val state: ImportSessionItem.State,
+                        val title: String,
+                        val duration: Duration,
+                        val artists: List<String>,
+                        val album: String?,
+                        val image: File?
+                    )
+                }
+            }
+
+            data object ItemDoesNotExist : State()
+        }
+
         @Composable
-        fun Main(modifier: Modifier, state: ImportDetailsState) {
+        fun Main(modifier: Modifier, state: State) {
             when (state) {
-                is ImportDetailsState.Loading -> Text(modifier = modifier, text = "Loading...")
-                is ImportDetailsState.Loaded -> Main(modifier = modifier, loaded = state)
+                is State.Loading -> Text(modifier = modifier, text = "Loading...")
+                is State.Loaded -> Main(modifier = modifier, loaded = state)
+                is State.ItemDoesNotExist -> Text(modifier = modifier, text = "This item no long exists")
             }
         }
 
         @Composable
-        private fun Main(modifier: Modifier, loaded: ImportDetailsState.Loaded) {
+        private fun Main(modifier: Modifier, loaded: State.Loaded) {
             Main(
                 modifier = modifier,
                 defaultTab = loaded.defaultTab,
@@ -279,8 +294,8 @@ class ImportDetails(
         private fun Main(
             modifier: Modifier,
             defaultTab: ImportSessionItem.State,
-            import: StateFlow<ImportDetailsState.Loaded.Import>,
-            items: ImportDetailsState.Loaded.Items,
+            import: StateFlow<State.Loaded.Import>,
+            items: State.Loaded.Items,
             searchQuery: StateFlow<String>,
             onSearchQueryChange: (String) -> Unit,
             onItemClick: (ImportSessionItemId) -> Unit,
@@ -297,7 +312,7 @@ class ImportDetails(
             val cancelled by items.cancelled.collectAsState()
             val failed by items.failed.collectAsState()
             val searchQuery by searchQuery.collectAsState()
-            val items: Map<ImportSessionItem.State, List<ImportDetailsState.Loaded.Items.Item>> = mapOf(
+            val items: Map<ImportSessionItem.State, List<State.Loaded.Items.Item>> = mapOf(
                 ImportSessionItem.State.Nonselected to nonselected,
                 ImportSessionItem.State.Pending to pending,
                 ImportSessionItem.State.InProgress to inProgress,
@@ -373,7 +388,7 @@ class ImportDetails(
         @Composable
         private fun ImportInfo(
             modifier: Modifier,
-            import: ImportDetailsState.Loaded.Import
+            import: State.Loaded.Import
         ) {
             Row(
                 modifier = modifier,
@@ -402,7 +417,7 @@ class ImportDetails(
         @Composable
         private fun ImportItem(
             modifier: Modifier,
-            item: ImportDetailsState.Loaded.Items.Item,
+            item: State.Loaded.Items.Item,
             onClick: () -> Unit,
             onImportClick: () -> Unit,
             onCancelClick: () -> Unit,

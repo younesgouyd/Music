@@ -46,7 +46,7 @@ interface PlaylistDao {
     fun getAll(): Flow<List<Playlist>>
 
     @Query("select * from playlist where id = :id")
-    fun get(id: PlaylistId): Flow<Playlist>
+    fun get(id: PlaylistId): Flow<Playlist?>
 
     @Query("select * from playlist where name like :nameQuery")
     fun search(nameQuery: String): Flow<List<Playlist>>

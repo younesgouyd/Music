@@ -20,13 +20,13 @@ class MediaFileRepo(
         return fileManager.getMediaFile(mediaFile.id)
     }
 
-    suspend fun getSpotifyAlbumImage(id: SpotifyAlbumId): File {
-        val mediaFile = dao.getSpotifyAlbumImage(id).first()
+    suspend fun getSpotifyAlbumImage(id: SpotifyAlbumId): File? {
+        val mediaFile = dao.getSpotifyAlbumImage(id).first() ?: return null
         return fileManager.getMediaFile(mediaFile.id)
     }
 
-    suspend fun getSpotifyArtistImage(id: SpotifyArtistId): File {
-        val mediaFile = dao.getSpotifyArtistImage(id).first()
+    suspend fun getSpotifyArtistImage(id: SpotifyArtistId): File? {
+        val mediaFile = dao.getSpotifyArtistImage(id).first() ?: return null
         return fileManager.getMediaFile(mediaFile.id)
     }
 

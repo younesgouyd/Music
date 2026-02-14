@@ -43,73 +43,79 @@ class ImportFolderFlow(
     showImportSession: (ImportSessionId, ImportSessionItem.State) -> Unit
 ) : Component() {
     override val title: String = "Import Folder"
-    private var job: Job? = null
     private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
 
     init {
+        var job: Job? = null
         val isPreparing = MutableStateFlow(false)
         val showCancelButton = MutableStateFlow(false)
         coroutineScope.launch {
-            state.value = Ui.State.Loaded(
-                destination = run {
-                    var result = ""
-                    var id: FolderId? = destinationFolderId
-                    while (id != null) {
-                        val folder = folderRepo.get(id).first()
-                        result = "${folder.name}/$result"
-                        id = folder.parentFolderId
-                    }
-                    result = "root/$result"
-                    result
-                },
-                isPreparing = isPreparing.asStateFlow(),
-                showCancelButton = showCancelButton.asStateFlow(),
-                onFolderSelected = { uri: String ->
-                    job = coroutineScope.launch {
-                        isPreparing.value = true
-                        showCancelButton.value = true
-                        val items = scanFolder(uri)
-                        showCancelButton.value = false
-                        val inspection = Inspection.Folder(
-                            container = Inspection.ContainerInspection.Folder(uri = uri),
-                            items = items
-                        )
-                        require(inspection.container.uri.isNotBlank() && inspection.items.isNotEmpty())
-                        val sessionId = importSessionRepo.add(
-                            uri = inspection.container.uri,
-                            sourceType = ImportSession.SourceType.Local,
-                            inspection = inspection.container,
-                            destinationFolderId = destinationFolderId,
-                            imgId = null
-                        )
-                        for (item in inspection.items) {
-                            importSessionItemRepo.add(
-                                uri = item.uri,
-                                importSessionId = sessionId,
-                                state = ImportSessionItem.State.Pending,
-                                title = item.title,
-                                durationMilliseconds = item.durationMilliseconds,
-                                artists = item.artists.joinToString(prefix = "[", postfix = "]", separator = ",") { "\"$it\"" },
-                                album = item.album,
-                                inspection = item.copy(albumImage = null),
-                                localFilePath = item.path.joinToString(prefix = "[", postfix = "]", separator = ",") { "\"$it\"" },
-                                albumTrackNumber = item.albumTrackNumber,
-                                lyrics = item.lyrics,
-                                year = item.year,
-                                imgId = item.albumImage?.let { albumImage ->
-                                    mediaFileRepo.add(null, Base64.decode(albumImage))
-                                }
+            var result = ""
+            var id: FolderId? = destinationFolderId
+            var dataCorrupted = false
+            while (id != null) {
+                val folder = folderRepo.get(id).first()
+                if (folder == null) {
+                    dataCorrupted = true
+                    break
+                } else {
+                    result = "${folder.name}/$result"
+                    id = folder.parentFolderId
+                }
+            }
+            state.value = if (dataCorrupted) {
+                Ui.State.FolderHierarchyDataIsCorrupted
+            } else {
+                Ui.State.Loaded(
+                    destination = "root/$result",
+                    isPreparing = isPreparing.asStateFlow(),
+                    showCancelButton = showCancelButton.asStateFlow(),
+                    onFolderSelected = { uri: String ->
+                        job = coroutineScope.launch {
+                            isPreparing.value = true
+                            showCancelButton.value = true
+                            val items = scanFolder(uri)
+                            showCancelButton.value = false
+                            val inspection = Inspection.Folder(
+                                container = Inspection.ContainerInspection.Folder(uri = uri),
+                                items = items
                             )
+                            require(inspection.container.uri.isNotBlank() && inspection.items.isNotEmpty())
+                            val sessionId = importSessionRepo.add(
+                                uri = inspection.container.uri,
+                                sourceType = ImportSession.SourceType.Local,
+                                inspection = inspection.container,
+                                destinationFolderId = destinationFolderId,
+                                imgId = null
+                            )
+                            for (item in inspection.items) {
+                                importSessionItemRepo.add(
+                                    uri = item.uri,
+                                    importSessionId = sessionId,
+                                    state = ImportSessionItem.State.Pending,
+                                    title = item.title,
+                                    durationMilliseconds = item.durationMilliseconds,
+                                    album = item.album,
+                                    inspection = item.copy(albumImage = null),
+                                    localFilePath = item.path.joinToString(prefix = "[", postfix = "]", separator = ",") { "\"$it\"" },
+                                    albumTrackNumber = item.albumTrackNumber,
+                                    lyrics = item.lyrics,
+                                    year = item.year,
+                                    imgId = item.albumImage?.let { albumImage ->
+                                        mediaFileRepo.add(null, Base64.decode(albumImage))
+                                    }
+                                )
+                            }
+                            showImportSession(sessionId, ImportSessionItem.State.Pending)
+                            isPreparing.value = false
                         }
-                        showImportSession(sessionId, ImportSessionItem.State.Pending)
+                    },
+                    onCancelClick = {
+                        job!!.cancel()
                         isPreparing.value = false
                     }
-                },
-                onCancelClick = {
-                    job!!.cancel()
-                    isPreparing.value = false
-                }
-            )
+                )
+            }
         }
     }
 
@@ -135,6 +141,8 @@ class ImportFolderFlow(
                 val onFolderSelected: (Uri) -> Unit,
                 val onCancelClick: () -> Unit
             ) : State()
+
+            data object FolderHierarchyDataIsCorrupted : State()
         }
 
         @Composable
@@ -154,6 +162,7 @@ class ImportFolderFlow(
                     }
                 }
                 is State.Loaded -> Main(modifier, state)
+                is State.FolderHierarchyDataIsCorrupted -> Text(modifier = modifier, text = "FolderHierarchyDataIsCorrupted")
             }
         }
 

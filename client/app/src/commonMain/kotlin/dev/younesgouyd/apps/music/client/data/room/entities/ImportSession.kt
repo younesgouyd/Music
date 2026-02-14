@@ -51,7 +51,7 @@ interface ImportSessionDao {
     fun getAll(): Flow<List<ImportSession>>
 
     @Query("select * from importsession where id = :id")
-    fun get(id: ImportSessionId): Flow<ImportSession>
+    fun get(id: ImportSessionId): Flow<ImportSession?>
 
     @Query(
         """

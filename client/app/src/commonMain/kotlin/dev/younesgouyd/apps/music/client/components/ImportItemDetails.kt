@@ -28,7 +28,6 @@ import dev.younesgouyd.apps.music.common.Inspection
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -44,34 +43,44 @@ class ImportItemDetails(
     showTrack: (TrackId) -> Unit
 ) : Component() {
     override val title: String = "Import Item"
-    private val state: MutableStateFlow<ImportItemDetailState> = MutableStateFlow(ImportItemDetailState.Loading)
+    private val state: StateFlow<Ui.State>
 
     init {
-        coroutineScope.launch {
-            val importItem = importSessionItemRepo.get(id)
-                .map { dbItem -> dbItem.toModel(mediaFileRepo) }
-                .stateIn(coroutineScope)
-            val importSession = importItem.flatMapLatest { importSessionRepo.get(it.importSessionId) }
-                .map { dbSession ->
-                    ImportItemDetailState.Loaded.ImportSession(
-                        id = dbSession.id,
-                        uri = dbSession.uri,
-                        sourceType = dbSession.sourceType,
-                        image = mediaFileRepo.getImportSessionImage(dbSession.id)
-                    )
-                }.stateIn(coroutineScope)
-            val track = trackRepo.getImportSessionTrack(id).map { dbTrack ->
-                if (dbTrack == null) return@map null
-                ImportItemDetailState.Loaded.Track(dbTrack.track.id,)
-            }.stateIn(coroutineScope)
-            state.value = ImportItemDetailState.Loaded(
-                importItem = importItem,
-                importSession = importSession,
-                track = track,
-                onImportSessionClick = { showImportSession(importSession.value.id) },
-                onTrackClick = { showTrack(track.value!!.id) }
-            )
-        }
+        val importItem = importSessionItemRepo.get(id).filterNotNull()
+            .map { dbItem -> dbItem.toModel(mediaFileRepo) }
+            .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
+        var loaded: Ui.State.Loaded? = null
+        state = importItem.onEach {
+            if (it != null && loaded == null) {
+                loaded = Ui.State.Loaded(
+                    importItem = importItem.filterNotNull().stateIn(coroutineScope),
+                    importSession = importItem
+                        .flatMapLatest {
+                            it?.let { importSessionRepo.get(it.importSessionId) } ?: flowOf(null)
+                        }.map { dbSession ->
+                            dbSession?.let {
+                                Ui.State.Loaded.ImportSession(
+                                    id = dbSession.id,
+                                    uri = dbSession.uri,
+                                    sourceType = dbSession.sourceType,
+                                    image = mediaFileRepo.getImportSessionImage(dbSession.id)
+                                )
+                            }
+                        }.stateIn(coroutineScope),
+                    track = trackRepo.getImportSessionTrack(id).map { dbTrack ->
+                        dbTrack?.let { Ui.State.Loaded.Track(dbTrack.track.id) }
+                    }.stateIn(coroutineScope),
+                    onImportSessionClick = showImportSession,
+                    onTrackClick = showTrack
+                )
+            }
+        }.map {
+            if (it == null) {
+                Ui.State.ItemDoesNotExist
+            } else {
+                loaded!!
+            }
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Loading)
     }
 
     @Composable
@@ -85,10 +94,10 @@ class ImportItemDetails(
         coroutineScope.cancel()
     }
 
-    private suspend fun ImportSessionItem.toModel(mediaFileRepo: MediaFileRepo): ImportItemDetailState.Loaded.ImportItem {
+    private suspend fun ImportSessionItem.toModel(mediaFileRepo: MediaFileRepo): Ui.State.Loaded.ImportItem {
         return when (this.inspection) {
             is Inspection.ItemInspection.LocalFileTrack -> {
-                ImportItemDetailState.Loaded.ImportItem(
+                Ui.State.Loaded.ImportItem(
                     id = this.id,
                     uri = this.uri,
                     importSessionId = this.importSessionId,
@@ -101,7 +110,7 @@ class ImportItemDetails(
                 )
             }
             is Inspection.ItemInspection.InternetTrack -> {
-                ImportItemDetailState.Loaded.ImportItem(
+                Ui.State.Loaded.ImportItem(
                     id = this.id,
                     uri = this.uri,
                     importSessionId = this.importSessionId,
@@ -116,52 +125,56 @@ class ImportItemDetails(
         }
     }
 
-    private sealed class ImportItemDetailState {
-        data object Loading : ImportItemDetailState()
-
-        data class Loaded(
-            val importItem: StateFlow<ImportItem>,
-            val importSession: StateFlow<ImportSession>,
-            val track: StateFlow<Track?>,
-            val onImportSessionClick: () -> Unit,
-            val onTrackClick: () -> Unit
-        ) : ImportItemDetailState() {
-            data class ImportItem(
-                val id: ImportSessionItemId,
-                val uri: String,
-                val importSessionId: ImportSessionId,
-                val state: ImportSessionItem.State,
-                val title: String,
-                val duration: Duration,
-                val artists: List<String>,
-                val album: String?,
-                val image: File?
-            )
-
-            data class ImportSession(
-                val id: ImportSessionId,
-                val uri: String,
-                val sourceType: SourceType,
-                val image: File?
-            )
-
-            data class Track(
-                val id: TrackId
-            )
-        }
-    }
 
     private object Ui {
+        sealed class State {
+            data object Loading : State()
+
+            data class Loaded(
+                val importItem: StateFlow<ImportItem>,
+                val importSession: StateFlow<ImportSession?>,
+                val track: StateFlow<Track?>,
+                val onImportSessionClick: (ImportSessionId) -> Unit,
+                val onTrackClick: (TrackId) -> Unit
+            ) : State() {
+                data class ImportItem(
+                    val id: ImportSessionItemId,
+                    val uri: String,
+                    val importSessionId: ImportSessionId,
+                    val state: ImportSessionItem.State,
+                    val title: String,
+                    val duration: Duration,
+                    val artists: List<String>,
+                    val album: String?,
+                    val image: File?
+                )
+
+                data class ImportSession(
+                    val id: ImportSessionId,
+                    val uri: String,
+                    val sourceType: SourceType,
+                    val image: File?
+                )
+
+                data class Track(
+                    val id: TrackId
+                )
+            }
+
+            data object ItemDoesNotExist : State()
+        }
+
         @Composable
-        fun Main(modifier: Modifier, state: ImportItemDetailState) {
+        fun Main(modifier: Modifier, state: State) {
             when (state) {
-                is ImportItemDetailState.Loading -> Text(modifier = modifier, text = "Loading...")
-                is ImportItemDetailState.Loaded -> Main(modifier = modifier, loaded = state)
+                is State.Loading -> Text(modifier = modifier, text = "Loading...")
+                is State.Loaded -> Main(modifier = modifier, loaded = state)
+                is State.ItemDoesNotExist -> Text(modifier = modifier, text = "This item no long exists")
             }
         }
 
         @Composable
-        private fun Main(modifier: Modifier, loaded: ImportItemDetailState.Loaded) {
+        private fun Main(modifier: Modifier, loaded: State.Loaded) {
             Main(
                 modifier = modifier,
                 importItem = loaded.importItem,
@@ -175,11 +188,11 @@ class ImportItemDetails(
         @Composable
         private fun Main(
             modifier: Modifier,
-            importItem: StateFlow<ImportItemDetailState.Loaded.ImportItem>,
-            importSession: StateFlow<ImportItemDetailState.Loaded.ImportSession>,
-            track: StateFlow<ImportItemDetailState.Loaded.Track?>,
-            onImportSessionClick: () -> Unit,
-            onTrackClick: () -> Unit
+            importItem: StateFlow<State.Loaded.ImportItem>,
+            importSession: StateFlow<State.Loaded.ImportSession?>,
+            track: StateFlow<State.Loaded.Track?>,
+            onImportSessionClick: (ImportSessionId) -> Unit,
+            onTrackClick: (TrackId) -> Unit
         ) {
             val importItem by importItem.collectAsState()
             val importSession by importSession.collectAsState()
@@ -234,11 +247,19 @@ class ImportItemDetails(
                         text = "Import Session:",
                         style = MaterialTheme.typography.headlineMedium
                     )
-                    ImportSessionInfo(
-                        modifier = Modifier.fillMaxWidth().height(100.dp),
-                        importSession = importSession,
-                        onClick = onImportSessionClick
-                    )
+                    importSession?.let {
+                        ImportSessionInfo(
+                            modifier = Modifier.fillMaxWidth().height(100.dp),
+                            importSession = it,
+                            onClick = { onImportSessionClick(it.id) }
+                        )
+                    } ?: Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.errorContainer
+                    ) {
+                        Text("Import Session not found!")
+                    }
                     Spacer(Modifier.height(20.dp))
                     Text(
                         modifier = Modifier.fillMaxWidth(),
@@ -248,7 +269,7 @@ class ImportItemDetails(
                     track?.let {
                         Item(
                             modifier = Modifier.fillMaxWidth().height(100.dp),
-                            onClick = onTrackClick
+                            onClick = { onTrackClick(it.id) }
                         ) {
                             Box(
                                 modifier = Modifier.fillMaxSize().padding(start = 20.dp),
@@ -257,6 +278,12 @@ class ImportItemDetails(
                                 Text("track: ${it.id}")
                             }
                         }
+                    } ?: Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.errorContainer
+                    ) {
+                        Text("Track not found!")
                     }
                 }
             }
@@ -265,7 +292,7 @@ class ImportItemDetails(
         @Composable
         private fun ImportSessionInfo(
             modifier: Modifier,
-            importSession: ImportItemDetailState.Loaded.ImportSession,
+            importSession: State.Loaded.ImportSession,
             onClick: () -> Unit
         ) {
             Item(

@@ -9,11 +9,7 @@ import kotlinx.coroutines.flow.Flow
 class FolderRepo(
     private val dao: FolderDao
 ) {
-    fun getAll(): Flow<List<Folder>> {
-        return dao.getAll()
-    }
-
-    fun get(id: FolderId): Flow<Folder> {
+    fun get(id: FolderId): Flow<Folder?> {
         return dao.get(id)
     }
 

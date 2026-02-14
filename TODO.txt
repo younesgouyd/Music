@@ -1,12 +1,11 @@
 
-- handle the case of clicking on non-observable deleted entity (e.g. tracks of MediaController's QueueItem)
+- put import logic in a database transaction for each import item
 - implement pagination.
 - the items of import session containers may change in the source. so re-importing items is only possible
   if it still exists in the source (youtube playlist for example). consider refreshing the inspection before
   trying to re-import or remove this feature altogether.
 - in Library, support dragging items into folders.
 - check why when trying to launch system file picker on an old android os (android 10 if I remember), the app crashes
-- support get(id) returning null
 - verify SaveAudioFileAsTrackUseCase logic
 - support showing the destination folder from import session
 - update date and creation date in daos
@@ -18,9 +17,11 @@
 - implement genres
 - implement showing and editing lyrics
 - implement sorting playlists/albums/folders
-- verify not null assertions (!!)
 
 done:
+- verify not null assertions (!!)
+- support get(id) returning null
+- handle the case of clicking on non-observable deleted entity (e.g. tracks of MediaController's QueueItem)
 - implement spotify API (SpotifyTrack, SpotifyArtist, SpotifyAlbum...):
     - link tracks with imports instead of media files directly.
     - Track entity should not contain information like name, album, artists... etc. instead, we should get this information

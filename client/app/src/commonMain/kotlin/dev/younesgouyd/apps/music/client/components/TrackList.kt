@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Details
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Search
@@ -36,7 +37,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import org.json.JSONArray
 import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -51,7 +51,7 @@ class TrackList(
     showArtist: (SpotifyArtistId) -> Unit
 ) : Component() {
     override val title: String = "Tracks"
-    private val state: State
+    private val state: Ui.State
 
     init {
         val searchQuery = MutableStateFlow("")
@@ -62,7 +62,7 @@ class TrackList(
             .flatMapLatest { (search, tags, untagged) ->  trackRepo.search(search, tags, untagged) }
             .map { dbTracks -> dbTracks.toModel(mediaFileRepo, artistRepo, importSessionItemRepo) }
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
-        state = State(
+        state = Ui.State(
             scrollState = LazyGridState(),
             tracks = tracks,
             tagsFilterState = TagsFilterState(
@@ -106,7 +106,7 @@ class TrackList(
             onSearchQueryChange = { searchQuery.value = it },
             onTrackClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
             onArtistClick = showArtist,
-            onPlayTrackClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(it))) }
+            onTrackDetailsClick = showTrack
         )
     }
 
@@ -119,9 +119,13 @@ class TrackList(
         coroutineScope.cancel()
     }
 
-    private suspend fun List<TrackRelation>.toModel(mediaFileRepo: MediaFileRepo, artistRepo: SpotifyArtistRepo, importSessionItemRepo: ImportSessionItemRepo): List<State.Track> {
+    private suspend fun List<TrackRelation>.toModel(
+        mediaFileRepo: MediaFileRepo,
+        artistRepo: SpotifyArtistRepo,
+        importSessionItemRepo: ImportSessionItemRepo
+    ): List<Ui.State.Track> {
         return this.map { dbTrack ->
-            State.Track(
+            Ui.State.Track(
                 id = dbTrack.track.id,
                 name = dbTrack.spotifyTrack?.name ?: dbTrack.originalImport.title,
                 image = if (dbTrack.spotifyTrack != null) {
@@ -131,47 +135,42 @@ class TrackList(
                 },
                 artists = if (dbTrack.spotifyTrack != null) {
                     artistRepo.getSpotifyTrackSpotifyArtists(dbTrack.spotifyTrack.id).first().map { dbArtist ->
-                        State.Track.Artist(dbArtist.id, dbArtist.name)
+                        Ui.State.Track.Artist(dbArtist.id, dbArtist.name)
                     }
                 } else {
-                    val json = JSONArray(importSessionItemRepo.get(dbTrack.track.importSessionItemId).first().artists)
-                    buildList {
-                        for (i in 0 until json.length()) {
-                            add(
-                                State.Track.Artist(null, json.getString(i))
-                            )
-                        }
+                    dbTrack.originalImport.inspection.artists.map {
+                        Ui.State.Track.Artist(null, it)
                     }
                 }
             )
         }
     }
 
-    data class State(
-        val scrollState: LazyGridState,
-        val tracks: StateFlow<List<Track>>,
-        val tagsFilterState: TagsFilterState,
-        val searchQuery: StateFlow<String>,
-        val onPlayClick: () -> Unit,
-        val onSearchQueryChange: (String) -> Unit,
-        val onTrackClick: (TrackId) -> Unit,
-        val onArtistClick: (SpotifyArtistId) -> Unit,
-        val onPlayTrackClick: (TrackId) -> Unit
-    ) {
-        data class Track(
-            val id: TrackId,
-            val name: String,
-            val image: File?,
-            val artists: List<Artist>
-        ) {
-            data class Artist(
-                val id: SpotifyArtistId?,
-                val name: String
-            )
-        }
-    }
-
     private object Ui {
+        data class State(
+            val scrollState: LazyGridState,
+            val tracks: StateFlow<List<Track>>,
+            val tagsFilterState: TagsFilterState,
+            val searchQuery: StateFlow<String>,
+            val onPlayClick: () -> Unit,
+            val onSearchQueryChange: (String) -> Unit,
+            val onTrackClick: (TrackId) -> Unit,
+            val onArtistClick: (SpotifyArtistId) -> Unit,
+            val onTrackDetailsClick: (TrackId) -> Unit
+        ) {
+            data class Track(
+                val id: TrackId,
+                val name: String,
+                val image: File?,
+                val artists: List<Artist>
+            ) {
+                data class Artist(
+                    val id: SpotifyArtistId?,
+                    val name: String
+                )
+            }
+        }
+
         @Composable
         fun Main(modifier: Modifier, state: State) {
             Main(
@@ -184,7 +183,7 @@ class TrackList(
                 onSearchQueryChange = state.onSearchQueryChange,
                 onTrackClick = state.onTrackClick,
                 onArtistClick = state.onArtistClick,
-                onPlayTrackClick = state.onPlayTrackClick
+                onTrackDetailsClick = state.onTrackDetailsClick
             )
         }
 
@@ -199,7 +198,7 @@ class TrackList(
             onSearchQueryChange: (String) -> Unit,
             onTrackClick: (TrackId) -> Unit,
             onArtistClick: (SpotifyArtistId) -> Unit,
-            onPlayTrackClick: (TrackId) -> Unit
+            onTrackDetailsClick: (TrackId) -> Unit
         ) {
             val tracks by tracks.collectAsState()
             val searchQuery by searchQuery.collectAsState()
@@ -237,7 +236,7 @@ class TrackList(
                                     track = track,
                                     onClick = { onTrackClick(track.id) },
                                     onArtistClick = onArtistClick,
-                                    onPlayClick = { onPlayTrackClick(track.id) }
+                                    onDetailsClick = { onTrackDetailsClick(track.id) }
                                 )
                             }
                         }
@@ -260,7 +259,7 @@ class TrackList(
             track: State.Track,
             onClick: () -> Unit,
             onArtistClick: (SpotifyArtistId) -> Unit,
-            onPlayClick: () -> Unit
+            onDetailsClick: () -> Unit
         ) {
             Item(
                 modifier = modifier,
@@ -317,8 +316,8 @@ class TrackList(
                             }
                         }
                         IconButton(
-                            content = { Icon(Icons.Default.PlayCircle, null) },
-                            onClick = onPlayClick
+                            content = { Icon(Icons.Default.Details, null) },
+                            onClick = onDetailsClick
                         )
                     }
                 }

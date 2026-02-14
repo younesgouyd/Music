@@ -16,7 +16,7 @@ class PlaylistRepo(
         return dao.getAll()
     }
 
-    fun get(id: PlaylistId): Flow<Playlist> {
+    fun get(id: PlaylistId): Flow<Playlist?> {
         return dao.get(id)
     }
 

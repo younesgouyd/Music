@@ -43,43 +43,44 @@ class MoveToFolder(
     dismiss: () -> Unit
 ) : Component() {
     override val title: String = "Move to Folder"
-    private val currentFolder: MutableStateFlow<Folder?> = MutableStateFlow(null)
     private val _moving: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    private val state: MutableStateFlow<MoveToFolderState> = MutableStateFlow(MoveToFolderState.Loading)
+    private val state: StateFlow<Ui.State>
 
     val moving get() = _moving.asStateFlow()
 
     init {
+        val currentFolder: MutableStateFlow<Folder?> = MutableStateFlow(null)
         var list: List<Folder?> = listOf(null)
-
-        coroutineScope.launch {
-            state.update {
-                MoveToFolderState.Loaded(
+        val item = when (itemToMove) {
+            is ItemToMove.Track -> trackRepo.get(itemToMove.id).filterNotNull().map { dbTrack ->
+                Ui.State.Loaded.ItemToAdd(
+                    name = dbTrack.spotifyTrack?.name ?: dbTrack.originalImport.title,
+                    image = if (dbTrack.spotifyTrack != null) {
+                        mediaFileRepo.getSpotifyAlbumImage(dbTrack.spotifyTrack.spotifyAlbumId)
+                    } else {
+                        mediaFileRepo.getImportSessionItemImage(dbTrack.track.importSessionItemId)
+                    }
+                )
+            }
+            is ItemToMove.Playlist -> playlistRepo.get(itemToMove.id).filterNotNull().map { dbPlaylist ->
+                Ui.State.Loaded.ItemToAdd(
+                    name = dbPlaylist.name,
+                    image = dbPlaylist.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) }
+                )
+            }
+            is ItemToMove.Folder -> folderRepo.get(itemToMove.id).filterNotNull().map { dbFolder ->
+                Ui.State.Loaded.ItemToAdd(
+                    name = dbFolder.name,
+                    image = null
+                )
+            }
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
+        var loaded: Ui.State.Loaded? = null
+        state = item.onEach {
+            if (it != null && loaded == null) {
+                loaded = Ui.State.Loaded(
                     loading = this@MoveToFolder._moving.asStateFlow(),
-                    itemToAdd = when (itemToMove) {
-                        is ItemToMove.Track -> trackRepo.get(itemToMove.id).first().let { dbTrack ->
-                            MoveToFolderState.Loaded.ItemToAdd(
-                                name = dbTrack.spotifyTrack?.name ?: dbTrack.originalImport.title,
-                                image = if (dbTrack.spotifyTrack != null) {
-                                    mediaFileRepo.getSpotifyAlbumImage(dbTrack.spotifyTrack.spotifyAlbumId)
-                                } else {
-                                    mediaFileRepo.getImportSessionItemImage(dbTrack.track.importSessionItemId)
-                                }
-                            )
-                        }
-                        is ItemToMove.Playlist -> playlistRepo.get(itemToMove.id).first().let { dbPlaylist ->
-                            MoveToFolderState.Loaded.ItemToAdd(
-                                name = dbPlaylist.name,
-                                image = dbPlaylist.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) }
-                            )
-                        }
-                        is ItemToMove.Folder -> folderRepo.get(itemToMove.id).first().let { dbFolder ->
-                            MoveToFolderState.Loaded.ItemToAdd(
-                                name = dbFolder.name,
-                                image = null
-                            )
-                        }
-                    },
+                    itemToAdd = item.filterNotNull().stateIn(coroutineScope),
                     currentFolder = currentFolder.asStateFlow(),
                     path = flow {
                         fun <T> List<T>.takeUntil(predicate: (T) -> Boolean): List<T> {
@@ -122,7 +123,13 @@ class MoveToFolder(
                     }
                 )
             }
-        }
+        }.map {
+            if (it == null) {
+                Ui.State.ItemDoesNotExist
+            } else {
+                loaded!!
+            }
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Loading)
     }
 
     @Composable
@@ -147,44 +154,47 @@ class MoveToFolder(
         data class Folder(val id: FolderId) : ItemToMove()
     }
 
-    private sealed class MoveToFolderState {
-        data object Loading : MoveToFolderState()
-
-        data class Loaded(
-            val loading: StateFlow<Boolean>,
-            val itemToAdd: ItemToAdd,
-            val currentFolder: StateFlow<Folder?>,
-            val path: StateFlow<List<Folder?>>,
-            val folders: StateFlow<List<Folder>>,
-            val openFolder: (Folder?) -> Unit,
-            val move: () -> Unit
-        ) : MoveToFolderState() {
-            data class ItemToAdd(
-                val name: String,
-                val image: File?
-            )
-        }
-    }
-
     private object Ui {
+        sealed class State {
+            data object Loading : State()
+
+            data class Loaded(
+                val loading: StateFlow<Boolean>,
+                val itemToAdd: StateFlow<ItemToAdd>,
+                val currentFolder: StateFlow<Folder?>,
+                val path: StateFlow<List<Folder?>>,
+                val folders: StateFlow<List<Folder>>,
+                val openFolder: (Folder?) -> Unit,
+                val move: () -> Unit
+            ) : State() {
+                data class ItemToAdd(
+                    val name: String,
+                    val image: File?
+                )
+            }
+
+            data object ItemDoesNotExist : State()
+        }
+
         @Composable
         fun Main(
             modifier: Modifier,
-            state: MoveToFolderState
+            state: State
         ) {
             when (state) {
-                is MoveToFolderState.Loading -> Text(modifier = modifier, text = "Loading...")
-                is MoveToFolderState.Loaded -> Main(modifier = modifier, loaded = state)
+                is State.Loading -> Text(modifier = modifier, text = "Loading...")
+                is State.Loaded -> Main(modifier = modifier, loaded = state)
+                is State.ItemDoesNotExist -> Text(modifier = modifier, text = "This item no long exists")
             }
         }
 
         @Composable
         fun Main(
             modifier: Modifier,
-            loaded: MoveToFolderState.Loaded
+            loaded: State.Loaded
         ) {
             val loading by loaded.loading.collectAsState()
-            val itemToAdd = loaded.itemToAdd
+            val itemToAdd by loaded.itemToAdd.collectAsState()
             val currentFolder by loaded.currentFolder.collectAsState()
             val path by loaded.path.collectAsState()
             val folders by loaded.folders.collectAsState()

@@ -33,17 +33,17 @@ class Queue(
     showArtist: (SpotifyArtistId) -> Unit
 ) : Component() {
     override val title: String = "Queue"
-    private val state: StateFlow<QueueState>
+    private val state: StateFlow<Ui.State>
 
     init {
         val listState = LazyListState()
         val enableAutoScrollingToCurrentItem = MutableStateFlow(true)
-        state = mediaController.state.mapLatest { mediaControllerState ->
+        state = mediaController.state.map { mediaControllerState ->
             when (mediaControllerState) {
-                is MediaController.MediaControllerState.Unavailable -> QueueState.Unavailable
-                is MediaController.MediaControllerState.Loading -> QueueState.Loading
+                is MediaController.MediaControllerState.Unavailable -> Ui.State.Unavailable
+                is MediaController.MediaControllerState.Loading -> Ui.State.Loading
                 is MediaController.MediaControllerState.Available -> {
-                    QueueState.Available(
+                    Ui.State.Available(
                         enabled = mediaControllerState.enabled,
                         queue = mediaControllerState.queue,
                         currentItem = mediaControllerState.currentItem,
@@ -58,7 +58,7 @@ class Queue(
                     )
                 }
             }
-        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), QueueState.Unavailable)
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Unavailable)
     }
 
     @Composable
@@ -72,40 +72,41 @@ class Queue(
         coroutineScope.cancel()
     }
 
-    private sealed class QueueState {
-        data object Loading : QueueState()
-
-        data object Unavailable : QueueState()
-
-        data class Available(
-            val enabled: StateFlow<Boolean>,
-            val queue: StateFlow<List<MediaController.MediaControllerState.Available.QueueItem>>,
-            val currentItem: StateFlow<MediaController.MediaControllerState.Available.QueueItem>,
-            val currentItemIndex: StateFlow<Int>,
-            val listState: LazyListState,
-            val enableAutoScrollingToCurrentItem: StateFlow<Boolean>,
-            val onEnableAutoScrollingToCurrentItemChange: (Boolean) -> Unit,
-            val onPlayQueueItem: (queueItemIndex: Int) -> Unit,
-            val changeItemIndex: (from: Int, to: Int) -> Unit,
-            val onArtistClick: (SpotifyArtistId) -> Unit,
-            val onRemoveFromQueueClick: (key: Int) -> Unit
-        ) : QueueState()
-    }
 
     private object Ui {
+        sealed class State {
+            data object Loading : State()
+
+            data object Unavailable : State()
+
+            data class Available(
+                val enabled: StateFlow<Boolean>,
+                val queue: StateFlow<List<MediaController.MediaControllerState.Available.QueueItem>>,
+                val currentItem: StateFlow<MediaController.MediaControllerState.Available.QueueItem?>,
+                val currentItemIndex: StateFlow<Int>,
+                val listState: LazyListState,
+                val enableAutoScrollingToCurrentItem: StateFlow<Boolean>,
+                val onEnableAutoScrollingToCurrentItemChange: (Boolean) -> Unit,
+                val onPlayQueueItem: (queueItemIndex: Int) -> Unit,
+                val changeItemIndex: (from: Int, to: Int) -> Unit,
+                val onArtistClick: (SpotifyArtistId) -> Unit,
+                val onRemoveFromQueueClick: (key: Int) -> Unit
+            ) : State()
+        }
+
         @Composable
-        fun Main(modifier: Modifier = Modifier, state: QueueState) {
+        fun Main(modifier: Modifier = Modifier, state: State) {
             when (state) {
-                is QueueState.Loading -> Unit
-                is QueueState.Unavailable -> Unit
-                is QueueState.Available -> Main(modifier = modifier, state = state)
+                is State.Loading -> Unit
+                is State.Unavailable -> Unit
+                is State.Available -> Main(modifier = modifier, state = state)
             }
         }
 
         @Composable
         private fun Main(
             modifier: Modifier = Modifier,
-            state: QueueState.Available
+            state: State.Available
         ) {
             Main(
                 modifier = modifier,
@@ -128,7 +129,7 @@ class Queue(
             modifier: Modifier = Modifier,
             enabled: StateFlow<Boolean>,
             queue: StateFlow<List<MediaController.MediaControllerState.Available.QueueItem>>,
-            currentItem: StateFlow<MediaController.MediaControllerState.Available.QueueItem>,
+            currentItem: StateFlow<MediaController.MediaControllerState.Available.QueueItem?>,
             currentItemIndex: StateFlow<Int>,
             listState: LazyListState,
             enableAutoScrollingToCurrentItem: StateFlow<Boolean>,
@@ -220,7 +221,7 @@ class Queue(
                                 QueueItem(
                                     modifier = Modifier.fillMaxWidth(),
                                     item = queueItem,
-                                    isPlaying = currentItem.key == queueItem.key,
+                                    isPlaying = currentItem?.key == queueItem.key,
                                     enabled = enabled,
                                     tonalElevation = elevation,
                                     onClick = { onPlayQueueItem(index) },
@@ -247,7 +248,11 @@ class Queue(
                             )
                             IconButton(
                                 onClick = {
-                                    scope.launch { listState.animateScrollToItem(listState.layoutInfo.totalItemsCount-1) }
+                                    scope.launch {
+                                        listState.animateScrollToItem(
+                                            index = (listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)
+                                        )
+                                    }
                                 },
                                 content = { Icon(Icons.Default.KeyboardDoubleArrowDown, null) }
                             )

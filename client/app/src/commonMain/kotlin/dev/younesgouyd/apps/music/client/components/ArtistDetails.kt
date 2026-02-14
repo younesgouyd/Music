@@ -23,7 +23,6 @@ import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -42,29 +41,31 @@ class ArtistDetails(
     showTrack: (TrackId) -> Unit
 ) : Component() {
     override val title: String = "Artist"
-    private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
-    private val searchQuery = MutableStateFlow("")
-    private val selectedTab = MutableStateFlow(Pair(0, UiState.Loaded.Tab.entries.first()))
-    private val state: MutableStateFlow<UiState> = MutableStateFlow(UiState.Loading)
+    val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
+    private val state: StateFlow<Ui.State>
 
     init {
-        coroutineScope.launch {
-            state.update {
-                UiState.Loaded(
+        val searchQuery = MutableStateFlow("")
+        val selectedTab = MutableStateFlow(Pair(0, Ui.State.Loaded.Tab.entries.first()))
+        val artist = artistRepo.get(id).filterNotNull().map {
+            Ui.State.Loaded.Artist(
+                id = it.id,
+                name = it.name,
+                image = mediaFileRepo.getSpotifyArtistImage(it.id)
+            )
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
+        var loaded: Ui.State.Loaded? = null
+        state = artist.onEach {
+            if (it != null && loaded == null) {
+                loaded = Ui.State.Loaded(
                     scrollState = LazyGridState(),
                     selectedTab = selectedTab.asStateFlow(),
-                    artist = artistRepo.get(id).map { dbArtist ->
-                        UiState.Loaded.Artist(
-                            id = dbArtist.id,
-                            name = dbArtist.name,
-                            image = mediaFileRepo.getSpotifyArtistImage(dbArtist.id)
-                        )
-                    }.stateIn(coroutineScope),
+                    artist = artist.filterNotNull().stateIn(coroutineScope), // TODO (this will keep collecting in background even if artist is null)
                     albums = searchQuery.flatMapLatest { search ->
                         albumRepo.searchArtist(id, search).map { dbList ->
                             dbList.map { dbAlbum ->
-                                UiState.Loaded.Album(
+                                Ui.State.Loaded.Album(
                                     id = dbAlbum.id,
                                     name = dbAlbum.name,
                                     image = mediaFileRepo.getSpotifyAlbumImage(dbAlbum.id),
@@ -78,7 +79,7 @@ class ArtistDetails(
                     tracks = searchQuery.flatMapLatest { search ->
                         trackRepo.searchArtistContributions(id, search).mapLatest { dbList ->
                             dbList.map { dbTrack ->
-                                UiState.Loaded.Track(
+                                Ui.State.Loaded.Track(
                                     id = dbTrack.track.id,
                                     name = dbTrack.spotifyTrack!!.name,
                                     image = mediaFileRepo.getSpotifyAlbumImage(dbTrack.spotifyTrack.spotifyAlbumId),
@@ -155,7 +156,13 @@ class ArtistDetails(
                     onAddTrackToQueueClick = { mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(it))) }
                 )
             }
-        }
+        }.map {
+            if (it == null) {
+                Ui.State.ItemDoesNotExist
+            } else {
+                loaded!!
+            }
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Loading)
     }
 
     @Composable
@@ -180,69 +187,72 @@ class ArtistDetails(
         addToPlaylist.update { it?.clear(); null }
     }
 
-    private sealed class UiState {
-        data object Loading : UiState()
-
-        data class Loaded(
-            val scrollState: LazyGridState,
-            val selectedTab: StateFlow<Pair<Int, Tab>>,
-            val artist: StateFlow<Artist>,
-            val albums: StateFlow<List<Album>>,
-            val tracks: StateFlow<List<Track>>,
-            val searchQuery: StateFlow<String>,
-            val addToPlaylistDialogVisible: StateFlow<Boolean>,
-            val addToPlaylist: StateFlow<Component?>,
-            val onTabClick: (Pair<Int, UiState.Loaded.Tab>) -> Unit,
-            val onPlayClick: () -> Unit,
-            val onSearchQueryChange: (String) -> Unit,
-            val onAddToQueueClick: () -> Unit,
-            val onAddToPlaylistClick: () -> Unit,
-            val onArtistClick: (SpotifyArtistId) -> Unit,
-            val onDismissAddToPlaylistDialog: () -> Unit,
-            val onAlbumClick: (SpotifyAlbumId) -> Unit,
-            val onAddAlbumToPlaylistClick: (SpotifyAlbumId) -> Unit,
-            val onAddAlbumToQueueClick: (SpotifyAlbumId) -> Unit,
-            val onTrackClick: (TrackId) -> Unit,
-            val onShowTrackDetailsClick: (TrackId) -> Unit,
-            val onAddTrackToPlaylistClick: (TrackId) -> Unit,
-            val onAddTrackToQueueClick: (TrackId) -> Unit
-        ) : UiState() {
-            enum class Tab { Discography, Contributions }
-
-            data class Artist(
-                val id: SpotifyArtistId,
-                val name: String,
-                val image: File
-            )
-
-            data class Album(
-                val id: SpotifyAlbumId,
-                val name: String,
-                val image: File,
-                val artists: List<Pair<SpotifyArtistId, String>>
-            )
-
-            data class Track(
-                val id: TrackId,
-                val name: String,
-                val image: File?,
-                val artists: List<Pair<SpotifyArtistId, String>>
-            )
-        }
-    }
-
     private object Ui {
+        sealed class State {
+            data object Loading : State()
+
+            data class Loaded(
+                val scrollState: LazyGridState,
+                val selectedTab: StateFlow<Pair<Int, Tab>>,
+                val artist: StateFlow<Artist>,
+                val albums: StateFlow<List<Album>>,
+                val tracks: StateFlow<List<Track>>,
+                val searchQuery: StateFlow<String>,
+                val addToPlaylistDialogVisible: StateFlow<Boolean>,
+                val addToPlaylist: StateFlow<Component?>,
+                val onTabClick: (Pair<Int, State.Loaded.Tab>) -> Unit,
+                val onPlayClick: () -> Unit,
+                val onSearchQueryChange: (String) -> Unit,
+                val onAddToQueueClick: () -> Unit,
+                val onAddToPlaylistClick: () -> Unit,
+                val onArtistClick: (SpotifyArtistId) -> Unit,
+                val onDismissAddToPlaylistDialog: () -> Unit,
+                val onAlbumClick: (SpotifyAlbumId) -> Unit,
+                val onAddAlbumToPlaylistClick: (SpotifyAlbumId) -> Unit,
+                val onAddAlbumToQueueClick: (SpotifyAlbumId) -> Unit,
+                val onTrackClick: (TrackId) -> Unit,
+                val onShowTrackDetailsClick: (TrackId) -> Unit,
+                val onAddTrackToPlaylistClick: (TrackId) -> Unit,
+                val onAddTrackToQueueClick: (TrackId) -> Unit
+            ) : State() {
+                enum class Tab { Discography, Contributions }
+
+                data class Artist(
+                    val id: SpotifyArtistId,
+                    val name: String,
+                    val image: File?
+                )
+
+                data class Album(
+                    val id: SpotifyAlbumId,
+                    val name: String,
+                    val image: File?,
+                    val artists: List<Pair<SpotifyArtistId, String>>
+                )
+
+                data class Track(
+                    val id: TrackId,
+                    val name: String,
+                    val image: File?,
+                    val artists: List<Pair<SpotifyArtistId, String>>
+                )
+            }
+
+            data object ItemDoesNotExist : State()
+        }
+
         object Wide {
             @Composable
-            fun Main(modifier: Modifier, state: UiState) {
+            fun Main(modifier: Modifier, state: State) {
                 when (state) {
-                    is UiState.Loading -> Text(modifier = modifier, text = "Loading...")
-                    is UiState.Loaded -> Main(modifier = modifier, state = state)
+                    is State.Loading -> Text(modifier = modifier, text = "Loading...")
+                    is State.Loaded -> Main(modifier = modifier, state = state)
+                    is State.ItemDoesNotExist -> Text(modifier = modifier, text = "This item no long exists")
                 }
             }
 
             @Composable
-            private fun Main(modifier: Modifier, state: UiState.Loaded) {
+            private fun Main(modifier: Modifier, state: State.Loaded) {
                 val addToPlaylistDialogVisible by state.addToPlaylistDialogVisible.collectAsState()
                 val addToPlaylist by state.addToPlaylist.collectAsState()
 
@@ -281,12 +291,12 @@ class ArtistDetails(
             private fun Main(
                 modifier: Modifier,
                 scrollState: LazyGridState,
-                selectedTab: StateFlow<Pair<Int, UiState.Loaded.Tab>>,
-                artist: StateFlow<UiState.Loaded.Artist>,
-                albums: StateFlow<List<UiState.Loaded.Album>>,
-                tracks: StateFlow<List<UiState.Loaded.Track>>,
+                selectedTab: StateFlow<Pair<Int, State.Loaded.Tab>>,
+                artist: StateFlow<State.Loaded.Artist>,
+                albums: StateFlow<List<State.Loaded.Album>>,
+                tracks: StateFlow<List<State.Loaded.Track>>,
                 searchQuery: StateFlow<String>,
-                onTabClick: (Pair<Int, UiState.Loaded.Tab>) -> Unit,
+                onTabClick: (Pair<Int, State.Loaded.Tab>) -> Unit,
                 onPlayClick: () -> Unit,
                 onSearchQueryChange: (String) -> Unit,
                 onAddToQueueClick: () -> Unit,
@@ -335,7 +345,7 @@ class ArtistDetails(
                                         modifier = Modifier.fillMaxWidth(),
                                         selectedTabIndex = selectedTab.first
                                     ) {
-                                        UiState.Loaded.Tab.entries.forEachIndexed { index, item ->
+                                        State.Loaded.Tab.entries.forEachIndexed { index, item ->
                                             Tab(
                                                 text = { Text(item.name) },
                                                 selected = false,
@@ -354,7 +364,7 @@ class ArtistDetails(
                                     )
                                 }
                                 when (selectedTab.second) {
-                                    UiState.Loaded.Tab.Discography -> {
+                                    State.Loaded.Tab.Discography -> {
                                         items(
                                             items = albums,
                                             key = { it.id.value }
@@ -369,7 +379,7 @@ class ArtistDetails(
                                             )
                                         }
                                     }
-                                    UiState.Loaded.Tab.Contributions -> {
+                                    State.Loaded.Tab.Contributions -> {
                                         items(
                                             items = tracks,
                                             key = { it.id.value }
@@ -396,7 +406,7 @@ class ArtistDetails(
             @Composable
             private fun AlbumItem(
                 modifier: Modifier,
-                album: UiState.Loaded.Album,
+                album: State.Loaded.Album,
                 onClick: () -> Unit,
                 onArtistClick: (SpotifyArtistId) -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -471,7 +481,7 @@ class ArtistDetails(
             @Composable
             private fun TrackItem(
                 modifier: Modifier,
-                track: UiState.Loaded.Track,
+                track: State.Loaded.Track,
                 onClick: () -> Unit,
                 onArtistClick: (SpotifyArtistId) -> Unit,
                 onShowDetailsClick: () -> Unit,
@@ -552,15 +562,16 @@ class ArtistDetails(
 
         object Compact {
             @Composable
-            fun Main(modifier: Modifier, state: UiState) {
+            fun Main(modifier: Modifier, state: State) {
                 when (state) {
-                    is UiState.Loading -> Text(modifier = modifier, text = "Loading...")
-                    is UiState.Loaded -> Main(modifier = modifier, state = state)
+                    is State.Loading -> Text(modifier = modifier, text = "Loading...")
+                    is State.Loaded -> Main(modifier = modifier, state = state)
+                    is State.ItemDoesNotExist -> Text(modifier = modifier, text = "This item no long exists")
                 }
             }
 
             @Composable
-            private fun Main(modifier: Modifier, state: UiState.Loaded) {
+            private fun Main(modifier: Modifier, state: State.Loaded) {
                 val addToPlaylistDialogVisible by state.addToPlaylistDialogVisible.collectAsState()
                 val addToPlaylist by state.addToPlaylist.collectAsState()
 
@@ -597,12 +608,12 @@ class ArtistDetails(
             private fun Main(
                 modifier: Modifier,
                 scrollState: LazyGridState,
-                selectedTab: StateFlow<Pair<Int, UiState.Loaded.Tab>>,
-                artist: StateFlow<UiState.Loaded.Artist>,
-                albums: StateFlow<List<UiState.Loaded.Album>>,
-                tracks: StateFlow<List<UiState.Loaded.Track>>,
+                selectedTab: StateFlow<Pair<Int, State.Loaded.Tab>>,
+                artist: StateFlow<State.Loaded.Artist>,
+                albums: StateFlow<List<State.Loaded.Album>>,
+                tracks: StateFlow<List<State.Loaded.Track>>,
                 searchQuery: StateFlow<String>,
-                onTabClick: (Pair<Int, UiState.Loaded.Tab>) -> Unit,
+                onTabClick: (Pair<Int, State.Loaded.Tab>) -> Unit,
                 onPlayClick: () -> Unit,
                 onSearchQueryChange: (String) -> Unit,
                 onAddToQueueClick: () -> Unit,
@@ -649,7 +660,7 @@ class ArtistDetails(
                                         modifier = Modifier.fillMaxWidth(),
                                         selectedTabIndex = selectedTab.first
                                     ) {
-                                        UiState.Loaded.Tab.entries.forEachIndexed { index, item ->
+                                        State.Loaded.Tab.entries.forEachIndexed { index, item ->
                                             Tab(
                                                 text = { Text(item.name) },
                                                 selected = false,
@@ -668,7 +679,7 @@ class ArtistDetails(
                                     )
                                 }
                                 when (selectedTab.second) {
-                                    UiState.Loaded.Tab.Discography -> {
+                                    State.Loaded.Tab.Discography -> {
                                         items(
                                             items = albums,
                                             key = { it.id.value }
@@ -682,7 +693,7 @@ class ArtistDetails(
                                             )
                                         }
                                     }
-                                    UiState.Loaded.Tab.Contributions -> {
+                                    State.Loaded.Tab.Contributions -> {
                                         items(
                                             items = tracks,
                                             key = { it.id.value }
@@ -708,7 +719,7 @@ class ArtistDetails(
             @Composable
             private fun AlbumItem(
                 modifier: Modifier,
-                album: UiState.Loaded.Album,
+                album: State.Loaded.Album,
                 onClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
                 onAddToQueueClick: () -> Unit
@@ -769,7 +780,7 @@ class ArtistDetails(
             @Composable
             private fun TrackItem(
                 modifier: Modifier,
-                track: UiState.Loaded.Track,
+                track: State.Loaded.Track,
                 onClick: () -> Unit,
                 onShowDetailsClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,

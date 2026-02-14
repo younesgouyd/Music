@@ -36,67 +36,68 @@ class AddToPlaylist(
     dismiss: () -> Unit
 ) : Component() {
     override val title: String = "Add to Playlist"
-    private val state: MutableStateFlow<AddToPlaylistState> = MutableStateFlow(AddToPlaylistState.Loading)
+    private val state: StateFlow<Ui.State>
     private val _adding: MutableStateFlow<Boolean> = MutableStateFlow(false)
-
-    val adding: StateFlow<Boolean> get() = _adding.asStateFlow()
+    val adding = _adding.asStateFlow()
 
     init {
-        coroutineScope.launch {
-            state.update {
-                AddToPlaylistState.Loaded(
+        val item = when (itemToAdd) {
+            is Item.Track -> trackRepo.get(itemToAdd.id).filterNotNull().map { dbTrack ->
+                Ui.State.Loaded.ItemToAdd(
+                    name = dbTrack.spotifyTrack?.name ?: dbTrack.originalImport.title,
+                    image = if (dbTrack.spotifyTrack != null) {
+                        mediaFileRepo.getSpotifyAlbumImage(dbTrack.spotifyTrack.spotifyAlbumId)
+                    } else {
+                        mediaFileRepo.getImportSessionItemImage(dbTrack.track.importSessionItemId)
+                    }
+                )
+            }
+            is Item.Playlist -> playlistRepo.get(itemToAdd.id).filterNotNull().map { dbPlaylist ->
+                Ui.State.Loaded.ItemToAdd(
+                    name = dbPlaylist.name,
+                    image = dbPlaylist.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) }
+                )
+            }
+            is Item.Folder -> folderRepo.get(itemToAdd.id).filterNotNull().map { dbFolder ->
+                Ui.State.Loaded.ItemToAdd(
+                    name = dbFolder.name,
+                    image = null
+                )
+            }
+            is Item.Artist -> artistRepo.get(itemToAdd.id).filterNotNull().map { dbArtist ->
+                Ui.State.Loaded.ItemToAdd(
+                    name = dbArtist.name,
+                    image = mediaFileRepo.getSpotifyArtistImage(itemToAdd.id)
+                )
+            }
+            is Item.Album -> albumRepo.get(itemToAdd.id).filterNotNull().map { dbAlbum ->
+                Ui.State.Loaded.ItemToAdd(
+                    name = dbAlbum.name,
+                    image = mediaFileRepo.getSpotifyAlbumImage(itemToAdd.id)
+                )
+            }
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
+        var loaded: Ui.State.Loaded? = null
+        state = item.onEach {
+            if (it != null && loaded == null) {
+                loaded = Ui.State.Loaded(
                     adding = _adding.asStateFlow(),
-                    itemToAdd = when (itemToAdd) {
-                        is Item.Track -> trackRepo.get(itemToAdd.id).first().let { dbTrack ->
-                            AddToPlaylistState.Loaded.ItemToAdd(
-                                name = dbTrack.spotifyTrack?.name ?: dbTrack.originalImport.title,
-                                image = if (dbTrack.spotifyTrack != null) {
-                                    mediaFileRepo.getSpotifyAlbumImage(dbTrack.spotifyTrack.spotifyAlbumId)
-                                } else {
-                                    mediaFileRepo.getImportSessionItemImage(dbTrack.track.importSessionItemId)
-                                }
-                            )
-                        }
-                        is Item.Playlist -> playlistRepo.get(itemToAdd.id).first().let { dbPlaylist ->
-                            AddToPlaylistState.Loaded.ItemToAdd(
-                                name = dbPlaylist.name,
-                                image = dbPlaylist.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) }
-                            )
-                        }
-                        is Item.Folder -> folderRepo.get(itemToAdd.id).first().let { dbFolder ->
-                            AddToPlaylistState.Loaded.ItemToAdd(
-                                name = dbFolder.name,
-                                image = null
-                            )
-                        }
-                        is Item.Artist -> artistRepo.get(itemToAdd.id).first().let { dbArtist ->
-                            AddToPlaylistState.Loaded.ItemToAdd(
-                                name = dbArtist.name,
-                                image = mediaFileRepo.getSpotifyArtistImage(itemToAdd.id)
-                            )
-                        }
-                        is Item.Album -> albumRepo.get(itemToAdd.id).first().let { dbAlbum ->
-                            AddToPlaylistState.Loaded.ItemToAdd(
-                                name = dbAlbum.name,
-                                image = mediaFileRepo.getSpotifyAlbumImage(itemToAdd.id)
-                            )
-                        }
-                    },
+                    itemToAdd = item.filterNotNull().stateIn(coroutineScope),
                     playlists = playlistRepo.getAll().map { list ->
                         list.map { dbPlaylist ->
-                            AddToPlaylistState.Loaded.PlaylistOption(
+                            Ui.State.Loaded.PlaylistOption(
                                 id = dbPlaylist.id,
                                 name = dbPlaylist.name,
                                 image = dbPlaylist.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) }
                             )
                         }
                     }.stateIn(coroutineScope),
-                    onAddTopPlaylist =  { playlistToAddTo: AddToPlaylistState.Loaded.PlaylistToAddTo ->
+                    onDoneClick =  { playlistToAddTo: Ui.State.Loaded.PlaylistToAddTo ->
                         coroutineScope.launch {
                             _adding.update { true }
                             val playlistId = when (playlistToAddTo) {
-                                is AddToPlaylistState.Loaded.PlaylistToAddTo.Id -> playlistToAddTo.value
-                                is AddToPlaylistState.Loaded.PlaylistToAddTo.New -> playlistRepo.add(
+                                is Ui.State.Loaded.PlaylistToAddTo.Id -> playlistToAddTo.value
+                                is Ui.State.Loaded.PlaylistToAddTo.New -> playlistRepo.add(
                                     name = playlistToAddTo.name,
                                     folderId = null,
                                     importSessionId = null,
@@ -160,7 +161,13 @@ class AddToPlaylist(
                     }
                 )
             }
-        }
+        }.map {
+            if (it == null) {
+                Ui.State.ItemDoesNotExist
+            } else {
+                loaded!!
+            }
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Loading)
     }
 
     @Composable
@@ -189,53 +196,56 @@ class AddToPlaylist(
         data class Album(val id: SpotifyAlbumId) : Item()
     }
 
-    private sealed class AddToPlaylistState {
-        data object Loading : AddToPlaylistState()
-
-        data class Loaded(
-            val adding: StateFlow<Boolean>,
-            val itemToAdd: ItemToAdd,
-            val playlists: StateFlow<List<PlaylistOption>>,
-            val onAddTopPlaylist: (playlistId: PlaylistToAddTo) -> Unit
-        ) : AddToPlaylistState() {
-            data class ItemToAdd(
-                val name: String,
-                val image: File?
-            )
-
-            data class PlaylistOption(
-                val id: PlaylistId,
-                val name: String,
-                val image: File?
-            )
-
-            sealed class PlaylistToAddTo {
-                data class Id(val value: PlaylistId) : PlaylistToAddTo()
-
-                data class New(val name: String) : PlaylistToAddTo()
-            }
-        }
-    }
-
     private object Ui {
+        sealed class State {
+            data object Loading : State()
+
+            data class Loaded(
+                val adding: StateFlow<Boolean>,
+                val itemToAdd: StateFlow<ItemToAdd>,
+                val playlists: StateFlow<List<PlaylistOption>>,
+                val onDoneClick: (playlistId: PlaylistToAddTo) -> Unit
+            ) : State() {
+                data class ItemToAdd(
+                    val name: String,
+                    val image: File?
+                )
+
+                data class PlaylistOption(
+                    val id: PlaylistId,
+                    val name: String,
+                    val image: File?
+                )
+
+                sealed class PlaylistToAddTo {
+                    data class Id(val value: PlaylistId) : PlaylistToAddTo()
+
+                    data class New(val name: String) : PlaylistToAddTo()
+                }
+            }
+
+            data object ItemDoesNotExist : State()
+        }
+
         @Composable
         fun Main(
             modifier: Modifier,
-            state: AddToPlaylistState
+            state: State
         ) {
             when (state) {
-                is AddToPlaylistState.Loading -> Text(modifier = modifier, text = "Loading...")
-                is AddToPlaylistState.Loaded -> Main(modifier = modifier, loaded = state)
+                is State.Loading -> Text(modifier = modifier, text = "Loading...")
+                is State.Loaded -> Main(modifier = modifier, loaded = state)
+                is State.ItemDoesNotExist -> Text(modifier = modifier, text = "This item no long exists")
             }
         }
 
         @Composable
         fun Main(
             modifier: Modifier,
-            loaded: AddToPlaylistState.Loaded
+            loaded: State.Loaded
         ) {
             val adding by loaded.adding.collectAsState()
-            val itemToAdd = loaded.itemToAdd
+            val itemToAdd by loaded.itemToAdd.collectAsState()
             val playlists by loaded.playlists.collectAsState()
             val lazyColumnState = rememberLazyListState()
 
@@ -306,8 +316,8 @@ class AddToPlaylist(
                                             Button(
                                                 content = { Text("Done") },
                                                 onClick = {
-                                                    loaded.onAddTopPlaylist(
-                                                         AddToPlaylistState.Loaded.PlaylistToAddTo.New(name)
+                                                    loaded.onDoneClick(
+                                                         State.Loaded.PlaylistToAddTo.New(name)
                                                     )
                                                 }
                                             )
@@ -321,10 +331,8 @@ class AddToPlaylist(
                                     Item(
                                         modifier = Modifier.padding(8.dp),
                                         onClick = {
-                                            loaded.onAddTopPlaylist(
-                                                AddToPlaylistState.Loaded.PlaylistToAddTo.Id(
-                                                    playlistOption.id
-                                                )
+                                            loaded.onDoneClick(
+                                                State.Loaded.PlaylistToAddTo.Id(playlistOption.id)
                                             )
                                         }
                                     ) {

@@ -31,51 +31,53 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.burnoutcrew.reorderable.*
-import org.json.JSONArray
 import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistDetails(
-    private val id: PlaylistId,
-    private val trackRepo: TrackRepo,
-    private val playlistRepo: PlaylistRepo,
-    private val artistRepo: SpotifyArtistRepo,
-    private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
-    private val folderRepo: FolderRepo,
-    private val importSessionItemRepo: ImportSessionItemRepo,
-    private val albumRepo: SpotifyAlbumRepo,
-    private val mediaController: MediaController,
+    id: PlaylistId,
+    trackRepo: TrackRepo,
+    playlistRepo: PlaylistRepo,
+    artistRepo: SpotifyArtistRepo,
+    playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
+    folderRepo: FolderRepo,
+    importSessionItemRepo: ImportSessionItemRepo,
+    albumRepo: SpotifyAlbumRepo,
+    mediaController: MediaController,
     mediaFileRepo: MediaFileRepo,
     showImport: (ImportSessionId) -> Unit,
     showArtistDetails: (SpotifyArtistId) -> Unit,
     showTrack: (TrackId) -> Unit
 ) : Component() {
     override val title: String = "Playlist"
-    private val state: MutableStateFlow<PlaylistDetailsState> = MutableStateFlow(PlaylistDetailsState.Loading)
     private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
-    private val searchQuery = MutableStateFlow("")
+    private val state: StateFlow<Ui.State>
 
     init {
-        coroutineScope.launch {
-            state.update {
-                PlaylistDetailsState.Loaded(
-                    playlist = playlistRepo.get(id).map { dbPlaylist ->
-                        PlaylistDetailsState.Loaded.Playlist(
-                            name = dbPlaylist.name,
-                            image = dbPlaylist.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) },
-                            importUri = dbPlaylist.importUri,
-                            onImportClick = { dbPlaylist.importSessionId?.let { showImport(it) } }
-                        )
-                    }.stateIn(coroutineScope),
+        val searchQuery = MutableStateFlow("")
+        val playlist = playlistRepo.get(id).filterNotNull().map { dbPlaylist ->
+            Ui.State.Loaded.Playlist(
+                name = dbPlaylist.name,
+                image = dbPlaylist.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) },
+                importUri = dbPlaylist.importUri,
+                onImportClick = { dbPlaylist.importSessionId?.let { showImport(it) } }
+            )
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
+        var loaded: Ui.State.Loaded? = null
+        state = playlist.onEach {
+            if (it != null && loaded == null) {
+                loaded = Ui.State.Loaded(
+                    scrollState = LazyListState(),
+                    playlist = playlist.filterNotNull().stateIn(coroutineScope),
                     tracks = searchQuery.flatMapLatest { nameQuery ->
-                        trackRepo.searchPlaylist(this@PlaylistDetails.id, nameQuery).map {
+                        trackRepo.searchPlaylist(id, nameQuery).map {
                             it.map { dbTrack ->
-                                PlaylistDetailsState.Loaded.Track(
+                                Ui.State.Loaded.Track(
                                     key = dbTrack.playlistTrackCrossRefId,
                                     id = dbTrack.track.id,
                                     name = dbTrack.spotifyTrack?.name ?: dbTrack.originalImport.title,
-                                    album = dbTrack.spotifyTrack?.let { albumRepo.get(it.spotifyAlbumId).first().name },
+                                    album = dbTrack.spotifyTrack?.let { albumRepo.get(it.spotifyAlbumId).first()?.name },
                                     image = if (dbTrack.spotifyTrack != null) {
                                         mediaFileRepo.getSpotifyAlbumImage(dbTrack.spotifyTrack.spotifyAlbumId)
                                     } else {
@@ -83,19 +85,11 @@ class PlaylistDetails(
                                     },
                                     artists = if (dbTrack.spotifyTrack != null) {
                                         artistRepo.getSpotifyTrackSpotifyArtists(dbTrack.spotifyTrack.id).first().map { dbArtist ->
-                                            PlaylistDetailsState.Loaded.Track.Artist(dbArtist.id, dbArtist.name)
+                                            Ui.State.Loaded.Track.Artist(dbArtist.id, dbArtist.name)
                                         }
                                     } else {
-                                        val json = JSONArray(importSessionItemRepo.get(dbTrack.track.importSessionItemId).first().artists)
-                                        buildList {
-                                            for (i in 0 until json.length()) {
-                                                add(
-                                                    PlaylistDetailsState.Loaded.Track.Artist(
-                                                        id = null,
-                                                        name = json.getString(i)
-                                                    )
-                                                )
-                                            }
+                                        dbTrack.originalImport.inspection.artists.map {
+                                            Ui.State.Loaded.Track.Artist(null, it)
                                         }
                                     }
                                 )
@@ -105,7 +99,6 @@ class PlaylistDetails(
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     searchQuery = searchQuery.asStateFlow(),
-                    scrollState = LazyListState(),
                     onPlayClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Playlist(id))) },
                     onSearchQueryChange = { searchQuery.value = it },
                     changeItemPosition = { from, to ->
@@ -130,12 +123,12 @@ class PlaylistDetails(
                         }
                         addToPlaylistDialogVisible.update { true }
                     },
-                    onTrackClick = { id ->
+                    onTrackClick = { trackId ->
                         coroutineScope.launch {
-                            val tracks = trackRepo.getPlaylistTracks(this@PlaylistDetails.id).first()
-                            val index = tracks.indexOfFirst { it.track.id == id }
+                            val tracks = trackRepo.getPlaylistTracks(id).first()
+                            val index = tracks.indexOfFirst { it.track.id == trackId }
                             mediaController.playQueue(
-                                queue = listOf(MediaController.QueueItemParameter.Playlist(this@PlaylistDetails.id)),
+                                queue = listOf(MediaController.QueueItemParameter.Playlist(id)),
                                 queueItemIndex = index
                             )
                         }
@@ -169,7 +162,13 @@ class PlaylistDetails(
                     onShowTrackDetailsClick = showTrack
                 )
             }
-        }
+        }.map {
+            if (it == null) {
+                Ui.State.ItemDoesNotExist
+            } else {
+                loaded!!
+            }
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Loading)
     }
 
     @Composable
@@ -194,77 +193,80 @@ class PlaylistDetails(
         addToPlaylist.update { it?.clear(); null }
     }
 
-    private sealed class PlaylistDetailsState {
-        data object Loading : PlaylistDetailsState()
-
-        data class Loaded(
-            val playlist: StateFlow<Playlist>,
-            val tracks: StateFlow<List<Track>>,
-            val addToPlaylistDialogVisible: StateFlow<Boolean>,
-            val addToPlaylist: StateFlow<Component?>,
-            val searchQuery: StateFlow<String>,
-            val scrollState: LazyListState,
-            val onPlayClick: () -> Unit,
-            val onSearchQueryChange: (String) -> Unit,
-            val changeItemPosition: (from: Int, to: Int) -> Unit,
-            val onAddToQueueClick: () -> Unit,
-            val onAddToPlaylistClick: () -> Unit,
-            val onTrackClick: (TrackId) -> Unit,
-            val onArtistClick: (SpotifyArtistId) -> Unit,
-            val onAddTrackToPlaylistClick: (TrackId) -> Unit,
-            val onRemoveTrackFromPlaylistClick: (TrackId) -> Unit,
-            val onDismissAddToPlaylistDialog: () -> Unit,
-            val onAddTrackToQueueClick: (TrackId) -> Unit,
-            val onShowTrackDetailsClick: (TrackId) -> Unit
-        ) : PlaylistDetailsState() {
-            data class Playlist(
-                val name: String,
-                val image: File?,
-                val importUri: String?,
-                val onImportClick: () -> Unit
-            )
-
-            data class Track(
-                val key: PlaylistTrackCrossRefId,
-                val id: TrackId,
-                val name: String,
-                val album: String?,
-                val image: File?,
-                val artists: List<Artist>,
-            ) {
-                data class Artist(
-                    val id: SpotifyArtistId?,
-                    val name: String
-                )
-            }
-        }
-    }
-
     private object Ui {
+        sealed class State {
+            data object Loading : State()
+
+            data class Loaded(
+                val scrollState: LazyListState,
+                val playlist: StateFlow<Playlist>,
+                val tracks: StateFlow<List<Track>>,
+                val addToPlaylistDialogVisible: StateFlow<Boolean>,
+                val addToPlaylist: StateFlow<Component?>,
+                val searchQuery: StateFlow<String>,
+                val onPlayClick: () -> Unit,
+                val onSearchQueryChange: (String) -> Unit,
+                val changeItemPosition: (from: Int, to: Int) -> Unit,
+                val onAddToQueueClick: () -> Unit,
+                val onAddToPlaylistClick: () -> Unit,
+                val onTrackClick: (TrackId) -> Unit,
+                val onArtistClick: (SpotifyArtistId) -> Unit,
+                val onAddTrackToPlaylistClick: (TrackId) -> Unit,
+                val onRemoveTrackFromPlaylistClick: (TrackId) -> Unit,
+                val onDismissAddToPlaylistDialog: () -> Unit,
+                val onAddTrackToQueueClick: (TrackId) -> Unit,
+                val onShowTrackDetailsClick: (TrackId) -> Unit
+            ) : State() {
+                data class Playlist(
+                    val name: String,
+                    val image: File?,
+                    val importUri: String?,
+                    val onImportClick: () -> Unit
+                )
+
+                data class Track(
+                    val key: PlaylistTrackCrossRefId,
+                    val id: TrackId,
+                    val name: String,
+                    val album: String?,
+                    val image: File?,
+                    val artists: List<Artist>,
+                ) {
+                    data class Artist(
+                        val id: SpotifyArtistId?,
+                        val name: String
+                    )
+                }
+            }
+
+            data object ItemDoesNotExist : State()
+        }
+
         private const val KEY_PLAYLIST_INFO = "playlist_info"
         private const val KEY_TOOLBAR = "toolbar"
         private val itemHeight = 100.dp
 
         object Wide {
             @Composable
-            fun Main(modifier: Modifier, state: PlaylistDetailsState) {
+            fun Main(modifier: Modifier, state: State) {
                 when (state) {
-                    is PlaylistDetailsState.Loading -> Text(modifier = modifier, text = "Loading...")
-                    is PlaylistDetailsState.Loaded -> Main(modifier = modifier, state = state)
+                    is State.Loading -> Text(modifier = modifier, text = "Loading...")
+                    is State.Loaded -> Main(modifier = modifier, state = state)
+                    is State.ItemDoesNotExist -> Text(modifier = modifier, text = "This item no long exists")
                 }
             }
 
             @Composable
-            private fun Main(modifier: Modifier, state: PlaylistDetailsState.Loaded) {
+            private fun Main(modifier: Modifier, state: State.Loaded) {
                 val addToPlaylistDialogVisible by state.addToPlaylistDialogVisible.collectAsState()
                 val addToPlaylist by state.addToPlaylist.collectAsState()
 
                 Main(
                     modifier = modifier,
+                    scrollState = state.scrollState,
                     playlist = state.playlist,
                     tracks = state.tracks,
                     searchQuery = state.searchQuery,
-                    scrollState = state.scrollState,
                     onPlayClick = state.onPlayClick,
                     onSearchQueryChange = state.onSearchQueryChange,
                     changeItemPosition = state.changeItemPosition,
@@ -289,10 +291,10 @@ class PlaylistDetails(
             @Composable
             private fun Main(
                 modifier: Modifier,
-                playlist: StateFlow<PlaylistDetailsState.Loaded.Playlist>,
-                tracks: StateFlow<List<PlaylistDetailsState.Loaded.Track>>,
-                searchQuery: StateFlow<String>,
                 scrollState: LazyListState,
+                playlist: StateFlow<State.Loaded.Playlist>,
+                tracks: StateFlow<List<State.Loaded.Track>>,
+                searchQuery: StateFlow<String>,
                 onPlayClick: () -> Unit,
                 onSearchQueryChange: (String) -> Unit,
                 changeItemPosition: (from: Int, to: Int) -> Unit,
@@ -496,7 +498,7 @@ class PlaylistDetails(
             @Composable
             private fun TrackItem(
                 modifier: Modifier,
-                track: PlaylistDetailsState.Loaded.Track,
+                track: State.Loaded.Track,
                 tonalElevation: Dp,
                 onTrackClick: () -> Unit,
                 onArtistClick: (SpotifyArtistId) -> Unit,
@@ -671,24 +673,25 @@ class PlaylistDetails(
 
         object Compact {
             @Composable
-            fun Main(modifier: Modifier, state: PlaylistDetailsState) {
+            fun Main(modifier: Modifier, state: State) {
                 when (state) {
-                    is PlaylistDetailsState.Loading -> Text(modifier = modifier, text = "Loading...")
-                    is PlaylistDetailsState.Loaded -> Main(modifier = modifier, state = state)
+                    is State.Loading -> Text(modifier = modifier, text = "Loading...")
+                    is State.Loaded -> Main(modifier = modifier, state = state)
+                    is State.ItemDoesNotExist -> Text(modifier = modifier, text = "This item no long exists")
                 }
             }
 
             @Composable
-            private fun Main(modifier: Modifier, state: PlaylistDetailsState.Loaded) {
+            private fun Main(modifier: Modifier, state: State.Loaded) {
                 val addToPlaylistDialogVisible by state.addToPlaylistDialogVisible.collectAsState()
                 val addToPlaylist by state.addToPlaylist.collectAsState()
 
                 Main(
                     modifier = modifier,
+                    scrollState = state.scrollState,
                     playlist = state.playlist,
                     tracks = state.tracks,
                     searchQuery = state.searchQuery,
-                    scrollState = state.scrollState,
                     onPlayClick = state.onPlayClick,
                     onSearchQueryChange = state.onSearchQueryChange,
                     changeItemPosition = state.changeItemPosition,
@@ -713,10 +716,10 @@ class PlaylistDetails(
             @Composable
             private fun Main(
                 modifier: Modifier,
-                playlist: StateFlow<PlaylistDetailsState.Loaded.Playlist>,
-                tracks: StateFlow<List<PlaylistDetailsState.Loaded.Track>>,
-                searchQuery: StateFlow<String>,
                 scrollState: LazyListState,
+                playlist: StateFlow<State.Loaded.Playlist>,
+                tracks: StateFlow<List<State.Loaded.Track>>,
+                searchQuery: StateFlow<String>,
                 onPlayClick: () -> Unit,
                 onSearchQueryChange: (String) -> Unit,
                 changeItemPosition: (from: Int, to: Int) -> Unit,
@@ -871,7 +874,7 @@ class PlaylistDetails(
             @Composable
             private fun TrackItem(
                 modifier: Modifier = Modifier,
-                track: PlaylistDetailsState.Loaded.Track,
+                track: State.Loaded.Track,
                 tonalElevation: Dp,
                 onClick: () -> Unit,
                 onArtistClick: (SpotifyArtistId) -> Unit,

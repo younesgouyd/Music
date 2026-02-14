@@ -55,7 +55,7 @@ data class SpotifyAlbum(
 @Dao
 interface SpotifyAlbumDao {
     @Query("select * from spotifyalbum where id = :id")
-    fun get(id: SpotifyAlbumId): Flow<SpotifyAlbum>
+    fun get(id: SpotifyAlbumId): Flow<SpotifyAlbum?>
 
     @Query("""
         select a.*

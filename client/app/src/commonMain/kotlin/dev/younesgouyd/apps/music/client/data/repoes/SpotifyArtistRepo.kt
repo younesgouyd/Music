@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.Flow
 class SpotifyArtistRepo(
     private val dao: SpotifyArtistDao
 ) {
-    fun get(id: SpotifyArtistId): Flow<SpotifyArtist> {
+    fun get(id: SpotifyArtistId): Flow<SpotifyArtist?> {
         return dao.get(id)
     }
 

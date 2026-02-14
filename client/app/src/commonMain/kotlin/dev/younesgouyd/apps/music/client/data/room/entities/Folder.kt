@@ -29,11 +29,8 @@ data class Folder(
 
 @Dao
 interface FolderDao {
-    @Query("select * from folder")
-    fun getAll(): Flow<List<Folder>>
-
     @Query("select * from folder where id = :id")
-    fun get(id: FolderId): Flow<Folder>
+    fun get(id: FolderId): Flow<Folder?>
 
     fun searchFolder(folderId: FolderId?, nameQuery: String): Flow<List<Folder>> {
         return if (folderId == null) {

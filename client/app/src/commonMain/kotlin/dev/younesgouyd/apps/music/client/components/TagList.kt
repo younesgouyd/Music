@@ -30,19 +30,19 @@ class TagList(
     showTag: (TagId) -> Unit
 ) : Component() {
     override val title: String = "Tags"
-    private val searchQuery = MutableStateFlow("")
     private val state: MutableStateFlow<TagListState> = MutableStateFlow(TagListState.Loading)
 
     init {
+        val searchQuery = MutableStateFlow("")
         coroutineScope.launch {
             state.value = TagListState.Loaded(
                 scrollState = LazyListState(),
                 searchQuery = searchQuery.asStateFlow(),
                 tags = searchQuery.flatMapLatest { tagRepo.search(it) }.stateIn(coroutineScope),
                 onSearchQueryChange = { searchQuery.value = it },
-                onAddTag = { name: String, description: String? ->
+                onAddTag = { name: String ->
                     coroutineScope.launch {
-                        tagRepo.add(name = name, description = description)
+                        tagRepo.add(name = name)
                     }
                 },
                 onTagClick = showTag,
@@ -74,7 +74,7 @@ class TagList(
             val searchQuery: StateFlow<String>,
             val tags: StateFlow<List<Tag>>,
             val onSearchQueryChange: (String) -> Unit,
-            val onAddTag: (name: String, description: String?) -> Unit,
+            val onAddTag: (name: String) -> Unit,
             val onTagClick: (TagId) -> Unit,
             val onDeleteTagClick: (TagId) -> Unit
         ) : TagListState()
@@ -116,7 +116,7 @@ class TagList(
             searchQuery: StateFlow<String>,
             tags: StateFlow<List<Tag>>,
             onSearchQueryChange: (String) -> Unit,
-            onAddTag: (name: String, description: String?) -> Unit,
+            onAddTag: (name: String) -> Unit,
             onTagClick: (TagId) -> Unit,
             onDeleteTagClick: (TagId) -> Unit
         ) {
@@ -175,8 +175,8 @@ class TagList(
             if (isNewTagDialogVisible) {
                 NewTagDialog(
                     onDismiss = { isNewTagDialogVisible = false },
-                    onDone = { name: String, description: String? ->
-                        onAddTag(name, description)
+                    onDone = { name: String ->
+                        onAddTag(name)
                         isNewTagDialogVisible = false
                     }
                 )
@@ -186,10 +186,9 @@ class TagList(
         @Composable
         private fun NewTagDialog(
             onDismiss: () -> Unit,
-            onDone: (name: String, description: String?) -> Unit
+            onDone: (name: String) -> Unit
         ) {
             var name by remember { mutableStateOf("") }
-            var description by remember { mutableStateOf("") }
             var invalidName by remember { mutableStateOf(false) }
 
             Dialog(onDismissRequest = onDismiss) {
@@ -217,12 +216,6 @@ class TagList(
                                 { Text("Invalid input") }
                             } else null
                         )
-                        OutlinedTextField(
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Description") },
-                            value = description,
-                            onValueChange = { description = it }
-                        )
                         Button(
                             content = { Text("Done") },
                             modifier = Modifier.fillMaxWidth(),
@@ -230,7 +223,7 @@ class TagList(
                                 if (name.isBlank()) {
                                     invalidName = true
                                 } else {
-                                    onDone(name, description)
+                                    onDone(name)
                                 }
                             }
                         )

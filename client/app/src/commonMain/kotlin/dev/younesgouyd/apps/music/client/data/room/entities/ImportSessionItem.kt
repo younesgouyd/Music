@@ -49,7 +49,6 @@ data class ImportSessionItem(
     val state: State,
     val title: String,
     val durationMilliseconds: Long,
-    val artists: JsonArrayStringOfArtistNames,
     val album: String?,
     val inspection: Inspection.ItemInspection,
     val localFilePath: String?,
@@ -74,7 +73,7 @@ data class ImportSessionItem(
 @Dao
 interface ImportSessionItemDao {
     @Query("select * from importsessionitem where id = :id")
-    fun get(id: ImportSessionItemId): Flow<ImportSessionItem>
+    fun get(id: ImportSessionItemId): Flow<ImportSessionItem?>
 
     @Query(
         """
@@ -133,10 +132,10 @@ interface ImportSessionItemDao {
     @Query(
         """
         insert into importsessionitem (
-            uri, importSessionId, state, title, durationMilliseconds, artists, album, inspection,
+            uri, importSessionId, state, title, durationMilliseconds, album, inspection,
             localFilePath, albumTrackNumber, lyrics, year, imgId, creationDatetime, updateDatetime
         ) values (
-            :uri, :importSessionId, :state, :title, :durationMilliseconds, :artists, :album, :inspection,
+            :uri, :importSessionId, :state, :title, :durationMilliseconds, :album, :inspection,
             :localFilePath, :albumTrackNumber, :lyrics, :year, :imgId, :creationDatetime, :updateDatetime
         )
     """
@@ -147,7 +146,6 @@ interface ImportSessionItemDao {
         state: ImportSessionItem.State,
         title: String,
         durationMilliseconds: Long,
-        artists: JsonArrayStringOfArtistNames,
         album: String?,
         inspection: Inspection.ItemInspection,
         localFilePath: String?,

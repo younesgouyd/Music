@@ -53,7 +53,7 @@ data class SpotifyArtist(
 @Dao
 interface SpotifyArtistDao {
     @Query("select * from spotifyartist where id = :id")
-    fun get(id: SpotifyArtistId): Flow<SpotifyArtist>
+    fun get(id: SpotifyArtistId): Flow<SpotifyArtist?>
 
     @Query("select * from spotifyartist where name like :nameQuery")
     fun search(nameQuery: String): Flow<List<SpotifyArtist>>

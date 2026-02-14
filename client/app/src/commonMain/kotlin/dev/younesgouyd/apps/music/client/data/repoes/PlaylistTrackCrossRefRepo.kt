@@ -9,10 +9,7 @@ import kotlinx.coroutines.flow.Flow
 class PlaylistTrackCrossRefRepo(
     private val dao: PlaylistTrackCrossRefDao
 ) {
-    fun get(
-        playlistId: PlaylistId,
-        trackId: TrackId
-    ): Flow<PlaylistTrackCrossRef?> {
+    fun get(playlistId: PlaylistId, trackId: TrackId): Flow<PlaylistTrackCrossRef?> {
         return dao.get(playlistId, trackId)
     }
 

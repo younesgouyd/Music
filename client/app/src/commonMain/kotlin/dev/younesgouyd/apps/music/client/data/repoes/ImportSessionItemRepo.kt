@@ -7,7 +7,6 @@ import dev.younesgouyd.apps.music.client.data.MediaFileId
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItem.State
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSessionItemDao
-import dev.younesgouyd.apps.music.client.data.room.entities.JsonArrayStringOfArtistNames
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
 import dev.younesgouyd.apps.music.common.Inspection
 import kotlinx.coroutines.flow.Flow
@@ -15,7 +14,7 @@ import kotlinx.coroutines.flow.Flow
 class ImportSessionItemRepo(
     private val dao: ImportSessionItemDao
 ) {
-    fun get(id: ImportSessionItemId): Flow<ImportSessionItem> {
+    fun get(id: ImportSessionItemId): Flow<ImportSessionItem?> {
         return dao.get(id)
     }
 
@@ -38,7 +37,6 @@ class ImportSessionItemRepo(
         state: State,
         title: String,
         durationMilliseconds: Long,
-        artists: JsonArrayStringOfArtistNames,
         album: String?,
         inspection: Inspection.ItemInspection,
         localFilePath: String?,
@@ -54,7 +52,6 @@ class ImportSessionItemRepo(
             state = state,
             title = title,
             durationMilliseconds = durationMilliseconds,
-            artists = artists,
             album = album,
             inspection = inspection,
             localFilePath = localFilePath,

@@ -26,20 +26,18 @@ class Settings(
     private val clientId = MutableStateFlow("")
     private val clientSecret = MutableStateFlow("")
     private val spotifyUiEnabled = MutableStateFlow(false)
-    private val state: MutableStateFlow<SettingsState> = MutableStateFlow(SettingsState.Loading)
+    private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
 
     init {
         coroutineScope.launch {
-            state.update {
-                SettingsState.Loaded(
-                    darkTheme = settingsRepo.getDarkTheme().map { DarkThemeOptions.valueOf(it.value) }.stateIn(coroutineScope),
-                    serverAddress = settingsRepo.getServerAddress().map { it.value }.stateIn(coroutineScope),
-                    spotifyState = spotifyState.asStateFlow(),
-                    onDarkThemeChange = ::updateDarkTheme,
-                    onServerAddressChange = ::updateServerAddress,
-                    onReinitializeAppDataClick = onReinitializeAppData
-                )
-            }
+            state.value = Ui.State.Loaded(
+                darkTheme = settingsRepo.getDarkTheme().map { DarkThemeOptions.valueOf(it.value) }.stateIn(coroutineScope),
+                serverAddress = settingsRepo.getServerAddress().map { it.value }.stateIn(coroutineScope),
+                spotifyState = spotifyState.asStateFlow(),
+                onDarkThemeChange = ::updateDarkTheme,
+                onServerAddressChange = ::updateServerAddress,
+                onReinitializeAppDataClick = onReinitializeAppData
+            )
         }
         refreshSpotifyState()
     }
@@ -135,30 +133,30 @@ class Settings(
         ) : SpotifyState()
     }
 
-    private sealed class SettingsState {
-        data object Loading : SettingsState()
-
-        data class Loaded(
-            val darkTheme: StateFlow<DarkThemeOptions?>,
-            val serverAddress: StateFlow<String?>,
-            val spotifyState: StateFlow<SpotifyState>,
-            val onDarkThemeChange: (DarkThemeOptions) -> Unit,
-            val onServerAddressChange: (String) -> Unit,
-            val onReinitializeAppDataClick: () -> Unit
-        ) : SettingsState()
-    }
-
     private object Ui {
+        sealed class State {
+            data object Loading : State()
+
+            data class Loaded(
+                val darkTheme: StateFlow<DarkThemeOptions?>,
+                val serverAddress: StateFlow<String?>,
+                val spotifyState: StateFlow<SpotifyState>,
+                val onDarkThemeChange: (DarkThemeOptions) -> Unit,
+                val onServerAddressChange: (String) -> Unit,
+                val onReinitializeAppDataClick: () -> Unit
+            ) : State()
+        }
+
         @Composable
-        fun Main(modifier: Modifier, state: SettingsState) {
+        fun Main(modifier: Modifier, state: State) {
             when (state) {
-                is SettingsState.Loading -> Text(modifier = modifier, text = "Loading...")
-                is SettingsState.Loaded -> Settings(modifier = modifier, loaded = state)
+                is State.Loading -> Text(modifier = modifier, text = "Loading...")
+                is State.Loaded -> Settings(modifier = modifier, loaded = state)
             }
         }
 
         @Composable
-        private fun Settings(modifier: Modifier, loaded: SettingsState.Loaded) {
+        private fun Settings(modifier: Modifier, loaded: State.Loaded) {
             val scrollState = rememberScrollState()
             val darkTheme by loaded.darkTheme.collectAsState()
             val serverAddress by loaded.serverAddress.collectAsState()

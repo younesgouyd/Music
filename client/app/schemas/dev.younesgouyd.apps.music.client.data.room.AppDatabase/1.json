@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "fa22cdb124969ba176850ed9e0b20c5e",
+    "identityHash": "8c79c8dc86253cdf5177deeaa9703456",
     "entities": [
       {
         "tableName": "Folder",
@@ -168,7 +168,7 @@
       },
       {
         "tableName": "ImportSessionItem",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uri` TEXT NOT NULL, `importSessionId` INTEGER NOT NULL, `state` TEXT NOT NULL, `title` TEXT NOT NULL, `durationMilliseconds` INTEGER NOT NULL, `artists` TEXT NOT NULL, `album` TEXT, `inspection` TEXT NOT NULL, `localFilePath` TEXT, `albumTrackNumber` INTEGER, `lyrics` TEXT, `year` INTEGER, `imgId` INTEGER, `audioFileId` INTEGER, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`importSessionId`) REFERENCES `ImportSession`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`imgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`audioFileId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uri` TEXT NOT NULL, `importSessionId` INTEGER NOT NULL, `state` TEXT NOT NULL, `title` TEXT NOT NULL, `durationMilliseconds` INTEGER NOT NULL, `album` TEXT, `inspection` TEXT NOT NULL, `localFilePath` TEXT, `albumTrackNumber` INTEGER, `lyrics` TEXT, `year` INTEGER, `imgId` INTEGER, `audioFileId` INTEGER, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`importSessionId`) REFERENCES `ImportSession`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`imgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`audioFileId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "id",
@@ -204,12 +204,6 @@
             "fieldPath": "durationMilliseconds",
             "columnName": "durationMilliseconds",
             "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "artists",
-            "columnName": "artists",
-            "affinity": "TEXT",
             "notNull": true
           },
           {
@@ -1195,7 +1189,7 @@
       },
       {
         "tableName": "Tag",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `description` TEXT, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `creationDatetime` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -1210,19 +1204,8 @@
             "notNull": true
           },
           {
-            "fieldPath": "description",
-            "columnName": "description",
-            "affinity": "TEXT"
-          },
-          {
             "fieldPath": "creationDatetime",
             "columnName": "creationDatetime",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "updateDatetime",
-            "columnName": "updateDatetime",
             "affinity": "INTEGER",
             "notNull": true
           }
@@ -1438,7 +1421,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'fa22cdb124969ba176850ed9e0b20c5e')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8c79c8dc86253cdf5177deeaa9703456')"
     ]
   }
 }

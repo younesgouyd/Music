@@ -53,10 +53,14 @@ class ImportService(
                 }
                 importSessionItemRepo.updateState(session.id, ImportSessionItem.State.InProgress, null)
                 currentSessionItemId = session.id
-                val sessionState = importSessionItemRepo.get(session.id).map { it.state }
+                val sessionState = importSessionItemRepo.get(session.id).map { it?.state }
                 launch {
                     sessionState.collect { state ->
                         when (state) {
+                            null -> {
+                                println("Session item ${session.id} null → return@collect")
+                                return@collect
+                            }
                             ImportSessionItem.State.Nonselected -> {
                                 println("Session item ${session.id} Nonselected → NotImplementedError")
                                 TODO()
@@ -72,7 +76,7 @@ class ImportService(
                                 importJob = launch {
                                     try {
                                         import(
-                                            session = importSessionRepo.get(session.importSessionId).first(),
+                                            session = importSessionRepo.get(session.importSessionId).first()!!,
                                             item = session
                                         )
                                     } catch (cancellation: CancellationException) {

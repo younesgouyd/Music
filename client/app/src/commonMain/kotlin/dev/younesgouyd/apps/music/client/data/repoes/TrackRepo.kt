@@ -15,7 +15,7 @@ class TrackRepo(
         return dao.getAll()
     }
 
-    fun get(id: TrackId): Flow<TrackRelation> {
+    fun get(id: TrackId): Flow<TrackRelation?> {
         return dao.get(id)
     }
 

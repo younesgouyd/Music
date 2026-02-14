@@ -15,7 +15,7 @@ class ImportSessionRepo(
         return dao.getAll()
     }
 
-    fun get(id: ImportSessionId): Flow<ImportSession> {
+    fun get(id: ImportSessionId): Flow<ImportSession?> {
         return dao.get(id)
     }
 

@@ -47,7 +47,7 @@ interface MediaFileDao {
         join spotifyalbum a on a.largeImgId = m.id
         where a.id = :id
     """)
-    fun getSpotifyAlbumImage(id: SpotifyAlbumId): Flow<MediaFile>
+    fun getSpotifyAlbumImage(id: SpotifyAlbumId): Flow<MediaFile?>
 
     @Query("""
         select m.*
@@ -55,7 +55,7 @@ interface MediaFileDao {
         join spotifyartist a on a.largeImgId = m.id
         where a.id = :id
     """)
-    fun getSpotifyArtistImage(id: SpotifyArtistId): Flow<MediaFile>
+    fun getSpotifyArtistImage(id: SpotifyArtistId): Flow<MediaFile?>
 
     @Query(
         """

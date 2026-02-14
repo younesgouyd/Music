@@ -35,7 +35,7 @@ class Player(
 ) : Component() {
     override val title: String = "Player"
     private var windowSizeClass: WindowSizeClass? = null
-    private val state: StateFlow<PlayerState>
+    private val state: StateFlow<Ui.State>
 
     init {
         val isTrackVisible = MutableStateFlow(true)
@@ -43,9 +43,9 @@ class Player(
 
         state = mediaController.state.mapLatest { mediaControllerState ->
             when (mediaControllerState) {
-                is MediaController.MediaControllerState.Unavailable -> PlayerState.Unavailable
-                is MediaController.MediaControllerState.Loading -> PlayerState.Loading
-                is MediaController.MediaControllerState.Available -> PlayerState.Available(
+                is MediaController.MediaControllerState.Unavailable -> Ui.State.Unavailable
+                is MediaController.MediaControllerState.Loading -> Ui.State.Loading
+                is MediaController.MediaControllerState.Available -> Ui.State.Available(
                     enabled = mediaControllerState.enabled,
                     timePositionChange = mediaControllerState.timePositionChange,
                     isPlaying = mediaControllerState.isPlaying,
@@ -89,7 +89,7 @@ class Player(
                     onRepeatClick = mediaController::repeat
                 )
             }
-        }.stateIn(coroutineScope, SharingStarted.Lazily, PlayerState.Unavailable)
+        }.stateIn(coroutineScope, SharingStarted.Lazily, Ui.State.Unavailable)
     }
 
     @Composable
@@ -107,40 +107,40 @@ class Player(
         coroutineScope.cancel()
     }
 
-    private sealed class PlayerState {
-        data object Loading : PlayerState()
-
-        data object Unavailable : PlayerState()
-
-        data class Available(
-            val enabled: StateFlow<Boolean>,
-            val timePositionChange: StateFlow<Duration>,
-            val isPlaying: StateFlow<Boolean>,
-            val track: StateFlow<MediaController.MediaControllerState.Available.QueueItem>,
-            val isTrackVisible: StateFlow<Boolean>,
-            val isQueueVisible: StateFlow<Boolean>,
-            val repeatState: StateFlow<RepeatState>,
-            val queue: @Composable (Modifier) -> Unit,
-            val onToggleQueueVisibility: () -> Unit,
-            val onToggleTrackVisibility: () -> Unit,
-            val onTrackNameClick: (TrackId) -> Unit,
-            val onAlbumClick: (SpotifyAlbumId) -> Unit,
-            val onArtistClick: (SpotifyArtistId) -> Unit,
-            val onTimeChange: (Duration) -> Unit,
-            val onPreviousClick: () -> Unit,
-            val onPlayClick: () -> Unit,
-            val onPauseClick: () -> Unit,
-            val onNextClick: () -> Unit,
-            val onRepeatClick: () -> Unit
-        ) : PlayerState()
-    }
-
     private object Ui {
+        sealed class State {
+            data object Loading : State()
+
+            data object Unavailable : State()
+
+            data class Available(
+                val enabled: StateFlow<Boolean>,
+                val timePositionChange: StateFlow<Duration>,
+                val isPlaying: StateFlow<Boolean>,
+                val track: StateFlow<MediaController.MediaControllerState.Available.QueueItem?>,
+                val isTrackVisible: StateFlow<Boolean>,
+                val isQueueVisible: StateFlow<Boolean>,
+                val repeatState: StateFlow<RepeatState>,
+                val queue: @Composable (Modifier) -> Unit,
+                val onToggleQueueVisibility: () -> Unit,
+                val onToggleTrackVisibility: () -> Unit,
+                val onTrackNameClick: (TrackId) -> Unit,
+                val onAlbumClick: (SpotifyAlbumId) -> Unit,
+                val onArtistClick: (SpotifyArtistId) -> Unit,
+                val onTimeChange: (Duration) -> Unit,
+                val onPreviousClick: () -> Unit,
+                val onPlayClick: () -> Unit,
+                val onPauseClick: () -> Unit,
+                val onNextClick: () -> Unit,
+                val onRepeatClick: () -> Unit
+            ) : State()
+        }
+
         private object Common {
             @Composable
             fun TrackInfo(
                 modifier: Modifier,
-                track: MediaController.MediaControllerState.Available.QueueItem,
+                track: MediaController.MediaControllerState.Available.QueueItem?,
                 onTrackNameClick: () -> Unit,
                 onAlbumClick: (SpotifyAlbumId) -> Unit,
                 onArtistClick: (SpotifyArtistId) -> Unit
@@ -151,29 +151,36 @@ class Player(
                     verticalArrangement = Arrangement.Center
                 ) {
                     TextButton(
-                        onClick = onTrackNameClick
+                        onClick = onTrackNameClick,
+                        enabled = track != null
                     ) {
                         Text(
-                            text = track.name,
+                            text = track?.name ?: "",
                             style = MaterialTheme.typography.displayMedium,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    when (track.album) {
+                    when (track?.album) {
                         is MediaController.MediaControllerState.Available.QueueItem.Album.ImportAlbum -> {
                             Album(name = track.album.name ?: "")
                         }
                         is MediaController.MediaControllerState.Available.QueueItem.Album.SpotifyAlbum -> {
                             Album(name = track.album.name, onClick = { onAlbumClick(track.album.id) })
                         }
+                        null -> {
+                            Album(name = "")
+                        }
                     }
-                    when (track.artists) {
+                    when (track?.artists) {
                         is MediaController.MediaControllerState.Available.QueueItem.Artists.ImportArtist -> {
                             Artists(names = track.artists.list)
                         }
                         is MediaController.MediaControllerState.Available.QueueItem.Artists.SpotifyArtists -> {
                             Artists(artists = track.artists.list, onArtistClick = onArtistClick)
+                        }
+                        null -> {
+                            Artists(names = emptyList())
                         }
                     }
                 }
@@ -183,7 +190,7 @@ class Player(
             fun PlaybackControls(
                 modifier: Modifier,
                 enabled: StateFlow<Boolean>,
-                track: MediaController.MediaControllerState.Available.QueueItem,
+                track: MediaController.MediaControllerState.Available.QueueItem?,
                 isPlaying: StateFlow<Boolean>,
                 repeatState: StateFlow<RepeatState>,
                 timePositionChange: StateFlow<Duration>,
@@ -198,7 +205,7 @@ class Player(
                 val isPlaying by isPlaying.collectAsState()
                 val repeatState by repeatState.collectAsState()
                 val timePositionChange by timePositionChange.collectAsState()
-                val formattedDuration = remember(track.duration) { track.duration.formatted() }
+                val formattedDuration = remember(track?.duration) { track?.duration.formatted() }
 
                 Column(
                     modifier = modifier,
@@ -208,7 +215,7 @@ class Player(
                     PlaybackSlider(
                         modifier = Modifier.fillMaxWidth().padding(8.dp),
                         enabled = enabled,
-                        duration = track.duration,
+                        duration = track?.duration,
                         currentPosition = timePositionChange,
                         onSeek = onTimeChange
                     )
@@ -266,16 +273,16 @@ class Player(
 
         object Wide {
             @Composable
-            fun Main(modifier: Modifier, state: PlayerState) {
+            fun Main(modifier: Modifier, state: State) {
                 when (state) {
-                    is PlayerState.Loading -> Unit
-                    is PlayerState.Unavailable -> Unit
-                    is PlayerState.Available -> Main(modifier = modifier, state = state)
+                    is State.Loading -> Unit
+                    is State.Unavailable -> Unit
+                    is State.Available -> Main(modifier = modifier, state = state)
                 }
             }
 
             @Composable
-            private fun Main(modifier: Modifier, state: PlayerState.Available) {
+            private fun Main(modifier: Modifier, state: State.Available) {
                 Main(
                     modifier = modifier,
                     enabled = state.enabled,
@@ -304,7 +311,7 @@ class Player(
             private fun Main(
                 modifier: Modifier,
                 enabled: StateFlow<Boolean>,
-                track: StateFlow<MediaController.MediaControllerState.Available.QueueItem>,
+                track: StateFlow<MediaController.MediaControllerState.Available.QueueItem?>,
                 isQueueVisible: StateFlow<Boolean>,
                 isTrackVisible: StateFlow<Boolean>,
                 repeatState: StateFlow<RepeatState>,
@@ -347,7 +354,7 @@ class Player(
                                     modifier = Modifier.weight(1f),
                                     track = track,
                                     isQueueVisible = isQueueVisible,
-                                    onTrackNameClick = { onTrackNameClick(track.id) },
+                                    onTrackNameClick = { onTrackNameClick(track!!.id) }, // TODO
                                     onAlbumClick = onAlbumClick,
                                     onArtistClick = onArtistClick
                                 )
@@ -397,7 +404,7 @@ class Player(
             @Composable
             private fun Track(
                 modifier: Modifier,
-                track: MediaController.MediaControllerState.Available.QueueItem,
+                track: MediaController.MediaControllerState.Available.QueueItem?,
                 isQueueVisible: Boolean,
                 onTrackNameClick: () -> Unit,
                 onAlbumClick: (SpotifyAlbumId) -> Unit,
@@ -413,7 +420,7 @@ class Player(
                             ) {
                                 Image(
                                     modifier = Modifier.weight(1f).aspectRatio(1f),
-                                    file = track.image
+                                    file = track?.image
                                 )
                                 Common.TrackInfo(
                                     modifier = Modifier.padding(top = 12.dp),
@@ -433,7 +440,7 @@ class Player(
                                 Image(
                                     modifier = Modifier.weight(1f)
                                         .aspectRatio(1f, true),
-                                    file = track.image
+                                    file = track?.image
                                 )
                                 Common.TrackInfo(
                                     modifier = Modifier.weight(1f),
@@ -451,16 +458,16 @@ class Player(
 
         object Compact {
             @Composable
-            fun Main(modifier: Modifier, state: PlayerState) {
+            fun Main(modifier: Modifier, state: State) {
                 when (state) {
-                    is PlayerState.Loading -> Unit
-                    is PlayerState.Unavailable -> Unit
-                    is PlayerState.Available -> Main(modifier = modifier, state = state)
+                    is State.Loading -> Unit
+                    is State.Unavailable -> Unit
+                    is State.Available -> Main(modifier = modifier, state = state)
                 }
             }
 
             @Composable
-            private fun Main(modifier: Modifier, state: PlayerState.Available) {
+            private fun Main(modifier: Modifier, state: State.Available) {
                 Main(
                     modifier = modifier,
                     enabled = state.enabled,
@@ -489,7 +496,7 @@ class Player(
             private fun Main(
                 modifier: Modifier,
                 enabled: StateFlow<Boolean>,
-                track: StateFlow<MediaController.MediaControllerState.Available.QueueItem>,
+                track: StateFlow<MediaController.MediaControllerState.Available.QueueItem?>,
                 isQueueVisible: StateFlow<Boolean>,
                 isTrackVisible: StateFlow<Boolean>,
                 repeatState: StateFlow<RepeatState>,
@@ -529,7 +536,7 @@ class Player(
                                 Track(
                                     modifier = Modifier.fillMaxWidth(),
                                     track = track,
-                                    onTrackNameClick = { onTrackNameClick(track.id) },
+                                    onTrackNameClick = { onTrackNameClick(track!!.id) }, // TODO
                                     onAlbumClick = onAlbumClick,
                                     onArtistClick = onArtistClick
                                 )
@@ -574,7 +581,7 @@ class Player(
             @Composable
             private fun Track(
                 modifier: Modifier,
-                track: MediaController.MediaControllerState.Available.QueueItem,
+                track: MediaController.MediaControllerState.Available.QueueItem?,
                 onTrackNameClick: () -> Unit,
                 onAlbumClick: (SpotifyAlbumId) -> Unit,
                 onArtistClick: (SpotifyArtistId) -> Unit
@@ -585,9 +592,8 @@ class Player(
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Image(
-                        modifier = Modifier.weight(1f)
-                            .aspectRatio(1f),
-                        file = track.image
+                        modifier = Modifier.weight(1f).aspectRatio(1f),
+                        file = track?.image
                     )
                     Common.TrackInfo(
                         modifier = Modifier.padding(top = 12.dp),

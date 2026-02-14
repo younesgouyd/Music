@@ -7,7 +7,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.json.JSONArray
 import java.io.File
 import kotlin.math.max
 import kotlin.math.min
@@ -372,7 +371,9 @@ class MediaController(
                         current
                     }
                 }
-                this@MediaController.enabled.value = true
+                if (queue.value.isNotEmpty()) {
+                    this@MediaController.enabled.value = true
+                }
             }
         }
     }
@@ -425,7 +426,7 @@ class MediaController(
     private suspend fun QueueItemParameter.toModel(): List<MediaControllerState.Available.QueueItem> {
         return when (this) {
             is QueueItemParameter.Track -> trackRepo.get(this.id).first().let { dbTrack ->
-                listOf(dbTrack.toQueueItem())
+                dbTrack?.let { listOf(dbTrack.toQueueItem()) } ?: emptyList() // TODO
             }
             is QueueItemParameter.Playlist -> trackRepo.getPlaylistTracks(this.id).first().map { dbTrack ->
                 dbTrack.toQueueItem()
@@ -446,13 +447,11 @@ class MediaController(
             id = this.track.id,
             name = this.spotifyTrack?.name ?: this.originalImport.title,
             album = run {
-                if (this.spotifyTrack != null) {
-                    albumRepo.get(this.spotifyTrack.spotifyAlbumId).first().let {
+                this.spotifyTrack?.let {
+                    albumRepo.get(this.spotifyTrack.spotifyAlbumId).first()?.let {
                         MediaControllerState.Available.QueueItem.Album.SpotifyAlbum(it.id, it.name)
                     }
-                } else {
-                   MediaControllerState.Available.QueueItem.Album.ImportAlbum(this.originalImport.album)
-                }
+                } ?: MediaControllerState.Available.QueueItem.Album.ImportAlbum(this.originalImport.album)
             },
             image = getImage(this),
             artists = getArtists(this),
@@ -477,13 +476,8 @@ class MediaController(
                 }
             )
         } else {
-            val json = JSONArray(importSessionItemRepo.get(dbTrack.track.importSessionItemId).first().artists)
             MediaControllerState.Available.QueueItem.Artists.ImportArtist(
-                list = buildList {
-                    for (i in 0 until json.length()) {
-                        add(json.getString(i))
-                    }
-                }
+                list = dbTrack.originalImport.inspection.artists
             )
         }
     }
@@ -517,11 +511,11 @@ class MediaController(
             private val coroutineScope = CoroutineScope(Dispatchers.Main)
 
             @OptIn(ExperimentalCoroutinesApi::class)
-            val currentItem: StateFlow<QueueItem> = combine(queue, queueItemIndex) { queue, index ->
+            val currentItem: StateFlow<QueueItem?> = combine(queue, queueItemIndex) { queue, index ->
                 Pair(queue, index)
             }.mapLatest { (queue, index) ->
-                queue[index]
-            }.stateIn(coroutineScope, SharingStarted.Companion.Lazily, queue.value[queueItemIndex.value])
+                if (queue.isNotEmpty()) { queue[index] } else { null }
+            }.stateIn(coroutineScope, SharingStarted.Lazily, null)
 
             enum class RepeatState { Off, List, Track }
 

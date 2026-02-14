@@ -35,16 +35,16 @@ class ArtistList(
     showArtistDetails: (SpotifyArtistId) -> Unit
 ) : Component() {
     override val title: String = "Artists"
-    private val state: MutableStateFlow<ArtistListState> = MutableStateFlow(ArtistListState.Loading)
-    private val searchQuery = MutableStateFlow("")
+    private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
 
     init {
+        val searchQuery = MutableStateFlow("")
         coroutineScope.launch {
-            state.value = ArtistListState.Loaded(
+            state.value = Ui.State.Loaded(
                 artists = searchQuery.flatMapLatest { nameQuery ->
                     artistRepo.search(nameQuery).map { list ->
                         list.map { dbArtist ->
-                            ArtistListState.Loaded.ArtistItem(
+                            Ui.State.Loaded.ArtistItem(
                                 id = dbArtist.id,
                                 name = dbArtist.name,
                                 image = mediaFileRepo.getSpotifyArtistImage(dbArtist.id)
@@ -76,38 +76,38 @@ class ArtistList(
         coroutineScope.cancel()
     }
 
-    private sealed class ArtistListState {
-        data object Loading : ArtistListState()
-
-        data class Loaded(
-            val artists: StateFlow<List<ArtistItem>>,
-            val searchQuery: StateFlow<String>,
-            val scrollState: LazyGridState,
-            val onSearchQueryChange: (String) -> Unit,
-            val onArtistClick: (SpotifyArtistId) -> Unit,
-            val onPlayArtistClick: (SpotifyArtistId) -> Unit,
-            val onAddArtistToQueueClick: (SpotifyArtistId) -> Unit
-        ) : ArtistListState() {
-            data class ArtistItem(
-                val id: SpotifyArtistId,
-                val name: String,
-                val image: File?
-            )
-        }
-    }
-
     private object Ui {
+        sealed class State {
+            data object Loading : State()
+
+            data class Loaded(
+                val artists: StateFlow<List<ArtistItem>>,
+                val searchQuery: StateFlow<String>,
+                val scrollState: LazyGridState,
+                val onSearchQueryChange: (String) -> Unit,
+                val onArtistClick: (SpotifyArtistId) -> Unit,
+                val onPlayArtistClick: (SpotifyArtistId) -> Unit,
+                val onAddArtistToQueueClick: (SpotifyArtistId) -> Unit
+            ) : State() {
+                data class ArtistItem(
+                    val id: SpotifyArtistId,
+                    val name: String,
+                    val image: File?
+                )
+            }
+        }
+
         object Wide {
             @Composable
-            fun Main(modifier: Modifier, state: ArtistListState) {
+            fun Main(modifier: Modifier, state: State) {
                 when (state) {
-                    is ArtistListState.Loading -> Text(modifier = modifier, text = "Loading...")
-                    is ArtistListState.Loaded -> Main(modifier = modifier, loaded = state)
+                    is State.Loading -> Text(modifier = modifier, text = "Loading...")
+                    is State.Loaded -> Main(modifier = modifier, loaded = state)
                 }
             }
 
             @Composable
-            private fun Main(modifier: Modifier, loaded: ArtistListState.Loaded) {
+            private fun Main(modifier: Modifier, loaded: State.Loaded) {
                 Main(
                     modifier = modifier,
                     artists = loaded.artists,
@@ -123,7 +123,7 @@ class ArtistList(
             @Composable
             private fun Main(
                 modifier: Modifier,
-                artists: StateFlow<List<ArtistListState.Loaded.ArtistItem>>,
+                artists: StateFlow<List<State.Loaded.ArtistItem>>,
                 searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
                 onSearchQueryChange: (String) -> Unit,
@@ -178,7 +178,7 @@ class ArtistList(
             @Composable
             private fun ArtistItem(
                 modifier: Modifier = Modifier,
-                artist: ArtistListState.Loaded.ArtistItem,
+                artist: State.Loaded.ArtistItem,
                 onClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onAddToQueueClick: () -> Unit
@@ -250,15 +250,15 @@ class ArtistList(
 
         object Compact {
             @Composable
-            fun Main(modifier: Modifier, state: ArtistListState) {
+            fun Main(modifier: Modifier, state: State) {
                 when (state) {
-                    is ArtistListState.Loading -> Text(modifier = modifier, text = "Loading...")
-                    is ArtistListState.Loaded -> Main(modifier = modifier, loaded = state)
+                    is State.Loading -> Text(modifier = modifier, text = "Loading...")
+                    is State.Loaded -> Main(modifier = modifier, loaded = state)
                 }
             }
 
             @Composable
-            private fun Main(modifier: Modifier, loaded: ArtistListState.Loaded) {
+            private fun Main(modifier: Modifier, loaded: State.Loaded) {
                 Main(
                     modifier = modifier,
                     artists = loaded.artists,
@@ -274,7 +274,7 @@ class ArtistList(
             @Composable
             private fun Main(
                 modifier: Modifier,
-                artists: StateFlow<List<ArtistListState.Loaded.ArtistItem>>,
+                artists: StateFlow<List<State.Loaded.ArtistItem>>,
                 searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
                 onSearchQueryChange: (String) -> Unit,
@@ -331,7 +331,7 @@ class ArtistList(
             @Composable
             private fun ArtistItem(
                 modifier: Modifier = Modifier,
-                artist: ArtistListState.Loaded.ArtistItem,
+                artist: State.Loaded.ArtistItem,
                 onClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onAddToQueueClick: () -> Unit

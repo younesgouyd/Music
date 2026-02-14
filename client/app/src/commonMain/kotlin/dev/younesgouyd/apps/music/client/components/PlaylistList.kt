@@ -33,72 +33,70 @@ import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistList(
-    private val playlistRepo: PlaylistRepo,
-    private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
-    private val trackRepo: TrackRepo,
-    private val folderRepo: FolderRepo,
-    private val artistRepo: SpotifyArtistRepo,
-    private val albumRepo: SpotifyAlbumRepo,
-    private val mediaController: MediaController,
+    playlistRepo: PlaylistRepo,
+    playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
+    trackRepo: TrackRepo,
+    folderRepo: FolderRepo,
+    artistRepo: SpotifyArtistRepo,
+    albumRepo: SpotifyAlbumRepo,
+    mediaController: MediaController,
     mediaFileRepo: MediaFileRepo,
     showPlaylistDetails: (PlaylistId) -> Unit
 ) : Component() {
     override val title: String = "Playlists"
-    private val state: MutableStateFlow<PlaylistListState> = MutableStateFlow(PlaylistListState.Loading)
+    private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
     private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
     private val searchQuery = MutableStateFlow("")
 
     init {
         coroutineScope.launch {
-            state.update {
-                PlaylistListState.Loaded(
-                    playlists = searchQuery.flatMapLatest { nameQuery ->
-                        playlistRepo.search(nameQuery).mapLatest { list ->
-                            list.map { dbPlaylist ->
-                                PlaylistListState.Loaded.PlaylistListItem(
-                                    id = dbPlaylist.id,
-                                    name = dbPlaylist.name,
-                                    image = dbPlaylist.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) }
-                                )
-                            }
-                        }
-                    }.stateIn(coroutineScope),
-                    addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
-                    addToPlaylist = addToPlaylist.asStateFlow(),
-                    searchQuery = searchQuery.asStateFlow(),
-                    scrollState = LazyGridState(),
-                    onSearchQueryChange = { searchQuery.value = it },
-                    onPlaylistClick = showPlaylistDetails,
-                    onPlayPlaylist = { id: PlaylistId -> mediaController.playQueue(listOf(MediaController.QueueItemParameter.Playlist(id))) },
-                    onAddToPlaylist = { playlistId: PlaylistId ->
-                        addToPlaylist.update {
-                            AddToPlaylist(
-                                itemToAdd = AddToPlaylist.Item.Playlist(playlistId),
-                                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                                trackRepo = trackRepo,
-                                folderRepo = folderRepo,
-                                artistRepo = artistRepo,
-                                mediaFileRepo = mediaFileRepo,
-                                dismiss = ::dismissAddToPlaylistDialog,
-                                playlistRepo = playlistRepo,
-                                albumRepo = albumRepo
+            state.value = Ui.State.Loaded(
+                playlists = searchQuery.flatMapLatest { nameQuery ->
+                    playlistRepo.search(nameQuery).mapLatest { list ->
+                        list.map { dbPlaylist ->
+                            Ui.State.Loaded.PlaylistListItem(
+                                id = dbPlaylist.id,
+                                name = dbPlaylist.name,
+                                image = dbPlaylist.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) }
                             )
                         }
-                        addToPlaylistDialogVisible.update { true }
-                    },
-                    onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
-                    onDeletePlaylist = { id: PlaylistId ->
-                        coroutineScope.launch { playlistRepo.delete(id) }
-                    },
-                    onRenamePlaylist = { newName: String, id: PlaylistId ->
-                        coroutineScope.launch {
-                            playlistRepo.updateName(id = id, name = newName)
-                        }
-                    },
-                    onAddPlaylistToQueue = { id: PlaylistId -> mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Playlist(id))) }
-                )
-            }
+                    }
+                }.stateIn(coroutineScope),
+                addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
+                addToPlaylist = addToPlaylist.asStateFlow(),
+                searchQuery = searchQuery.asStateFlow(),
+                scrollState = LazyGridState(),
+                onSearchQueryChange = { searchQuery.value = it },
+                onPlaylistClick = showPlaylistDetails,
+                onPlayPlaylist = { id: PlaylistId -> mediaController.playQueue(listOf(MediaController.QueueItemParameter.Playlist(id))) },
+                onAddToPlaylist = { playlistId: PlaylistId ->
+                    addToPlaylist.update {
+                        AddToPlaylist(
+                            itemToAdd = AddToPlaylist.Item.Playlist(playlistId),
+                            playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                            trackRepo = trackRepo,
+                            folderRepo = folderRepo,
+                            artistRepo = artistRepo,
+                            mediaFileRepo = mediaFileRepo,
+                            dismiss = ::dismissAddToPlaylistDialog,
+                            playlistRepo = playlistRepo,
+                            albumRepo = albumRepo
+                        )
+                    }
+                    addToPlaylistDialogVisible.update { true }
+                },
+                onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
+                onDeletePlaylist = { id: PlaylistId ->
+                    coroutineScope.launch { playlistRepo.delete(id) }
+                },
+                onRenamePlaylist = { newName: String, id: PlaylistId ->
+                    coroutineScope.launch {
+                        playlistRepo.updateName(id = id, name = newName)
+                    }
+                },
+                onAddPlaylistToQueue = { id: PlaylistId -> mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Playlist(id))) }
+            )
         }
     }
 
@@ -124,44 +122,44 @@ class PlaylistList(
         addToPlaylist.update { it?.clear(); null }
     }
 
-    private sealed class PlaylistListState {
-        data object Loading : PlaylistListState()
-
-        data class Loaded(
-            val playlists: StateFlow<List<PlaylistListItem>>,
-            val addToPlaylistDialogVisible: StateFlow<Boolean>,
-            val addToPlaylist: StateFlow<Component?>,
-            val searchQuery: StateFlow<String>,
-            val scrollState: LazyGridState,
-            val onSearchQueryChange: (String) -> Unit,
-            val onPlaylistClick: (PlaylistId) -> Unit,
-            val onPlayPlaylist: (PlaylistId) -> Unit,
-            val onAddToPlaylist: (PlaylistId) -> Unit,
-            val onDismissAddToPlaylistDialog: () -> Unit,
-            val onDeletePlaylist: (PlaylistId) -> Unit,
-            val onRenamePlaylist: (newName: String, id: PlaylistId) -> Unit,
-            val onAddPlaylistToQueue: (PlaylistId) -> Unit
-        ) : PlaylistListState() {
-            data class PlaylistListItem(
-                val id: PlaylistId,
-                val name: String,
-                val image: File?,
-            )
-        }
-    }
-
     private object Ui {
+        sealed class State {
+            data object Loading : State()
+
+            data class Loaded(
+                val playlists: StateFlow<List<PlaylistListItem>>,
+                val addToPlaylistDialogVisible: StateFlow<Boolean>,
+                val addToPlaylist: StateFlow<Component?>,
+                val searchQuery: StateFlow<String>,
+                val scrollState: LazyGridState,
+                val onSearchQueryChange: (String) -> Unit,
+                val onPlaylistClick: (PlaylistId) -> Unit,
+                val onPlayPlaylist: (PlaylistId) -> Unit,
+                val onAddToPlaylist: (PlaylistId) -> Unit,
+                val onDismissAddToPlaylistDialog: () -> Unit,
+                val onDeletePlaylist: (PlaylistId) -> Unit,
+                val onRenamePlaylist: (newName: String, id: PlaylistId) -> Unit,
+                val onAddPlaylistToQueue: (PlaylistId) -> Unit
+            ) : State() {
+                data class PlaylistListItem(
+                    val id: PlaylistId,
+                    val name: String,
+                    val image: File?,
+                )
+            }
+        }
+
         object Wide {
             @Composable
-            fun Main(modifier: Modifier, state: PlaylistListState) {
+            fun Main(modifier: Modifier, state: State) {
                 when (state) {
-                    is PlaylistListState.Loading -> Text(modifier = modifier, text = "Loading...")
-                    is PlaylistListState.Loaded -> Main(modifier = modifier, state = state)
+                    is State.Loading -> Text(modifier = modifier, text = "Loading...")
+                    is State.Loaded -> Main(modifier = modifier, state = state)
                 }
             }
 
             @Composable
-            private fun Main(modifier: Modifier, state: PlaylistListState.Loaded) {
+            private fun Main(modifier: Modifier, state: State.Loaded) {
                 val addToPlaylistDialogVisible by state.addToPlaylistDialogVisible.collectAsState()
                 val addToPlaylist by state.addToPlaylist.collectAsState()
 
@@ -189,7 +187,7 @@ class PlaylistList(
             @Composable
             private fun Main(
                 modifier: Modifier,
-                playlists: StateFlow<List<PlaylistListState.Loaded.PlaylistListItem>>,
+                playlists: StateFlow<List<State.Loaded.PlaylistListItem>>,
                 searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
                 onSearchQueryChange: (String) -> Unit,
@@ -251,7 +249,7 @@ class PlaylistList(
             @Composable
             private fun PlaylistItem(
                 modifier: Modifier = Modifier,
-                playlist: PlaylistListState.Loaded.PlaylistListItem,
+                playlist: State.Loaded.PlaylistListItem,
                 onClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -407,15 +405,15 @@ class PlaylistList(
 
         object Compact {
             @Composable
-            fun Main(modifier: Modifier, state: PlaylistListState) {
+            fun Main(modifier: Modifier, state: State) {
                 when (state) {
-                    is PlaylistListState.Loading -> Text(modifier = modifier, text = "Loading...")
-                    is PlaylistListState.Loaded -> Main(modifier = modifier, state = state)
+                    is State.Loading -> Text(modifier = modifier, text = "Loading...")
+                    is State.Loaded -> Main(modifier = modifier, state = state)
                 }
             }
 
             @Composable
-            private fun Main(modifier: Modifier, state: PlaylistListState.Loaded) {
+            private fun Main(modifier: Modifier, state: State.Loaded) {
                 val addToPlaylistDialogVisible by state.addToPlaylistDialogVisible.collectAsState()
                 val addToPlaylist by state.addToPlaylist.collectAsState()
 
@@ -443,7 +441,7 @@ class PlaylistList(
             @Composable
             private fun Main(
                 modifier: Modifier,
-                playlists: StateFlow<List<PlaylistListState.Loaded.PlaylistListItem>>,
+                playlists: StateFlow<List<State.Loaded.PlaylistListItem>>,
                 searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
                 onSearchQueryChange: (String) -> Unit,
@@ -505,7 +503,7 @@ class PlaylistList(
             @Composable
             private fun PlaylistItem(
                 modifier: Modifier = Modifier,
-                playlist: PlaylistListState.Loaded.PlaylistListItem,
+                playlist: State.Loaded.PlaylistListItem,
                 onClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,

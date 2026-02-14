@@ -26,7 +26,6 @@ import dev.younesgouyd.apps.music.client.data.repoes.SpotifyTrackRepo
 import dev.younesgouyd.apps.music.client.util.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import java.io.File
 
 class AlbumDetails(
@@ -40,56 +39,74 @@ class AlbumDetails(
     showArtist: (SpotifyArtistId) -> Unit
 ) : Component() {
     override val title: String = "Album"
-    private val state: MutableStateFlow<UiState> = MutableStateFlow(UiState.Loading)
+    private val state: StateFlow<Ui.State>
 
     init {
-        coroutineScope.launch {
-            val spotifyTracks = spotifyTrackRepo.getAlbumTracks(id).map { dbList ->
-                dbList.map { dbTrack ->
-                    UiState.Loaded.Track(
-                        id = dbTrack.spotifyTrack.id,
-                        trackId = dbTrack.track?.id,
-                        name = dbTrack.spotifyTrack.name,
-                        artists = artistRepo.getSpotifyTrackSpotifyArtists(dbTrack.spotifyTrack.id).first().map { dbArtist ->
-                            Pair(dbArtist.id, dbArtist.name)
-                        }
-                    )
+        val album = albumRepo.get(id).filterNotNull().map {
+            Ui.State.Loaded.Album(
+                name = it.name,
+                image = mediaFileRepo.getSpotifyAlbumImage(id),
+                artists = artistRepo.getSpotifyAlbumSpotifyArtists(id).first().map { dbArtist ->
+                    Pair(dbArtist.id, dbArtist.name)
                 }
-            }.stateIn(coroutineScope)
-            state.value = UiState.Loaded(
-                scrollState = LazyListState(),
-                album = albumRepo.get(id).map { dbAlbum ->
-                    UiState.Loaded.Album(
-                        name = dbAlbum.name,
-                        image = mediaFileRepo.getSpotifyAlbumImage(id),
-                        artists = artistRepo.getSpotifyAlbumSpotifyArtists(id).first().map { dbArtist ->
-                            Pair(dbArtist.id, dbArtist.name)
-                        }
-                    )
-                }.stateIn(coroutineScope),
-                tracks = spotifyTracks,
-                onPlayClick = {
-                    mediaController.playQueue(listOf(MediaController.QueueItemParameter.Album(id)))
-                },
-                onAddToQueueClick = {
-                    mediaController.addToQueue(
-                        items = spotifyTracks.value.mapNotNull { it.trackId?.let { MediaController.QueueItemParameter.Track(it) } }
-                    )
-                },
-                onTrackClick = { trackId ->
-                    val tracks = spotifyTracks.value.mapNotNull { it.trackId }
-                    mediaController.playQueue(
-                        queue = tracks.map { MediaController.QueueItemParameter.Track(it) },
-                        queueItemIndex = tracks.indexOfFirst { it == trackId }
-                    )
-                },
-                onArtistClick = showArtist,
-                onAddTrackToQueueClick = { trackId ->
-                    mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(trackId)))
-                },
-                onShowTrackDetailsClick = showTrack
             )
-        }
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
+        val spotifyTracks = spotifyTrackRepo.getAlbumTracks(id).map { dbList ->
+            dbList.map { dbTrack ->
+                Ui.State.Loaded.Track(
+                    id = dbTrack.spotifyTrack.id,
+                    trackId = dbTrack.track?.id,
+                    name = dbTrack.spotifyTrack.name,
+                    artists = artistRepo.getSpotifyTrackSpotifyArtists(dbTrack.spotifyTrack.id).first().map { dbArtist ->
+                        Pair(dbArtist.id, dbArtist.name)
+                    }
+                )
+            }
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
+        var loaded: Ui.State.Loaded? = null
+        state = album.onEach {
+            if (it != null && loaded == null) {
+                loaded = Ui.State.Loaded(
+                    scrollState = LazyListState(),
+                    album = album.filterNotNull().stateIn(coroutineScope),
+                    tracks = spotifyTracks,
+                    onPlayClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Album(id))) },
+                    onAddToQueueClick = {
+                        mediaController.addToQueue(
+                            items = spotifyTracks.value.mapNotNull {
+                                it.trackId?.let {
+                                    MediaController.QueueItemParameter.Track(it)
+                                }
+                            }
+                        )
+                    },
+                    onTrackClick = { trackId ->
+                        val tracks = spotifyTracks.value.mapNotNull { it.trackId }
+                        mediaController.playQueue(
+                            queue = tracks.map { MediaController.QueueItemParameter.Track(it) },
+                            queueItemIndex = tracks.indexOfFirst { it == trackId }
+                        )
+                    },
+                    onArtistClick = showArtist,
+                    onAddTrackToQueueClick = {
+                        mediaController.addToQueue(
+                            listOf(
+                                MediaController.QueueItemParameter.Track(
+                                    it
+                                )
+                            )
+                        )
+                    },
+                    onShowTrackDetailsClick = showTrack
+                )
+            }
+        }.map {
+            if (it == null) {
+                Ui.State.ItemDoesNotExist
+            } else {
+                loaded!!
+            }
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Loading)
     }
 
     @Composable
@@ -103,49 +120,53 @@ class AlbumDetails(
         coroutineScope.cancel()
     }
 
-    sealed class UiState {
-        data object Loading : UiState()
-
-        data class Loaded(
-            val scrollState: LazyListState,
-            val album: StateFlow<Album>,
-            val tracks: StateFlow<List<Track>>,
-            val onPlayClick: () -> Unit,
-            val onAddToQueueClick: () -> Unit,
-            val onTrackClick: (TrackId) -> Unit,
-            val onArtistClick: (SpotifyArtistId) -> Unit,
-            val onAddTrackToQueueClick: (TrackId) -> Unit,
-            val onShowTrackDetailsClick: (TrackId) -> Unit
-        ) : UiState() {
-            data class Album(
-                val name: String,
-                val image: File,
-                val artists: List<Pair<SpotifyArtistId, String>>
-            )
-
-            data class Track(
-                val id: SpotifyTrackId,
-                val trackId: TrackId?,
-                val name: String,
-                val artists: List<Pair<SpotifyArtistId, String>>
-            )
-        }
-    }
 
     private object Ui {
         private const val KEY_ALBUM_INFO = "album_info"
         private val itemHeight = 100.dp
 
+        sealed class State {
+            data object Loading : State()
+
+            data class Loaded(
+                val scrollState: LazyListState,
+                val album: StateFlow<Album>,
+                val tracks: StateFlow<List<Track>>,
+                val onPlayClick: () -> Unit,
+                val onAddToQueueClick: () -> Unit,
+                val onTrackClick: (TrackId) -> Unit,
+                val onArtistClick: (SpotifyArtistId) -> Unit,
+                val onAddTrackToQueueClick: (TrackId) -> Unit,
+                val onShowTrackDetailsClick: (TrackId) -> Unit
+            ) : State() {
+                data class Album(
+                    val name: String,
+                    val image: File?,
+                    val artists: List<Pair<SpotifyArtistId, String>>
+                )
+
+                data class Track(
+                    val id: SpotifyTrackId,
+                    val trackId: TrackId?,
+                    val name: String,
+                    val artists: List<Pair<SpotifyArtistId, String>>
+                )
+            }
+
+            data object ItemDoesNotExist : State()
+        }
+
         @Composable
-        fun Main(modifier: Modifier, state: UiState) {
+        fun Main(modifier: Modifier, state: State) {
             when (state) {
-                is UiState.Loading -> Text(modifier = modifier, text = "Loading...")
-                is UiState.Loaded -> Main(modifier = modifier, state = state)
+                is State.Loading -> Text(modifier = modifier, text = "Loading...")
+                is State.Loaded -> Main(modifier = modifier, state = state)
+                is State.ItemDoesNotExist -> Text(modifier = modifier, text = "This item no long exists")
             }
         }
 
         @Composable
-        private fun Main(modifier: Modifier, state: UiState.Loaded) {
+        private fun Main(modifier: Modifier, state: State.Loaded) {
             Main(
                 modifier = modifier,
                 scrollState = state.scrollState,
@@ -164,8 +185,8 @@ class AlbumDetails(
         private fun Main(
             modifier: Modifier,
             scrollState: LazyListState,
-            album: StateFlow<UiState.Loaded.Album>,
-            tracks: StateFlow<List<UiState.Loaded.Track>>,
+            album: StateFlow<State.Loaded.Album>,
+            tracks: StateFlow<List<State.Loaded.Track>>,
             onPlayClick: () -> Unit,
             onAddToQueueClick: () -> Unit,
             onTrackClick: (TrackId) -> Unit,
@@ -249,8 +270,8 @@ class AlbumDetails(
         @Composable
         private fun TrackItem(
             modifier: Modifier,
-            track: UiState.Loaded.Track,
-            albumImage: File,
+            track: State.Loaded.Track,
+            albumImage: File?,
             enabled: Boolean,
             onTrackClick: () -> Unit,
             onArtistClick: (SpotifyArtistId) -> Unit,

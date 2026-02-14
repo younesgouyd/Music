@@ -86,7 +86,7 @@ interface TrackDao {
 
     @Transaction
     @Query("select * from track where id = :id")
-    fun get(id: TrackId): Flow<TrackRelation>
+    fun get(id: TrackId): Flow<TrackRelation?>
 
     @Transaction
     @Query("""

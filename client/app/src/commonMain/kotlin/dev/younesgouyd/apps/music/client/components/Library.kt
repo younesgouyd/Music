@@ -39,7 +39,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import org.json.JSONArray
 import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -76,20 +75,12 @@ class Library(
     private val moveToFolder: MutableStateFlow<MoveToFolder?> = MutableStateFlow(null)
     private val searchQuery = MutableStateFlow("")
     private val tagSearchQuery = MutableStateFlow("")
-    private val uiState: UiState
+    private val uiState: Ui.State
 
     init {
-        val root = UiState.NodeState(null, LazyGridState())
-        var list: List<UiState.NodeState> = listOf(root)
-        val tracks = combine(currentFolder, searchQuery, selectedTags) { folder, search, tags -> Triple(folder, search, tags) }
-            .onEach { loadingTracks.value = true }
-            .flatMapLatest { (folder, search, tags) ->
-                if (folder == null) flow { emit(emptyList<TrackRelation>()) }
-                else trackRepo.searchFolder(folder.id, search, tags, false)
-            }.map { dbTracks -> dbTracks.toTrackModels() }
-            .onEach { loadingTracks.value = false }
-            .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
-        uiState = UiState(
+        val root = Ui.State.NodeState(null, LazyGridState())
+        var list: List<Ui.State.NodeState> = listOf(root)
+        uiState = Ui.State(
             path = flow {
                 fun <T> List<T>.takeUntil(predicate: (T) -> Boolean): List<T> {
                     val list = mutableListOf<T>()
@@ -108,7 +99,7 @@ class Library(
                     } else {
                         val temp = list.takeUntil { it.folder?.id == folder.id }.toMutableList()
                         if (!temp.any { it.folder?.id == folder.id }) {
-                            temp.add(UiState.NodeState(folder, LazyGridState()))
+                            temp.add(Ui.State.NodeState(folder, LazyGridState()))
                         }
                         list = temp
                         emit(list)
@@ -146,7 +137,14 @@ class Library(
                 .map { dbPlaylists -> dbPlaylists.toPlaylistModels() }
                 .onEach { loadingPlaylists.value = false }
                 .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
-            tracks = tracks,
+            tracks = combine(currentFolder, searchQuery, selectedTags) { folder, search, tags -> Triple(folder, search, tags) }
+                .onEach { loadingTracks.value = true }
+                .flatMapLatest { (folder, search, tags) ->
+                    if (folder == null) flow { emit(emptyList<TrackRelation>()) }
+                    else trackRepo.searchFolder(folder.id, search, tags, false)
+                }.map { dbTracks -> dbTracks.toTrackModels() }
+                .onEach { loadingTracks.value = false }
+                .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
             onNewFolder = ::addFolder,
             onFolderClick = { currentFolder.value = it },
             onSearchQueryChange = { value: String ->
@@ -392,9 +390,9 @@ class Library(
         coroutineScope.cancel()
     }
 
-    private suspend fun List<TrackRelation>.toTrackModels(): List<UiState.Track> {
+    private suspend fun List<TrackRelation>.toTrackModels(): List<Ui.State.Track> {
         return this.map { dbTrack ->
-            UiState.Track(
+            Ui.State.Track(
                 id = dbTrack.track.id,
                 importSessionItemId = dbTrack.track.importSessionItemId,
                 name = dbTrack.spotifyTrack?.name ?: dbTrack.originalImport.title,
@@ -405,28 +403,20 @@ class Library(
                 },
                 artists = if (dbTrack.spotifyTrack != null) {
                     artistRepo.getSpotifyTrackSpotifyArtists(dbTrack.spotifyTrack.id).first().map { dbArtist ->
-                        UiState.Track.Artist(dbArtist.id, dbArtist.name)
+                        Ui.State.Track.Artist(dbArtist.id, dbArtist.name)
                     }
                 } else {
-                    val json = JSONArray(importSessionItemRepo.get(dbTrack.track.importSessionItemId).first().artists)
-                    buildList {
-                        for (i in 0 until json.length()) {
-                            add(
-                                UiState.Track.Artist(
-                                    id = null,
-                                    name = json.getString(i)
-                                )
-                            )
-                        }
+                    dbTrack.originalImport.inspection.artists.map {
+                        Ui.State.Track.Artist(null, it)
                     }
                 }
             )
         }
     }
 
-    private suspend fun List<Playlist>.toPlaylistModels(): List<UiState.Playlist> {
+    private suspend fun List<Playlist>.toPlaylistModels(): List<Ui.State.Playlist> {
         return this.map { dbPlaylist ->
-            UiState.Playlist(
+            Ui.State.Playlist(
                 id = dbPlaylist.id,
                 name = dbPlaylist.name,
                 image = dbPlaylist.importSessionId?.let { mediaFileRepo.getImportSessionImage(it) }
@@ -459,68 +449,68 @@ class Library(
         }
     }
 
-    private data class UiState(
-        val path: StateFlow<List<NodeState>>,
-        val loadingItems: StateFlow<Boolean>,
-        val tags: StateFlow<List<Tag>>,
-        val selectedTags: StateFlow<List<TagId>>,
-        val searchQuery: StateFlow<String>,
-        val tagSearchQuery: StateFlow<String>,
-        val onSearchQueryChange: (String) -> Unit,
-        val onTagSearchQueryChange: (String) -> Unit,
-        val onTagClick: (TagId) -> Unit,
-        val folders: StateFlow<List<Folder>>,
-        val playlists: StateFlow<List<Playlist>>,
-        val tracks: StateFlow<List<Track>>,
-        val onNewFolder: (name: String) -> Unit,
-        val onFolderClick: (Folder?) -> Unit,
-        val onAddFolderToPlaylistClick: (FolderId) -> Unit,
-        val onAddFolderToQueueClick: (FolderId) -> Unit,
-        val onPlayFolder: (FolderId) -> Unit,
-        val onPlaylistClick: (PlaylistId) -> Unit,
-        val onPlayPlaylistClick: (PlaylistId) -> Unit,
-        val onAddPlaylistToPlaylistClick: (PlaylistId) -> Unit,
-        val onAddPlaylistToQueueClick: (PlaylistId) -> Unit,
-        val onMoveTrackToFolder: (id: TrackId) -> Unit,
-        val onMoveFolderToFolder: (id: FolderId) -> Unit,
-        val onMovePlaylistToFolder: (id: PlaylistId) -> Unit,
-        val onTrackClick: (TrackId) -> Unit,
-        val onAddTrackToPlaylistClick: (TrackId) -> Unit,
-        val onArtistClick: (SpotifyArtistId) -> Unit,
-        val onRenameFolder: (id: FolderId, name: String) -> Unit,
-        val onRenamePlaylist: (id: PlaylistId, name: String) -> Unit,
-        val onDeleteFolder: (FolderId) -> Unit,
-        val onDeletePlaylist: (PlaylistId) -> Unit,
-        val onDeleteTrack: (ImportSessionItemId) -> Unit,
-        val onAddTrackToQueue: (TrackId) -> Unit,
-        val onDismissAddToPlaylistDialog: () -> Unit
-    ) {
-        data class NodeState(
-            val folder: Folder?,
-            val scrollState: LazyGridState,
-        )
-
-        data class Track(
-            val id: TrackId,
-            val importSessionItemId: ImportSessionItemId,
-            val name: String,
-            val image: File?,
-            val artists: List<Artist>
+    private object Ui {
+        data class State(
+            val path: StateFlow<List<NodeState>>,
+            val loadingItems: StateFlow<Boolean>,
+            val tags: StateFlow<List<Tag>>,
+            val selectedTags: StateFlow<List<TagId>>,
+            val searchQuery: StateFlow<String>,
+            val tagSearchQuery: StateFlow<String>,
+            val onSearchQueryChange: (String) -> Unit,
+            val onTagSearchQueryChange: (String) -> Unit,
+            val onTagClick: (TagId) -> Unit,
+            val folders: StateFlow<List<Folder>>,
+            val playlists: StateFlow<List<Playlist>>,
+            val tracks: StateFlow<List<Track>>,
+            val onNewFolder: (name: String) -> Unit,
+            val onFolderClick: (Folder?) -> Unit,
+            val onAddFolderToPlaylistClick: (FolderId) -> Unit,
+            val onAddFolderToQueueClick: (FolderId) -> Unit,
+            val onPlayFolder: (FolderId) -> Unit,
+            val onPlaylistClick: (PlaylistId) -> Unit,
+            val onPlayPlaylistClick: (PlaylistId) -> Unit,
+            val onAddPlaylistToPlaylistClick: (PlaylistId) -> Unit,
+            val onAddPlaylistToQueueClick: (PlaylistId) -> Unit,
+            val onMoveTrackToFolder: (id: TrackId) -> Unit,
+            val onMoveFolderToFolder: (id: FolderId) -> Unit,
+            val onMovePlaylistToFolder: (id: PlaylistId) -> Unit,
+            val onTrackClick: (TrackId) -> Unit,
+            val onAddTrackToPlaylistClick: (TrackId) -> Unit,
+            val onArtistClick: (SpotifyArtistId) -> Unit,
+            val onRenameFolder: (id: FolderId, name: String) -> Unit,
+            val onRenamePlaylist: (id: PlaylistId, name: String) -> Unit,
+            val onDeleteFolder: (FolderId) -> Unit,
+            val onDeletePlaylist: (PlaylistId) -> Unit,
+            val onDeleteTrack: (ImportSessionItemId) -> Unit,
+            val onAddTrackToQueue: (TrackId) -> Unit,
+            val onDismissAddToPlaylistDialog: () -> Unit
         ) {
-            data class Artist(
-                val id: SpotifyArtistId?,
-                val name: String
+            data class NodeState(
+                val folder: Folder?,
+                val scrollState: LazyGridState,
+            )
+
+            data class Track(
+                val id: TrackId,
+                val importSessionItemId: ImportSessionItemId,
+                val name: String,
+                val image: File?,
+                val artists: List<Artist>
+            ) {
+                data class Artist(
+                    val id: SpotifyArtistId?,
+                    val name: String
+                )
+            }
+
+            data class Playlist(
+                val id: PlaylistId,
+                val name: String,
+                val image: File?
             )
         }
 
-        data class Playlist(
-            val id: PlaylistId,
-            val name: String,
-            val image: File?
-        )
-    }
-
-    private object Ui {
         object Common {
             @Composable
             fun ImportFormDialog(
@@ -643,7 +633,7 @@ class Library(
             @Composable
             fun Main(
                 modifier: Modifier,
-                state: UiState,
+                state: State,
                 onImportClick: () -> Unit
             ) {
                 Main(
@@ -689,7 +679,7 @@ class Library(
             @Composable
             private fun Main(
                 modifier: Modifier,
-                path: StateFlow<List<UiState.NodeState>>,
+                path: StateFlow<List<State.NodeState>>,
                 loadingItems: StateFlow<Boolean>,
                 tags: StateFlow<List<Tag>>,
                 selectedTags: StateFlow<List<TagId>>,
@@ -699,8 +689,8 @@ class Library(
                 onTagSearchQueryChange: (String) -> Unit,
                 onTagClick: (TagId) -> Unit,
                 folders: StateFlow<List<Folder>>,
-                playlists: StateFlow<List<UiState.Playlist>>,
-                tracks: StateFlow<List<UiState.Track>>,
+                playlists: StateFlow<List<State.Playlist>>,
+                tracks: StateFlow<List<State.Track>>,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
                 onFolderClick: (Folder?) -> Unit,
@@ -1110,7 +1100,7 @@ class Library(
             @Composable
             private fun PlaylistItem(
                 modifier: Modifier = Modifier,
-                playlist: UiState.Playlist,
+                playlist: State.Playlist,
                 onClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
@@ -1242,7 +1232,7 @@ class Library(
             @Composable
             private fun TrackItem(
                 modifier: Modifier = Modifier,
-                track: UiState.Track,
+                track: State.Track,
                 onClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -1438,7 +1428,7 @@ class Library(
             @Composable
             fun Main(
                 modifier: Modifier,
-                state: UiState,
+                state: State,
                 onImportClick: () -> Unit
             ) {
                 Main(
@@ -1484,7 +1474,7 @@ class Library(
             @Composable
             private fun Main(
                 modifier: Modifier,
-                path: StateFlow<List<UiState.NodeState>>,
+                path: StateFlow<List<State.NodeState>>,
                 loadingItems: StateFlow<Boolean>,
                 tags: StateFlow<List<Tag>>,
                 selectedTags: StateFlow<List<TagId>>,
@@ -1494,8 +1484,8 @@ class Library(
                 onTagSearchQueryChange: (String) -> Unit,
                 onTagClick: (TagId) -> Unit,
                 folders: StateFlow<List<Folder>>,
-                playlists: StateFlow<List<UiState.Playlist>>,
-                tracks: StateFlow<List<UiState.Track>>,
+                playlists: StateFlow<List<State.Playlist>>,
+                tracks: StateFlow<List<State.Track>>,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
                 onFolderClick: (Folder?) -> Unit,
@@ -1897,7 +1887,7 @@ class Library(
             @Composable
             private fun PlaylistItem(
                 modifier: Modifier = Modifier,
-                playlist: UiState.Playlist,
+                playlist: State.Playlist,
                 onClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
@@ -2020,7 +2010,7 @@ class Library(
             @Composable
             private fun TrackItem(
                 modifier: Modifier = Modifier,
-                track: UiState.Track,
+                track: State.Track,
                 onClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,

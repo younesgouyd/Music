@@ -48,16 +48,16 @@ class ImportFromInternetFlow(
     showImportSession: (ImportSessionId, ImportSessionItem.State) -> Unit
 ) : Component() {
     override val title: String = "Inspection"
-    private val inspecting = MutableStateFlow(false)
-    private val savingImport = MutableStateFlow(false)
-    private val inspectionError = MutableStateFlow(false)
-    private val url = MutableStateFlow("")
-    private val inspection = MutableStateFlow<Inspection.Webpage?>(null)
-    private val selectedItems = MutableStateFlow<List<Long>>(emptyList())
-    private val state: UiState
+    private val state: Ui.State
 
     init {
-        state = UiState(
+        val inspecting = MutableStateFlow(false)
+        val savingImport = MutableStateFlow(false)
+        val inspectionError = MutableStateFlow(false)
+        val url = MutableStateFlow("")
+        val inspection = MutableStateFlow<Inspection.Webpage?>(null)
+        val selectedItems = MutableStateFlow<List<Long>>(emptyList())
+        state = Ui.State(
             inspecting = inspecting.asStateFlow(),
             savingImport = savingImport.asStateFlow(),
             inspectionError = inspectionError.asStateFlow(),
@@ -117,7 +117,6 @@ class ImportFromInternetFlow(
                             state = if (selected.contains(item.id)) ImportSessionItem.State.Pending else ImportSessionItem.State.Nonselected,
                             title = item.title,
                             durationMilliseconds = item.durationMilliseconds,
-                            artists = item.artists.joinToString(prefix = "[", postfix = "]", separator = ",") { "\"$it\"" },
                             album = item.album,
                             inspection = item.copy(thumbnail = null),
                             localFilePath = null,
@@ -146,27 +145,24 @@ class ImportFromInternetFlow(
         coroutineScope.cancel()
     }
 
-    data class UiState(
-        val inspecting: StateFlow<Boolean>,
-        val savingImport: StateFlow<Boolean>,
-        val inspectionError: StateFlow<Boolean>,
-        val url: StateFlow<String>,
-        val inspection: StateFlow<Inspection.Webpage?>,
-        val selectedItems: StateFlow<List<Long>>,
-        val onUrlChange: (String) -> Unit,
-        val onInspectClick: () -> Unit,
-        val onItemClick: (Long) -> Unit,
-        val onSelectAllClick: () -> Unit,
-        val onUnselectAllClick: () -> Unit,
-        val onImportClick: () -> Unit
-    )
-
     private object Ui {
+        data class State(
+            val inspecting: StateFlow<Boolean>,
+            val savingImport: StateFlow<Boolean>,
+            val inspectionError: StateFlow<Boolean>,
+            val url: StateFlow<String>,
+            val inspection: StateFlow<Inspection.Webpage?>,
+            val selectedItems: StateFlow<List<Long>>,
+            val onUrlChange: (String) -> Unit,
+            val onInspectClick: () -> Unit,
+            val onItemClick: (Long) -> Unit,
+            val onSelectAllClick: () -> Unit,
+            val onUnselectAllClick: () -> Unit,
+            val onImportClick: () -> Unit
+        )
+
         @Composable
-        fun Main(
-            modifier: Modifier,
-            state: UiState
-        ) {
+        fun Main(modifier: Modifier, state: State) {
             Main(
                 modifier = modifier,
                 inspecting = state.inspecting,
