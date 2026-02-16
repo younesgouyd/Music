@@ -305,8 +305,7 @@ class NavigationHost(
                         mediaFileRepo = repoStore.mediaFileRepo,
                         mediaController = repoStore.mediaController,
                         showTrack = { navigateTo(Destination.TrackDetails(it)) },
-                        showArtist = { navigateTo(Destination.ArtistDetails(it)) },
-                        importSessionItemRepo = repoStore.importSessionItemRepo
+                        showArtist = { navigateTo(Destination.ArtistDetails(it)) }
                     )
                     is Destination.TrackDetails -> TrackDetails(
                         id = destination.id,

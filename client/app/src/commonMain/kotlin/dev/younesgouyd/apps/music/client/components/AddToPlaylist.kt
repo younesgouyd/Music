@@ -14,11 +14,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.client.components.util.Image
 import dev.younesgouyd.apps.music.client.components.util.Item
 import dev.younesgouyd.apps.music.client.data.*
 import dev.younesgouyd.apps.music.client.data.repoes.*
 import dev.younesgouyd.apps.music.client.data.room.entities.Track
 import dev.younesgouyd.apps.music.client.util.Component
+import dev.younesgouyd.apps.music.client.util.LazilyLoadedItems
+import dev.younesgouyd.apps.music.client.util.Offset
+import dev.younesgouyd.apps.music.client.util.PageSize
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -83,15 +87,23 @@ class AddToPlaylist(
                 loaded = Ui.State.Loaded(
                     adding = _adding.asStateFlow(),
                     itemToAdd = item.filterNotNull().stateIn(coroutineScope),
-                    playlists = playlistRepo.getAll().map { list ->
-                        list.map { dbPlaylist ->
-                            Ui.State.Loaded.PlaylistOption(
-                                id = dbPlaylist.id,
-                                name = dbPlaylist.name,
-                                image = null
+                    playlists = LazilyLoadedItems(
+                        coroutineScope = coroutineScope,
+                        load = { offset: Offset.Id<PlaylistId>, pageSize: PageSize ->
+                            val rows = playlistRepo.getAll(pageSize, offset)
+                            LazilyLoadedItems.Page(
+                                nextOffset = rows.lastOrNull()?.id?.let { Offset.Id(it) },
+                                items = rows.map { dbPlaylist ->
+                                    Ui.State.Loaded.PlaylistOption(
+                                        id = dbPlaylist.id,
+                                        name = dbPlaylist.name,
+                                        image = null
+                                    )
+                                }
                             )
-                        }
-                    }.stateIn(coroutineScope),
+                        },
+                        initialOffset = Offset.Id.initial<PlaylistId>()
+                    ),
                     onDoneClick =  { playlistToAddTo: Ui.State.Loaded.PlaylistToAddTo ->
                         coroutineScope.launch {
                             _adding.update { true }
@@ -201,7 +213,7 @@ class AddToPlaylist(
             data class Loaded(
                 val adding: StateFlow<Boolean>,
                 val itemToAdd: StateFlow<ItemToAdd>,
-                val playlists: StateFlow<List<PlaylistOption>>,
+                val playlists: LazilyLoadedItems<PlaylistOption, Offset.Id<PlaylistId>>,
                 val onDoneClick: (playlistId: PlaylistToAddTo) -> Unit
             ) : State() {
                 data class ItemToAdd(
@@ -244,7 +256,8 @@ class AddToPlaylist(
         ) {
             val adding by loaded.adding.collectAsState()
             val itemToAdd by loaded.itemToAdd.collectAsState()
-            val playlists by loaded.playlists.collectAsState()
+            val playlists by loaded.playlists.items.collectAsState()
+            val loadingItems by loaded.playlists.loading.collectAsState()
             val lazyColumnState = rememberLazyListState()
 
             if (!adding) {
@@ -270,7 +283,7 @@ class AddToPlaylist(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            dev.younesgouyd.apps.music.client.components.util.Image(
+                            Image(
                                 modifier = Modifier.size(64.dp),
                                 file = itemToAdd.image
                             )
@@ -339,7 +352,7 @@ class AddToPlaylist(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            dev.younesgouyd.apps.music.client.components.util.Image(
+                                            Image(
                                                 modifier = Modifier.size(64.dp),
                                                 file = playlistOption.image
                                             )
@@ -352,9 +365,24 @@ class AddToPlaylist(
                                         }
                                     }
                                 }
+                                if (loadingItems) {
+                                    item {
+                                        Box(modifier = Modifier.fillMaxWidth().padding(10.dp), contentAlignment = Alignment.Center) {
+                                            CircularProgressIndicator(modifier = Modifier.size(50.dp), strokeWidth = 2.dp)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
+                }
+
+                LaunchedEffect(lazyColumnState) {
+                    snapshotFlow {
+                        lazyColumnState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                    }.map { it == null ||  it >= (playlists.size + 1) - 5  }
+                        .filter { it }
+                        .collect { loaded.playlists.loadMore() }
                 }
             } else {
                 Text(modifier = modifier, text = "Adding...")

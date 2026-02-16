@@ -166,6 +166,7 @@ class Main(
             }
         }
         selectedNavigationDrawerItem.value = item
+        minimizePlayer()
     }
 
     private fun getNewNavHost(startDestination: NavigationHost.Destination): NavigationHost {

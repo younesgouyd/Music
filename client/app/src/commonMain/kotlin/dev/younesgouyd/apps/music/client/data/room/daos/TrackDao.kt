@@ -22,7 +22,8 @@ abstract class TrackDao {
         join importsessionitem i on i.id = t.importSessionItemId
         left join spotifytrack sp on sp.id = t.spotifyTrackId
         left join tagtrackcrossref cr on cr.trackId = t.id
-        where (
+        where t.id > :lastId
+        and (
             (sp.name is not null and sp.name like :nameQuery)
             or (sp.name is null and i.title is not null and i.title like :nameQuery) 
         )
@@ -30,8 +31,16 @@ abstract class TrackDao {
             cr.tagId in (:tags)
             or (:includeUntagged and cr.trackId is null)
         )
+        order by t.id asc
+        limit :limit
     """)
-    abstract fun search(nameQuery: String, tags: List<TagId>, includeUntagged: Boolean): Flow<List<TrackRelation>>
+    abstract suspend fun search(
+        nameQuery: String,
+        tags: List<TagId>,
+        includeUntagged: Boolean,
+        limit: Int,
+        lastId: TrackId
+    ): List<TrackRelation>
 
     @Transaction
     @Query("select * from track where importSessionItemId = :id")
@@ -132,7 +141,8 @@ abstract class TrackDao {
         from track t
         join spotifytrack sp on sp.id = t.spotifyTrackId
         join spotifyartistspotifytrackcrossref cr on cr.spotifyTrackId = sp.id
-        where cr.spotifyArtistId = :id
+        where t.id > :lastId
+        and cr.spotifyArtistId = :id
         and cr.spotifyArtistId not in (
             select album_cr.spotifyArtistId
             from spotifyartistspotifyalbumcrossref album_cr 
@@ -140,8 +150,15 @@ abstract class TrackDao {
             and album_cr.spotifyArtistId = :id
         )
         and sp.name like :nameQuery
+        order by t.id asc
+        limit :limit
     """)
-    abstract fun searchArtistContributions(id: SpotifyArtistId, nameQuery: String): Flow<List<TrackRelation>>
+    abstract suspend fun searchArtistContributions(
+        id: SpotifyArtistId,
+        nameQuery: String,
+        limit: Int,
+        lastId: TrackId
+    ): List<TrackRelation>
 
     @Transaction
     @Query("""

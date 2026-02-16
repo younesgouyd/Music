@@ -24,10 +24,12 @@ import dev.younesgouyd.apps.music.client.data.repoes.SpotifyAlbumRepo
 import dev.younesgouyd.apps.music.client.data.repoes.SpotifyArtistRepo
 import dev.younesgouyd.apps.music.client.data.repoes.SpotifyTrackRepo
 import dev.younesgouyd.apps.music.client.util.Component
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import java.io.File
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class AlbumDetails(
     id: SpotifyAlbumId,
     albumRepo: SpotifyAlbumRepo,
@@ -51,7 +53,7 @@ class AlbumDetails(
                 }
             )
         }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
-        val spotifyTracks = spotifyTrackRepo.getAlbumTracks(id).map { dbList ->
+        val spotifyTracks = spotifyTrackRepo.getAlbumTracks(id).mapLatest { dbList ->
             dbList.map { dbTrack ->
                 Ui.State.Loaded.Track(
                     id = dbTrack.spotifyTrack.id,

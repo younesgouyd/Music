@@ -14,12 +14,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.MediaController
+import dev.younesgouyd.apps.music.client.components.ArtistDetails.Ui.State.Loaded.Track
 import dev.younesgouyd.apps.music.client.components.util.*
 import dev.younesgouyd.apps.music.client.data.SpotifyAlbumId
 import dev.younesgouyd.apps.music.client.data.SpotifyArtistId
 import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.client.data.repoes.*
 import dev.younesgouyd.apps.music.client.util.Component
+import dev.younesgouyd.apps.music.client.util.LazilyLoadedItems
+import dev.younesgouyd.apps.music.client.util.Offset
+import dev.younesgouyd.apps.music.client.util.PageSize
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -76,19 +80,27 @@ class ArtistDetails(
                             }
                         }
                     }.stateIn(coroutineScope),
-                    tracks = searchQuery.flatMapLatest { search ->
-                        trackRepo.searchArtistContributions(id, search).mapLatest { dbList ->
-                            dbList.map { dbTrack ->
-                                Ui.State.Loaded.Track(
-                                    id = dbTrack.track.id,
-                                    name = dbTrack.spotifyTrack!!.name,
-                                    image = mediaFileRepo.getSpotifyAlbumImage(dbTrack.spotifyTrack.spotifyAlbumId),
-                                    artists = artistRepo.getSpotifyTrackSpotifyArtists(dbTrack.track.spotifyTrackId!!).first().map {
-                                        Pair(it.id, it.name)
+                    tracks = searchQuery.mapLatest { search ->
+                        LazilyLoadedItems<Ui.State.Loaded.Track, Offset.Id<TrackId>>(
+                            coroutineScope = coroutineScope,
+                            load = { offset: Offset.Id<TrackId>, pageSize: PageSize ->
+                                val rows = trackRepo.searchArtistContributions(id, search, pageSize, offset)
+                                LazilyLoadedItems.Page(
+                                    nextOffset = rows.lastOrNull()?.track?.id?.let { Offset.Id(it) },
+                                    items = rows.map { dbTrack ->
+                                        Ui.State.Loaded.Track(
+                                            id = dbTrack.track.id,
+                                            name = dbTrack.spotifyTrack!!.name,
+                                            image = mediaFileRepo.getSpotifyAlbumImage(dbTrack.spotifyTrack.spotifyAlbumId),
+                                            artists = artistRepo.getSpotifyTrackSpotifyArtists(dbTrack.track.spotifyTrackId!!).first().map {
+                                                Pair(it.id, it.name)
+                                            }
+                                        )
                                     }
                                 )
-                            }
-                        }
+                            },
+                            initialOffset = Offset.Id.initial<TrackId>()
+                        )
                     }.stateIn(coroutineScope),
                     searchQuery = searchQuery.asStateFlow(),
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
@@ -196,7 +208,7 @@ class ArtistDetails(
                 val selectedTab: StateFlow<Pair<Int, Tab>>,
                 val artist: StateFlow<Artist>,
                 val albums: StateFlow<List<Album>>,
-                val tracks: StateFlow<List<Track>>,
+                val tracks: StateFlow<LazilyLoadedItems<Track, Offset.Id<TrackId>>>,
                 val searchQuery: StateFlow<String>,
                 val addToPlaylistDialogVisible: StateFlow<Boolean>,
                 val addToPlaylist: StateFlow<Component?>,
@@ -294,7 +306,7 @@ class ArtistDetails(
                 selectedTab: StateFlow<Pair<Int, State.Loaded.Tab>>,
                 artist: StateFlow<State.Loaded.Artist>,
                 albums: StateFlow<List<State.Loaded.Album>>,
-                tracks: StateFlow<List<State.Loaded.Track>>,
+                tracks: StateFlow<LazilyLoadedItems<Track, Offset.Id<TrackId>>>,
                 searchQuery: StateFlow<String>,
                 onTabClick: (Pair<Int, State.Loaded.Tab>) -> Unit,
                 onPlayClick: () -> Unit,
@@ -313,6 +325,8 @@ class ArtistDetails(
                 val artist by artist.collectAsState()
                 val albums by albums.collectAsState()
                 val tracks by tracks.collectAsState()
+                val items by tracks.items.collectAsState()
+                val loadingTracks by tracks.loading.collectAsState()
                 val searchQuery by searchQuery.collectAsState()
                 val selectedTab by selectedTab.collectAsState()
 
@@ -381,7 +395,7 @@ class ArtistDetails(
                                     }
                                     State.Loaded.Tab.Contributions -> {
                                         items(
-                                            items = tracks,
+                                            items = items,
                                             key = { it.id.value }
                                         ) { track ->
                                             TrackItem(
@@ -394,6 +408,13 @@ class ArtistDetails(
                                                 onAddToQueueClick = { onAddTrackToQueueClick(track.id) }
                                             )
                                         }
+                                        if (loadingTracks) {
+                                            item {
+                                                Box(modifier = Modifier.fillMaxWidth().padding(10.dp), contentAlignment = Alignment.Center) {
+                                                    CircularProgressIndicator(modifier = Modifier.size(50.dp), strokeWidth = 2.dp)
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -401,6 +422,14 @@ class ArtistDetails(
                     },
                     floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) }
                 )
+
+                LaunchedEffect(scrollState, tracks) {
+                    snapshotFlow {
+                        scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                    }.map { it == null ||  it >= (items.size + 3) - 5  }
+                        .filter { it && selectedTab.second == State.Loaded.Tab.Contributions }
+                        .collect { tracks.loadMore() }
+                }
             }
 
             @Composable
@@ -611,7 +640,7 @@ class ArtistDetails(
                 selectedTab: StateFlow<Pair<Int, State.Loaded.Tab>>,
                 artist: StateFlow<State.Loaded.Artist>,
                 albums: StateFlow<List<State.Loaded.Album>>,
-                tracks: StateFlow<List<State.Loaded.Track>>,
+                tracks: StateFlow<LazilyLoadedItems<Track, Offset.Id<TrackId>>>,
                 searchQuery: StateFlow<String>,
                 onTabClick: (Pair<Int, State.Loaded.Tab>) -> Unit,
                 onPlayClick: () -> Unit,
@@ -629,6 +658,8 @@ class ArtistDetails(
                 val artist by artist.collectAsState()
                 val albums by albums.collectAsState()
                 val tracks by tracks.collectAsState()
+                val items by tracks.items.collectAsState()
+                val loadingTracks by tracks.loading.collectAsState()
                 val searchQuery by searchQuery.collectAsState()
                 val selectedTab by selectedTab.collectAsState()
 
@@ -695,7 +726,7 @@ class ArtistDetails(
                                     }
                                     State.Loaded.Tab.Contributions -> {
                                         items(
-                                            items = tracks,
+                                            items = items,
                                             key = { it.id.value }
                                         ) { track ->
                                             TrackItem(
@@ -707,6 +738,13 @@ class ArtistDetails(
                                                 onAddToQueueClick = { onAddTrackToQueueClick(track.id) }
                                             )
                                         }
+                                        if (loadingTracks) {
+                                            item {
+                                                Box(modifier = Modifier.fillMaxWidth().padding(10.dp), contentAlignment = Alignment.Center) {
+                                                    CircularProgressIndicator(modifier = Modifier.size(50.dp), strokeWidth = 2.dp)
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -714,6 +752,14 @@ class ArtistDetails(
                     },
                     floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) }
                 )
+
+                LaunchedEffect(scrollState, tracks) {
+                    snapshotFlow {
+                        scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                    }.map { it == null ||  it >= (items.size + 3) - 5  }
+                        .filter { it && selectedTab.second == State.Loaded.Tab.Contributions }
+                        .collect { tracks.loadMore() }
+                }
             }
 
             @Composable

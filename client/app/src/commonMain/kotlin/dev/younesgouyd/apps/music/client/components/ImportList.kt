@@ -1,17 +1,13 @@
 package dev.younesgouyd.apps.music.client.components
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -20,11 +16,13 @@ import dev.younesgouyd.apps.music.client.data.ImportSessionId
 import dev.younesgouyd.apps.music.client.data.repoes.ImportSessionRepo
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSession
 import dev.younesgouyd.apps.music.client.util.Component
+import dev.younesgouyd.apps.music.client.util.LazilyLoadedItems
+import dev.younesgouyd.apps.music.client.util.Offset
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -40,7 +38,17 @@ class ImportList(
     init {
         coroutineScope.launch {
             state.value = Ui.State.Loaded(
-                imports = importSessionRepo.getAll().stateIn(coroutineScope),
+                imports = LazilyLoadedItems(
+                    coroutineScope = coroutineScope,
+                    load = { offset, limit ->
+                        val rows = importSessionRepo.getAll(limit, offset)
+                        LazilyLoadedItems.Page(
+                            nextOffset = if (rows.size < limit) { null } else { Offset.Index(offset.value + limit) },
+                            items = rows
+                        )
+                    },
+                    initialOffset = Offset.Index.initial()
+                ),
                 scrollState = LazyListState(),
                 onItemClick = showImportDetails
             )
@@ -63,7 +71,7 @@ class ImportList(
             data object Loading : State()
 
             data class Loaded(
-                val imports: StateFlow<List<ImportSession>>,
+                val imports: LazilyLoadedItems<ImportSession, Offset.Index>,
                 val scrollState: LazyListState,
                 val onItemClick: (ImportSessionId) -> Unit
             ) : State()
@@ -90,24 +98,25 @@ class ImportList(
         @Composable
         private fun Main(
             modifier: Modifier,
-            imports: StateFlow<List<ImportSession>>,
+            imports: LazilyLoadedItems<ImportSession, Offset.Index>,
             scrollState: LazyListState,
             onItemClick: (ImportSessionId) -> Unit
         ) {
-            val imports by imports.collectAsState()
+            val items by imports.items.collectAsState()
+            val loadingItems by imports.loading.collectAsState()
 
             Surface(
                 modifier = modifier
             ) {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
+                    state = scrollState,
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(8.dp),
-                    state = scrollState
+                    contentPadding = PaddingValues(8.dp)
                 ) {
                     items(
-                        items = imports
+                        items = items
                     ) { item ->
                         ImportItem(
                             modifier = Modifier.fillMaxWidth(),
@@ -115,7 +124,22 @@ class ImportList(
                             onClick = { onItemClick(item.id) }
                         )
                     }
+                    if (loadingItems) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(10.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(modifier = Modifier.size(50.dp), strokeWidth = 2.dp)
+                            }
+                        }
+                    }
                 }
+            }
+
+            LaunchedEffect(scrollState) {
+                snapshotFlow {
+                    scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                }.map { it == null ||  it >= items.size - 5  }
+                    .filter { it }
+                    .collect { imports.loadMore() }
             }
         }
 

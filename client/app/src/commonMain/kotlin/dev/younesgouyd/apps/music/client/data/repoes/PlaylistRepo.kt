@@ -6,13 +6,14 @@ import dev.younesgouyd.apps.music.client.data.TrackId
 import dev.younesgouyd.apps.music.client.data.room.daos.PlaylistDao
 import dev.younesgouyd.apps.music.client.data.room.entities.Playlist
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
+import dev.younesgouyd.apps.music.client.util.Offset
 import kotlinx.coroutines.flow.Flow
 
 class PlaylistRepo(
     private val dao: PlaylistDao
 ) {
-    fun getAll(): Flow<List<Playlist>> {
-        return dao.getAll()
+    suspend fun getAll(limit: Int, offset: Offset.Id<PlaylistId>): List<Playlist> {
+        return dao.getAll(limit, offset.value ?: PlaylistId(0))
     }
 
     fun get(id: PlaylistId): Flow<Playlist?> {

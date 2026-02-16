@@ -6,6 +6,7 @@ import dev.younesgouyd.apps.music.client.data.SpotifyTrackId
 import dev.younesgouyd.apps.music.client.data.room.daos.SpotifyArtistDao
 import dev.younesgouyd.apps.music.client.data.room.entities.SpotifyArtist
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
+import dev.younesgouyd.apps.music.client.util.Offset
 import kotlinx.coroutines.flow.Flow
 
 class SpotifyArtistRepo(
@@ -15,8 +16,12 @@ class SpotifyArtistRepo(
         return dao.get(id)
     }
 
-    fun search(nameQuery: String): Flow<List<SpotifyArtist>> {
-        return dao.search(nameQuery.toSearchQuery())
+    suspend fun search(nameQuery: String, limit: Int, offset: Offset.Id<SpotifyArtistId>): List<SpotifyArtist> {
+        return dao.search(
+            nameQuery = nameQuery.toSearchQuery(),
+            limit = limit,
+            lastId = offset.value ?: SpotifyArtistId(0)
+        )
     }
 
     fun getSpotifyTrackSpotifyArtists(id: SpotifyTrackId): Flow<List<SpotifyArtist>> {

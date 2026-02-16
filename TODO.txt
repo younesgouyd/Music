@@ -1,5 +1,4 @@
 
-- implement pagination.
 - in Library, support dragging items into folders.
 - check why when trying to launch system file picker on an old android os (android 10 if I remember), the app crashes
 - the items of import session containers may change in the source. so re-importing items is only possible
@@ -16,6 +15,7 @@
 - implement sorting playlists/albums/folders
 
 done:
+- implement pagination.
 - put import logic in a database transaction for each import item
 - verify not null assertions (!!)
 - support get(id) returning null

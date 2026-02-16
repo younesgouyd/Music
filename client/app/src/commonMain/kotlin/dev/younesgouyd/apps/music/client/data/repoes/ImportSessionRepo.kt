@@ -5,14 +5,15 @@ import dev.younesgouyd.apps.music.client.data.ImportSessionId
 import dev.younesgouyd.apps.music.client.data.MediaFileId
 import dev.younesgouyd.apps.music.client.data.room.daos.ImportSessionDao
 import dev.younesgouyd.apps.music.client.data.room.entities.ImportSession
+import dev.younesgouyd.apps.music.client.util.Offset
 import dev.younesgouyd.apps.music.common.Inspection
 import kotlinx.coroutines.flow.Flow
 
 class ImportSessionRepo(
     private val dao: ImportSessionDao
 ) {
-    fun getAll(): Flow<List<ImportSession>> {
-        return dao.getAll()
+    suspend fun getAll(limit: Int, offset: Offset.Index): List<ImportSession> {
+        return dao.getAll(limit, offset.value)
     }
 
     fun get(id: ImportSessionId): Flow<ImportSession?> {

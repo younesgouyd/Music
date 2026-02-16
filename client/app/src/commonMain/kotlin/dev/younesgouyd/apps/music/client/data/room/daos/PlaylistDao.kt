@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 abstract class PlaylistDao {
-    @Query("select * from playlist")
-    abstract fun getAll(): Flow<List<Playlist>>
+    @Query("select * from playlist where id > :lastId order by id asc limit :limit")
+    abstract suspend fun getAll(limit: Int, lastId: PlaylistId): List<Playlist>
 
     @Query("select * from playlist where id = :id")
     abstract fun get(id: PlaylistId): Flow<Playlist?>

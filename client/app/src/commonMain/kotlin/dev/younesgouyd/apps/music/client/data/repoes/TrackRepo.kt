@@ -6,6 +6,7 @@ import dev.younesgouyd.apps.music.client.data.room.entities.PlaylistTrack
 import dev.younesgouyd.apps.music.client.data.room.entities.Track
 import dev.younesgouyd.apps.music.client.data.room.entities.TrackRelation
 import dev.younesgouyd.apps.music.client.data.room.toSearchQuery
+import dev.younesgouyd.apps.music.client.util.Offset
 import kotlinx.coroutines.flow.Flow
 
 class TrackRepo(
@@ -15,8 +16,14 @@ class TrackRepo(
         return dao.get(id)
     }
 
-    fun search(nameQuery: String, tags: List<TagId>, includeUntagged: Boolean): Flow<List<TrackRelation>> {
-        return dao.search(nameQuery.toSearchQuery(), tags, includeUntagged)
+    suspend fun search(
+        nameQuery: String,
+        tags: List<TagId>,
+        includeUntagged: Boolean,
+        limit: Int,
+        offset: Offset.Id<TrackId>,
+    ): List<TrackRelation> {
+        return dao.search(nameQuery.toSearchQuery(), tags, includeUntagged, limit, offset.value ?: TrackId(0))
     }
 
     fun searchFolder(
@@ -28,8 +35,18 @@ class TrackRepo(
         return dao.searchFolder(folderId, nameQuery.toSearchQuery(), tags, includeUntagged)
     }
 
-    fun searchArtistContributions(id: SpotifyArtistId, nameQuery: String): Flow<List<TrackRelation>> {
-        return dao.searchArtistContributions(id, nameQuery.toSearchQuery())
+    suspend fun searchArtistContributions(
+        id: SpotifyArtistId,
+        nameQuery: String,
+        limit: Int,
+        offset: Offset.Id<TrackId>
+    ): List<TrackRelation> {
+        return dao.searchArtistContributions(
+            id = id,
+            nameQuery = nameQuery.toSearchQuery(),
+            limit = limit,
+            lastId = offset.value ?: TrackId(0)
+        )
     }
 
     fun searchPlaylist(id: PlaylistId, nameQuery: String): Flow<List<PlaylistTrack>> {
