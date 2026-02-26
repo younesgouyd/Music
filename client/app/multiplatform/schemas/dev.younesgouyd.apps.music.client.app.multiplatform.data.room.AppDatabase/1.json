@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "c269c9a928a3cde8d6f98bedc6d16049",
+    "identityHash": "d681ef887ebc72180372d5d9252a351b",
     "entities": [
       {
         "tableName": "Folder",
@@ -592,7 +592,7 @@
       },
       {
         "tableName": "SpotifyAlbum",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `spotifyId` TEXT NOT NULL, `name` TEXT NOT NULL, `albumType` TEXT NOT NULL, `releaseDate` TEXT NOT NULL, `releaseDatePrecision` TEXT NOT NULL, `smallImgId` INTEGER NOT NULL, `mediumImgId` INTEGER NOT NULL, `largeImgId` INTEGER NOT NULL, `apiResponse` TEXT NOT NULL, `creationDatetime` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`smallImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`mediumImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`largeImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `spotifyId` TEXT NOT NULL, `name` TEXT NOT NULL, `albumType` TEXT NOT NULL, `releaseDate` TEXT NOT NULL, `releaseDatePrecision` TEXT NOT NULL, `smallImgId` INTEGER, `mediumImgId` INTEGER, `largeImgId` INTEGER, `apiResponse` TEXT NOT NULL, `creationDatetime` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`smallImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`mediumImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`largeImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "id",
@@ -633,20 +633,17 @@
           {
             "fieldPath": "smallImgId",
             "columnName": "smallImgId",
-            "affinity": "INTEGER",
-            "notNull": true
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "mediumImgId",
             "columnName": "mediumImgId",
-            "affinity": "INTEGER",
-            "notNull": true
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "largeImgId",
             "columnName": "largeImgId",
-            "affinity": "INTEGER",
-            "notNull": true
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "apiResponse",
@@ -743,7 +740,7 @@
       },
       {
         "tableName": "SpotifyArtist",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `spotifyId` TEXT NOT NULL, `name` TEXT NOT NULL, `smallImgId` INTEGER NOT NULL, `mediumImgId` INTEGER NOT NULL, `largeImgId` INTEGER NOT NULL, `apiResponse` TEXT NOT NULL, `creationDatetime` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`smallImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`mediumImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`largeImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `spotifyId` TEXT NOT NULL, `name` TEXT NOT NULL, `smallImgId` INTEGER, `mediumImgId` INTEGER, `largeImgId` INTEGER, `apiResponse` TEXT NOT NULL, `creationDatetime` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`smallImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`mediumImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`largeImgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "id",
@@ -766,20 +763,17 @@
           {
             "fieldPath": "smallImgId",
             "columnName": "smallImgId",
-            "affinity": "INTEGER",
-            "notNull": true
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "mediumImgId",
             "columnName": "mediumImgId",
-            "affinity": "INTEGER",
-            "notNull": true
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "largeImgId",
             "columnName": "largeImgId",
-            "affinity": "INTEGER",
-            "notNull": true
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "apiResponse",
@@ -1391,7 +1385,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c269c9a928a3cde8d6f98bedc6d16049')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd681ef887ebc72180372d5d9252a351b')"
     ]
   }
 }

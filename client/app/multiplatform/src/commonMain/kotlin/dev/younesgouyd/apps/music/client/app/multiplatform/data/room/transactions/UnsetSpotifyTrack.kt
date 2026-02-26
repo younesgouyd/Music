@@ -33,13 +33,13 @@ abstract class UnsetSpotifyTrack {
             val albumToDelete = getAlbum(spotifyAlbumId)
             val artistsToDelete = getArtistsToDelete(spotifyAlbumId)
             val mediaFilesToDelete: Set<MediaFileId> = buildSet {
-                add(albumToDelete.largeImgId)
-                add(albumToDelete.mediumImgId)
-                add(albumToDelete.smallImgId)
+                albumToDelete.largeImgId?.let { add(it) }
+                albumToDelete.mediumImgId?.let { add(it) }
+                albumToDelete.smallImgId?.let { add(it) }
                 for (artist in artistsToDelete) {
-                    add(artist.largeImgId)
-                    add(artist.mediumImgId)
-                    add(artist.smallImgId)
+                    artist.largeImgId?.let { add(it) }
+                    artist.mediumImgId?.let { add(it) }
+                    artist.smallImgId?.let { add(it) }
                 }
             }
             deleteAlbum(spotifyAlbumId)

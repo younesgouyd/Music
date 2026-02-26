@@ -5,11 +5,13 @@ import androidx.room.Query
 import androidx.room.Transaction
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.*
 import dev.younesgouyd.libs.music.client.spotifyapi.SpotifyApi
-import dev.younesgouyd.libs.music.client.spotifyapi.models.Artist
 import dev.younesgouyd.libs.music.client.spotifyapi.models.Track
 import dev.younesgouyd.libs.music.client.spotifyapi.models.common.ArtistId
+import dev.younesgouyd.libs.music.client.spotifyapi.models.common.ImageObject
 import dev.younesgouyd.libs.music.client.spotifyapi.models.common.SimplifiedArtistObject
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.withContext
 import java.net.URI
 import java.net.URL
 
@@ -36,40 +38,57 @@ abstract class SetTrackMetadataFromSpotify {
                     }
                 }
             }
-            val artists: List<Pair<String, Artist>> = spotifyApi.getArtists(
-                artistIds = spotifyArtistIds.filter { it.value == null }.map { it.key }
-            )
-            val artistImages: Map<ArtistId, ArtistImages> = buildMap {
-                for ((_, artist) in artists) {
-                    val large: Deferred<ByteArray> = async { URI(artist.images!![0].url).toURL().readBytes2() }
-                    val medium: Deferred<ByteArray> = async { URI(artist.images!![1].url).toURL().readBytes2() }
-                    val small: Deferred<ByteArray> = async { URI(artist.images!![2].url).toURL().readBytes2() }
-                    put(artist.id, ArtistImages(large.await(), medium.await(), small.await()))
-                }
-            }
-            val albumImgLarge: ByteArray = URI(albumObj.images[0].url).toURL().readBytes2()
-            val albumImgMedium: ByteArray = URI(albumObj.images[1].url).toURL().readBytes2()
-            val albumImgSmall: ByteArray = URI(albumObj.images[2].url).toURL().readBytes2()
+            val albumImgLarge: ByteArray? = albumObj.images.getImg(0)
+            val albumImgMedium: ByteArray? = albumObj.images.getImg(1)
+            val albumImgSmall: ByteArray? = albumObj.images.getImg(2)
 
-            val artistMediaFileIds = mutableMapOf<ArtistId, ImageIds>()
             val insertedArtistIds = mutableMapOf<ArtistId, SpotifyArtistId>()
-            for ((artistJson, artistObj) in artists) {
-                val images = addImages()
+            spotifyApi.getArtists(
+                artistIds = spotifyArtistIds.filter { it.value == null }.map { it.key }
+            ).forEach { (artistJson, artistObj) ->
+                val imageIds = ImageIds()
+                val large: ByteArray? = artistObj.images.getImg(0)
+                val medium: ByteArray? = artistObj.images.getImg(1)
+                val small: ByteArray? = artistObj.images.getImg(2)
+                if (large != null) {
+                    imageIds.large = getNewMediaFileId()
+                    fileManager.saveMediaFile(large, imageIds.large!!)
+                }
+                if (medium != null) {
+                    imageIds.medium = getNewMediaFileId()
+                    fileManager.saveMediaFile(medium, imageIds.medium!!)
+                }
+                if (small != null) {
+                    imageIds.small = getNewMediaFileId()
+                    fileManager.saveMediaFile(small, imageIds.small!!)
+                }
                 val id = SpotifyArtistId(
                     addSpotifyArtist(
                         spotifyId = artistObj.id.value,
                         name = artistObj.name,
-                        smallImgId = images.small,
-                        mediumImgId = images.medium,
-                        largeImgId = images.large,
+                        smallImgId = imageIds.small,
+                        mediumImgId = imageIds.medium,
+                        largeImgId = imageIds.large,
                         apiResponse = artistJson,
                         creationDatetime = System.currentTimeMillis()
                     )
                 )
                 insertedArtistIds[artistObj.id] = id
-                artistMediaFileIds[artistObj.id] = images
             }
-            val albumMediaFileIds = addImages()
+
+            val albumMediaFileIds = ImageIds()
+            if (albumImgLarge != null) {
+                albumMediaFileIds.large = getNewMediaFileId()
+                fileManager.saveMediaFile(albumImgLarge, albumMediaFileIds.large!!)
+            }
+            if (albumImgMedium != null) {
+                albumMediaFileIds.medium = getNewMediaFileId()
+                fileManager.saveMediaFile(albumImgMedium, albumMediaFileIds.medium!!)
+            }
+            if (albumImgSmall != null) {
+                albumMediaFileIds.small = getNewMediaFileId()
+                fileManager.saveMediaFile(albumImgSmall, albumMediaFileIds.small!!)
+            }
             val albumId = SpotifyAlbumId(
                 addSpotifyAlbum(
                     spotifyId = albumObj.id.value,
@@ -97,19 +116,20 @@ abstract class SetTrackMetadataFromSpotify {
             var spotifyTrackIdToSet: SpotifyTrackId? = null
             for (track in albumTracks) {
                 val (trackJson, trackObj) = track
-                val spotifyTrackId = SpotifyTrackId(
-                    addSpotifyTrack(
-                        spotifyId = trackObj.id.value,
-                        name = trackObj.name,
-                        spotifyAlbumId = albumId,
-                        discNumber = trackObj.discNumber,
-                        trackNumber = trackObj.trackNumber,
-                        durationMs = trackObj.durationMs,
-                        explicit = trackObj.explicit,
-                        apiResponse = trackJson,
-                        creationDatetime = System.currentTimeMillis()
+                val spotifyTrackId =
+                    SpotifyTrackId(
+                        addSpotifyTrack(
+                            spotifyId = trackObj.id.value,
+                            name = trackObj.name,
+                            spotifyAlbumId = albumId,
+                            discNumber = trackObj.discNumber,
+                            trackNumber = trackObj.trackNumber,
+                            durationMs = trackObj.durationMs,
+                            explicit = trackObj.explicit,
+                            apiResponse = trackJson,
+                            creationDatetime = System.currentTimeMillis()
+                        )
                     )
-                )
                 trackObj.artists.toDbIds().forEach {
                     addArtistTrackCrossRef(it, spotifyTrackId, System.currentTimeMillis())
                 }
@@ -119,16 +139,6 @@ abstract class SetTrackMetadataFromSpotify {
             }
             if (spotifyTrackIdToSet == null) { TODO() }
             updateTrackSpotifyTrackId(spotifyTrackIdToSet, System.currentTimeMillis(), trackId)
-
-            fileManager.saveMediaFile(albumImgLarge, albumMediaFileIds.large)
-            fileManager.saveMediaFile(albumImgMedium, albumMediaFileIds.medium)
-            fileManager.saveMediaFile(albumImgSmall, albumMediaFileIds.small)
-            for ((artistId, imageIds) in artistMediaFileIds) {
-                val images = artistImages[artistId] ?: TODO()
-                fileManager.saveMediaFile(images.large, imageIds.large)
-                fileManager.saveMediaFile(images.small, imageIds.small)
-                fileManager.saveMediaFile(images.medium, imageIds.medium)
-            }
         }
     }
 
@@ -176,9 +186,9 @@ abstract class SetTrackMetadataFromSpotify {
         albumType: String,
         releaseDate: String,
         releaseDatePrecision: String,
-        smallImgId: MediaFileId,
-        mediumImgId: MediaFileId,
-        largeImgId: MediaFileId,
+        smallImgId: MediaFileId?,
+        mediumImgId: MediaFileId?,
+        largeImgId: MediaFileId?,
         apiResponse: String,
         creationDatetime: Long
     ): Long
@@ -227,23 +237,23 @@ abstract class SetTrackMetadataFromSpotify {
     @Query("insert into mediafile (creationDatetime) values (:creationDatetime)")
     protected abstract suspend fun addMediaFile(creationDatetime: Long): Long
 
-    private suspend fun addImages() = ImageIds(
-        large = MediaFileId(addMediaFile(System.currentTimeMillis())),
-        medium = MediaFileId(addMediaFile(System.currentTimeMillis())),
-        small = MediaFileId(addMediaFile(System.currentTimeMillis()))
-    )
+    private suspend fun getNewMediaFileId(): MediaFileId {
+        return MediaFileId(addMediaFile(System.currentTimeMillis()))
+    }
 
     private data class ImageIds(
-        val large: MediaFileId,
-        val medium: MediaFileId,
-        val small: MediaFileId
+        var large: MediaFileId? = null,
+        var medium: MediaFileId? = null,
+        var small: MediaFileId? = null
     )
 
-    private class ArtistImages(
-        val large: ByteArray,
-        val medium: ByteArray,
-        val small: ByteArray
-    )
+    private suspend fun List<ImageObject>?.getImg(index: Int): ByteArray? {
+        return withContext(Dispatchers.IO) {
+            this@getImg?.getOrNull(index)?.let {
+                URI(it.url).toURL().readBytes2()
+            }
+        }
+    }
 }
 
 expect fun URL.readBytes2(): ByteArray
