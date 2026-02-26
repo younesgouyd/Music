@@ -1,6 +1,8 @@
 rootProject.name = "Music"
 
-include(":client:app")
+include(":client:app:android")
+include(":client:app:jvm")
+include(":client:app:multiplatform")
 include(":client:spotifyapi")
 include(":server")
 include(":common")
@@ -24,47 +26,51 @@ dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
             val versions = object {
-                val java = version("java", "22")
-                val kotlin = version("kotlin", "2.2.0")
-                val json = version("json", "1.9.0")
-                val jsonJava = version("jsonJava", "20250517")
+                val java = version("java", "17")
+                val kotlin = version("kotlin", "2.3.10")
+                val json = version("json", "1.10.0")
+                val jsonJava = version("jsonJava", "20251224")
                 val coroutines = version("coroutines", "1.10.2")
-                val room = version("room", "2.8.1")
-                val sqlite = version("sqlite", "2.6.1")
-                val ksp = version("ksp", "2.2.0-2.0.2")
-                val slf4j = version("slf4j", "2.0.17")
-                val log4j = version("log4j", "2.25.1")
+                val room = version("room", "2.8.4")
+                val sqlite = version("sqlite", "2.6.2")
+                val ksp = version("ksp", "2.3.5")
+                val logging = version("logging", "8.0.01")
                 val logback = object {
-                    val jvm = version("logback.jvm", "1.5.18")
+                    val jvm = version("logback.jvm", "1.5.31")
                     val android = version("logback.android", "3.0.0")
                 }
-                val ktor = version("ktor", "3.2.3")
-                val compose = version("compose.jetbrains", "1.8.2")
-                val reorderable = version("reorderable", "0.9.6")
+                val ktor = version("ktor", "3.4.0")
+                val compose = object {
+                    val plugin = version("compose.jetbrains", "1.10.1")
+                    val material3 = version("compose.material3", "1.9.0")
+                    val materialIconsExtended = version("compose.materialIconsExtended", "1.7.3")
+                }
                 val android = object {
-                    val agp = version("agp", "8.10.0")
-                    val coreKtx = version("coreKtx", "1.16.0")
+                    val agp = version("agp", "8.12.0")
+                    val coreKtx = version("coreKtx", "1.17.0")
                     val appcompat = version("appcompat", "1.7.1")
-                    val activity = version("android.activity", "1.10.1")
-                    val media3 = version("android.media3", "1.7.1")
+                    val activity = version("android.activity", "1.12.3")
+                    val media3 = version("android.media3", "1.9.2")
                     val documentfile = version("documentfile", "1.1.0")
                 }
-                val vlcj = version("vlcj", "4.11.0")
+                val vlcj = version("vlcj", "4.12.1")
                 val mp3agic = version("mp3agic", "0.9.1")
                 val tika = version("tika", "3.2.3")
             }
 
-            plugin("kotlin.jvm", "org.jetbrains.kotlin.jvm").versionRef(versions.kotlin)
-            plugin("kotlin.serialization", "org.jetbrains.kotlin.plugin.serialization").versionRef(versions.kotlin)
             plugin("kotlin.multiplatform", "org.jetbrains.kotlin.multiplatform").versionRef(versions.kotlin)
-            plugin("composeMultiplatform", "org.jetbrains.compose").versionRef(versions.compose)
+            plugin("kotlin.jvm", "org.jetbrains.kotlin.jvm").versionRef(versions.kotlin)
+            plugin("kotlin.android", "org.jetbrains.kotlin.android").versionRef(versions.kotlin)
+            plugin("kotlin.serialization", "org.jetbrains.kotlin.plugin.serialization").versionRef(versions.kotlin)
+            plugin("composeMultiplatform", "org.jetbrains.compose").versionRef(versions.compose.plugin)
             plugin("composeCompiler", "org.jetbrains.kotlin.plugin.compose").versionRef(versions.kotlin)
             plugin("ksp", "com.google.devtools.ksp").versionRef(versions.ksp)
             plugin("room", "androidx.room").versionRef(versions.room)
             plugin("androidApplication", "com.android.application").versionRef(versions.android.agp)
-            plugin("androidLibrary", "com.android.library").versionRef(versions.android.agp)
+            plugin("androidMultiplatform", "com.android.kotlin.multiplatform.library").versionRef(versions.android.agp)
 
-            library("reorderable", "org.burnoutcrew.composereorderable", "reorderable").versionRef(versions.reorderable)
+            library("compose.material3", "org.jetbrains.compose.material3", "material3").versionRef(versions.compose.material3)
+            library("compose.materialIconsExtended", "org.jetbrains.compose.material", "material-icons-extended").versionRef(versions.compose.materialIconsExtended)
 
             library("json", "org.jetbrains.kotlinx", "kotlinx-serialization-json").versionRef(versions.json)
             library("jsonJava", "org.json", "json").versionRef(versions.jsonJava)
@@ -82,9 +88,7 @@ dependencyResolutionManagement {
             library("mp3agic", "com.mpatric", "mp3agic").versionRef(versions.mp3agic)
             library("tika", "org.apache.tika", "tika-core").versionRef(versions.tika)
 
-            library("slf4j", "org.slf4j", "slf4j-api").versionRef(versions.slf4j)
-            library("log4j.core", "org.apache.logging.log4j", "log4j-core").versionRef(versions.log4j)
-            library("log4j.slf4jImpl", "org.apache.logging.log4j", "log4j-slf4j-impl").versionRef(versions.log4j)
+            library("logging", "io.github.oshai", "kotlin-logging").versionRef(versions.logging)
             library("logback.jvm", "ch.qos.logback", "logback-classic").versionRef(versions.logback.jvm)
             library("logback.android", "com.github.tony19", "logback-android").versionRef(versions.logback.android)
 
