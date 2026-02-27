@@ -1,13 +1,11 @@
 package dev.younesgouyd.apps.music.client.app.multiplatform.components
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -30,7 +28,6 @@ import dev.younesgouyd.apps.music.client.app.multiplatform.data.*
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.repoes.*
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.entities.Folder
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.entities.Playlist
-import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.entities.Tag
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.entities.TrackRelation
 import dev.younesgouyd.apps.music.client.app.multiplatform.usecases.ClearImportItemUseCase
 import dev.younesgouyd.apps.music.client.app.multiplatform.usecases.DeleteFolderUseCase
@@ -74,8 +71,17 @@ class Library(
     private val moveToFolder: MutableStateFlow<MoveToFolder?> = MutableStateFlow(null)
     private val searchQuery = MutableStateFlow("")
     private val tagSearchQuery = MutableStateFlow("")
+    private val enableFiltering = MutableStateFlow(false)
+    private val includeUntagged = MutableStateFlow(false)
     private val uiState: Ui.State
 
+    private data class Filter(
+        val currentFolder: Folder?,
+        val search: String,
+        val tags: List<TagId>,
+        val enableFiltering: Boolean,
+        val includeUntagged: Boolean
+    )
     init {
         val root = Ui.State.NodeState(null, LazyGridState())
         var list: List<Ui.State.NodeState> = listOf(root)
@@ -110,21 +116,45 @@ class Library(
                 loadingTracks, importingFolder
             ) { l1, l2, l3, l4 -> l1 || l2 || l3 || l4 }
                 .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), true),
-            tags = combine(tagSearchQuery, selectedTags) { query, selected -> Pair(query, selected) }
-                .flatMapLatest { (query, selected) ->
-                    tagRepo.search(query).map { tags ->
-                        tags.sortedWith { first, second ->
-                            val b1 = selected.contains(first.id)
-                            val b2 = selected.contains(second.id)
-                            if (b1 && b2) 0
-                            else if (b1) -1
-                            else 1
-                        }
-                    }
-                }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
-            selectedTags = selectedTags.asStateFlow(),
             searchQuery = searchQuery.asStateFlow(),
-            tagSearchQuery = tagSearchQuery.asStateFlow(),
+            tagsFilterState = TagsFilterState(
+                tags = combine(tagSearchQuery, selectedTags) { search, selected -> Pair(search, selected) }
+                    .flatMapLatest { (search, selected) ->
+                        tagRepo.search(search).map {
+                            it.sortedWith { first, second ->
+                                val b1 = selected.contains(first.id)
+                                val b2 = selected.contains(second.id)
+                                if (b1 && b2) 0
+                                else if (b1) -1
+                                else 1
+                            }.map { dbTag ->
+                                TagsFilterState.Tag(
+                                    id = dbTag.id,
+                                    name = dbTag.name,
+                                    selected = selected.contains(dbTag.id)
+                                )
+                            }
+                        }
+                    }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
+                searchQuery = tagSearchQuery.asStateFlow(),
+                enableFiltering = enableFiltering.asStateFlow(),
+                includeUntagged = includeUntagged.asStateFlow(),
+                onSearchQueryChange = { tagSearchQuery.value = it },
+                onEnableFilteringChange = { enableFiltering.value = it },
+                onIncludeUntaggedChange = { includeUntagged.value = it },
+                checkTag = { id ->
+                    selectedTags.update { list ->
+                        if (list.contains(id)) TODO()
+                        list + listOf(id)
+                    }
+                },
+                uncheckTag = { id ->
+                    selectedTags.update { list ->
+                        if (!list.contains(id)) TODO()
+                        list.filter { it != id }
+                    }
+                }
+            ),
             folders = combine(currentFolder, searchQuery) { folder, search -> Pair(folder, search) }
                 .onEach { loadingFolders.value = true }
                 .flatMapLatest { (folder, search) -> folderRepo.searchFolder(folder?.id, search) }
@@ -136,31 +166,25 @@ class Library(
                 .map { dbPlaylists -> dbPlaylists.toPlaylistModels() }
                 .onEach { loadingPlaylists.value = false }
                 .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
-            tracks = combine(currentFolder, searchQuery, selectedTags) { folder, search, tags -> Triple(folder, search, tags) }
-                .onEach { loadingTracks.value = true }
-                .flatMapLatest { (folder, search, tags) ->
-                    if (folder == null) flow { emit(emptyList<TrackRelation>()) }
-                    else trackRepo.searchFolder(folder.id, search, tags, false)
-                }.mapLatest { dbTracks -> dbTracks.toTrackModels() }
-                .onEach { loadingTracks.value = false }
-                .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
+            tracks = combine(
+                currentFolder, searchQuery,
+                selectedTags, enableFiltering,
+                includeUntagged
+            ) { currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged ->
+                Filter(currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged)
+            }.onEach { loadingTracks.value = true }
+            .flatMapLatest { (currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged) ->
+                when {
+                    currentFolder == null -> flow { emit(emptyList<TrackRelation>()) }
+                    enableFiltering -> trackRepo.searchFolder(currentFolder.id, searchQuery, selectedTags, includeUntagged)
+                    else -> trackRepo.searchFolder(currentFolder.id, searchQuery)
+                }
+            }.mapLatest { dbTracks -> dbTracks.toTrackModels() }
+            .onEach { loadingTracks.value = false }
+            .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
             onNewFolder = ::addFolder,
             onFolderClick = { currentFolder.value = it },
-            onSearchQueryChange = { value: String ->
-                searchQuery.value = value
-            },
-            onTagSearchQueryChange = { value: String ->
-                tagSearchQuery.value = value
-            },
-            onTagClick = { id: TagId ->
-                selectedTags.update { list ->
-                    if (list.contains(id)) {
-                        list.filter { it != id }
-                    } else {
-                        list.toMutableList().also { it.add(id) }
-                    }
-                }
-            },
+            onSearchQueryChange = { value: String -> searchQuery.value = value },
             onAddFolderToPlaylistClick = { folderId: FolderId ->
                 addToPlaylist.update {
                     if (it != null) TODO()
@@ -451,13 +475,9 @@ class Library(
         data class State(
             val path: StateFlow<List<NodeState>>,
             val loadingItems: StateFlow<Boolean>,
-            val tags: StateFlow<List<Tag>>,
-            val selectedTags: StateFlow<List<TagId>>,
             val searchQuery: StateFlow<String>,
-            val tagSearchQuery: StateFlow<String>,
+            val tagsFilterState: TagsFilterState,
             val onSearchQueryChange: (String) -> Unit,
-            val onTagSearchQueryChange: (String) -> Unit,
-            val onTagClick: (TagId) -> Unit,
             val folders: StateFlow<List<Folder>>,
             val playlists: StateFlow<List<Playlist>>,
             val tracks: StateFlow<List<Track>>,
@@ -556,74 +576,6 @@ class Library(
                     }
                 }
             }
-
-            @Composable
-            fun Tags(
-                modifier: Modifier,
-                tags: StateFlow<List<Tag>>,
-                selectedTags: StateFlow<List<TagId>>,
-                tagSearchQuery: StateFlow<String>,
-                onTagSearchQueryChange: (String) -> Unit,
-                onTagClick: (TagId) -> Unit
-            ) {
-                val tags by tags.collectAsState()
-                val selectedTags by selectedTags.collectAsState()
-                val tagSearchQuery by tagSearchQuery.collectAsState()
-                var isSearchTagVisible by remember { mutableStateOf(false) }
-
-                FlowRow(
-                    modifier = modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    itemVerticalAlignment = Alignment.CenterVertically,
-                    maxLines = 1
-                ) {
-                    if (isSearchTagVisible) {
-                        OutlinedTextField(
-                            leadingIcon = { Icon(Icons.Default.Search, null) },
-                            label = { Text("Search tags") },
-                            value = tagSearchQuery,
-                            maxLines = 1,
-                            onValueChange = onTagSearchQueryChange,
-                            trailingIcon = {
-                                IconButton(
-                                    onClick = { isSearchTagVisible = false },
-                                    content = { Icon(Icons.Default.Close, null) }
-                                )
-                            }
-                        )
-                    } else {
-                        IconButton(
-                            onClick = { isSearchTagVisible = true },
-                            content = { Icon(Icons.Default.Search, null) }
-                        )
-                    }
-                    for (tag in tags) {
-                        val selected = selectedTags.contains(tag.id)
-                        FilterChip(
-                            leadingIcon = if (selected) {
-                                {
-                                    Icon(
-                                        imageVector = Icons.Default.Done,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                    )
-                                }
-                            } else {
-                                {
-                                    Icon(
-                                        imageVector = Icons.Default.Tag,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                    )
-                                }
-                            },
-                            label = { Text(tag.name) },
-                            selected = selected,
-                            onClick = { onTagClick(tag.id) }
-                        )
-                    }
-                }
-            }
         }
 
         object Wide {
@@ -637,13 +589,9 @@ class Library(
                     modifier = modifier,
                     path = state.path,
                     loadingItems = state.loadingItems,
-                    tags = state.tags,
-                    selectedTags = state.selectedTags,
                     searchQuery = state.searchQuery,
-                    tagSearchQuery = state.tagSearchQuery,
+                    tagsFilterState = state.tagsFilterState,
                     onSearchQueryChange = state.onSearchQueryChange,
-                    onTagSearchQueryChange = state.onTagSearchQueryChange,
-                    onTagClick = state.onTagClick,
                     folders = state.folders,
                     playlists = state.playlists,
                     tracks = state.tracks,
@@ -678,13 +626,9 @@ class Library(
                 modifier: Modifier,
                 path: StateFlow<List<State.NodeState>>,
                 loadingItems: StateFlow<Boolean>,
-                tags: StateFlow<List<Tag>>,
-                selectedTags: StateFlow<List<TagId>>,
                 searchQuery: StateFlow<String>,
-                tagSearchQuery: StateFlow<String>,
+                tagsFilterState: TagsFilterState,
                 onSearchQueryChange: (String) -> Unit,
-                onTagSearchQueryChange: (String) -> Unit,
-                onTagClick: (TagId) -> Unit,
                 folders: StateFlow<List<Folder>>,
                 playlists: StateFlow<List<State.Playlist>>,
                 tracks: StateFlow<List<State.Track>>,
@@ -722,11 +666,7 @@ class Library(
                 }
                 Scaffold(
                     modifier = modifier,
-                    floatingActionButton = {
-                        _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.ScrollToTopFloatingActionButton(
-                            scrollState
-                        )
-                    },
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) },
                     content = { paddingValues ->
                         Column(
                             modifier = Modifier.fillMaxSize().padding(paddingValues),
@@ -737,16 +677,12 @@ class Library(
                             ToolBar(
                                 modifier = Modifier.fillMaxWidth(),
                                 path = path.mapNotNull { it.folder },
-                                tags = tags,
-                                selectedTags = selectedTags,
                                 searchQuery = searchQuery,
-                                tagSearchQuery = tagSearchQuery,
+                                tagsFilterState = tagsFilterState,
                                 onFolderClick = onFolderClick,
                                 onImportClick = onImportClick,
                                 onNewFolder = onNewFolder,
-                                onSearchQueryChange = onSearchQueryChange,
-                                onTagSearchQueryChange = onTagSearchQueryChange,
-                                onTagClick = onTagClick
+                                onSearchQueryChange = onSearchQueryChange
                             )
                             LazyVerticalGrid(
                                 modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -814,16 +750,12 @@ class Library(
             private fun ToolBar(
                 modifier: Modifier,
                 path: List<Folder>,
-                tags: StateFlow<List<Tag>>,
-                selectedTags: StateFlow<List<TagId>>,
                 searchQuery: StateFlow<String>,
-                tagSearchQuery: StateFlow<String>,
+                tagsFilterState: TagsFilterState,
                 onFolderClick: (Folder?) -> Unit,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
-                onSearchQueryChange: (String) -> Unit,
-                onTagSearchQueryChange: (String) -> Unit,
-                onTagClick: (TagId) -> Unit
+                onSearchQueryChange: (String) -> Unit
             ) {
                 val pathLazyListState = rememberLazyListState()
                 val searchQuery by searchQuery.collectAsState()
@@ -942,13 +874,9 @@ class Library(
                             }
                         }
                     }
-                    Common.Tags(
+                    TagsFilter(
                         modifier = Modifier.fillMaxWidth(),
-                        tags = tags,
-                        selectedTags = selectedTags,
-                        tagSearchQuery = tagSearchQuery,
-                        onTagSearchQueryChange = onTagSearchQueryChange,
-                        onTagClick = onTagClick
+                        state = tagsFilterState
                     )
                 }
 
@@ -967,7 +895,6 @@ class Library(
 
             @Composable
             private fun FolderItem(
-                modifier: Modifier = Modifier,
                 folder: Folder,
                 onClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
@@ -981,10 +908,7 @@ class Library(
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
-                _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Item(
-                    modifier = modifier,
-                    onClick = onClick
-                ) {
+                Item(onClick = onClick) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
@@ -1032,8 +956,8 @@ class Library(
                 }
 
                 if (showContextMenu) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.ItemContextMenu(
-                        item = _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Item(
+                    ItemContextMenu(
+                        item = Item(
                             name = folder.name,
                             image = null // TODO
                         ),
@@ -1086,7 +1010,7 @@ class Library(
                 }
 
                 if (showDeleteConfirmationDialog) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.DeleteConfirmationDialog(
+                    DeleteConfirmationDialog(
                         message = "Delete folder \"${folder.name}\" and all of its contents?",
                         onDismissRequest = { showDeleteConfirmationDialog = false },
                         onYesClick = {
@@ -1100,7 +1024,6 @@ class Library(
 
             @Composable
             private fun PlaylistItem(
-                modifier: Modifier = Modifier,
                 playlist: State.Playlist,
                 onClick: () -> Unit,
                 onPlayClick: () -> Unit,
@@ -1114,15 +1037,12 @@ class Library(
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
-                _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Item(
-                    modifier = modifier,
-                    onClick = onClick
-                ) {
+                Item(onClick = onClick) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Image(
+                        Image(
                             modifier = Modifier.aspectRatio(1f),
                             file = null,
                             contentScale = ContentScale.FillWidth,
@@ -1164,8 +1084,8 @@ class Library(
                 }
 
                 if (showContextMenu) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.ItemContextMenu(
-                        item = _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Item(
+                    ItemContextMenu(
+                        item = Item(
                             name = playlist.name,
                             image = null
                         ),
@@ -1218,7 +1138,7 @@ class Library(
                 }
 
                 if (showDeleteConfirmationDialog) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.DeleteConfirmationDialog(
+                    DeleteConfirmationDialog(
                         message = "Delete playlist \"${playlist.name}\"?",
                         onDismissRequest = { showDeleteConfirmationDialog = false },
                         onYesClick = {
@@ -1232,7 +1152,6 @@ class Library(
 
             @Composable
             private fun TrackItem(
-                modifier: Modifier = Modifier,
                 track: State.Track,
                 onClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
@@ -1244,15 +1163,12 @@ class Library(
                 var showContextMenu by remember { mutableStateOf(false) }
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
 
-                _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Item(
-                    modifier = modifier,
-                    onClick = onClick
-                ) {
+                Item(onClick = onClick) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Image(
+                        Image(
                             modifier = Modifier.aspectRatio(1f),
                             file = track.image,
                             contentScale = ContentScale.FillWidth,
@@ -1316,14 +1232,14 @@ class Library(
                 }
 
                 if (showContextMenu) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.ItemContextMenu(
+                    ItemContextMenu(
                         item = {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Image(
+                                Image(
                                     modifier = Modifier.size(64.dp),
                                     file = track.image
                                 )
@@ -1367,7 +1283,7 @@ class Library(
                 }
 
                 if (showDeleteConfirmationDialog) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.DeleteConfirmationDialog(
+                    DeleteConfirmationDialog(
                         message = "Delete track \"${track.name}\"?",
                         onDismissRequest = { showDeleteConfirmationDialog = false },
                         onYesClick = {
@@ -1436,13 +1352,9 @@ class Library(
                     modifier = modifier,
                     path = state.path,
                     loadingItems = state.loadingItems,
-                    tags = state.tags,
-                    selectedTags = state.selectedTags,
                     searchQuery = state.searchQuery,
-                    tagSearchQuery = state.tagSearchQuery,
+                    tagsFilterState = state.tagsFilterState,
                     onSearchQueryChange = state.onSearchQueryChange,
-                    onTagSearchQueryChange = state.onTagSearchQueryChange,
-                    onTagClick = state.onTagClick,
                     folders = state.folders,
                     playlists = state.playlists,
                     tracks = state.tracks,
@@ -1477,13 +1389,9 @@ class Library(
                 modifier: Modifier,
                 path: StateFlow<List<State.NodeState>>,
                 loadingItems: StateFlow<Boolean>,
-                tags: StateFlow<List<Tag>>,
-                selectedTags: StateFlow<List<TagId>>,
                 searchQuery: StateFlow<String>,
-                tagSearchQuery: StateFlow<String>,
+                tagsFilterState: TagsFilterState,
                 onSearchQueryChange: (String) -> Unit,
-                onTagSearchQueryChange: (String) -> Unit,
-                onTagClick: (TagId) -> Unit,
                 folders: StateFlow<List<Folder>>,
                 playlists: StateFlow<List<State.Playlist>>,
                 tracks: StateFlow<List<State.Track>>,
@@ -1522,11 +1430,7 @@ class Library(
 
                 Scaffold(
                     modifier = modifier,
-                    floatingActionButton = {
-                        _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.ScrollToTopFloatingActionButton(
-                            scrollState
-                        )
-                    },
+                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) },
                     content = { paddingValues ->
                         Column(
                             modifier = Modifier.fillMaxSize().padding(paddingValues),
@@ -1537,16 +1441,12 @@ class Library(
                             ToolBar(
                                 modifier = Modifier.fillMaxWidth(),
                                 path = path.mapNotNull { it.folder },
-                                tags = tags,
-                                selectedTags = selectedTags,
                                 searchQuery = searchQuery,
-                                tagSearchQuery = tagSearchQuery,
+                                tagsFilterState = tagsFilterState,
                                 onFolderClick = onFolderClick,
                                 onImportClick = onImportClick,
                                 onNewFolder = onNewFolder,
-                                onSearchQueryChange = onSearchQueryChange,
-                                onTagSearchQueryChange = onTagSearchQueryChange,
-                                onTagClick = onTagClick
+                                onSearchQueryChange = onSearchQueryChange
                             )
                             LazyVerticalGrid(
                                 modifier = Modifier.fillMaxSize().padding(12.dp),
@@ -1614,16 +1514,12 @@ class Library(
             private fun ToolBar(
                 modifier: Modifier,
                 path: List<Folder>,
-                tags: StateFlow<List<Tag>>,
-                selectedTags: StateFlow<List<TagId>>,
                 searchQuery: StateFlow<String>,
-                tagSearchQuery: StateFlow<String>,
+                tagsFilterState: TagsFilterState,
                 onFolderClick: (Folder?) -> Unit,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
-                onSearchQueryChange: (String) -> Unit,
-                onTagSearchQueryChange: (String) -> Unit,
-                onTagClick: (TagId) -> Unit
+                onSearchQueryChange: (String) -> Unit
             ) {
                 val pathLazyListState = rememberLazyListState()
                 val searchQuery by searchQuery.collectAsState()
@@ -1742,13 +1638,9 @@ class Library(
                             }
                         }
                     }
-                    Common.Tags(
+                    TagsFilter(
                         modifier = Modifier.fillMaxWidth(),
-                        tags = tags,
-                        selectedTags = selectedTags,
-                        tagSearchQuery = tagSearchQuery,
-                        onTagSearchQueryChange = onTagSearchQueryChange,
-                        onTagClick = onTagClick
+                        state = tagsFilterState
                     )
                 }
 
@@ -1767,7 +1659,6 @@ class Library(
 
             @Composable
             private fun FolderItem(
-                modifier: Modifier = Modifier,
                 folder: Folder,
                 onClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
@@ -1781,8 +1672,7 @@ class Library(
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
-                _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Item(
-                    modifier = modifier,
+                Item(
                     onClick = onClick,
                     onLongClick = { showContextMenu = true }
                 ) {
@@ -1818,8 +1708,8 @@ class Library(
                 }
 
                 if (showContextMenu) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.ItemContextMenu(
-                        item = _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Item(
+                    ItemContextMenu(
+                        item = Item(
                             name = folder.name,
                             image = null // TODO
                         ),
@@ -1877,7 +1767,7 @@ class Library(
                 }
 
                 if (showDeleteConfirmationDialog) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.DeleteConfirmationDialog(
+                    DeleteConfirmationDialog(
                         message = "Delete folder \"${folder.name}\" and all of its contents?",
                         onDismissRequest = { showDeleteConfirmationDialog = false },
                         onYesClick = {
@@ -1891,7 +1781,6 @@ class Library(
 
             @Composable
             private fun PlaylistItem(
-                modifier: Modifier = Modifier,
                 playlist: State.Playlist,
                 onClick: () -> Unit,
                 onPlayClick: () -> Unit,
@@ -1905,8 +1794,7 @@ class Library(
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
-                _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Item(
-                    modifier = modifier,
+                Item(
                     onClick = onClick,
                     onLongClick = { showContextMenu = true }
                 ) {
@@ -1914,7 +1802,7 @@ class Library(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Image(
+                        Image(
                             modifier = Modifier.aspectRatio(1f),
                             file = null,
                             contentScale = ContentScale.FillWidth,
@@ -1941,8 +1829,8 @@ class Library(
                 }
 
                 if (showContextMenu) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.ItemContextMenu(
-                        item = _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Item(
+                    ItemContextMenu(
+                        item = Item(
                             name = playlist.name,
                             image = null
                         ),
@@ -2000,7 +1888,7 @@ class Library(
                 }
 
                 if (showDeleteConfirmationDialog) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.DeleteConfirmationDialog(
+                    DeleteConfirmationDialog(
                         message = "Delete playlist \"${playlist.name}\"?",
                         onDismissRequest = { showDeleteConfirmationDialog = false },
                         onYesClick = {
@@ -2014,7 +1902,6 @@ class Library(
 
             @Composable
             private fun TrackItem(
-                modifier: Modifier = Modifier,
                 track: State.Track,
                 onClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
@@ -2026,8 +1913,7 @@ class Library(
                 var showContextMenu by remember { mutableStateOf(false) }
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
 
-                _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Item(
-                    modifier = modifier,
+                Item(
                     onClick = onClick,
                     onLongClick = { showContextMenu = true }
                 ) {
@@ -2035,7 +1921,7 @@ class Library(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Image(
+                        Image(
                             modifier = Modifier.aspectRatio(1f),
                             file = track.image,
                             contentScale = ContentScale.FillWidth,
@@ -2083,14 +1969,14 @@ class Library(
                 }
 
                 if (showContextMenu) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.ItemContextMenu(
+                    ItemContextMenu(
                         item = {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Image(
+                                Image(
                                     modifier = Modifier.size(64.dp),
                                     file = track.image
                                 )
@@ -2134,7 +2020,7 @@ class Library(
                 }
 
                 if (showDeleteConfirmationDialog) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.DeleteConfirmationDialog(
+                    DeleteConfirmationDialog(
                         message = "Delete track \"${track.name}\"?",
                         onDismissRequest = { showDeleteConfirmationDialog = false },
                         onYesClick = {

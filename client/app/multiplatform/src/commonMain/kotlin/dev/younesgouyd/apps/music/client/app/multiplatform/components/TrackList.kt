@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,10 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.app.multiplatform.MediaController
-import dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Image
-import dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Item
-import dev.younesgouyd.apps.music.client.app.multiplatform.components.util.TagsFilter
-import dev.younesgouyd.apps.music.client.app.multiplatform.components.util.TagsFilterState
+import dev.younesgouyd.apps.music.client.app.multiplatform.components.util.*
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.SpotifyArtistId
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.TagId
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.TrackId
@@ -29,6 +27,7 @@ import dev.younesgouyd.apps.music.client.app.multiplatform.data.repoes.MediaFile
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.repoes.SpotifyArtistRepo
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.repoes.TagRepo
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.repoes.TrackRepo
+import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.entities.TrackRelation
 import dev.younesgouyd.apps.music.client.app.multiplatform.util.Component
 import dev.younesgouyd.apps.music.client.app.multiplatform.util.LazilyLoadedItems
 import dev.younesgouyd.apps.music.client.app.multiplatform.util.Offset
@@ -52,52 +51,81 @@ class TrackList(
     override val title: String = "Tracks"
     private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
 
+    private data class Filter(
+        val search: String,
+        val tags: List<TagId>,
+        val enableFiltering: Boolean,
+        val includeUntagged: Boolean
+    )
     init {
         val searchQuery = MutableStateFlow("")
         val tagSearchQuery = MutableStateFlow("")
         val selectedTags = MutableStateFlow(emptyList<TagId>())
+        val enableFiltering = MutableStateFlow(true)
         val includeUntagged = MutableStateFlow(true)
-        val tracks = combine(searchQuery, selectedTags, includeUntagged) { search, tags, untagged -> Triple(search, tags, untagged) }
-            .mapLatest { (search, tags, untagged) ->
-                LazilyLoadedItems(
-                    coroutineScope = coroutineScope,
-                    load = { offset, pageSize: PageSize ->
-                        val rows = trackRepo.search(
-                            nameQuery = search,
-                            tags = tags,
-                            includeUntagged = untagged,
-                            limit = pageSize,
-                            offset = offset
-                        )
-                        LazilyLoadedItems.Page(
-                            nextOffset = rows.lastOrNull()?.track?.id?.let {
-                                Offset.Id(it)
-                            },
-                            items = rows.map { dbTrack ->
-                                Ui.State.Loaded.Track(
-                                    id = dbTrack.track.id,
-                                    name = dbTrack.spotifyTrack?.name ?: dbTrack.originalImport.title,
-                                    image = if (dbTrack.spotifyTrack != null) {
-                                        mediaFileRepo.getSpotifyAlbumImage(dbTrack.spotifyTrack.spotifyAlbumId)
-                                    } else {
-                                        mediaFileRepo.getImportSessionItemImage(dbTrack.track.importSessionItemId)
-                                    },
-                                    artists = if (dbTrack.spotifyTrack != null) {
-                                        artistRepo.getSpotifyTrackSpotifyArtists(dbTrack.spotifyTrack.id).first()
-                                            .map { dbArtist ->
-                                                Ui.State.Loaded.Track.Artist(dbArtist.id, dbArtist.name)
-                                            }
-                                    } else {
-                                        dbTrack.originalImport.inspection.artists.map {
-                                            Ui.State.Loaded.Track.Artist(null, it)
-                                        }
-                                    }
-                                )
+
+        suspend fun List<TrackRelation>.toModel(): LazilyLoadedItems.Page<Ui.State.Loaded.Track, Offset.Id<TrackId>> {
+            return LazilyLoadedItems.Page(
+                nextOffset = this.lastOrNull()?.track?.id?.let { Offset.Id(it) },
+                items = this.map { dbTrack ->
+                    Ui.State.Loaded.Track(
+                        id = dbTrack.track.id,
+                        name = dbTrack.spotifyTrack?.name ?: dbTrack.originalImport.title,
+                        image = if (dbTrack.spotifyTrack != null) {
+                            mediaFileRepo.getSpotifyAlbumImage(dbTrack.spotifyTrack.spotifyAlbumId)
+                        } else {
+                            mediaFileRepo.getImportSessionItemImage(dbTrack.track.importSessionItemId)
+                        },
+                        artists = if (dbTrack.spotifyTrack != null) {
+                            artistRepo.getSpotifyTrackSpotifyArtists(dbTrack.spotifyTrack.id).first()
+                                .map { dbArtist ->
+                                    Ui.State.Loaded.Track.Artist(dbArtist.id, dbArtist.name)
+                                }
+                        } else {
+                            dbTrack.originalImport.inspection.artists.map {
+                                Ui.State.Loaded.Track.Artist(null, it)
                             }
+                        }
+                    )
+                }
+            )
+        }
+
+        val tracks = combine(
+            searchQuery, selectedTags,
+            enableFiltering, includeUntagged
+        ) { search, tags, enableFiltering, untagged -> Filter(search, tags, enableFiltering, untagged) }
+            .mapLatest { (search, tags, enableFiltering, untagged) ->
+                when (enableFiltering) {
+                    true -> {
+                        LazilyLoadedItems(
+                            coroutineScope = coroutineScope,
+                            load = { offset, pageSize: PageSize ->
+                                trackRepo.search(
+                                    nameQuery = search,
+                                    tags = tags,
+                                    includeUntagged = untagged,
+                                    limit = pageSize,
+                                    offset = offset
+                                ).toModel()
+                            },
+                            initialOffset = Offset.Id.initial<TrackId>()
                         )
-                    },
-                    initialOffset = Offset.Id.initial<TrackId>()
-                )
+                    }
+                    false -> {
+                        LazilyLoadedItems(
+                            coroutineScope = coroutineScope,
+                            load = { offset, pageSize: PageSize ->
+                                trackRepo.search(
+                                    nameQuery = search,
+                                    limit = pageSize,
+                                    offset = offset
+                                ).toModel()
+                            },
+                            initialOffset = Offset.Id.initial<TrackId>()
+                        )
+                    }
+                }
             }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
         coroutineScope.launch {
             state.value = Ui.State.Loaded(
@@ -105,13 +133,17 @@ class TrackList(
                 tracks = tracks.filterNotNull().stateIn(coroutineScope),
                 tagsFilterState = TagsFilterState(
                     tags = combine(
-                        tagSearchQuery,
-                        selectedTags,
-                        includeUntagged
-                    ) { search, selected, untagged -> Triple(search, selected, untagged) }
-                        .flatMapLatest { (search, selected, untagged) ->
+                        tagSearchQuery, selectedTags
+                    ) { search, selected -> Pair(search, selected) }
+                        .flatMapLatest { (search, selected) ->
                             tagRepo.search(search).map {
-                                it.map { dbTag ->
+                                it.sortedWith { first, second ->
+                                    val b1 = selected.contains(first.id)
+                                    val b2 = selected.contains(second.id)
+                                    if (b1 && b2) 0
+                                    else if (b1) -1
+                                    else 1
+                                }.map { dbTag ->
                                     TagsFilterState.Tag(
                                         id = dbTag.id,
                                         name = dbTag.name,
@@ -120,9 +152,11 @@ class TrackList(
                                 }
                             }
                         }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
-                    searchQuery = tagSearchQuery,
+                    searchQuery = tagSearchQuery.asStateFlow(),
+                    enableFiltering = enableFiltering.asStateFlow(),
                     includeUntagged = includeUntagged.asStateFlow(),
                     onSearchQueryChange = { tagSearchQuery.value = it },
+                    onEnableFilteringChange = { enableFiltering.value = it },
                     onIncludeUntaggedChange = { includeUntagged.value = it },
                     checkTag = { id ->
                         selectedTags.update { list ->
@@ -261,7 +295,12 @@ class TrackList(
                             contentPadding = PaddingValues(vertical = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(18.dp),
                             verticalArrangement = Arrangement.spacedBy(18.dp),
-                            columns = GridCells.Adaptive(200.dp)
+                            columns = GridCells.Adaptive(
+                                minSize = when (getWindowSizeClass()) {
+                                    WindowWidthSizeClass.Compact -> { 100.dp }
+                                    else -> { 200.dp }
+                                }
+                            )
                         ) {
                             items(items) { track ->
                                 TrackItem(
@@ -302,16 +341,12 @@ class TrackList(
 
         @Composable
         private fun TrackItem(
-            modifier: Modifier = Modifier,
             track: State.Loaded.Track,
             onClick: () -> Unit,
             onArtistClick: (SpotifyArtistId) -> Unit,
             onDetailsClick: () -> Unit
         ) {
-            Item(
-                modifier = modifier,
-                onClick = onClick
-            ) {
+            Item(onClick = onClick) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center

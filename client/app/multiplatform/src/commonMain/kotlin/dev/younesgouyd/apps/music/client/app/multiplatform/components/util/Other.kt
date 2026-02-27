@@ -1,8 +1,5 @@
 package dev.younesgouyd.apps.music.client.app.multiplatform.components.util
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.TweenSpec
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -11,13 +8,12 @@ import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,39 +39,25 @@ expect fun SystemFilePicker(
 )
 
 @Composable
+expect fun getWindowSizeClass(): WindowWidthSizeClass
+
+@Composable
 fun AdaptiveUi(
     wide: @Composable () -> Unit,
     compact: @Composable () -> Unit,
-    onStateChange: ((WindowSizeClass) -> Unit)? = null
+    onStateChange: ((WindowWidthSizeClass) -> Unit)? = null
 ) {
     val latestOnStateChange by rememberUpdatedState(onStateChange)
-    val windowInfo = LocalWindowInfo.current
-    val density = LocalDensity.current
-
-    val windowSizeClass = remember(windowInfo.containerSize.width, density) {
-        with(density) {
-            if (windowInfo.containerSize.width.toDp() < 1000.dp) WindowSizeClass.Compact
-            else WindowSizeClass.Wide
-        }
-    }
+    val windowSizeClass = getWindowSizeClass()
 
     LaunchedEffect(windowSizeClass) {
         latestOnStateChange?.invoke(windowSizeClass)
     }
 
     when (windowSizeClass) {
-        WindowSizeClass.Compact -> compact()
-        WindowSizeClass.Wide -> wide()
+        WindowWidthSizeClass.Compact -> compact()
+        else -> wide()
     }
-}
-
-enum class WindowSizeClass { Wide, Compact }
-
-fun <T> linearAnimation(duration: Duration): TweenSpec<T> {
-    return tween(
-        durationMillis = duration.inWholeMilliseconds.toInt(), //TODO
-        easing = LinearEasing
-    )
 }
 
 fun Duration?.formatted(): String {

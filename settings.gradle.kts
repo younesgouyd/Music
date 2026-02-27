@@ -70,6 +70,7 @@ dependencyResolutionManagement {
             plugin("androidMultiplatform", "com.android.kotlin.multiplatform.library").versionRef(versions.android.agp)
 
             library("compose.material3", "org.jetbrains.compose.material3", "material3").versionRef(versions.compose.material3)
+            library("compose.windowSizeClass", "org.jetbrains.compose.material3", "material3-window-size-class").versionRef(versions.compose.material3)
             library("compose.materialIconsExtended", "org.jetbrains.compose.material", "material-icons-extended").versionRef(versions.compose.materialIconsExtended)
 
             library("json", "org.jetbrains.kotlinx", "kotlinx-serialization-json").versionRef(versions.json)

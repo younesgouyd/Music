@@ -1,8 +1,17 @@
 package dev.younesgouyd.apps.music.client.app.multiplatform.components.util
 
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import javax.swing.JFileChooser
+
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
+@Composable
+actual fun getWindowSizeClass(): WindowWidthSizeClass {
+    return calculateWindowSizeClass().widthSizeClass
+}
 
 @Composable
 actual fun SystemFolderPicker(

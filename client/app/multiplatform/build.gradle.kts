@@ -25,6 +25,7 @@ kotlin {
             implementation(libs.jsonJava)
             implementation(libs.coroutines.core)
             implementation(libs.compose.material3)
+            implementation(libs.compose.windowSizeClass)
             implementation(libs.compose.materialIconsExtended)
             implementation(libs.room.runtime)
             implementation(libs.mp3agic)

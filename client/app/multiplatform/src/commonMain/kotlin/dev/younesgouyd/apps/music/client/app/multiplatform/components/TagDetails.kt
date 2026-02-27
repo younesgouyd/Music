@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Image
+import dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Item
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.SpotifyArtistId
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.TagId
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.TrackId
@@ -261,7 +263,7 @@ class TagDetails(
             onArtistClick: (SpotifyArtistId) -> Unit,
             onRemoveClick: () -> Unit
         ) {
-            _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Item(
+            Item(
                 modifier = modifier,
                 onClick = onClick
             ) {
@@ -270,7 +272,7 @@ class TagDetails(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    _root_ide_package_.dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Image(
+                    Image(
                         modifier = Modifier.size(250.dp),
                         file = track.image
                     )

@@ -9,13 +9,17 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.ui.Modifier
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        lateinit var instance: MainActivity // TODO
+            private set
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        instance = this
         enableEdgeToEdge()
         setContent {
             MusicAndroidApp.music.show(
-                Modifier.fillMaxSize()
-                    .systemBarsPadding()
+                Modifier.fillMaxSize().systemBarsPadding()
             )
         }
     }

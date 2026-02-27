@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,7 +34,7 @@ class Player(
     queue: @Composable (Modifier) -> Unit
 ) : Component() {
     override val title: String = "Player"
-    private var windowSizeClass: WindowSizeClass? = null
+    private var windowSizeClass: WindowWidthSizeClass? = null
     private val state: StateFlow<Ui.State>
 
     init {
@@ -55,25 +56,25 @@ class Player(
                     queue = queue,
                     onToggleTrackVisibility = {
                         when (windowSizeClass) {
-                            WindowSizeClass.Wide -> isTrackVisible.update { !it }
-                            WindowSizeClass.Compact -> {
+                            WindowWidthSizeClass.Compact -> {
                                 isTrackVisible.update {
                                     if (!it) { isQueueVisible.value = false }
                                     !it
                                 }
                             }
+                            WindowWidthSizeClass.Medium, WindowWidthSizeClass.Expanded -> isTrackVisible.update { !it }
                             null -> TODO()
                         }
                     },
                     onToggleQueueVisibility = {
                         when (windowSizeClass) {
-                            WindowSizeClass.Wide -> isQueueVisible.update { !it }
-                            WindowSizeClass.Compact -> {
+                            WindowWidthSizeClass.Compact -> {
                                 isQueueVisible.update {
                                     if (!it) { isTrackVisible.value = false }
                                     !it
                                 }
                             }
+                            WindowWidthSizeClass.Medium, WindowWidthSizeClass.Expanded -> isQueueVisible.update { !it }
                             null -> TODO()
                         }
                     },

@@ -18,15 +18,37 @@ class TrackRepo(
 
     suspend fun search(
         nameQuery: String,
+        limit: Int,
+        offset: Offset.Id<TrackId>,
+    ): List<TrackRelation> {
+        return dao.search(
+            nameQuery = nameQuery.toSearchQuery(),
+            limit = limit,
+            lastId = offset.value ?: TrackId(0)
+        )
+    }
+
+    suspend fun search(
+        nameQuery: String,
         tags: List<TagId>,
         includeUntagged: Boolean,
         limit: Int,
         offset: Offset.Id<TrackId>,
     ): List<TrackRelation> {
-        return dao.search(nameQuery.toSearchQuery(), tags, includeUntagged, limit, offset.value ?: TrackId(
-            0
+        return dao.search(
+            nameQuery = nameQuery.toSearchQuery(),
+            tags = tags,
+            includeUntagged = includeUntagged,
+            limit = limit,
+            lastId = offset.value ?: TrackId(0)
         )
-        )
+    }
+
+    fun searchFolder(
+        folderId: FolderId,
+        nameQuery: String
+    ): Flow<List<TrackRelation>> {
+        return dao.searchFolder(folderId, nameQuery.toSearchQuery())
     }
 
     fun searchFolder(
