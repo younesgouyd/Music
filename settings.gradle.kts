@@ -44,6 +44,7 @@ dependencyResolutionManagement {
                     val plugin = version("compose.jetbrains", "1.10.1")
                     val material3 = version("compose.material3", "1.9.0")
                     val materialIconsExtended = version("compose.materialIconsExtended", "1.7.3")
+                    val uiDesktop = version("compose.uiDesktop", "1.10.1")
                 }
                 val android = object {
                     val agp = version("agp", "8.12.0")
@@ -72,6 +73,7 @@ dependencyResolutionManagement {
             library("compose.material3", "org.jetbrains.compose.material3", "material3").versionRef(versions.compose.material3)
             library("compose.windowSizeClass", "org.jetbrains.compose.material3", "material3-window-size-class").versionRef(versions.compose.material3)
             library("compose.materialIconsExtended", "org.jetbrains.compose.material", "material-icons-extended").versionRef(versions.compose.materialIconsExtended)
+            library("compose.uiDesktop", "org.jetbrains.compose.ui", "ui-desktop").versionRef(versions.compose.uiDesktop)
 
             library("json", "org.jetbrains.kotlinx", "kotlinx-serialization-json").versionRef(versions.json)
             library("jsonJava", "org.json", "json").versionRef(versions.jsonJava)

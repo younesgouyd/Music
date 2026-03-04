@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.app.multiplatform.MediaController
+import dev.younesgouyd.apps.music.client.app.multiplatform.Music
 import dev.younesgouyd.apps.music.client.app.multiplatform.components.util.*
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.*
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.repoes.*
@@ -73,6 +74,7 @@ class Library(
     private val tagSearchQuery = MutableStateFlow("")
     private val enableFiltering = MutableStateFlow(false)
     private val includeUntagged = MutableStateFlow(false)
+    private val path: StateFlow<List<Ui.State.NodeState>>
     private val uiState: Ui.State
 
     private data class Filter(
@@ -85,32 +87,33 @@ class Library(
     init {
         val root = Ui.State.NodeState(null, LazyGridState())
         var list: List<Ui.State.NodeState> = listOf(root)
+        path = flow {
+            fun <T> List<T>.takeUntil(predicate: (T) -> Boolean): List<T> {
+                val list = mutableListOf<T>()
+                for (item in this) {
+                    list.add(item)
+                    if (predicate(item)) {
+                        break
+                    }
+                }
+                return list
+            }
+            currentFolder.collect { folder ->
+                if (folder == null) {
+                    list = listOf(root)
+                    emit(list)
+                } else {
+                    val temp = list.takeUntil { it.folder?.id == folder.id }.toMutableList()
+                    if (!temp.any { it.folder?.id == folder.id }) {
+                        temp.add(Ui.State.NodeState(folder, LazyGridState()))
+                    }
+                    list = temp
+                    emit(list)
+                }
+            }
+        }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = list)
         uiState = Ui.State(
-            path = flow {
-                fun <T> List<T>.takeUntil(predicate: (T) -> Boolean): List<T> {
-                    val list = mutableListOf<T>()
-                    for (item in this) {
-                        list.add(item)
-                        if (predicate(item)) {
-                            break
-                        }
-                    }
-                    return list
-                }
-                currentFolder.collect { folder ->
-                    if (folder == null) {
-                        list = listOf(root)
-                        emit(list)
-                    } else {
-                        val temp = list.takeUntil { it.folder?.id == folder.id }.toMutableList()
-                        if (!temp.any { it.folder?.id == folder.id }) {
-                            temp.add(Ui.State.NodeState(folder, LazyGridState()))
-                        }
-                        list = temp
-                        emit(list)
-                    }
-                }
-            }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = list),
+            path = path,
             loadingItems = combine(
                 loadingFolders, loadingPlaylists,
                 loadingTracks, importingFolder
@@ -173,15 +176,15 @@ class Library(
             ) { currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged ->
                 Filter(currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged)
             }.onEach { loadingTracks.value = true }
-            .flatMapLatest { (currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged) ->
-                when {
-                    currentFolder == null -> flow { emit(emptyList<TrackRelation>()) }
-                    enableFiltering -> trackRepo.searchFolder(currentFolder.id, searchQuery, selectedTags, includeUntagged)
-                    else -> trackRepo.searchFolder(currentFolder.id, searchQuery)
-                }
-            }.mapLatest { dbTracks -> dbTracks.toTrackModels() }
-            .onEach { loadingTracks.value = false }
-            .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
+                .flatMapLatest { (currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged) ->
+                    when {
+                        currentFolder == null -> flow { emit(emptyList<TrackRelation>()) }
+                        enableFiltering -> trackRepo.searchFolder(currentFolder.id, searchQuery, selectedTags, includeUntagged)
+                        else -> trackRepo.searchFolder(currentFolder.id, searchQuery)
+                    }
+                }.mapLatest { dbTracks -> dbTracks.toTrackModels() }
+                .onEach { loadingTracks.value = false }
+                .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
             onNewFolder = ::addFolder,
             onFolderClick = { currentFolder.value = it },
             onSearchQueryChange = { value: String -> searchQuery.value = value },
@@ -350,6 +353,18 @@ class Library(
         var isImportTypeDialogVisible by remember { mutableStateOf(false) }
         val addToPlaylist by addToPlaylist.collectAsState()
         val moveToFolder by moveToFolder.collectAsState()
+        val path by path.collectAsState()
+
+        DisposableEffect(Unit) {
+            Music.registerBackHandler {
+                if (path.size > 1) {
+                    currentFolder.value = path.getOrNull(path.size - 2)?.folder
+                }
+            }
+            onDispose {
+                Music.unregisterLastBackHandler()
+            }
+        }
 
         AdaptiveUi(
             wide = {

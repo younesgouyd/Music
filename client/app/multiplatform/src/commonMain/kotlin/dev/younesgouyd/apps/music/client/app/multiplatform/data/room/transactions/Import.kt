@@ -60,7 +60,7 @@ abstract class Import {
         fileName: String,
         importSessionItemId: ImportSessionItemId,
         data: InputStream,
-        folderId: FolderId,
+        folderId: FolderId?,
         fileManager: FileManager
     ): Pair<TrackId, MediaFileId> {
         val currentTime = System.currentTimeMillis()
@@ -86,7 +86,7 @@ abstract class Import {
     private suspend fun importFromInternet(
         uri: String,
         importSessionItemId: ImportSessionItemId,
-        folderId: FolderId,
+        folderId: FolderId?,
         server: Server,
         fileManager: FileManager
     ): Pair<TrackId, MediaFileId>? {
@@ -144,7 +144,7 @@ abstract class Import {
     protected abstract suspend fun addTrack(
         importSessionItemId: ImportSessionItemId,
         spotifyTrackId: SpotifyTrackId?,
-        folderId: FolderId,
+        folderId: FolderId?,
         creationDatetime: Long,
         updateDatetime: Long
     ): Long

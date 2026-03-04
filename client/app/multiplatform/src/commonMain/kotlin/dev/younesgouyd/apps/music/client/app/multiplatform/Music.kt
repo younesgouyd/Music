@@ -1,10 +1,14 @@
 package dev.younesgouyd.apps.music.client.app.multiplatform
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.*
+import androidx.compose.ui.input.pointer.isBackPressed
+import androidx.compose.ui.input.pointer.pointerInput
 import dev.younesgouyd.apps.music.client.app.multiplatform.components.Main
 import dev.younesgouyd.apps.music.client.app.multiplatform.components.ReinitializeAppData
 import dev.younesgouyd.apps.music.client.app.multiplatform.components.SplashScreen
@@ -18,13 +22,29 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import java.io.File
+import java.util.*
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
 abstract class Music {
     companion object {
+        private val logger = KotlinLogging.logger {}
         var coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
             private set
+
+        private var backHandlers: Stack<() -> Unit> = Stack()
+
+        fun registerBackHandler(onBack: () -> Unit) {
+            backHandlers.push(onBack)
+        }
+
+        fun unregisterLastBackHandler() {
+            try {
+                backHandlers.pop()
+            } catch (e: EmptyStackException) {
+                logger.warn(e) { }
+            }
+        }
     }
     private val logger = KotlinLogging.logger {}
 
@@ -53,12 +73,35 @@ abstract class Music {
     fun show(modifier: Modifier) {
         val currentComponent by currentComponent.collectAsState()
 
-        currentComponent.show(modifier.fillMaxSize())
+        Box(modifier.pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) {
+                    val event = awaitPointerEvent()
+                    if (event.buttons.isBackPressed) {
+                        navigateBack()
+                    }
+                }
+            }
+        }
+            .onKeyEvent {
+                if (it.type == KeyEventType.KeyUp && it.key == Key.Backspace) {
+                    navigateBack()
+                }
+                true
+            }
+            .fillMaxSize()) {
+            currentComponent.show(Modifier.fillMaxSize())
+        }
+//        currentComponent.show(Modifier.fillMaxSize())
     }
 
     fun clear() {
         currentComponent.value.clear()
         coroutineScope.cancel()
+    }
+
+    fun navigateBack() {
+        backHandlers.lastOrNull()?.invoke()
     }
 
     protected suspend fun initApp() {

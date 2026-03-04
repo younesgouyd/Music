@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "d681ef887ebc72180372d5d9252a351b",
+    "identityHash": "dbe7e6cae06596498526b7260813c921",
     "entities": [
       {
         "tableName": "Folder",
@@ -71,7 +71,7 @@
       },
       {
         "tableName": "ImportSession",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uri` TEXT NOT NULL, `sourceType` TEXT NOT NULL, `inspection` TEXT NOT NULL, `destinationFolderId` INTEGER NOT NULL, `imgId` INTEGER, `creationDatetime` INTEGER NOT NULL, FOREIGN KEY(`destinationFolderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE SET NULL , FOREIGN KEY(`imgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uri` TEXT NOT NULL, `sourceType` TEXT NOT NULL, `inspection` TEXT NOT NULL, `destinationFolderId` INTEGER, `imgId` INTEGER, `creationDatetime` INTEGER NOT NULL, FOREIGN KEY(`destinationFolderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE SET NULL , FOREIGN KEY(`imgId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -100,8 +100,7 @@
           {
             "fieldPath": "destinationFolderId",
             "columnName": "destinationFolderId",
-            "affinity": "INTEGER",
-            "notNull": true
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "imgId",
@@ -1273,7 +1272,7 @@
       },
       {
         "tableName": "Track",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `importSessionItemId` INTEGER NOT NULL, `spotifyTrackId` INTEGER, `folderId` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`importSessionItemId`) REFERENCES `ImportSessionItem`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`spotifyTrackId`) REFERENCES `SpotifyTrack`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `importSessionItemId` INTEGER NOT NULL, `spotifyTrackId` INTEGER, `folderId` INTEGER, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`importSessionItemId`) REFERENCES `ImportSessionItem`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`spotifyTrackId`) REFERENCES `SpotifyTrack`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "id",
@@ -1295,8 +1294,7 @@
           {
             "fieldPath": "folderId",
             "columnName": "folderId",
-            "affinity": "INTEGER",
-            "notNull": true
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "creationDatetime",
@@ -1385,7 +1383,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd681ef887ebc72180372d5d9252a351b')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'dbe7e6cae06596498526b7260813c921')"
     ]
   }
 }

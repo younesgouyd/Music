@@ -37,7 +37,7 @@ data class ImportSession(
     val uri: String,
     val sourceType: SourceType,
     val inspection: Inspection.ContainerInspection,
-    val destinationFolderId: FolderId,
+    val destinationFolderId: FolderId?,
     val imgId: MediaFileId?,
     val creationDatetime: Long
 ) {

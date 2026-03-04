@@ -2,6 +2,7 @@ package dev.younesgouyd.apps.music.client.app.multiplatform
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +22,9 @@ class MainActivity : ComponentActivity() {
             MusicAndroidApp.music.show(
                 Modifier.fillMaxSize().systemBarsPadding()
             )
+        }
+        onBackPressedDispatcher.addCallback(this) {
+            MusicAndroidApp.music.navigateBack()
         }
     }
 

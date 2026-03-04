@@ -38,7 +38,7 @@ data class Track(
     val id: TrackId,
     val importSessionItemId: ImportSessionItemId,
     val spotifyTrackId: SpotifyTrackId?,
-    val folderId: FolderId,
+    val folderId: FolderId?,
     val creationDatetime: Long,
     val updateDatetime: Long
 )

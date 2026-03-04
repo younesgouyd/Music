@@ -7,13 +7,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.client.app.multiplatform.Music
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.*
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.entities.ImportSessionItem
 import dev.younesgouyd.apps.music.client.app.multiplatform.util.Component
@@ -23,7 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.*
+import java.util.Stack
 
 class NavigationHost(
     private val toggleDrawerState: suspend () -> Unit,
@@ -36,9 +34,21 @@ class NavigationHost(
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun show(modifier: Modifier) {
+        val navController by rememberUpdatedState(navController) // TODO
         val currentDestination by navController.currentDestination.collectAsState()
         val inHome by navController.inHome.collectAsState()
         val coroutineScope = rememberCoroutineScope()
+
+        DisposableEffect(Unit) {
+            Music.registerBackHandler {
+                if (!inHome) {
+                    navController.navigateBack()
+                }
+            }
+            onDispose {
+                Music.unregisterLastBackHandler()
+            }
+        }
 
         Scaffold(
             modifier = modifier,

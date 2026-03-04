@@ -15,9 +15,8 @@ kotlin {
 
 dependencies {
     implementation(project(":client:app:multiplatform"))
-    implementation(compose.desktop.currentOs) {
-        exclude("org.jetbrains.compose.material") // todo
-    }
+    implementation(libs.compose.uiDesktop)
+    implementation(libs.compose.material3)
 }
 
 compose.desktop {
