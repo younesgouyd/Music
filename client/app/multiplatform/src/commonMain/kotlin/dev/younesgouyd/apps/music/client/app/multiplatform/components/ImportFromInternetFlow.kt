@@ -16,15 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.app.multiplatform.components.util.formatted
-import dev.younesgouyd.apps.music.client.app.multiplatform.data.FileManager
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.FolderId
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.ImportSessionId
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.Server
-import dev.younesgouyd.apps.music.client.app.multiplatform.data.repoes.ImportSessionItemRepo
-import dev.younesgouyd.apps.music.client.app.multiplatform.data.repoes.ImportSessionRepo
-import dev.younesgouyd.apps.music.client.app.multiplatform.data.repoes.MediaFileRepo
-import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.entities.ImportSession
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.entities.ImportSessionItem
+import dev.younesgouyd.apps.music.client.app.multiplatform.usecases.PrepareImportFromInternetUseCase
 import dev.younesgouyd.apps.music.client.app.multiplatform.util.Component
 import dev.younesgouyd.apps.music.common.Inspection
 import kotlinx.coroutines.cancel
@@ -38,11 +34,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class ImportFromInternetFlow(
     destinationFolderId: FolderId,
-    importSessionRepo: ImportSessionRepo,
-    importSessionItemRepo: ImportSessionItemRepo,
-    mediaFileRepo: MediaFileRepo,
     server: Server,
-    fileManager: FileManager,
+    prepareImportFromInternetUseCase: PrepareImportFromInternetUseCase,
     showImportSession: (ImportSessionId, ImportSessionItem.State) -> Unit
 ) : Component() {
     override val title: String = "Inspection"
@@ -98,35 +91,10 @@ class ImportFromInternetFlow(
                     val selected = selectedItems.value
                     val url = url.value
                     val inspection = inspection.value
-                    require(url.isNotBlank() && selected.isNotEmpty() && inspection != null && !inspectionError.value)
-                    val sessionId = importSessionRepo.add(
-                        uri = url,
-                        sourceType = ImportSession.SourceType.Internet,
-                        inspection = inspection.container.copy(thumbnail = null),
-                        destinationFolderId = destinationFolderId,
-                        imgId = inspection.container.thumbnail?.let { thumbnail ->
-                            mediaFileRepo.add(null, Base64.decode(thumbnail))
-                        }
-                    )
-                    for (item in inspection.items) {
-                        importSessionItemRepo.add(
-                            uri = item.uri,
-                            importSessionId = sessionId,
-                            state = if (selected.contains(item.id)) ImportSessionItem.State.Pending else ImportSessionItem.State.Nonselected,
-                            title = item.title,
-                            durationMilliseconds = item.durationMilliseconds,
-                            album = item.album,
-                            inspection = item.copy(thumbnail = null),
-                            localFilePath = null,
-                            albumTrackNumber = null,
-                            lyrics = null,
-                            year = null,
-                            imgId = item.thumbnail?.let { thumbnail ->
-                                mediaFileRepo.add(null, Base64.decode(thumbnail))
-                            }
-                        )
+                    if (url.isBlank() || selected.isEmpty() || inspection == null || inspectionError.value) {
+                        TODO()
                     }
-                    fileManager.saveYtDlpInspection(sessionId, inspection.ytDlpInspection)
+                    val sessionId = prepareImportFromInternetUseCase.execute(selected, url, inspection, destinationFolderId)
                     showImportSession(sessionId, ImportSessionItem.State.Pending)
                     savingImport.value = false
                 }

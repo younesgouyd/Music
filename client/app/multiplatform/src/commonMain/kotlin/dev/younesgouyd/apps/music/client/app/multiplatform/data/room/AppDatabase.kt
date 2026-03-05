@@ -3,10 +3,7 @@ package dev.younesgouyd.apps.music.client.app.multiplatform.data.room
 import androidx.room.*
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.daos.*
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.entities.*
-import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.transactions.ClearImportSessionItem
-import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.transactions.Import
-import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.transactions.SetTrackMetadataFromSpotify
-import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.transactions.UnsetSpotifyTrack
+import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.transactions.*
 
 @Database(
     entities = [
@@ -47,6 +44,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun clearImportSessionItem(): ClearImportSessionItem
     abstract fun importTrx(): Import
+    abstract fun prepareImportFromInternet(): PrepareImportFromInternet
     abstract fun setTrackMetadataFromSpotify(): SetTrackMetadataFromSpotify
     abstract fun unsetSpotifyTrack(): UnsetSpotifyTrack
 }

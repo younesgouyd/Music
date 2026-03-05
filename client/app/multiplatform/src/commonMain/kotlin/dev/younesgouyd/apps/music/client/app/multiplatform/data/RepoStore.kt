@@ -31,6 +31,7 @@ class RepoStore(
     lateinit var clearImportItemUseCase: ClearImportItemUseCase private set
     lateinit var deleteFolderUseCase: DeleteFolderUseCase private set
     lateinit var exportUseCaseImpl: ExportUseCaseImpl
+    lateinit var prepareImportFromInternetUseCase: PrepareImportFromInternetUseCase
     lateinit var setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase private set
     lateinit var unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase private set
 
@@ -157,6 +158,10 @@ class RepoStore(
             dbDir = fileManager.dbDir,
             inspectionDir = fileManager.inspectionDir,
             mediaDir = fileManager.mediaDir
+        )
+        prepareImportFromInternetUseCase = PrepareImportFromInternetUseCase(
+            fileManager = fileManager,
+            transaction = database.prepareImportFromInternet()
         )
 
         importService.start()

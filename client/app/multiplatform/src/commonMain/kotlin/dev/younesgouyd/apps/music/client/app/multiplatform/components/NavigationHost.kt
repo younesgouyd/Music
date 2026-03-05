@@ -357,11 +357,8 @@ class NavigationHost(
                     )
                     is Destination.ImportFromInternetFlow -> ImportFromInternetFlow(
                         destinationFolderId = destination.destinationFolderId,
-                        importSessionRepo = repoStore.importSessionRepo,
-                        importSessionItemRepo = repoStore.importSessionItemRepo,
-                        mediaFileRepo = repoStore.mediaFileRepo,
                         server = repoStore.server,
-                        fileManager = repoStore.fileManager,
+                        prepareImportFromInternetUseCase = repoStore.prepareImportFromInternetUseCase,
                         showImportSession = { id, tab -> replaceCurrentWith(Destination.ImportDetails(id, tab)) }
                     )
                 }
