@@ -1,14 +1,10 @@
 package dev.younesgouyd.apps.music.client.app.multiplatform
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.key.*
-import androidx.compose.ui.input.pointer.isBackPressed
-import androidx.compose.ui.input.pointer.pointerInput
 import dev.younesgouyd.apps.music.client.app.multiplatform.components.Main
 import dev.younesgouyd.apps.music.client.app.multiplatform.components.ReinitializeAppData
 import dev.younesgouyd.apps.music.client.app.multiplatform.components.SplashScreen
@@ -73,26 +69,7 @@ abstract class Music {
     fun show(modifier: Modifier) {
         val currentComponent by currentComponent.collectAsState()
 
-        Box(modifier.pointerInput(Unit) {
-            awaitPointerEventScope {
-                while (true) {
-                    val event = awaitPointerEvent()
-                    if (event.buttons.isBackPressed) {
-                        navigateBack()
-                    }
-                }
-            }
-        }
-            .onKeyEvent {
-                if (it.type == KeyEventType.KeyUp && it.key == Key.Backspace) {
-                    navigateBack()
-                }
-                true
-            }
-            .fillMaxSize()) {
-            currentComponent.show(Modifier.fillMaxSize())
-        }
-//        currentComponent.show(Modifier.fillMaxSize())
+        currentComponent.show(modifier.fillMaxSize())
     }
 
     fun clear() {

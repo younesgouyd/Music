@@ -25,8 +25,8 @@ fun main() {
                 position = WindowPosition(Alignment.Center)
             ),
             onCloseRequest = { app.clear(); exitApplication() },
-            onKeyEvent = { event ->
-                if (event.type == KeyEventType.KeyUp && (event.key == Key.Backspace || event.key == Key.Escape)) {
+            onPreviewKeyEvent = { event ->
+                if (event.type == KeyEventType.KeyUp && event.key == Key.Escape) {
                     app.navigateBack()
                     true
                 } else {
