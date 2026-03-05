@@ -844,7 +844,7 @@ class Library(
                                 onValueChange = onSearchQueryChange,
                                 trailingIcon = {
                                     IconButton(
-                                        onClick = { isSearchVisible = false },
+                                        onClick = { isSearchVisible = false; onSearchQueryChange("") },
                                         content = { Icon(Icons.Default.Close, null) }
                                     )
                                 }
@@ -1603,7 +1603,7 @@ class Library(
                             onValueChange = onSearchQueryChange,
                             trailingIcon = {
                                 IconButton(
-                                    onClick = { isSearchVisible = false },
+                                    onClick = { isSearchVisible = false; onSearchQueryChange("") },
                                     content = { Icon(Icons.Default.Close, null) }
                                 )
                             }

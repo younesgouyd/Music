@@ -88,7 +88,7 @@ private fun TagsFilter(
                                 onValueChange = onTagSearchQueryChange,
                                 trailingIcon = {
                                     IconButton(
-                                        onClick = { isSearchTagVisible = false },
+                                        onClick = { isSearchTagVisible = false; onTagSearchQueryChange("") },
                                         content = { Icon(Icons.Default.Close, null) }
                                     )
                                 }
