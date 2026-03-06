@@ -9,6 +9,7 @@ import dev.younesgouyd.apps.music.client.app.multiplatform.data.repoes.SpotifyAl
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.repoes.SpotifyArtistRepo
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.repoes.TrackRepo
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.entities.TrackRelation
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
@@ -28,6 +29,7 @@ class MediaController(
 ) {
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
     private val mutex = Mutex()
+    private val logger = KotlinLogging.logger {  }
 
     // UI STATE
     private val enabled: MutableStateFlow<Boolean> = MutableStateFlow(false)
@@ -118,7 +120,10 @@ class MediaController(
     }
 
     fun playQueue(queue: List<QueueItemParameter>, queueItemIndex: Int = 0) {
-        require(queue.isNotEmpty())
+        if (queue.isEmpty()) {
+            logger.warn { "::playQueue | queue is empty" }
+            return
+        }
         coroutineScope.launch {
             mutex.withLock {
                 this@MediaController.enabled.value = false
