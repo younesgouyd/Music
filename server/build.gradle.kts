@@ -13,6 +13,8 @@ kotlin {
 dependencies {
     implementation(project(":common"))
     implementation(libs.coroutines.core)
+    implementation(libs.serialization.core)
+    implementation(libs.serialization.json)
     implementation(libs.logback.jvm)
     implementation(libs.ktor.serialization)
     implementation(libs.ktor.server.core)

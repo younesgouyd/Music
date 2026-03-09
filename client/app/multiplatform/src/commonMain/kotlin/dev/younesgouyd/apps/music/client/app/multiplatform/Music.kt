@@ -112,10 +112,8 @@ abstract class Music {
         coroutineScope.launch {
             withContext(Dispatchers.IO) {
                 dbDir.deleteRecursively()
-                repoStore.fileManager.inspectionDir.deleteRecursively()
                 repoStore.fileManager.mediaDir.deleteRecursively()
                 dbDir.mkdir()
-                repoStore.fileManager.inspectionDir.mkdir()
                 repoStore.fileManager.mediaDir.mkdir()
             }
             openZipInputStreamFromUri(sourceFileUri).use2 {
@@ -159,7 +157,6 @@ abstract class Music {
     private suspend fun populateAppData(zip: ZipInputStream) {
         logger.info { "--> ::populateAppData" }
         withContext(Dispatchers.IO) {
-            val inspectionDir = repoStore.fileManager.inspectionDir
             val mediaDir = repoStore.fileManager.mediaDir
             var entry: ZipEntry? = zip.nextEntry
             while (entry != null) {
@@ -175,10 +172,6 @@ abstract class Music {
                 if (entry.name.startsWith("db/")) {
                     zip.copyTo(
                         File(dbDir, entry.name.substringAfterLast("/"))
-                    )
-                } else if (entry.name.startsWith("inspections/")) {
-                    zip.copyTo(
-                        File(inspectionDir, entry.name.substringAfterLast("/"))
                     )
                 } else if (entry.name.startsWith("media/")) {
                     zip.copyTo(

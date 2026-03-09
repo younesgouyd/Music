@@ -17,7 +17,8 @@ kotlin {
     }
     sourceSets {
         commonMain.dependencies {
-            implementation(libs.json)
+            implementation(libs.serialization.core)
+            implementation(libs.serialization.json)
             implementation(libs.coroutines.core)
             implementation(libs.ktor.serialization)
             implementation(libs.ktor.client.core)

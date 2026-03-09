@@ -13,11 +13,9 @@ import kotlin.use
 @OptIn(ExperimentalSerializationApi::class)
 actual class ExportUseCaseImpl actual constructor(
     dbDir: File,
-    inspectionDir: File,
     mediaDir: File
 ) : ExportUseCase(
     dbDir,
-    inspectionDir,
     mediaDir
 ) {
     override suspend fun execute(destination: String) {

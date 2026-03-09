@@ -70,7 +70,6 @@ abstract class PrepareImportFromInternet {
                     updateDatetime = currentTime
                 )
             }
-            fileManager.saveYtDlpInspection(sessionId, inspection.ytDlpInspection)
             return@withContext sessionId
         }
     }

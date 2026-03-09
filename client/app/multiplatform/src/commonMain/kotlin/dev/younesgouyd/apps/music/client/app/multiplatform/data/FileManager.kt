@@ -2,7 +2,6 @@ package dev.younesgouyd.apps.music.client.app.multiplatform.data
 
 import dev.younesgouyd.apps.music.client.app.multiplatform.util.copyTo
 import dev.younesgouyd.apps.music.client.app.multiplatform.util.writeBytes2
-import dev.younesgouyd.apps.music.client.app.multiplatform.util.writeText2
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -16,7 +15,6 @@ class FileManager(
 ) {
     private val logger = KotlinLogging.logger {}
     val mediaDir = File(appDir, "media").also { it.mkdir() }
-    val inspectionDir = File(appDir, "inspections").also { it.mkdir() }
 
     suspend fun saveMediaFile(data: InputStream, id: MediaFileId) {
         withContext(Dispatchers.IO) {
@@ -33,13 +31,6 @@ class FileManager(
 
     fun getMediaFile(id: MediaFileId): File {
         return File(mediaDir, id.toString())
-    }
-
-    suspend fun saveYtDlpInspection(importSessionId: ImportSessionId, inspection: String) {
-        withContext(Dispatchers.IO) {
-            File(inspectionDir, importSessionId.toString())
-                .writeText2(inspection)
-        }
     }
 
     suspend fun delete(ids: Set<MediaFileId>) {

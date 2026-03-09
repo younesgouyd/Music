@@ -21,7 +21,8 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":common"))
             implementation(project(":client:spotifyapi"))
-            implementation(libs.json)
+            implementation(libs.serialization.core)
+            implementation(libs.serialization.json)
             implementation(libs.jsonJava)
             implementation(libs.coroutines.core)
             implementation(libs.compose.material3)

@@ -13,7 +13,6 @@ import java.util.zip.ZipOutputStream
 
 abstract class ExportUseCase(
     private val dbDir: File,
-    private val inspectionDir: File,
     private val mediaDir: File
 ) {
     private val logger = KotlinLogging.logger {}
@@ -37,16 +36,6 @@ abstract class ExportUseCase(
                 zipOut.closeEntry()
             }
 
-            logger.info { "exporting inspections" }
-            zipOut.putNextEntry(ZipEntry("inspections/"))
-            zipOut.closeEntry()
-            for (file in inspectionDir.listFiles().orEmpty()) {
-                ensureActive()
-                zipOut.putNextEntry(ZipEntry("inspections/${file.name}"))
-                file.copyTo(zipOut)
-                zipOut.closeEntry()
-            }
-
             logger.info { "exporting media files" }
             zipOut.putNextEntry(ZipEntry("media/"))
             zipOut.closeEntry()
@@ -62,7 +51,6 @@ abstract class ExportUseCase(
 
 expect class ExportUseCaseImpl(
     dbDir: File,
-    inspectionDir: File,
     mediaDir: File
 ) : ExportUseCase
 

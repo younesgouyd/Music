@@ -15,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Image
+import dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Item
 import dev.younesgouyd.apps.music.client.app.multiplatform.components.util.formatted
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.FolderId
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.ImportSessionId
@@ -259,7 +261,7 @@ class ImportFromInternetFlow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Image(
+                Image(
                     modifier = Modifier.size(64.dp),
                     data = container.thumbnail?.let { Base64.decode(it) }
                 )
@@ -279,7 +281,7 @@ class ImportFromInternetFlow(
             selected: Boolean,
             onClick: () -> Unit
         ) {
-            dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Item(
+            Item(
                 modifier = modifier,
                 onClick = onClick,
                 contentPadding = PaddingValues(8.dp)
@@ -293,10 +295,9 @@ class ImportFromInternetFlow(
                         checked = selected,
                         onCheckedChange = null
                     )
-                    dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Image(
+                    Image(
                         modifier = Modifier.size(64.dp),
                         data = itemInspection.thumbnail?.let { Base64.decode(it) }
-
                     )
                     Column(
                         modifier = Modifier.weight(1f),

@@ -156,7 +156,6 @@ class RepoStore(
         )
         exportUseCaseImpl = ExportUseCaseImpl(
             dbDir = fileManager.dbDir,
-            inspectionDir = fileManager.inspectionDir,
             mediaDir = fileManager.mediaDir
         )
         prepareImportFromInternetUseCase = PrepareImportFromInternetUseCase(

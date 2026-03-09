@@ -8,7 +8,6 @@ typealias Base64String = String
 sealed class Inspection {
     @Serializable
     data class Webpage(
-        val ytDlpInspection: String,
         val container: ContainerInspection.Webpage,
         val items: List<ItemInspection.InternetTrack>
     ) : Inspection()

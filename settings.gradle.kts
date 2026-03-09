@@ -28,7 +28,7 @@ dependencyResolutionManagement {
             val versions = object {
                 val java = version("java", "17")
                 val kotlin = version("kotlin", "2.3.10")
-                val json = version("json", "1.10.0")
+                val serialization = version("serialization", "1.10.0")
                 val jsonJava = version("jsonJava", "20251224")
                 val coroutines = version("coroutines", "1.10.2")
                 val room = version("room", "2.8.4")
@@ -75,7 +75,8 @@ dependencyResolutionManagement {
             library("compose.materialIconsExtended", "org.jetbrains.compose.material", "material-icons-extended").versionRef(versions.compose.materialIconsExtended)
             library("compose.uiDesktop", "org.jetbrains.compose.ui", "ui-desktop").versionRef(versions.compose.uiDesktop)
 
-            library("json", "org.jetbrains.kotlinx", "kotlinx-serialization-json").versionRef(versions.json)
+            library("serialization.core", "org.jetbrains.kotlinx", "kotlinx-serialization-core").versionRef(versions.serialization)
+            library("serialization.json", "org.jetbrains.kotlinx", "kotlinx-serialization-json").versionRef(versions.serialization)
             library("jsonJava", "org.json", "json").versionRef(versions.jsonJava)
 
             library("coroutines.core", "org.jetbrains.kotlinx", "kotlinx-coroutines-core").versionRef(versions.coroutines)

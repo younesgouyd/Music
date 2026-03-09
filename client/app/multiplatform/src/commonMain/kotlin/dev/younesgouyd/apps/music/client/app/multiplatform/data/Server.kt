@@ -29,7 +29,7 @@ class Server(
         }
         install(SSE)
         install(HttpTimeout) {
-            this.requestTimeoutMillis = 180_000
+            this.requestTimeoutMillis = 30*60*1000
         }
     }
 
