@@ -103,7 +103,6 @@ class Main(
     }
 
     override fun clear() {
-        repoStore.release()
         navigationHost.clear()
         coroutineScope.cancel()
     }

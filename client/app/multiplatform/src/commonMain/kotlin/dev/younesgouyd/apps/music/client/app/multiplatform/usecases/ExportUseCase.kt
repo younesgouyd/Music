@@ -46,6 +46,7 @@ abstract class ExportUseCase(
                 zipOut.closeEntry()
             }
         }
+        logger.info { "done" }
     }
 }
 

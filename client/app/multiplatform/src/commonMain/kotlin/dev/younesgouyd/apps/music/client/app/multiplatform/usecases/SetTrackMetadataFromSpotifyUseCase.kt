@@ -34,9 +34,7 @@ class SetTrackMetadataFromSpotifyUseCase(
                 }
             }
             val spotifyTrackId = transaction.getSpotifyTrackId(spotifyApiTrack.id.value)?.let {
-                SpotifyTrackId(
-                    it
-                )
+                SpotifyTrackId(it)
             }
             if (spotifyTrackId != null) {
                 transaction.updateTrackSpotifyTrackId(spotifyTrackId, System.currentTimeMillis(), trackId)

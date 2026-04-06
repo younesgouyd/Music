@@ -6,6 +6,7 @@ import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.AppDatabase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.slf4j.LoggerFactory
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.player.base.MediaPlayer
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
@@ -23,6 +24,12 @@ actual class MusicImpl : Music() {
     override val dbDir: File = File(appDir, "db")
     override val dbFile: File = File(dbDir, "younesmusic.db")
     private val logger = KotlinLogging.logger {}
+
+    init {
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            LoggerFactory.getLogger("UncaughtException").error("Crash in ${thread.name}", throwable)
+        }
+    }
 
     override suspend fun initDb() {
         logger.info { "--> initDb" }

@@ -22,6 +22,8 @@ class RepoStore(
     private val mediaPlayer: MediaController.MediaPlayer
 ) {
     private val logger = KotlinLogging.logger {}
+    private var released = false
+
     lateinit var fileManager: FileManager private set
     lateinit var server: Server private set
     lateinit var spotifyApi: SpotifyApi private set
@@ -168,11 +170,16 @@ class RepoStore(
     }
 
     fun release() {
+        if (released) {
+            logger.warn { ":release | already released" }
+            return
+        }
         mediaController.release()
         spotifyApi.close()
         server.close()
         runBlocking {
             importService.stop()
         }
+        released = true
     }
 }

@@ -36,6 +36,7 @@ object Api {
                 if (nonNullEntries.contains(null)) { TODO() }
                 val container = ytDlpSerializer.decodeFromString<YtDlpModels.Container>(containerCommand)
                 val containerThumbnailUrl = container.thumbnails
+                    .filter { !it.url.contains("maxresdefault") }
                     .maxBy { it.width * it.height }
                     .url
                 Inspection.Webpage(

@@ -105,7 +105,7 @@ abstract class Music {
     protected fun reinitApp(sourceFileUri: String) {
         logger.info { "--> ::reinitApp" }
         currentComponent.value.clear()
-        mediaPlayer.release()
+        repoStore.release()
         coroutineScope.cancel()
         db.close()
         coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
