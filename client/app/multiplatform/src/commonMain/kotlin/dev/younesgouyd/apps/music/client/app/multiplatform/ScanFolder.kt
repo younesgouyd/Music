@@ -78,10 +78,11 @@ private fun String.toIntOrThrow(): Int {
 private val tika = Tika()
 
 fun File.isAudioFile(): Boolean {
-    return audioMimeTypes.any { it == tika.detect(this) }
+    val mimeType = tika.detect(this)
+    return mimeType in audioMimeTypes
 }
 
-private val audioMimeTypes = listOf(
+private val audioMimeTypes = setOf(
     // Uncompressed / PCM
     "audio/wav",
     "audio/x-wav", // (legacy)
