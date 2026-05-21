@@ -202,7 +202,7 @@ class ImportFromInternetFlow(
                         Button(
                             modifier = Modifier.fillMaxWidth(),
                             onClick = onImportClick,
-                            content = { Text("Import") },
+                            content = { Text("Import ${selectedItems.size}/${inspection.items.size}") },
                             enabled = !inspecting && !savingImport && !inspectionError && selectedItems.isNotEmpty() && url.isNotBlank()
                         )
                         TextButton(
