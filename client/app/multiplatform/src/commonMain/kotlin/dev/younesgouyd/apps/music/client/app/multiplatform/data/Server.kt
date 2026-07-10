@@ -14,6 +14,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.utils.io.*
+import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
@@ -54,7 +55,7 @@ class Server(
 
     suspend fun getResult(): Pair<String, InputStream> {
         val response = client.get("${getAddress()}/getResult")
-        val stream = response.bodyAsChannel().toInputStream2()
+        val stream = response.bodyAsChannel().toInputStream()
         val filename = response.headers[HttpHeaders.ContentDisposition]!!
             .substringAfter("filename=\"")
             .substringBeforeLast("\"")
@@ -70,5 +71,3 @@ class Server(
         client.close()
     }
 }
-
-expect fun ByteReadChannel.toInputStream2(): InputStream

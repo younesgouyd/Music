@@ -36,7 +36,3 @@ actual class ExportUseCaseImpl actual constructor(
         }
     }
 }
-
-actual fun File.copyTo(out: ZipOutputStream) {
-    return this.inputStream().use { it.copyTo(out) }
-}

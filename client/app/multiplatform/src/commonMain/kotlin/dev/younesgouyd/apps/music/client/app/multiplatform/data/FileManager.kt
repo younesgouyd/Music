@@ -1,10 +1,7 @@
 package dev.younesgouyd.apps.music.client.app.multiplatform.data
 
-import dev.younesgouyd.apps.music.client.app.multiplatform.util.copyTo
-import dev.younesgouyd.apps.music.client.app.multiplatform.util.writeBytes2
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
@@ -18,14 +15,14 @@ class FileManager(
 
     suspend fun saveMediaFile(data: InputStream, id: MediaFileId) {
         withContext(Dispatchers.IO) {
-            data.copyTo(File(mediaDir, id.toString()))
+            data.copyTo(File(mediaDir, id.toString()).outputStream())
         }
     }
 
     suspend fun saveMediaFile(data: ByteArray, id: MediaFileId) {
         withContext(Dispatchers.IO) {
             File(mediaDir, id.toString())
-                .writeBytes2(data)
+                .writeBytes(data)
         }
     }
 

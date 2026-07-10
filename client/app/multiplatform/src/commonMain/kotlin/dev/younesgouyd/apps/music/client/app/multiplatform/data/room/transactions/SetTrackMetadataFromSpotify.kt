@@ -250,10 +250,8 @@ abstract class SetTrackMetadataFromSpotify {
     private suspend fun List<ImageObject>?.getImg(index: Int): ByteArray? {
         return withContext(Dispatchers.IO) {
             this@getImg?.getOrNull(index)?.let {
-                URI(it.url).toURL().readBytes2()
+                URI(it.url).toURL().readBytes()
             }
         }
     }
 }
-
-expect fun URL.readBytes2(): ByteArray

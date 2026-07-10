@@ -75,7 +75,7 @@ internal class AuthRepo(
         return try {
             val response = httpClient.post {
                 url("https://accounts.spotify.com/api/token")
-                header("Authorization", "Basic ${Base64.encode("$clientId:$clientSecret".toByteArray2())}")
+                header("Authorization", "Basic ${Base64.encode("$clientId:$clientSecret".toByteArray())}")
                 header("Content-Type", "application/x-www-form-urlencoded")
                 setBody("grant_type=client_credentials")
             }
@@ -90,5 +90,3 @@ internal class AuthRepo(
         }
     }
 }
-
-expect fun String.toByteArray2(): ByteArray

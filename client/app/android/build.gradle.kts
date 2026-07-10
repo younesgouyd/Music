@@ -2,8 +2,7 @@ group = "dev.younesgouyd"
 version = "0.1.0"
 
 plugins {
-    alias(libs.plugins.androidApplication)
-    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.android.application)
 }
 
 kotlin {
@@ -16,11 +15,11 @@ dependencies {
 
 android {
     namespace = "dev.younesgouyd.apps.music.client.app.android"
-    compileSdk = 36
+    compileSdk = libs.versions.androidCompileSdk.get().toInt()
     defaultConfig {
         applicationId = "dev.younesgouyd.apps.music.client.app.android"
-        minSdk = 29
-        targetSdk = 36
+        minSdk = libs.versions.androidMinSdk.get().toInt()
+        targetSdk = libs.versions.androidTargetSdk.get().toInt()
         versionCode = 1
         versionName = "0.1"
     }

@@ -11,8 +11,6 @@ import dev.younesgouyd.apps.music.client.app.multiplatform.components.SplashScre
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.RepoStore
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.AppDatabase
 import dev.younesgouyd.apps.music.client.app.multiplatform.util.Component
-import dev.younesgouyd.apps.music.client.app.multiplatform.util.copyTo
-import dev.younesgouyd.apps.music.client.app.multiplatform.util.use2
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -116,7 +114,7 @@ abstract class Music {
                 dbDir.mkdir()
                 repoStore.fileManager.mediaDir.mkdir()
             }
-            openZipInputStreamFromUri(sourceFileUri).use2 {
+            openZipInputStreamFromUri(sourceFileUri).use {
                 populateAppData(it)
             }
             initApp()
@@ -171,11 +169,11 @@ abstract class Music {
                 }
                 if (entry.name.startsWith("db/")) {
                     zip.copyTo(
-                        File(dbDir, entry.name.substringAfterLast("/"))
+                        File(dbDir, entry.name.substringAfterLast("/")).outputStream()
                     )
                 } else if (entry.name.startsWith("media/")) {
                     zip.copyTo(
-                        File(mediaDir, entry.name.substringAfterLast("/"))
+                        File(mediaDir, entry.name.substringAfterLast("/")).outputStream()
                     )
                 }
                 zip.closeEntry()

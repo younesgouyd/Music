@@ -1,6 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.androidMultiplatform)
+    alias(libs.plugins.android.multiplatform)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeMultiplatform)
@@ -12,8 +12,8 @@ kotlin {
     jvmToolchain(libs.versions.java.get().toInt())
     androidLibrary {
         namespace = "dev.younesgouyd.apps.music.client.app.multiplatform"
-        compileSdk = 36
-        minSdk = 29
+        compileSdk = libs.versions.androidCompileSdk.get().toInt()
+        minSdk = libs.versions.androidMinSdk.get().toInt()
         androidResources.enable = true
     }
     jvm()
@@ -51,7 +51,6 @@ kotlin {
             implementation(libs.sqlite.android)
             implementation(libs.coroutines.android)
             implementation(libs.android.coreKtx)
-            implementation(libs.android.appcompat)
             implementation(libs.android.activityKtx)
             implementation(libs.android.activityCompose)
             implementation(libs.android.media3.common)

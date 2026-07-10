@@ -144,8 +144,8 @@ private object Cache {
                     val fromCache2 = cache[key]
                     if (fromCache2 == null) {
                         val imageBitmap = when (key) {
-                            is Key.File -> File(key.path).readBytes2().decodeToImageBitmap()
-                            is Key.Url -> URI(key.url).toURL().readBytes2().decodeToImageBitmap()
+                            is Key.File -> File(key.path).readBytes().decodeToImageBitmap()
+                            is Key.Url -> URI(key.url).toURL().readBytes().decodeToImageBitmap()
                         }
                         val image = Image(imageBitmap)
                         add(key to image)
@@ -189,7 +189,3 @@ private object Cache {
         fun updateLastUsed() { lastUsed = Instant.now().toEpochMilli() }
     }
 }
-
-expect fun File.readBytes2(): ByteArray
-
-expect fun URL.readBytes2(): ByteArray

@@ -3,7 +3,6 @@
     <application
             android:name="dev.younesgouyd.apps.music.client.app.android.App"
             android:allowBackup="true"
-            android:icon="@mipmap/ic_launcher"
             android:label="Music"
             android:supportsRtl="true"
             android:largeHeap="true">

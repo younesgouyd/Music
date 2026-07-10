@@ -7,9 +7,7 @@ import dev.younesgouyd.apps.music.client.app.multiplatform.components.util.Uri
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.*
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.entities.ImportSession
 import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.entities.ImportSessionItem
-import dev.younesgouyd.apps.music.client.app.multiplatform.util.use2
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.InputStream
@@ -95,7 +93,7 @@ abstract class Import {
             "error" -> null
             "completed" -> {
                 val (filename, stream) = server.getResult()
-                stream.use2 {
+                stream.use {
                     val currentTime = System.currentTimeMillis()
                     val trackId = TrackId(
                         addTrack(

@@ -1,15 +1,14 @@
 package dev.younesgouyd.apps.music.client.app.multiplatform.usecases
 
-import dev.younesgouyd.apps.music.client.app.multiplatform.util.use2
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.OutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlin.use
 
 abstract class ExportUseCase(
     private val dbDir: File,
@@ -23,7 +22,7 @@ abstract class ExportUseCase(
     abstract suspend fun execute(destination: String)
 
     suspend fun export(out: OutputStream): Unit = withContext(Dispatchers.IO) {
-        ZipOutputStream(out).use2 { zipOut ->
+        ZipOutputStream(out).use { zipOut ->
             zipOut.putNextEntry(ZipEntry("version_$VERSION/"))
             zipOut.closeEntry()
             logger.info { "exporting database" }
@@ -48,11 +47,13 @@ abstract class ExportUseCase(
         }
         logger.info { "done" }
     }
+
+    private fun File.copyTo(out: ZipOutputStream) {
+        return this.inputStream().use { it.copyTo(out) }
+    }
 }
 
 expect class ExportUseCaseImpl(
     dbDir: File,
     mediaDir: File
 ) : ExportUseCase
-
-expect fun File.copyTo(out: ZipOutputStream)
