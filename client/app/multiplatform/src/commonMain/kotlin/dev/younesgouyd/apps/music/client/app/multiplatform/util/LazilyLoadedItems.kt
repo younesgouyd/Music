@@ -17,7 +17,7 @@ class LazilyLoadedItems<Item, OffsetType : Offset>(
     initialOffset: OffsetType
 ) {
     companion object {
-        const val PAGE_SIZE = 5
+        const val PAGE_SIZE = 30
     }
     private val _items: MutableStateFlow<List<Item>> = MutableStateFlow(emptyList())
     private val _loading: MutableStateFlow<Boolean> = MutableStateFlow(false)

@@ -72,7 +72,7 @@ abstract class SettingDao {
     """
     )
     abstract suspend fun initDarkTheme(
-        darkTheme: DarkThemeOptions = DarkThemeOptions.Enabled,
+        darkTheme: DarkThemeOptions = DarkThemeOptions.SystemDefault,
         creationDatetime: Long,
         updateDatetime: Long
     )

@@ -74,8 +74,7 @@ class ImportFolderFlow(
                         job = coroutineScope.launch {
                             isPreparing.value = true
                             showCancelButton.value = true
-                            val items =
-                                scanFolder(uri)
+                            val items = scanFolder(uri)
                             showCancelButton.value = false
                             val inspection = Inspection.Folder(
                                 container = Inspection.ContainerInspection.Folder(uri = uri),

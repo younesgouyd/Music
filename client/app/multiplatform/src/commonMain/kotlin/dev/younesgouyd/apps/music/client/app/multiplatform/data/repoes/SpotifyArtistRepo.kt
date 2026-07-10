@@ -20,9 +20,7 @@ class SpotifyArtistRepo(
         return dao.search(
             nameQuery = nameQuery.toSearchQuery(),
             limit = limit,
-            lastId = offset.value ?: SpotifyArtistId(
-                0
-            )
+            lastId = offset.value ?: SpotifyArtistId(0)
         )
     }
 

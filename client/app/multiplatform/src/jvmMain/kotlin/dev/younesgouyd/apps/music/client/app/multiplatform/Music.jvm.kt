@@ -54,10 +54,13 @@ actual class MusicImpl : Music() {
     override suspend fun createMediaPlayer() {
         withContext(Dispatchers.IO) {
             mediaPlayer = object : MediaController.MediaPlayer() {
-                private val vlcPlayer = AudioPlayerComponent().mediaPlayer()
+                private val componentHardReference: AudioPlayerComponent // https://capricasoftware.co.uk/tutorials/vlcj/4/garbage-collection
+                private val vlcPlayer: MediaPlayer
 
                 init {
                     NativeDiscovery().discover()
+                    componentHardReference = AudioPlayerComponent()
+                    vlcPlayer = componentHardReference.mediaPlayer()
                 }
 
                 override fun registerEventListener(eventListener: EventListener) {
@@ -108,7 +111,7 @@ actual class MusicImpl : Music() {
                 }
 
                 override fun release() {
-                    vlcPlayer.release()
+                    componentHardReference.release()
                 }
             }
         }
