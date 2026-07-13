@@ -55,7 +55,8 @@ dependencyResolutionManagement {
                     val media3 = "1.10.1"
                     val documentfile = "1.1.0"
                 }
-                val vlcj = "4.12.1"
+                val javacv = "1.5.13"
+                val ffmpeg = "8.0.1-1.5.13"
                 val mp3agic = "0.9.1"
                 val tika = "3.3.1"
             }
@@ -88,7 +89,8 @@ dependencyResolutionManagement {
             library("sqlite.jvm", "androidx.sqlite", "sqlite-bundled-jvm").version(versions.sqlite)
             library("sqlite.android", "androidx.sqlite", "sqlite-bundled").version(versions.sqlite)
 
-            library("vlcj", "uk.co.caprica", "vlcj").version(versions.vlcj)
+            library("javacv", "org.bytedeco", "javacv").version(versions.javacv)
+            library("ffmpeg", "org.bytedeco", "ffmpeg-platform").version(versions.ffmpeg)
             library("mp3agic", "com.mpatric", "mp3agic").version(versions.mp3agic)
             library("tika", "org.apache.tika", "tika-core").version(versions.tika)
 

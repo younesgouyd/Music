@@ -7,12 +7,18 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
-import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
-import uk.co.caprica.vlcj.player.base.MediaPlayer
-import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
-import uk.co.caprica.vlcj.player.component.AudioPlayerComponent
+import org.bytedeco.javacv.FFmpegFrameGrabber
+import org.bytedeco.javacv.Frame
+import javax.sound.sampled.AudioFormat
+import javax.sound.sampled.AudioSystem
+import javax.sound.sampled.DataLine
+import javax.sound.sampled.SourceDataLine
 import java.io.File
 import java.net.URI
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.nio.FloatBuffer
+import java.nio.ShortBuffer
 import java.util.zip.ZipInputStream
 import kotlin.io.path.toPath
 import kotlin.time.Duration
@@ -53,64 +59,234 @@ actual class MusicImpl : Music() {
     override suspend fun createMediaPlayer() {
         withContext(Dispatchers.IO) {
             mediaPlayer = object : MediaController.MediaPlayer() {
-                private val componentHardReference: AudioPlayerComponent // https://capricasoftware.co.uk/tutorials/vlcj/4/garbage-collection
-                private val vlcPlayer: MediaPlayer
+                private var eventListener: EventListener? = null
+                private var grabber: FFmpegFrameGrabber? = null
+                private var line: SourceDataLine? = null
+                private var playbackThread: Thread? = null
 
-                init {
-                    NativeDiscovery().discover()
-                    componentHardReference = AudioPlayerComponent()
-                    vlcPlayer = componentHardReference.mediaPlayer()
-                }
+                @Volatile private var isPlaying = false
+                @Volatile private var isStopped = true
+                @Volatile private var seekRequestedTime: Long? = null
 
                 override fun registerEventListener(eventListener: EventListener) {
-                    vlcPlayer.events().addMediaPlayerEventListener(
-                        object : MediaPlayerEventAdapter() {
-                            override fun playing(mediaPlayer: MediaPlayer?) {
-                                eventListener.onPlaying()
-                            }
-
-                            override fun paused(mediaPlayer: MediaPlayer?) {
-                                eventListener.onPaused()
-                            }
-
-                            override fun stopped(mediaPlayer: MediaPlayer?) {
-                                eventListener.onStopped()
-                            }
-
-                            override fun timeChanged(mediaPlayer: MediaPlayer?, newTime: Long) {
-                                eventListener.onTimePositionChange(newTime.milliseconds)
-                            }
-
-                            override fun finished(mediaPlayer: MediaPlayer?) {
-                                eventListener.onFinished()
-                            }
-                        }
-                    )
+                    this.eventListener = eventListener
                 }
 
                 override fun setMedia(uri: String) {
                     stop()
-                    vlcPlayer.media().startPaused(uri)
+
+                    if (Thread.currentThread() != playbackThread) {
+                        playbackThread?.interrupt()
+                        try {
+                            playbackThread?.join(1000)
+                        } catch (e: Exception) {}
+                    }
+
+                    try { line?.close() } catch (e: Exception) {}
+                    line = null
+
+                    try { grabber?.close() } catch (e: Exception) {}
+                    grabber = null
+
+                    isStopped = false
+                    isPlaying = false
+
+                    try {
+                        val cleanUri = if (uri.startsWith("file:")) {
+                            URI(uri).path
+                        } else {
+                            uri
+                        }
+
+                        val g = FFmpegFrameGrabber(cleanUri)
+                        g.start()
+                        grabber = g
+
+                        playbackThread = Thread {
+                            runPlaybackLoop(g)
+                        }.apply {
+                            isDaemon = true
+                            name = "JavaCV-Playback-Thread"
+                            start()
+                        }
+                    } catch (e: Exception) {
+                        logger.error(e) { "Failed to initialize JavaCV media grabber" }
+                    }
                 }
 
                 override fun play() {
-                    vlcPlayer.controls().play()
+                    if (!isPlaying) {
+                        isPlaying = true
+                        eventListener?.onPlaying()
+                    }
                 }
 
                 override fun pause() {
-                    vlcPlayer.controls().pause()
+                    if (isPlaying) {
+                        isPlaying = false
+                        eventListener?.onPaused()
+                    }
                 }
 
                 override fun stop() {
-                    vlcPlayer.controls().stop()
+                    isPlaying = false
+                    isStopped = true
+                    line?.stop()
+                    line?.flush()
+                    eventListener?.onStopped()
                 }
 
                 override fun setTime(time: Duration) {
-                    vlcPlayer.controls().setTime(time.inWholeMilliseconds)
+                    seekRequestedTime = time.inWholeMicroseconds
                 }
 
                 override fun release() {
-                    componentHardReference.release()
+                    stop()
+                    playbackThread?.interrupt()
+                    try { line?.close() } catch (e: Exception) {}
+                    try { grabber?.close() } catch (e: Exception) {}
+                }
+
+                private fun runPlaybackLoop(g: FFmpegFrameGrabber) {
+                    while (!Thread.currentThread().isInterrupted && !isStopped) {
+                        if (!isPlaying) {
+                            try { Thread.sleep(20) } catch (e: InterruptedException) { break }
+                            continue
+                        }
+
+                        val seekTime = seekRequestedTime
+                        if (seekTime != null) {
+                            seekRequestedTime = null
+                            try {
+                                g.timestamp = seekTime
+                                line?.flush()
+                            } catch (e: Exception) {
+                                logger.error(e) { "Error seeking" }
+                            }
+                        }
+
+                        try {
+                            val frame = g.grabSamples()
+                            if (frame == null) {
+                                isPlaying = false
+                                isStopped = true
+                                eventListener?.onFinished()
+                                break
+                            }
+
+                            if (frame.samples != null && frame.samples.isNotEmpty()) {
+                                eventListener?.onTimePositionChange((g.timestamp / 1000).milliseconds)
+
+                                if (line == null) {
+                                    val sampleRate = g.sampleRate
+                                    val channels = g.audioChannels
+                                    val buf0 = frame.samples[0]
+
+                                    val encoding = when (buf0) {
+                                        is FloatBuffer -> AudioFormat.Encoding.PCM_FLOAT
+                                        else -> AudioFormat.Encoding.PCM_SIGNED
+                                    }
+                                    val bitsPerSample = when (buf0) {
+                                        is FloatBuffer -> 32
+                                        is ShortBuffer -> 16
+                                        else -> 8
+                                    }
+                                    val frameSize = (bitsPerSample / 8) * channels
+
+                                    val audioFormat = AudioFormat(
+                                        encoding, sampleRate.toFloat(), bitsPerSample,
+                                        channels, frameSize, sampleRate.toFloat(), false
+                                    )
+
+                                    val info = DataLine.Info(SourceDataLine::class.java, audioFormat)
+                                    val l = AudioSystem.getLine(info) as SourceDataLine
+                                    l.open(audioFormat)
+                                    l.start()
+                                    line = l
+                                }
+
+                                val byteArray = interleaveSamples(frame)
+                                if (byteArray != null && byteArray.isNotEmpty()) {
+                                    line?.write(byteArray, 0, byteArray.size)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            break
+                        }
+                    }
+                }
+
+                private fun interleaveSamples(frame: Frame): ByteArray? {
+                    val samples = frame.samples ?: return null
+                    val channels = samples.size
+                    if (channels == 0) return null
+
+                    samples.forEach { it.rewind() }
+                    val buf0 = samples[0]
+
+                    return when (buf0) {
+                        is ShortBuffer -> {
+                            val numSamplesPerChannel = buf0.remaining()
+                            val totalSamples = numSamplesPerChannel * channels
+                            val shortArray = ShortArray(totalSamples)
+
+                            if (channels == 1) {
+                                buf0.get(shortArray)
+                            } else {
+                                val channelBuffers = Array(channels) { c -> samples[c] as ShortBuffer }
+                                var idx = 0
+                                for (i in 0 until numSamplesPerChannel) {
+                                    for (c in 0 until channels) {
+                                        if (channelBuffers[c].hasRemaining()) shortArray[idx++] = channelBuffers[c].get()
+                                    }
+                                }
+                            }
+
+                            val byteArray = ByteArray(totalSamples * 2)
+                            ByteBuffer.wrap(byteArray).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().put(shortArray)
+                            byteArray
+                        }
+                        is FloatBuffer -> {
+                            val numSamplesPerChannel = buf0.remaining()
+                            val totalSamples = numSamplesPerChannel * channels
+                            val floatArray = FloatArray(totalSamples)
+
+                            if (channels == 1) {
+                                buf0.get(floatArray)
+                            } else {
+                                val channelBuffers = Array(channels) { c -> samples[c] as FloatBuffer }
+                                var idx = 0
+                                for (i in 0 until numSamplesPerChannel) {
+                                    for (c in 0 until channels) {
+                                        if (channelBuffers[c].hasRemaining()) floatArray[idx++] = channelBuffers[c].get()
+                                    }
+                                }
+                            }
+
+                            val byteArray = ByteArray(totalSamples * 4)
+                            ByteBuffer.wrap(byteArray).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().put(floatArray)
+                            byteArray
+                        }
+                        is ByteBuffer -> {
+                            val numSamplesPerChannel = buf0.remaining()
+                            val totalSamples = numSamplesPerChannel * channels
+                            val byteArray = ByteArray(totalSamples)
+
+                            if (channels == 1) {
+                                buf0.get(byteArray)
+                            } else {
+                                val channelBuffers = Array(channels) { c -> samples[c] as ByteBuffer }
+                                var idx = 0
+                                for (i in 0 until numSamplesPerChannel) {
+                                    for (c in 0 until channels) {
+                                        if (channelBuffers[c].hasRemaining()) byteArray[idx++] = channelBuffers[c].get()
+                                    }
+                                }
+                            }
+                            byteArray
+                        }
+                        else -> null
+                    }
                 }
             }
         }

@@ -44,8 +44,9 @@ kotlin {
             implementation(compose.desktop.currentOs) {
                 exclude("org.jetbrains.compose.material") // todo
             }
-            implementation(libs.vlcj)
             implementation(libs.logback.jvm)
+            implementation(libs.javacv)
+            runtimeOnly(libs.ffmpeg)
         }
         androidMain.dependencies {
             implementation(libs.sqlite.android)
