@@ -10,10 +10,8 @@ import dev.younesgouyd.libs.music.client.spotifyapi.models.common.ArtistId
 import dev.younesgouyd.libs.music.client.spotifyapi.models.common.ImageObject
 import dev.younesgouyd.libs.music.client.spotifyapi.models.common.SimplifiedArtistObject
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import java.net.URI
-import java.net.URL
 
 @Dao
 abstract class SetTrackMetadataFromSpotify {

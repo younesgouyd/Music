@@ -2,7 +2,6 @@ package dev.younesgouyd.apps.music.client.app.multiplatform.util
 
 import java.io.InputStream
 import java.net.URI
-import kotlin.io.inputStream
 import kotlin.io.path.toPath
 
 actual fun getFileName(uri: String): String {

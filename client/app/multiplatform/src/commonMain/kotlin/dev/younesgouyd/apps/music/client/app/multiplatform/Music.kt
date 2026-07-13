@@ -168,13 +168,13 @@ abstract class Music {
                     continue
                 }
                 if (entry.name.startsWith("db/")) {
-                    zip.copyTo(
-                        File(dbDir, entry.name.substringAfterLast("/")).outputStream()
-                    )
+                    File(dbDir, entry.name.substringAfterLast("/")).outputStream().use {
+                        zip.copyTo(it)
+                    }
                 } else if (entry.name.startsWith("media/")) {
-                    zip.copyTo(
-                        File(mediaDir, entry.name.substringAfterLast("/")).outputStream()
-                    )
+                    File(mediaDir, entry.name.substringAfterLast("/")).outputStream().use {
+                        zip.copyTo(it)
+                    }
                 }
                 zip.closeEntry()
                 entry = zip.nextEntry

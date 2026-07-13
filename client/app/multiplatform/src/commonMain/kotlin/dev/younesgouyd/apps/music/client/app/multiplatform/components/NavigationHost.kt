@@ -123,6 +123,8 @@ class NavigationHost(
         data class ImportFromInternetFlow(val destinationFolderId: FolderId) : Destination()
 
         data object Export : Destination()
+
+        data object Logs : Destination()
     }
 
     private class NavigationController(
@@ -361,6 +363,7 @@ class NavigationHost(
                         prepareImportFromInternetUseCase = repoStore.prepareImportFromInternetUseCase,
                         showImportSession = { id, tab -> replaceCurrentWith(Destination.ImportDetails(id, tab)) }
                     )
+                    is Destination.Logs -> Logs(repoStore.fileManager)
                 }
             }
         }

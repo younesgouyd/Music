@@ -3,7 +3,6 @@ package dev.younesgouyd.apps.music.client.app.multiplatform
 import com.mpatric.mp3agic.Mp3File
 import dev.younesgouyd.apps.music.common.Inspection
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import org.apache.tika.Tika
 import java.io.File

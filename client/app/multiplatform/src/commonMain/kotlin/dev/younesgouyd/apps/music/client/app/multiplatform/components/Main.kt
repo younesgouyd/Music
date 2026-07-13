@@ -162,6 +162,11 @@ class Main(
                 navigationHost = getNewNavHost(NavigationHost.Destination.Export)
                 mainComponent.value = navigationHost
             }
+            NavigationDrawerItems.Logs -> {
+                navigationHost.clear()
+                navigationHost = getNewNavHost(NavigationHost.Destination.Logs)
+                mainComponent.value = navigationHost
+            }
         }
         selectedNavigationDrawerItem.value = item
         minimizePlayer()
@@ -183,7 +188,8 @@ class Main(
         Artists("Artists"),
         Tags("Tags"),
         Imports("Imports"),
-        Export("Export")
+        Export("Export"),
+        Logs("Logs")
     }
 
     private object Ui {

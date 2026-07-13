@@ -118,7 +118,7 @@ actual class MusicImpl : Music() {
 
     override fun openZipInputStreamFromUri(uri: String): ZipInputStream {
         return ZipInputStream(
-            context.contentResolver.openInputStream(uri.toUri())
+            context.contentResolver.openInputStream(uri.toUri())!!.buffered()
         )
     }
 }

@@ -12,7 +12,6 @@ import uk.co.caprica.vlcj.player.base.MediaPlayer
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
 import uk.co.caprica.vlcj.player.component.AudioPlayerComponent
 import java.io.File
-import java.io.FileInputStream
 import java.net.URI
 import java.util.zip.ZipInputStream
 import kotlin.io.path.toPath
@@ -118,10 +117,11 @@ actual class MusicImpl : Music() {
     }
 
     override fun openZipInputStreamFromUri(uri: String): ZipInputStream {
-        return ZipInputStream(
-            FileInputStream(
-                URI(uri).toPath().toFile()
-            )
-        )
+        val file = if (uri.startsWith("file:")) {
+            URI(uri).toPath().toFile()
+        } else {
+            File(uri)
+        }
+        return ZipInputStream(file.inputStream().buffered())
     }
 }

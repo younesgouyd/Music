@@ -9,7 +9,6 @@ import dev.younesgouyd.apps.music.client.app.multiplatform.data.room.transaction
 import dev.younesgouyd.libs.music.client.spotifyapi.SpotifyApi
 import dev.younesgouyd.libs.music.client.spotifyapi.models.Track
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 

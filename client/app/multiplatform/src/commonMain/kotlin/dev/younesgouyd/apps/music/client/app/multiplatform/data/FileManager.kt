@@ -12,6 +12,7 @@ class FileManager(
 ) {
     private val logger = KotlinLogging.logger {}
     val mediaDir = File(appDir, "media").also { it.mkdir() }
+    val logsDir = File(appDir, "logs").also { it.mkdir() }
 
     suspend fun saveMediaFile(data: InputStream, id: MediaFileId) {
         withContext(Dispatchers.IO) {

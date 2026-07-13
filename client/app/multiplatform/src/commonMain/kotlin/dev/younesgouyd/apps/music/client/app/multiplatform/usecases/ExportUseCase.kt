@@ -8,6 +8,8 @@ import java.io.File
 import java.io.OutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlin.io.copyTo
+import kotlin.io.inputStream
 import kotlin.use
 
 abstract class ExportUseCase(

@@ -13,8 +13,7 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
-import io.ktor.utils.io.*
-import io.ktor.utils.io.jvm.javaio.toInputStream
+import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
@@ -24,7 +23,28 @@ class Server(
     private val serverAddress: StateFlow<String?>
 ) {
     private val client = HttpClient(CIO) {
-        install(Logging) { level = LogLevel.ALL }
+        install(Logging) {
+            level = LogLevel.ALL
+            logger = object : Logger {
+                private val binaryContentTypes = setOf(
+                    "application/octet-stream",
+                    "audio/",
+                    "video/",
+                    "image/",
+                    "application/zip",
+                    "application/pdf"
+                )
+                override fun log(message: String) {
+                    if (message.contains("BODY START") && message.contains("Content-Type")) {
+                        val contentType = message.substringAfter("Content-Type: ").substringBefore("\n")
+                        if (binaryContentTypes.any { contentType.contains(it) }) {
+                            return
+                        }
+                    }
+                    println(message)
+                }
+            }
+        }
         install(ContentNegotiation) {
             json(json)
         }
