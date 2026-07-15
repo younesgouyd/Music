@@ -92,13 +92,9 @@ actual class MusicImpl : Music() {
                     isPlaying = false
 
                     try {
-                        val cleanUri = if (uri.startsWith("file:")) {
-                            URI(uri).path
-                        } else {
-                            uri
-                        }
-
-                        val g = FFmpegFrameGrabber(cleanUri)
+                        val g = FFmpegFrameGrabber(
+                            if (uri.startsWith("file:")) File(URI(uri)).absolutePath else { uri }
+                        )
                         g.start()
                         grabber = g
 

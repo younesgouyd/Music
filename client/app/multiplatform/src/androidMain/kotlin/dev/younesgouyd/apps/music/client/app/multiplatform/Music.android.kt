@@ -67,24 +67,26 @@ actual class MusicImpl : Music() {
                         }
                     }
 
-                    media3Controller.addListener(object : Player.Listener {
-                        override fun onIsPlayingChanged(isPlaying: Boolean) {
-                            if (isPlaying) {
-                                eventListener.onPlaying()
-                                handler.post(updateRunnable)
-                            } else {
-                                eventListener.onPaused()
-                                handler.removeCallbacks(updateRunnable)
+                    media3Controller.addListener(
+                        object : Player.Listener {
+                            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                                if (isPlaying) {
+                                    eventListener.onPlaying()
+                                    handler.post(updateRunnable)
+                                } else {
+                                    eventListener.onPaused()
+                                    handler.removeCallbacks(updateRunnable)
+                                }
                             }
-                        }
 
-                        override fun onPlaybackStateChanged(state: Int) {
-                            if (state == Player.STATE_ENDED) {
-                                handler.removeCallbacks(updateRunnable)
-                                eventListener.onFinished()
+                            override fun onPlaybackStateChanged(state: Int) {
+                                if (state == Player.STATE_ENDED) {
+                                    handler.removeCallbacks(updateRunnable)
+                                    eventListener.onFinished()
+                                }
                             }
                         }
-                    })
+                    )
                 }
 
                 override fun setMedia(uri: String) {
