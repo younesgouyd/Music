@@ -1,11 +1,13 @@
 rootProject.name = "Music"
 
-include(":client:app:android")
-include(":client:app:jvm")
-include(":client:app:multiplatform")
-include(":client:spotifyapi")
-include(":server")
+include(":server:common")
+include(":server:jvm")
+include(":server:android")
 include(":common")
+include(":client:common")
+include(":client:jvm")
+include(":client:android")
+include(":ytdlpserver")
 
 pluginManagement {
     repositories {
@@ -53,12 +55,10 @@ dependencyResolutionManagement {
                     val coreKtx = "1.17.0"
                     val activity = "1.13.0"
                     val media3 = "1.10.1"
-                    val documentfile = "1.1.0"
+                    val startup = "1.2.0"
                 }
                 val javacv = "1.5.13"
                 val ffmpeg = "8.0.1-1.5.13"
-                val mp3agic = "0.9.1"
-                val tika = "3.3.1"
             }
 
             plugin("kotlin.multiplatform", "org.jetbrains.kotlin.multiplatform").version(versions.kotlin)
@@ -91,8 +91,6 @@ dependencyResolutionManagement {
 
             library("javacv", "org.bytedeco", "javacv").version(versions.javacv)
             library("ffmpeg", "org.bytedeco", "ffmpeg-platform").version(versions.ffmpeg)
-            library("mp3agic", "com.mpatric", "mp3agic").version(versions.mp3agic)
-            library("tika", "org.apache.tika", "tika-core").version(versions.tika)
 
             library("logging", "io.github.oshai", "kotlin-logging").version(versions.logging)
             library("logback.jvm", "ch.qos.logback", "logback-classic").version(versions.logback.jvm)
@@ -116,7 +114,7 @@ dependencyResolutionManagement {
             library("android.media3.common", "androidx.media3", "media3-common").version(versions.android.media3)
             library("android.media3.exoplayer", "androidx.media3", "media3-exoplayer").version(versions.android.media3)
             library("android.media3.session", "androidx.media3", "media3-session").version(versions.android.media3)
-            library("android.documentfile", "androidx.documentfile", "documentfile").version(versions.android.documentfile)
+            library("android.startup", "androidx.startup", "startup-runtime").version(versions.android.startup)
         }
     }
 }
