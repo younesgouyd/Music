@@ -16,8 +16,8 @@ import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.common.MediaController
 import dev.younesgouyd.apps.music.client.common.components.util.*
 import dev.younesgouyd.apps.music.client.common.util.Component
-import dev.younesgouyd.apps.music.common.SpotifyAlbumId
-import dev.younesgouyd.apps.music.common.SpotifyArtistId
+import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
+import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

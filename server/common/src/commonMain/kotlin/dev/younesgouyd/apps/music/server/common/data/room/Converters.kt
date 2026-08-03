@@ -1,8 +1,8 @@
 package dev.younesgouyd.apps.music.server.common.data.room
 
 import androidx.room.TypeConverter
-import dev.younesgouyd.apps.music.common.Inspection
 import dev.younesgouyd.apps.music.common.json
+import dev.younesgouyd.apps.music.common.models.Inspection
 
 object Converters {
     @TypeConverter

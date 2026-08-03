@@ -24,10 +24,10 @@ import dev.younesgouyd.apps.music.client.common.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.client.common.data.repoes.PlaylistRepo
 import dev.younesgouyd.apps.music.client.common.data.repoes.TrackRepo
 import dev.younesgouyd.apps.music.client.common.util.Component
-import dev.younesgouyd.apps.music.common.Folder
-import dev.younesgouyd.apps.music.common.FolderId
-import dev.younesgouyd.apps.music.common.PlaylistId
-import dev.younesgouyd.apps.music.common.TrackId
+import dev.younesgouyd.apps.music.common.models.Folder
+import dev.younesgouyd.apps.music.common.models.FolderId
+import dev.younesgouyd.apps.music.common.models.PlaylistId
+import dev.younesgouyd.apps.music.common.models.TrackId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*

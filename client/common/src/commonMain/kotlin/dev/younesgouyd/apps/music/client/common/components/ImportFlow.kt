@@ -21,10 +21,10 @@ import dev.younesgouyd.apps.music.client.common.components.util.formatted
 import dev.younesgouyd.apps.music.client.common.data.repoes.InspectionRepo
 import dev.younesgouyd.apps.music.client.common.usecases.PrepareImportUseCase
 import dev.younesgouyd.apps.music.client.common.util.Component
-import dev.younesgouyd.apps.music.common.FolderId
-import dev.younesgouyd.apps.music.common.ImportSessionId
-import dev.younesgouyd.apps.music.common.ImportSessionItem
-import dev.younesgouyd.apps.music.common.Inspection
+import dev.younesgouyd.apps.music.common.models.FolderId
+import dev.younesgouyd.apps.music.common.models.ImportSessionId
+import dev.younesgouyd.apps.music.common.models.ImportSessionItem
+import dev.younesgouyd.apps.music.common.models.Inspection
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

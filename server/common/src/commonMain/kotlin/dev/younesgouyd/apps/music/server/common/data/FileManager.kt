@@ -1,6 +1,6 @@
 package dev.younesgouyd.apps.music.server.common.data
 
-import dev.younesgouyd.apps.music.common.MediaFileId
+import dev.younesgouyd.apps.music.common.models.MediaFileId
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -25,6 +25,7 @@ class FileManager(
         }
     }
 
+    // TODO: check existence
     fun getMediaFile(id: MediaFileId): File {
         return File(mediaDir, id.toString())
     }

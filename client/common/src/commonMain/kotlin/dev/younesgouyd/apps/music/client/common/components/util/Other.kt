@@ -17,14 +17,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.common.SpotifyArtistId
+import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
 import java.io.File
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 typealias Uri = String
-
-enum class DbOrder { Ascending, Descending }
 
 @Composable
 expect fun SystemFolderPicker(

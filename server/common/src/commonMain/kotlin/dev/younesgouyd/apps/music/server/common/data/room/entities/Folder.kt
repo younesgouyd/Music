@@ -4,7 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import dev.younesgouyd.apps.music.common.FolderId
+import dev.younesgouyd.apps.music.common.models.FolderId
 
 @Entity(
     foreignKeys = [

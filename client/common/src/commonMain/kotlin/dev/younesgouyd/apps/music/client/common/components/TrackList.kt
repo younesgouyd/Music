@@ -27,7 +27,7 @@ import dev.younesgouyd.apps.music.client.common.data.repoes.TrackRepo
 import dev.younesgouyd.apps.music.client.common.util.Component
 import dev.younesgouyd.apps.music.client.common.util.LazilyLoadedItems
 import dev.younesgouyd.apps.music.client.common.util.PageSize
-import dev.younesgouyd.apps.music.common.*
+import dev.younesgouyd.apps.music.common.models.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -97,7 +97,7 @@ class TrackList(
                         LazilyLoadedItems(
                             coroutineScope = coroutineScope,
                             load = { offset, pageSize: PageSize ->
-                                trackRepo.search(
+                                trackRepo.searchWithTags(
                                     nameQuery = search,
                                     tags = tags,
                                     includeUntagged = untagged,

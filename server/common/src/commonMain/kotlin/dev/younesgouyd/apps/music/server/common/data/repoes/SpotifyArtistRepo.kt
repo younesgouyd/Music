@@ -1,9 +1,9 @@
 package dev.younesgouyd.apps.music.server.common.data.repoes
 
-import dev.younesgouyd.apps.music.common.Offset
-import dev.younesgouyd.apps.music.common.SpotifyAlbumId
-import dev.younesgouyd.apps.music.common.SpotifyArtistId
-import dev.younesgouyd.apps.music.common.SpotifyTrackId
+import dev.younesgouyd.apps.music.common.models.Offset
+import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
+import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
+import dev.younesgouyd.apps.music.common.models.SpotifyTrackId
 import dev.younesgouyd.apps.music.server.common.data.room.daos.SpotifyArtistDao
 import dev.younesgouyd.apps.music.server.common.data.room.entities.SpotifyArtist
 import dev.younesgouyd.apps.music.server.common.data.room.toSearchQuery

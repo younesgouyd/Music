@@ -2,10 +2,10 @@ package dev.younesgouyd.apps.music.server.common.data.room.daos
 
 import androidx.room.Dao
 import androidx.room.Query
-import dev.younesgouyd.apps.music.common.ImportSessionId
-import dev.younesgouyd.apps.music.common.ImportSessionItemId
-import dev.younesgouyd.apps.music.common.MediaFileId
-import dev.younesgouyd.apps.music.server.common.data.DbOrder
+import dev.younesgouyd.apps.music.common.models.DbOrder
+import dev.younesgouyd.apps.music.common.models.ImportSessionId
+import dev.younesgouyd.apps.music.common.models.ImportSessionItemId
+import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.server.common.data.room.entities.ImportSessionItem
 import dev.younesgouyd.apps.music.server.common.data.room.toSearchQuery
 import kotlinx.coroutines.flow.Flow
@@ -23,11 +23,11 @@ abstract class ImportSessionItemDao {
         limit 1
     """
     )
-    abstract fun getOldest(state: ImportSessionItem.State): Flow<ImportSessionItem?>
+    abstract fun getOldest(state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State): Flow<ImportSessionItem?>
 
     fun search(
         importSessionId: ImportSessionId,
-        state: ImportSessionItem.State,
+        state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State,
         titleQuery: String,
         order: DbOrder
     ): Flow<List<ImportSessionItem>> {
@@ -49,7 +49,7 @@ abstract class ImportSessionItemDao {
     )
     abstract fun searchAsc(
         importSessionId: ImportSessionId,
-        state: ImportSessionItem.State,
+        state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State,
         titleQuery: String
     ): Flow<List<ImportSessionItem>>
 
@@ -65,7 +65,7 @@ abstract class ImportSessionItemDao {
     )
     abstract fun searchDesc(
         importSessionId: ImportSessionId,
-        state: ImportSessionItem.State,
+        state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State,
         titleQuery: String
     ): Flow<List<ImportSessionItem>>
 
@@ -77,7 +77,7 @@ abstract class ImportSessionItemDao {
         where id = :id
     """)
     abstract suspend fun update(
-        state: ImportSessionItem.State,
+        state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State,
         audioFileId: MediaFileId?,
         updateDatetime: Long,
         id: ImportSessionItemId
@@ -90,7 +90,7 @@ abstract class ImportSessionItemDao {
         where id = :id
     """)
     abstract suspend fun update(
-        state: ImportSessionItem.State,
+        state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State,
         updateDatetime: Long,
         id: ImportSessionItemId
     )

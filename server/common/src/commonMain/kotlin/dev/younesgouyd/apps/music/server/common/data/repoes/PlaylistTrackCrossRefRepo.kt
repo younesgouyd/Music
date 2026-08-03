@@ -1,7 +1,7 @@
 package dev.younesgouyd.apps.music.server.common.data.repoes
 
-import dev.younesgouyd.apps.music.common.PlaylistId
-import dev.younesgouyd.apps.music.common.TrackId
+import dev.younesgouyd.apps.music.common.models.PlaylistId
+import dev.younesgouyd.apps.music.common.models.TrackId
 import dev.younesgouyd.apps.music.server.common.data.room.daos.PlaylistTrackCrossRefDao
 import dev.younesgouyd.apps.music.server.common.data.room.entities.PlaylistTrackCrossRef
 import kotlinx.coroutines.flow.Flow

@@ -3,7 +3,7 @@ package dev.younesgouyd.apps.music.server.common.data.room.daos
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
-import dev.younesgouyd.apps.music.common.*
+import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.server.common.data.room.entities.PlaylistTrack
 import dev.younesgouyd.apps.music.server.common.data.room.entities.Track
 import dev.younesgouyd.apps.music.server.common.data.room.entities.TrackRelation

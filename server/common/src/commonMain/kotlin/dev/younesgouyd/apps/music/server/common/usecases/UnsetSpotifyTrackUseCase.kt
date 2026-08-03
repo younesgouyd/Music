@@ -1,8 +1,8 @@
 package dev.younesgouyd.apps.music.server.common.usecases
 
-import dev.younesgouyd.apps.music.common.SpotifyAlbumId
-import dev.younesgouyd.apps.music.common.SpotifyTrackId
-import dev.younesgouyd.apps.music.common.TrackId
+import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
+import dev.younesgouyd.apps.music.common.models.SpotifyTrackId
+import dev.younesgouyd.apps.music.common.models.TrackId
 import dev.younesgouyd.apps.music.server.common.data.FileManager
 import dev.younesgouyd.apps.music.server.common.data.room.transactions.UnsetSpotifyTrack
 

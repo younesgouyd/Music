@@ -4,10 +4,8 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import dev.younesgouyd.apps.music.common.ImportSessionId
-import dev.younesgouyd.apps.music.common.ImportSessionItemId
-import dev.younesgouyd.apps.music.common.Inspection
-import dev.younesgouyd.apps.music.common.MediaFileId
+import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.models.ImportSessionItem
 
 @Entity(
     foreignKeys = [
@@ -44,7 +42,7 @@ data class ImportSessionItem(
     val id: ImportSessionItemId,
     val uri: String,
     val importSessionId: ImportSessionId,
-    val state: State,
+    val state: ImportSessionItem.State,
     val title: String,
     val durationMilliseconds: Long,
     val album: String?,
@@ -53,13 +51,4 @@ data class ImportSessionItem(
     val audioFileId: MediaFileId?,
     val creationDatetime: Long,
     val updateDatetime: Long
-) {
-    enum class State {
-        Nonselected,
-        Pending,
-        InProgress,
-        Completed,
-        Cancelled,
-        Failed
-    }
-}
+)

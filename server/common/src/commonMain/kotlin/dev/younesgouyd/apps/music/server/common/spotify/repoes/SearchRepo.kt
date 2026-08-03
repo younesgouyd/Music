@@ -1,6 +1,6 @@
 package dev.younesgouyd.apps.music.server.common.spotify.repoes
 
-import dev.younesgouyd.apps.music.common.spotifyapimodels.SearchResult
+import dev.younesgouyd.apps.music.common.models.spotify.SearchResult
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*

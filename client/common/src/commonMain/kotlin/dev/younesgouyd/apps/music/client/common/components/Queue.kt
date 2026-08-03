@@ -19,7 +19,7 @@ import dev.younesgouyd.apps.music.client.common.components.util.Artists
 import dev.younesgouyd.apps.music.client.common.components.util.Image
 import dev.younesgouyd.apps.music.client.common.util.Component
 import dev.younesgouyd.apps.music.common.Platform
-import dev.younesgouyd.apps.music.common.SpotifyArtistId
+import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
 import dev.younesgouyd.apps.music.common.platform
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*

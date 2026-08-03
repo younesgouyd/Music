@@ -15,9 +15,9 @@ import dev.younesgouyd.apps.music.client.common.components.util.Item
 import dev.younesgouyd.apps.music.client.common.data.repoes.ImportSessionRepo
 import dev.younesgouyd.apps.music.client.common.util.Component
 import dev.younesgouyd.apps.music.client.common.util.LazilyLoadedItems
-import dev.younesgouyd.apps.music.common.ImportSession
-import dev.younesgouyd.apps.music.common.ImportSessionId
-import dev.younesgouyd.apps.music.common.Offset
+import dev.younesgouyd.apps.music.common.models.ImportSession
+import dev.younesgouyd.apps.music.common.models.ImportSessionId
+import dev.younesgouyd.apps.music.common.models.Offset
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filter

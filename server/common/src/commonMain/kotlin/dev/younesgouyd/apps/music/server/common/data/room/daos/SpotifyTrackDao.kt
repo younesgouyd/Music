@@ -3,7 +3,7 @@ package dev.younesgouyd.apps.music.server.common.data.room.daos
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
-import dev.younesgouyd.apps.music.common.SpotifyAlbumId
+import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
 import dev.younesgouyd.apps.music.server.common.data.room.entities.SpotifyTrackRelation
 import kotlinx.coroutines.flow.Flow
 

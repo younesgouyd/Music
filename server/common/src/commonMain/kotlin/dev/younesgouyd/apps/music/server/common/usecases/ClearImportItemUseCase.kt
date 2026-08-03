@@ -1,6 +1,6 @@
 package dev.younesgouyd.apps.music.server.common.usecases
 
-import dev.younesgouyd.apps.music.common.ImportSessionItemId
+import dev.younesgouyd.apps.music.common.models.ImportSessionItemId
 import dev.younesgouyd.apps.music.server.common.data.FileManager
 import dev.younesgouyd.apps.music.server.common.data.repoes.TrackRepo
 import dev.younesgouyd.apps.music.server.common.data.room.transactions.ClearImportSessionItem

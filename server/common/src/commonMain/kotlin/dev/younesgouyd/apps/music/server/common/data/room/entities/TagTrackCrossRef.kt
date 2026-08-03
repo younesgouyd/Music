@@ -4,9 +4,9 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import dev.younesgouyd.apps.music.common.TagId
-import dev.younesgouyd.apps.music.common.TagTrackCrossRefId
-import dev.younesgouyd.apps.music.common.TrackId
+import dev.younesgouyd.apps.music.common.models.TagId
+import dev.younesgouyd.apps.music.common.models.TagTrackCrossRefId
+import dev.younesgouyd.apps.music.common.models.TrackId
 
 @Entity(
     foreignKeys = [

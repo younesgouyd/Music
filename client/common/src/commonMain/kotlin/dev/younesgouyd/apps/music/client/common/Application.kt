@@ -7,13 +7,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import dev.younesgouyd.apps.music.client.common.components.Main
 import dev.younesgouyd.apps.music.client.common.components.SplashScreen
+import dev.younesgouyd.apps.music.client.common.data.Backend
+import dev.younesgouyd.apps.music.client.common.data.FileManager
 import dev.younesgouyd.apps.music.client.common.data.RepoStore
 import dev.younesgouyd.apps.music.client.common.usecases.*
 import dev.younesgouyd.apps.music.client.common.util.Component
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import java.io.File
 import java.util.*
 
 class Application {
@@ -38,7 +42,8 @@ class Application {
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private lateinit var mediaController: MediaController
-
+    private lateinit var backend: Backend
+    private lateinit var fileManager: FileManager
     private lateinit var repoStore: RepoStore
 
     private lateinit var unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase
@@ -47,17 +52,29 @@ class Application {
     private lateinit var deleteFolderUseCase: DeleteFolderUseCase
     private lateinit var prepareImportUseCase: PrepareImportUseCase
 
-    private val currentComponent: MutableStateFlow<Component> = MutableStateFlow(SplashScreen())
+    private val loading = MutableStateFlow(false)
+    private val currentComponent: MutableStateFlow<Component> = MutableStateFlow(
+        SplashScreen(
+            onStart = ::start,
+            loading = loading.asStateFlow()
+        )
+    )
 
-    fun start() {
+    private fun start(serverAddress: String) {
         coroutineScope.launch {
-            System.setProperty("sun.java2d.uiScale", "1.0")
-            repoStore = RepoStore()
-            unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(repoStore.client)
-            setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(repoStore.client)
-            clearImportItemUseCase = ClearImportItemUseCase(repoStore.client)
-            deleteFolderUseCase = DeleteFolderUseCase(repoStore.client)
-            prepareImportUseCase = PrepareImportUseCase(repoStore.client)
+            val tempDir = withContext(Dispatchers.IO) {
+                appDir.mkdir()
+                File(appDir, "temp").also { it.mkdir() }
+            }
+            backend = Backend(serverAddress)
+            fileManager = FileManager(tempDir)
+            fileManager.clearTemp()
+            repoStore = RepoStore(backend, fileManager)
+            unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(backend)
+            setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(backend)
+            clearImportItemUseCase = ClearImportItemUseCase(backend)
+            deleteFolderUseCase = DeleteFolderUseCase(backend)
+            prepareImportUseCase = PrepareImportUseCase(backend)
             mediaController = MediaController(
                 mediaPlayer = createMediaPlayer(),
                 mediaFileRepo = repoStore.mediaFileRepo,
@@ -88,10 +105,10 @@ class Application {
     }
 
     fun clear() {
-        currentComponent.value.clear()
-        mediaController.release()
-        repoStore.release()
-        coroutineScope.cancel()
+        try { currentComponent.value.clear() } catch (_: Exception) { }
+        try { mediaController.release() } catch (_: Exception) { }
+        try { runBlocking { backend.close() } } catch (_: Exception) { }
+        try { coroutineScope.cancel() } catch (_: Exception) { }
     }
 
     fun navigateBack() {

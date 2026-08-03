@@ -1,7 +1,7 @@
 package dev.younesgouyd.apps.music.server
 
-import dev.younesgouyd.apps.music.common.Base64Image
-import dev.younesgouyd.apps.music.common.Inspection
+import dev.younesgouyd.apps.music.common.models.Base64Image
+import dev.younesgouyd.apps.music.common.models.Inspection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi

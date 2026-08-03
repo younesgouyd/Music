@@ -3,12 +3,8 @@ package dev.younesgouyd.apps.music.server.common.data.room.transactions
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
-import dev.younesgouyd.apps.music.common.FolderId
-import dev.younesgouyd.apps.music.common.ImportSessionId
-import dev.younesgouyd.apps.music.common.Inspection
-import dev.younesgouyd.apps.music.common.MediaFileId
+import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.server.common.data.FileManager
-import dev.younesgouyd.apps.music.server.common.data.room.entities.ImportSessionItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.io.encoding.Base64

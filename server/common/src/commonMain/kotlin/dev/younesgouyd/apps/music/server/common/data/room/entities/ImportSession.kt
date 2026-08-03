@@ -4,10 +4,10 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import dev.younesgouyd.apps.music.common.FolderId
-import dev.younesgouyd.apps.music.common.ImportSessionId
-import dev.younesgouyd.apps.music.common.Inspection
-import dev.younesgouyd.apps.music.common.MediaFileId
+import dev.younesgouyd.apps.music.common.models.FolderId
+import dev.younesgouyd.apps.music.common.models.ImportSessionId
+import dev.younesgouyd.apps.music.common.models.Inspection
+import dev.younesgouyd.apps.music.common.models.MediaFileId
 
 @Entity(
     foreignKeys = [

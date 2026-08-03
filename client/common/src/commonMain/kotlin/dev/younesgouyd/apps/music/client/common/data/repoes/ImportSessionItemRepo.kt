@@ -1,18 +1,24 @@
 package dev.younesgouyd.apps.music.client.common.data.repoes
 
-import dev.younesgouyd.apps.music.client.common.components.util.DbOrder
-import dev.younesgouyd.apps.music.common.ImportSessionId
-import dev.younesgouyd.apps.music.common.ImportSessionItem
-import dev.younesgouyd.apps.music.common.ImportSessionItemId
-import io.ktor.client.*
+import dev.younesgouyd.apps.music.client.common.data.Backend
+import dev.younesgouyd.apps.music.common.models.DbOrder
+import dev.younesgouyd.apps.music.common.models.ImportSessionId
+import dev.younesgouyd.apps.music.common.models.ImportSessionItem
+import dev.younesgouyd.apps.music.common.models.ImportSessionItemId
+import dev.younesgouyd.apps.music.common.models.rpc.ImportSessionItemRpc
+import io.ktor.client.call.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 class ImportSessionItemRepo(
-    private val client: HttpClient
+    private val backend: Backend
 ) {
     fun get(id: ImportSessionItemId): Flow<ImportSessionItem?> {
-        TODO()
-//        return dao.get(id)
+        return flow {
+            emit(
+                backend.call(ImportSessionItemRpc.Get(id)).body<ImportSessionItem?>()
+            )
+        }
     }
 
     fun search(
@@ -21,19 +27,29 @@ class ImportSessionItemRepo(
         titleQuery: String,
         order: DbOrder
     ): Flow<List<ImportSessionItem>> {
-        TODO()
-//        return dao.search(importSessionId, state, titleQuery.toSearchQuery(), order)
+        return flow {
+            emit(
+                backend.call(
+                    ImportSessionItemRpc.Search(
+                        importSessionId = importSessionId,
+                        state = state,
+                        titleQuery = titleQuery,
+                        order = order
+                    )
+                ).body<List<ImportSessionItem>>()
+            )
+        }
     }
 
     suspend fun updateState(
         id: ImportSessionItemId,
         state: ImportSessionItem.State
     ) {
-        TODO()
-//        dao.update(
-//            state = state,
-//            updateDatetime = System.currentTimeMillis(),
-//            id = id
-//        )
+        backend.call(
+            ImportSessionItemRpc.UpdateState(
+                id = id,
+                state = state
+            )
+        )
     }
 }

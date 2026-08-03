@@ -2,8 +2,8 @@ package dev.younesgouyd.apps.music.server.common.data.room.daos
 
 import androidx.room.Dao
 import androidx.room.Query
-import dev.younesgouyd.apps.music.common.SpotifyAlbumId
-import dev.younesgouyd.apps.music.common.SpotifyArtistId
+import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
+import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
 import dev.younesgouyd.apps.music.server.common.data.room.entities.SpotifyAlbum
 import kotlinx.coroutines.flow.Flow
 

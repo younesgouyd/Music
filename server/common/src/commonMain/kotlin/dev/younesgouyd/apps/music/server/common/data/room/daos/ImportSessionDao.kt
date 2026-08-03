@@ -2,7 +2,7 @@ package dev.younesgouyd.apps.music.server.common.data.room.daos
 
 import androidx.room.Dao
 import androidx.room.Query
-import dev.younesgouyd.apps.music.common.ImportSessionId
+import dev.younesgouyd.apps.music.common.models.ImportSessionId
 import dev.younesgouyd.apps.music.server.common.data.room.entities.ImportSession
 import kotlinx.coroutines.flow.Flow
 

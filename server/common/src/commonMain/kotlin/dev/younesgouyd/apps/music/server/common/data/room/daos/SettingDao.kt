@@ -3,7 +3,7 @@ package dev.younesgouyd.apps.music.server.common.data.room.daos
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
-import dev.younesgouyd.apps.music.common.DarkThemeOptions
+import dev.younesgouyd.apps.music.common.models.DarkThemeOptions
 import dev.younesgouyd.apps.music.server.common.data.room.entities.Setting
 import kotlinx.coroutines.flow.Flow
 
@@ -13,11 +13,6 @@ abstract class SettingDao {
         select 1 from setting where name = 'dark_theme'
     """)
     abstract suspend fun darkThemeExists(): Int?
-
-    @Query("""
-        select 1 from setting where name = 'server_address'
-    """)
-    abstract suspend fun serverAddressExists(): Int?
 
     @Query("""
         select 1 from setting where name = 'spotify_client_id'
@@ -47,9 +42,6 @@ abstract class SettingDao {
     @Query("select * from setting where name = 'dark_theme'")
     abstract fun getDarkTheme(): Flow<Setting>
 
-    @Query("select * from setting where name = 'server_address'")
-    abstract fun getServerAddress(): Flow<Setting>
-
     @Query("select * from setting where name = 'spotify_client_id'")
     abstract fun getSpotifyClientId(): Flow<Setting>
 
@@ -73,18 +65,6 @@ abstract class SettingDao {
     )
     abstract suspend fun initDarkTheme(
         darkTheme: DarkThemeOptions = DarkThemeOptions.SystemDefault,
-        creationDatetime: Long,
-        updateDatetime: Long
-    )
-
-    @Query(
-        """
-        insert into setting (name, value, creationDatetime, updateDatetime)
-        values ('server_address', :address, :creationDatetime, :updateDatetime)
-    """
-    )
-    abstract suspend fun initServerAddress(
-        address: String = "http://0.0.0.0:8080/Music",
         creationDatetime: Long,
         updateDatetime: Long
     )
@@ -149,9 +129,6 @@ abstract class SettingDao {
         darkTheme: DarkThemeOptions,
         updateDatetime: Long
     )
-
-    @Query("update setting set value = :address, updateDatetime = :updateDatetime where name = 'server_address'")
-    abstract suspend fun updateServerAddress(address: String?, updateDatetime: Long)
 
     @Transaction
     open suspend fun updateSpotifyCredentials(clientId: String, clientSecret: String) {

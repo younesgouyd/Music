@@ -20,10 +20,10 @@ import dev.younesgouyd.apps.music.client.common.data.repoes.SpotifyAlbumRepo
 import dev.younesgouyd.apps.music.client.common.data.repoes.SpotifyArtistRepo
 import dev.younesgouyd.apps.music.client.common.data.repoes.SpotifyTrackRepo
 import dev.younesgouyd.apps.music.client.common.util.Component
-import dev.younesgouyd.apps.music.common.SpotifyAlbumId
-import dev.younesgouyd.apps.music.common.SpotifyArtistId
-import dev.younesgouyd.apps.music.common.SpotifyTrackId
-import dev.younesgouyd.apps.music.common.TrackId
+import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
+import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
+import dev.younesgouyd.apps.music.common.models.SpotifyTrackId
+import dev.younesgouyd.apps.music.common.models.TrackId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*

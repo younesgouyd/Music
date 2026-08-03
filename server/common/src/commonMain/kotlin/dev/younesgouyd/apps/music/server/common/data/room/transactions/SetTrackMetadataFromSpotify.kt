@@ -3,11 +3,11 @@ package dev.younesgouyd.apps.music.server.common.data.room.transactions
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
-import dev.younesgouyd.apps.music.common.*
-import dev.younesgouyd.apps.music.common.spotifyapimodels.Track
-import dev.younesgouyd.apps.music.common.spotifyapimodels.common.ArtistId
-import dev.younesgouyd.apps.music.common.spotifyapimodels.common.ImageObject
-import dev.younesgouyd.apps.music.common.spotifyapimodels.common.SimplifiedArtistObject
+import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.models.spotify.Track
+import dev.younesgouyd.apps.music.common.models.spotify.common.ArtistId
+import dev.younesgouyd.apps.music.common.models.spotify.common.ImageObject
+import dev.younesgouyd.apps.music.common.models.spotify.common.SimplifiedArtistObject
 import dev.younesgouyd.apps.music.server.common.data.FileManager
 import dev.younesgouyd.apps.music.server.common.spotify.Spotify
 import kotlinx.coroutines.Dispatchers

@@ -3,7 +3,7 @@ package dev.younesgouyd.apps.music.server.common.data.room.entities
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import dev.younesgouyd.apps.music.common.SettingId
+import dev.younesgouyd.apps.music.common.models.SettingId
 
 @Entity(
     indices = [Index(value = ["name"], unique = true)]

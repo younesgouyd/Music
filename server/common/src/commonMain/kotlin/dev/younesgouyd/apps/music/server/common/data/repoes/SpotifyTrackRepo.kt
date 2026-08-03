@@ -1,7 +1,7 @@
 package dev.younesgouyd.apps.music.server.common.data.repoes
 
-import dev.younesgouyd.apps.music.common.SpotifyAlbumId
-import dev.younesgouyd.apps.music.common.SpotifyTrackId
+import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
+import dev.younesgouyd.apps.music.common.models.SpotifyTrackId
 import dev.younesgouyd.apps.music.server.common.data.room.daos.SpotifyTrackDao
 import dev.younesgouyd.apps.music.server.common.data.room.entities.SpotifyTrackRelation
 import kotlinx.coroutines.flow.Flow

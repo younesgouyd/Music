@@ -4,9 +4,9 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import dev.younesgouyd.apps.music.common.SpotifyAlbumId
-import dev.younesgouyd.apps.music.common.SpotifyArtistId
-import dev.younesgouyd.apps.music.common.SpotifyArtistSpotifyAlbumCrossRefId
+import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
+import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
+import dev.younesgouyd.apps.music.common.models.SpotifyArtistSpotifyAlbumCrossRefId
 
 @Entity(
     foreignKeys = [

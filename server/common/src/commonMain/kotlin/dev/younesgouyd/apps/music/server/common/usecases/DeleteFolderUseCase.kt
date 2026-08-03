@@ -1,6 +1,6 @@
 package dev.younesgouyd.apps.music.server.common.usecases
 
-import dev.younesgouyd.apps.music.common.FolderId
+import dev.younesgouyd.apps.music.common.models.FolderId
 import dev.younesgouyd.apps.music.server.common.data.repoes.FolderRepo
 import dev.younesgouyd.apps.music.server.common.data.repoes.PlaylistRepo
 import dev.younesgouyd.apps.music.server.common.data.repoes.TrackRepo

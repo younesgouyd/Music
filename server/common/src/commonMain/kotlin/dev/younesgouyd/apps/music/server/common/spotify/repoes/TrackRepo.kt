@@ -1,9 +1,9 @@
 package dev.younesgouyd.apps.music.server.common.spotify.repoes
 
-import dev.younesgouyd.apps.music.common.spotifyapimodels.AlbumTracks
-import dev.younesgouyd.apps.music.common.spotifyapimodels.Track
-import dev.younesgouyd.apps.music.common.spotifyapimodels.common.AlbumId
-import dev.younesgouyd.apps.music.common.spotifyapimodels.common.TrackId
+import dev.younesgouyd.apps.music.common.models.spotify.AlbumTracks
+import dev.younesgouyd.apps.music.common.models.spotify.Track
+import dev.younesgouyd.apps.music.common.models.spotify.common.AlbumId
+import dev.younesgouyd.apps.music.common.models.spotify.common.TrackId
 import dev.younesgouyd.apps.music.server.common.spotify.ApiRespJson
 import io.ktor.client.*
 import io.ktor.client.request.*

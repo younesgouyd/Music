@@ -4,8 +4,8 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import dev.younesgouyd.apps.music.common.MediaFileId
-import dev.younesgouyd.apps.music.common.SpotifyArtistId
+import dev.younesgouyd.apps.music.common.models.MediaFileId
+import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
 
 @Entity(
     foreignKeys = [

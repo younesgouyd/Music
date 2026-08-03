@@ -1,7 +1,7 @@
 package dev.younesgouyd.apps.music.server.common.data.repoes
 
-import dev.younesgouyd.apps.music.common.ImportSessionId
-import dev.younesgouyd.apps.music.common.Offset
+import dev.younesgouyd.apps.music.common.models.ImportSessionId
+import dev.younesgouyd.apps.music.common.models.Offset
 import dev.younesgouyd.apps.music.server.common.data.room.daos.ImportSessionDao
 import dev.younesgouyd.apps.music.server.common.data.room.entities.ImportSession
 import kotlinx.coroutines.flow.Flow

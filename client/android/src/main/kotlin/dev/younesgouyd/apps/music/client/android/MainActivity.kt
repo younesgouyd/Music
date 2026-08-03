@@ -17,7 +17,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         app = Application()
-        app.start()
         setContent {
             app.show(Modifier.fillMaxSize().systemBarsPadding())
         }

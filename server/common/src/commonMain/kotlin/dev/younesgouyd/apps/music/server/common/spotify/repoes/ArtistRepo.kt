@@ -1,7 +1,7 @@
 package dev.younesgouyd.apps.music.server.common.spotify.repoes
 
-import dev.younesgouyd.apps.music.common.spotifyapimodels.Artist
-import dev.younesgouyd.apps.music.common.spotifyapimodels.common.ArtistId
+import dev.younesgouyd.apps.music.common.models.spotify.Artist
+import dev.younesgouyd.apps.music.common.models.spotify.common.ArtistId
 import dev.younesgouyd.apps.music.server.common.spotify.ApiRespJson
 import io.ktor.client.*
 import io.ktor.client.request.*

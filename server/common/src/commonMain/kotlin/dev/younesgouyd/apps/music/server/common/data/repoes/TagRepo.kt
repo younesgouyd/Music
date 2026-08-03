@@ -1,7 +1,7 @@
 package dev.younesgouyd.apps.music.server.common.data.repoes
 
-import dev.younesgouyd.apps.music.common.TagId
-import dev.younesgouyd.apps.music.common.TrackId
+import dev.younesgouyd.apps.music.common.models.TagId
+import dev.younesgouyd.apps.music.common.models.TrackId
 import dev.younesgouyd.apps.music.server.common.data.room.daos.TagDao
 import dev.younesgouyd.apps.music.server.common.data.room.entities.Tag
 import dev.younesgouyd.apps.music.server.common.data.room.toSearchQuery

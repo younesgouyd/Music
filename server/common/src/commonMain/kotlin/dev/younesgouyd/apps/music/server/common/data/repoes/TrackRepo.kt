@@ -1,6 +1,6 @@
 package dev.younesgouyd.apps.music.server.common.data.repoes
 
-import dev.younesgouyd.apps.music.common.*
+import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.server.common.data.room.daos.TrackDao
 import dev.younesgouyd.apps.music.server.common.data.room.entities.PlaylistTrack
 import dev.younesgouyd.apps.music.server.common.data.room.entities.Track
@@ -27,7 +27,7 @@ class TrackRepo(
         )
     }
 
-    suspend fun search(
+    suspend fun searchWithTags(
         nameQuery: String,
         tags: List<TagId>,
         includeUntagged: Boolean,
@@ -50,7 +50,7 @@ class TrackRepo(
         return dao.searchFolder(folderId, nameQuery.toSearchQuery())
     }
 
-    fun searchFolder(
+    fun searchFolderWithTags(
         folderId: FolderId,
         nameQuery: String,
         tags: List<TagId>,

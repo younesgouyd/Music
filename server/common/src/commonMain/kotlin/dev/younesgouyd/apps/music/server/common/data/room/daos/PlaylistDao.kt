@@ -2,9 +2,9 @@ package dev.younesgouyd.apps.music.server.common.data.room.daos
 
 import androidx.room.Dao
 import androidx.room.Query
-import dev.younesgouyd.apps.music.common.FolderId
-import dev.younesgouyd.apps.music.common.PlaylistId
-import dev.younesgouyd.apps.music.common.TrackId
+import dev.younesgouyd.apps.music.common.models.FolderId
+import dev.younesgouyd.apps.music.common.models.PlaylistId
+import dev.younesgouyd.apps.music.common.models.TrackId
 import dev.younesgouyd.apps.music.server.common.data.room.entities.Playlist
 import kotlinx.coroutines.flow.Flow
 

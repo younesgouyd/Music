@@ -24,7 +24,7 @@ import dev.younesgouyd.apps.music.client.common.MediaController
 import dev.younesgouyd.apps.music.client.common.components.util.*
 import dev.younesgouyd.apps.music.client.common.data.repoes.*
 import dev.younesgouyd.apps.music.client.common.util.Component
-import dev.younesgouyd.apps.music.common.PlaylistId
+import dev.younesgouyd.apps.music.common.models.PlaylistId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*

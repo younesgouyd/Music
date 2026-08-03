@@ -22,10 +22,10 @@ import dev.younesgouyd.apps.music.client.common.components.util.Image
 import dev.younesgouyd.apps.music.client.common.components.util.Item
 import dev.younesgouyd.apps.music.client.common.data.repoes.*
 import dev.younesgouyd.apps.music.client.common.util.Component
-import dev.younesgouyd.apps.music.common.SpotifyArtistId
-import dev.younesgouyd.apps.music.common.Tag
-import dev.younesgouyd.apps.music.common.TagId
-import dev.younesgouyd.apps.music.common.TrackId
+import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
+import dev.younesgouyd.apps.music.common.models.Tag
+import dev.younesgouyd.apps.music.common.models.TagId
+import dev.younesgouyd.apps.music.common.models.TrackId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*

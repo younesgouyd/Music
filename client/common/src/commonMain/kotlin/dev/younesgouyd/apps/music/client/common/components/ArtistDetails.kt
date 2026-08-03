@@ -19,10 +19,10 @@ import dev.younesgouyd.apps.music.client.common.data.repoes.*
 import dev.younesgouyd.apps.music.client.common.util.Component
 import dev.younesgouyd.apps.music.client.common.util.LazilyLoadedItems
 import dev.younesgouyd.apps.music.client.common.util.PageSize
-import dev.younesgouyd.apps.music.common.Offset
-import dev.younesgouyd.apps.music.common.SpotifyAlbumId
-import dev.younesgouyd.apps.music.common.SpotifyArtistId
-import dev.younesgouyd.apps.music.common.TrackId
+import dev.younesgouyd.apps.music.common.models.Offset
+import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
+import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
+import dev.younesgouyd.apps.music.common.models.TrackId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*

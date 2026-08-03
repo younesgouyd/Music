@@ -3,7 +3,7 @@ package dev.younesgouyd.apps.music.server.common.data.room.transactions
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
-import dev.younesgouyd.apps.music.common.*
+import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.server.common.data.room.entities.SpotifyAlbum
 import dev.younesgouyd.apps.music.server.common.data.room.entities.SpotifyArtist
 import io.github.oshai.kotlinlogging.KotlinLogging

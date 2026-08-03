@@ -16,7 +16,7 @@ import dev.younesgouyd.apps.music.client.common.MediaController
 import dev.younesgouyd.apps.music.client.common.data.RepoStore
 import dev.younesgouyd.apps.music.client.common.usecases.*
 import dev.younesgouyd.apps.music.client.common.util.Component
-import dev.younesgouyd.apps.music.common.*
+import dev.younesgouyd.apps.music.common.models.*
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

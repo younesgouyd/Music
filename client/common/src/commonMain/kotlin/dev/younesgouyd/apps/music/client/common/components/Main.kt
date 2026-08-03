@@ -15,7 +15,7 @@ import dev.younesgouyd.apps.music.client.common.MediaController
 import dev.younesgouyd.apps.music.client.common.data.RepoStore
 import dev.younesgouyd.apps.music.client.common.usecases.*
 import dev.younesgouyd.apps.music.client.common.util.Component
-import dev.younesgouyd.apps.music.common.DarkThemeOptions
+import dev.younesgouyd.apps.music.common.models.DarkThemeOptions
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 
@@ -30,7 +30,7 @@ class Main(
 ) : Component() {
     override val title: String = ""
     private val darkTheme: StateFlow<DarkThemeOptions> = run {
-        repoStore.settingsRepo.getDarkTheme()
+        repoStore.settingRepo.getDarkTheme()
             .map { DarkThemeOptions.valueOf(it.value) }
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), DarkThemeOptions.SystemDefault)
     }
@@ -38,7 +38,7 @@ class Main(
     private val playerExpanded = MutableStateFlow(false)
 
     private val settings: Component = Settings(
-        settingsRepo = repoStore.settingsRepo,
+        settingRepo = repoStore.settingRepo,
         spotifyAuthRepo = repoStore.spotifyAuthRepo
     )
     private var navigationHost: NavigationHost = getNewNavHost(NavigationHost.Destination.Library)

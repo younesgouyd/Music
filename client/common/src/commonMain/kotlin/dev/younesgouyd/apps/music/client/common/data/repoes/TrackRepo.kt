@@ -1,63 +1,91 @@
 package dev.younesgouyd.apps.music.client.common.data.repoes
 
-import dev.younesgouyd.apps.music.common.*
-import io.ktor.client.*
+import dev.younesgouyd.apps.music.client.common.data.Backend
+import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.models.rpc.TrackRpc
+import io.ktor.client.call.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 class TrackRepo(
-    private val client: HttpClient
+    private val backend: Backend
 ) {
     fun get(id: TrackId): Flow<TrackRelation?> {
-        TODO()
-//        return dao.get(id)
+        return flow {
+            emit(
+                backend.call(
+                    TrackRpc.Get(id)
+                ).body<TrackRelation?>()
+            )
+        }
     }
 
     suspend fun search(
         nameQuery: String,
         limit: Int,
-        offset: Offset.Id<TrackId>,
+        offset: Offset.Id<TrackId>
     ): List<TrackRelation> {
-        TODO()
-//        return dao.search(
-//            nameQuery = nameQuery.toSearchQuery(),
-//            limit = limit,
-//            lastId = offset.value ?: TrackId(0)
-//        )
+        return backend.call(
+            TrackRpc.Search(
+                nameQuery = nameQuery,
+                limit = limit,
+                offset = offset
+            )
+        ).body<List<TrackRelation>>()
     }
 
-    suspend fun search(
+    suspend fun searchWithTags(
         nameQuery: String,
         tags: List<TagId>,
         includeUntagged: Boolean,
         limit: Int,
-        offset: Offset.Id<TrackId>,
+        offset: Offset.Id<TrackId>
     ): List<TrackRelation> {
-        TODO()
-//        return dao.search(
-//            nameQuery = nameQuery.toSearchQuery(),
-//            tags = tags,
-//            includeUntagged = includeUntagged,
-//            limit = limit,
-//            lastId = offset.value ?: TrackId(0)
-//        )
+        return backend.call(
+            TrackRpc.SearchWithTags(
+                nameQuery = nameQuery,
+                tags = tags,
+                includeUntagged = includeUntagged,
+                limit = limit,
+                offset = offset
+            )
+        ).body<List<TrackRelation>>()
     }
 
     fun searchFolder(
         folderId: FolderId,
         nameQuery: String
     ): Flow<List<TrackRelation>> {
-        TODO()
-//        return dao.searchFolder(folderId, nameQuery.toSearchQuery())
+        return flow {
+            emit(
+                backend.call(
+                    TrackRpc.SearchFolder(
+                        folderId = folderId,
+                        nameQuery = nameQuery
+                    )
+                ).body<List<TrackRelation>>()
+            )
+        }
     }
 
-    fun searchFolder(
+    fun searchFolderWithTags(
         folderId: FolderId,
         nameQuery: String,
         tags: List<TagId>,
         includeUntagged: Boolean
     ): Flow<List<TrackRelation>> {
-        TODO()
-//        return dao.searchFolder(folderId, nameQuery.toSearchQuery(), tags, includeUntagged)
+        return flow {
+            emit(
+                backend.call(
+                    TrackRpc.SearchFolderWithTags(
+                        folderId = folderId,
+                        nameQuery = nameQuery,
+                        tags = tags,
+                        includeUntagged = includeUntagged
+                    )
+                ).body<List<TrackRelation>>()
+            )
+        }
     }
 
     suspend fun searchArtistContributions(
@@ -66,59 +94,96 @@ class TrackRepo(
         limit: Int,
         offset: Offset.Id<TrackId>
     ): List<TrackRelation> {
-        TODO()
-//        return dao.searchArtistContributions(
-//            id = id,
-//            nameQuery = nameQuery.toSearchQuery(),
-//            limit = limit,
-//            lastId = offset.value ?: TrackId(
-//                0
-//            )
-//        )
+        return backend.call(
+            TrackRpc.SearchArtistContributions(
+                id = id,
+                nameQuery = nameQuery,
+                limit = limit,
+                offset = offset
+            )
+        ).body<List<TrackRelation>>()
     }
 
     fun searchPlaylist(id: PlaylistId, nameQuery: String): Flow<List<PlaylistTrack>> {
-        TODO()
-//        return dao.searchPlaylist(id, nameQuery.toSearchQuery())
+        return flow {
+            emit(
+                backend.call(
+                    TrackRpc.SearchPlaylist(
+                        id = id,
+                        nameQuery = nameQuery
+                    )
+                ).body<List<PlaylistTrack>>()
+            )
+        }
     }
 
     fun searchWithTag(nameQuery: String, tag: TagId): Flow<List<TrackRelation>> {
-        TODO()
-//        return dao.searchWithTag(nameQuery.toSearchQuery(), tag)
+        return flow {
+            emit(
+                backend.call(
+                    TrackRpc.SearchWithTag(
+                        nameQuery = nameQuery,
+                        tag = tag
+                    )
+                ).body<List<TrackRelation>>()
+            )
+        }
     }
 
     fun getFolderTracks(id: FolderId): Flow<List<Track>> {
-        TODO()
-//        return dao.getFolderTracks(id)
+        return flow {
+            emit(
+                backend.call(
+                    TrackRpc.GetFolderTracks(id)
+                ).body<List<Track>>()
+            )
+        }
     }
 
     fun getArtistTracks(id: SpotifyArtistId): Flow<List<TrackRelation>> {
-        TODO()
-//        return dao.getArtistTracks(id)
+        return flow {
+            emit(
+                backend.call(
+                    TrackRpc.GetArtistTracks(id)
+                ).body<List<TrackRelation>>()
+            )
+        }
     }
 
     fun getAlbumTracks(id: SpotifyAlbumId): Flow<List<TrackRelation>> {
-        TODO()
-//        return dao.getAlbumTracks(id)
+        return flow {
+            emit(
+                backend.call(
+                    TrackRpc.GetAlbumTracks(id)
+                ).body<List<TrackRelation>>()
+            )
+        }
     }
 
     fun getPlaylistTracks(id: PlaylistId): Flow<List<TrackRelation>> {
-        TODO()
-//        return dao.getPlaylistTracks(id)
+        return flow {
+            emit(
+                backend.call(
+                    TrackRpc.GetPlaylistTracks(id)
+                ).body<List<TrackRelation>>()
+            )
+        }
     }
 
     suspend fun getId(spotifyId: String): TrackId? {
-        TODO()
-//        return dao.getId(spotifyId)?.let {
-//            TrackId(
-//                it
-//            )
-//        }
+        return backend.call(
+            TrackRpc.GetId(spotifyId)
+        ).body<TrackId?>()
     }
 
     fun getImportSessionTrack(id: ImportSessionItemId): Flow<TrackRelation?> {
-        TODO()
-//        return dao.getImportSessionTrack(id)
+        return flow {
+            emit(
+                backend.call(
+                    TrackRpc.GetImportSessionTrack(id)
+                ).body<TrackRelation?>()
+            )
+        }
     }
 
     suspend fun add(
@@ -126,20 +191,21 @@ class TrackRepo(
         spotifyTrackId: SpotifyTrackId?,
         folderId: FolderId
     ): TrackId {
-        TODO()
-//        val currentTime = System.currentTimeMillis()
-//        val id = dao.add(
-//            importSessionItemId = importSessionItemId,
-//            spotifyTrackId = spotifyTrackId,
-//            folderId = folderId,
-//            creationDatetime = currentTime,
-//            updateDatetime = currentTime
-//        )
-//        return TrackId(id)
+        return backend.call(
+            TrackRpc.Add(
+                importSessionItemId = importSessionItemId,
+                spotifyTrackId = spotifyTrackId,
+                folderId = folderId
+            )
+        ).body<TrackId>()
     }
 
     suspend fun updateFolderId(id: TrackId, folderId: FolderId) {
-        TODO()
-//        dao.updateFolderId(folderId, System.currentTimeMillis(), id)
+        backend.call(
+            TrackRpc.UpdateFolderId(
+                id = id,
+                folderId = folderId
+            )
+        )
     }
 }

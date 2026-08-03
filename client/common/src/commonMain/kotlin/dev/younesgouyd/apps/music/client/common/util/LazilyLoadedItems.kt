@@ -1,6 +1,6 @@
 package dev.younesgouyd.apps.music.client.common.util
 
-import dev.younesgouyd.apps.music.common.Offset
+import dev.younesgouyd.apps.music.common.models.Offset
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

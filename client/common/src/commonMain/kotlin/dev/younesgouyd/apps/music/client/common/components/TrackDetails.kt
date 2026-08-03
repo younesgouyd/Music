@@ -26,8 +26,8 @@ import dev.younesgouyd.apps.music.client.common.data.repoes.*
 import dev.younesgouyd.apps.music.client.common.usecases.SetTrackMetadataFromSpotifyUseCase
 import dev.younesgouyd.apps.music.client.common.usecases.UnsetSpotifyTrackUseCase
 import dev.younesgouyd.apps.music.client.common.util.Component
-import dev.younesgouyd.apps.music.common.*
-import dev.younesgouyd.apps.music.common.spotifyapimodels.Track
+import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.models.spotify.Track
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*

@@ -1,63 +1,37 @@
 package dev.younesgouyd.apps.music.server.common.data.repoes
 
-import dev.younesgouyd.apps.music.common.*
+import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.server.common.data.FileManager
 import dev.younesgouyd.apps.music.server.common.data.room.daos.MediaFileDao
 import kotlinx.coroutines.flow.first
 import java.io.File
-import java.io.InputStream
 
 class MediaFileRepo(
     private val dao: MediaFileDao,
     private val fileManager: FileManager
 ) {
-    suspend fun getImportSessionImage(id: ImportSessionId): File? {
+    suspend fun getImportSessionImage(id: ImportSessionId): Pair<MediaFileId, File>? {
         val mediaFile = dao.getImportSessionImage(id).first() ?: return null
-        return fileManager.getMediaFile(mediaFile.id)
+        return Pair(mediaFile.id, fileManager.getMediaFile(mediaFile.id))
     }
 
-    suspend fun getImportSessionItemImage(id: ImportSessionItemId): File? {
+    suspend fun getImportSessionItemImage(id: ImportSessionItemId): Pair<MediaFileId, File>? {
         val mediaFile = dao.getImportSessionItemImage(id).first() ?: return null
-        return fileManager.getMediaFile(mediaFile.id)
+        return Pair(mediaFile.id, fileManager.getMediaFile(mediaFile.id))
     }
 
-    suspend fun getSpotifyAlbumImage(id: SpotifyAlbumId): File? {
+    suspend fun getSpotifyAlbumImage(id: SpotifyAlbumId): Pair<MediaFileId, File>? {
         val mediaFile = dao.getSpotifyAlbumImage(id).first() ?: return null
-        return fileManager.getMediaFile(mediaFile.id)
+        return Pair(mediaFile.id, fileManager.getMediaFile(mediaFile.id))
     }
 
-    suspend fun getSpotifyArtistImage(id: SpotifyArtistId): File? {
+    suspend fun getSpotifyArtistImage(id: SpotifyArtistId): Pair<MediaFileId, File>? {
         val mediaFile = dao.getSpotifyArtistImage(id).first() ?: return null
-        return fileManager.getMediaFile(mediaFile.id)
+        return Pair(mediaFile.id, fileManager.getMediaFile(mediaFile.id))
     }
 
-    suspend fun getImportSessionItemAudioUri(id: ImportSessionItemId): String? {
+    suspend fun getImportSessionItemAudio(id: ImportSessionItemId): Pair<MediaFileId, File>? {
         val mediaFile = dao.getImportSessionItemAudio(id).first() ?: return null
-        return fileManager.getMediaFile(mediaFile.id)
-            .toPath()
-            .toUri()
-            .toString()
-    }
-
-    suspend fun add(fileName: String, data: InputStream): MediaFileId {
-        val id = MediaFileId(
-            value = dao.add(
-                fileName = fileName,
-                creationDatetime = System.currentTimeMillis()
-            )
-        )
-        fileManager.saveMediaFile(data, id)
-        return id
-    }
-
-    suspend fun add(fileName: String?, data: ByteArray): MediaFileId {
-        val id = MediaFileId(
-            value = dao.add(
-                fileName = fileName,
-                creationDatetime = System.currentTimeMillis()
-            )
-        )
-        fileManager.saveMediaFile(data, id)
-        return id
+        return Pair(mediaFile.id, fileManager.getMediaFile(mediaFile.id))
     }
 }

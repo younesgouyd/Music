@@ -1,9 +1,9 @@
 package dev.younesgouyd.apps.music.server.common.data.repoes
 
-import dev.younesgouyd.apps.music.common.FolderId
-import dev.younesgouyd.apps.music.common.Offset
-import dev.younesgouyd.apps.music.common.PlaylistId
-import dev.younesgouyd.apps.music.common.TrackId
+import dev.younesgouyd.apps.music.common.models.FolderId
+import dev.younesgouyd.apps.music.common.models.Offset
+import dev.younesgouyd.apps.music.common.models.PlaylistId
+import dev.younesgouyd.apps.music.common.models.TrackId
 import dev.younesgouyd.apps.music.server.common.data.room.daos.PlaylistDao
 import dev.younesgouyd.apps.music.server.common.data.room.entities.Playlist
 import dev.younesgouyd.apps.music.server.common.data.room.toSearchQuery

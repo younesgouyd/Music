@@ -19,8 +19,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import dev.younesgouyd.apps.music.common.Folder
-import dev.younesgouyd.apps.music.common.FolderId
+import dev.younesgouyd.apps.music.common.models.Folder
+import dev.younesgouyd.apps.music.common.models.FolderId
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 

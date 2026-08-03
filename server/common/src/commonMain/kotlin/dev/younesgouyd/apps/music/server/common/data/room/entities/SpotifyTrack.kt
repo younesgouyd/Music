@@ -1,8 +1,8 @@
 package dev.younesgouyd.apps.music.server.common.data.room.entities
 
 import androidx.room.*
-import dev.younesgouyd.apps.music.common.SpotifyAlbumId
-import dev.younesgouyd.apps.music.common.SpotifyTrackId
+import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
+import dev.younesgouyd.apps.music.common.models.SpotifyTrackId
 
 @Entity(
     foreignKeys = [

@@ -4,7 +4,7 @@ import dev.younesgouyd.apps.music.client.common.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.client.common.data.repoes.SpotifyAlbumRepo
 import dev.younesgouyd.apps.music.client.common.data.repoes.SpotifyArtistRepo
 import dev.younesgouyd.apps.music.client.common.data.repoes.TrackRepo
-import dev.younesgouyd.apps.music.common.*
+import dev.younesgouyd.apps.music.common.models.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*

@@ -1,5 +1,5 @@
 <configuration debug="true">
-    <property name="LOG_DIR" value="${DATA_DIR}/younesmusicdata/logs" />
+    <property name="LOG_DIR" value="${DATA_DIR}/younesmusicserverdata/logs" />
     <appender name="LOGCAT" class="ch.qos.logback.classic.android.LogcatAppender">
         <tagEncoder>
             <pattern>%logger</pattern>

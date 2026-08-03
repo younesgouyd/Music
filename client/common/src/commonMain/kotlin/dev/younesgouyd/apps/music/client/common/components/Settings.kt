@@ -8,16 +8,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.client.common.data.repoes.SettingsRepo
+import dev.younesgouyd.apps.music.client.common.data.repoes.SettingRepo
 import dev.younesgouyd.apps.music.client.common.data.repoes.SpotifyAuthRepo
 import dev.younesgouyd.apps.music.client.common.util.Component
-import dev.younesgouyd.apps.music.common.DarkThemeOptions
+import dev.younesgouyd.apps.music.common.models.DarkThemeOptions
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class Settings(
-    private val settingsRepo: SettingsRepo,
+    private val settingRepo: SettingRepo,
     private val spotifyAuthRepo: SpotifyAuthRepo
 ) : Component() {
     override val title: String = "Settings"
@@ -30,7 +30,7 @@ class Settings(
     init {
         coroutineScope.launch {
             state.value = Ui.State.Loaded(
-                darkTheme = settingsRepo.getDarkTheme().map { DarkThemeOptions.valueOf(it.value) }.stateIn(coroutineScope),
+                darkTheme = settingRepo.getDarkTheme().map { DarkThemeOptions.valueOf(it.value) }.stateIn(coroutineScope),
                 spotifyState = spotifyState.asStateFlow(),
                 onDarkThemeChange = ::updateDarkTheme
             )
@@ -77,8 +77,7 @@ class Settings(
             spotifyUiEnabled.value = false
             val clientId = clientId.value
             val clientSecret = clientSecret.value
-            spotifyAuthRepo.updateCredentials(clientId, clientSecret)
-            spotifyAuthRepo.authorize()
+            spotifyAuthRepo.authorize(clientId, clientSecret)
             refreshSpotifyState()
         }
     }
@@ -96,7 +95,7 @@ class Settings(
 
     private fun updateDarkTheme(newValue: DarkThemeOptions) {
         coroutineScope.launch {
-            settingsRepo.updateDarkTheme(newValue)
+            settingRepo.updateDarkTheme(newValue)
         }
     }
 

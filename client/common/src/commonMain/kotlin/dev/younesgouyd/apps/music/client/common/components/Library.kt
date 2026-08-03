@@ -29,7 +29,7 @@ import dev.younesgouyd.apps.music.client.common.data.repoes.*
 import dev.younesgouyd.apps.music.client.common.usecases.ClearImportItemUseCase
 import dev.younesgouyd.apps.music.client.common.usecases.DeleteFolderUseCase
 import dev.younesgouyd.apps.music.client.common.util.Component
-import dev.younesgouyd.apps.music.common.*
+import dev.younesgouyd.apps.music.common.models.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -175,7 +175,7 @@ class Library(
                 .flatMapLatest { (currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged) ->
                     when {
                         currentFolder == null -> flow { emit(emptyList<TrackRelation>()) }
-                        enableFiltering -> trackRepo.searchFolder(currentFolder.id, searchQuery, selectedTags, includeUntagged)
+                        enableFiltering -> trackRepo.searchFolderWithTags(currentFolder.id, searchQuery, selectedTags, includeUntagged)
                         else -> trackRepo.searchFolder(currentFolder.id, searchQuery)
                     }
                 }.mapLatest { dbTracks -> dbTracks.toTrackModels() }
@@ -479,7 +479,7 @@ class Library(
             val playlists: StateFlow<List<Playlist>>,
             val tracks: StateFlow<List<Track>>,
             val onNewFolder: (name: String) -> Unit,
-            val onFolderClick: (Folder?) -> Unit,
+            val onFolderClick: (dev.younesgouyd.apps.music.common.models.Folder?) -> Unit,
             val onAddFolderToPlaylistClick: (FolderId) -> Unit,
             val onAddFolderToQueueClick: (FolderId) -> Unit,
             val onPlayFolder: (FolderId) -> Unit,
@@ -502,7 +502,7 @@ class Library(
             val onDismissAddToPlaylistDialog: () -> Unit
         ) {
             data class NodeState(
-                val folder: Folder?,
+                val folder: dev.younesgouyd.apps.music.common.models.Folder?,
                 val scrollState: LazyGridState,
             )
 
@@ -576,12 +576,12 @@ class Library(
                 searchQuery: StateFlow<String>,
                 tagsFilterState: TagsFilterState,
                 onSearchQueryChange: (String) -> Unit,
-                folders: StateFlow<List<Folder>>,
+                folders: StateFlow<List<dev.younesgouyd.apps.music.common.models.Folder>>,
                 playlists: StateFlow<List<State.Playlist>>,
                 tracks: StateFlow<List<State.Track>>,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
-                onFolderClick: (Folder?) -> Unit,
+                onFolderClick: (dev.younesgouyd.apps.music.common.models.Folder?) -> Unit,
                 onAddFolderToPlaylistClick: (FolderId) -> Unit,
                 onAddFolderToQueueClick: (FolderId) -> Unit,
                 onPlayFolder: (FolderId) -> Unit,
@@ -696,10 +696,10 @@ class Library(
             @Composable
             private fun ToolBar(
                 modifier: Modifier,
-                path: List<Folder>,
+                path: List<dev.younesgouyd.apps.music.common.models.Folder>,
                 searchQuery: StateFlow<String>,
                 tagsFilterState: TagsFilterState,
-                onFolderClick: (Folder?) -> Unit,
+                onFolderClick: (dev.younesgouyd.apps.music.common.models.Folder?) -> Unit,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
                 onSearchQueryChange: (String) -> Unit
@@ -842,7 +842,7 @@ class Library(
 
             @Composable
             private fun FolderItem(
-                folder: Folder,
+                folder: dev.younesgouyd.apps.music.common.models.Folder,
                 onClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -1339,12 +1339,12 @@ class Library(
                 searchQuery: StateFlow<String>,
                 tagsFilterState: TagsFilterState,
                 onSearchQueryChange: (String) -> Unit,
-                folders: StateFlow<List<Folder>>,
+                folders: StateFlow<List<dev.younesgouyd.apps.music.common.models.Folder>>,
                 playlists: StateFlow<List<State.Playlist>>,
                 tracks: StateFlow<List<State.Track>>,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
-                onFolderClick: (Folder?) -> Unit,
+                onFolderClick: (dev.younesgouyd.apps.music.common.models.Folder?) -> Unit,
                 onAddFolderToPlaylistClick: (FolderId) -> Unit,
                 onAddFolderToQueueClick: (FolderId) -> Unit,
                 onPlayFolder: (FolderId) -> Unit,
@@ -1460,10 +1460,10 @@ class Library(
             @Composable
             private fun ToolBar(
                 modifier: Modifier,
-                path: List<Folder>,
+                path: List<dev.younesgouyd.apps.music.common.models.Folder>,
                 searchQuery: StateFlow<String>,
                 tagsFilterState: TagsFilterState,
-                onFolderClick: (Folder?) -> Unit,
+                onFolderClick: (dev.younesgouyd.apps.music.common.models.Folder?) -> Unit,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
                 onSearchQueryChange: (String) -> Unit
@@ -1606,7 +1606,7 @@ class Library(
 
             @Composable
             private fun FolderItem(
-                folder: Folder,
+                folder: dev.younesgouyd.apps.music.common.models.Folder,
                 onClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,

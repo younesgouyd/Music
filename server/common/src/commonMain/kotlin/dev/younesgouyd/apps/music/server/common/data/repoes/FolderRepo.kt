@@ -1,6 +1,6 @@
 package dev.younesgouyd.apps.music.server.common.data.repoes
 
-import dev.younesgouyd.apps.music.common.FolderId
+import dev.younesgouyd.apps.music.common.models.FolderId
 import dev.younesgouyd.apps.music.server.common.data.room.daos.FolderDao
 import dev.younesgouyd.apps.music.server.common.data.room.entities.Folder
 import dev.younesgouyd.apps.music.server.common.data.room.toSearchQuery

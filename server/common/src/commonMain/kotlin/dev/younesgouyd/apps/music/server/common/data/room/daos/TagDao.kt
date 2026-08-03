@@ -2,8 +2,8 @@ package dev.younesgouyd.apps.music.server.common.data.room.daos
 
 import androidx.room.Dao
 import androidx.room.Query
-import dev.younesgouyd.apps.music.common.TagId
-import dev.younesgouyd.apps.music.common.TrackId
+import dev.younesgouyd.apps.music.common.models.TagId
+import dev.younesgouyd.apps.music.common.models.TrackId
 import dev.younesgouyd.apps.music.server.common.data.room.entities.Tag
 import kotlinx.coroutines.flow.Flow
 

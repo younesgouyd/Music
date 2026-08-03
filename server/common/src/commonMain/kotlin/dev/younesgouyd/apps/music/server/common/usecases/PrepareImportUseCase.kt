@@ -1,8 +1,8 @@
 package dev.younesgouyd.apps.music.server.common.usecases
 
-import dev.younesgouyd.apps.music.common.FolderId
-import dev.younesgouyd.apps.music.common.ImportSessionId
-import dev.younesgouyd.apps.music.common.Inspection
+import dev.younesgouyd.apps.music.common.models.FolderId
+import dev.younesgouyd.apps.music.common.models.ImportSessionId
+import dev.younesgouyd.apps.music.common.models.Inspection
 import dev.younesgouyd.apps.music.server.common.data.FileManager
 import dev.younesgouyd.apps.music.server.common.data.room.transactions.PrepareImport
 

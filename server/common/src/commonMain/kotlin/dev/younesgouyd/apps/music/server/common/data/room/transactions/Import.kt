@@ -3,9 +3,9 @@ package dev.younesgouyd.apps.music.server.common.data.room.transactions
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
-import dev.younesgouyd.apps.music.common.*
+import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.server.common.YtDlp
 import dev.younesgouyd.apps.music.server.common.data.FileManager
-import dev.younesgouyd.apps.music.server.common.data.YtDlp
 import dev.younesgouyd.apps.music.server.common.data.room.entities.ImportSession
 import dev.younesgouyd.apps.music.server.common.data.room.entities.ImportSessionItem
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +33,7 @@ abstract class Import {
                 fileManager = fileManager
             )
             updateState(
-                state = if (result != null) ImportSessionItem.State.Completed else ImportSessionItem.State.Failed,
+                state = if (result != null) dev.younesgouyd.apps.music.common.models.ImportSessionItem.State.Completed else dev.younesgouyd.apps.music.common.models.ImportSessionItem.State.Failed,
                 audioFileId = result?.audioFileId,
                 updateDatetime = System.currentTimeMillis(),
                 id = item.id
@@ -91,7 +91,7 @@ abstract class Import {
         where id = :id
     """)
     protected abstract suspend fun updateState(
-        state: ImportSessionItem.State,
+        state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State,
         audioFileId: MediaFileId?,
         updateDatetime: Long,
         id: ImportSessionItemId

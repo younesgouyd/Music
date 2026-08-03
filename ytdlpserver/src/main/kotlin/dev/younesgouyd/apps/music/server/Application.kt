@@ -1,7 +1,7 @@
 package dev.younesgouyd.apps.music.server
 
-import dev.younesgouyd.apps.music.common.Inspection
 import dev.younesgouyd.apps.music.common.json
+import dev.younesgouyd.apps.music.common.models.Inspection
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*

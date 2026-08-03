@@ -17,8 +17,8 @@ import dev.younesgouyd.apps.music.client.common.components.util.Item
 import dev.younesgouyd.apps.music.client.common.components.util.ScrollToTopFloatingActionButton
 import dev.younesgouyd.apps.music.client.common.data.repoes.TagRepo
 import dev.younesgouyd.apps.music.client.common.util.Component
-import dev.younesgouyd.apps.music.common.Tag
-import dev.younesgouyd.apps.music.common.TagId
+import dev.younesgouyd.apps.music.common.models.Tag
+import dev.younesgouyd.apps.music.common.models.TagId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*

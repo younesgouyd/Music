@@ -1,46 +1,55 @@
 package dev.younesgouyd.apps.music.client.common.data.repoes
 
-import dev.younesgouyd.apps.music.common.Tag
-import dev.younesgouyd.apps.music.common.TagId
-import dev.younesgouyd.apps.music.common.TrackId
-import io.ktor.client.*
+import dev.younesgouyd.apps.music.client.common.data.Backend
+import dev.younesgouyd.apps.music.common.models.Tag
+import dev.younesgouyd.apps.music.common.models.TagId
+import dev.younesgouyd.apps.music.common.models.TrackId
+import dev.younesgouyd.apps.music.common.models.rpc.TagRpc
+import io.ktor.client.call.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 class TagRepo(
-    private val client: HttpClient
+    private val backend: Backend
 ) {
     fun get(id: TagId): Flow<Tag?> {
-        TODO()
-//        return dao.get(id)
+        return flow {
+            emit(
+                backend.call(TagRpc.Get(id)).body<Tag?>()
+            )
+        }
     }
 
     fun search(nameQuery: String): Flow<List<Tag>> {
-        TODO()
-//        return dao.search(nameQuery.toSearchQuery())
+        return flow {
+            emit(
+                backend.call(TagRpc.Search(nameQuery)).body<List<Tag>>()
+            )
+        }
     }
 
     fun getTrackTags(id: TrackId): Flow<List<Tag>> {
-        TODO()
-//        return dao.getTrackTags(id)
+        return flow {
+            emit(
+                backend.call(TagRpc.GetTrackTags(id)).body<List<Tag>>()
+            )
+        }
     }
 
     fun getTrackUnsetTags(id: TrackId): Flow<List<Tag>> {
-        TODO()
-//        return dao.getTrackUnsetTags(id)
+        return flow {
+            emit(
+                backend.call(TagRpc.GetTrackUnsetTags(id)).body<List<Tag>>()
+            )
+        }
     }
 
     suspend fun add(name: String) {
         require(name.isNotBlank())
-        TODO()
-//        val currentTime = System.currentTimeMillis()
-//        dao.add(
-//            name = name,
-//            creationDatetime = currentTime
-//        )
+        backend.call(TagRpc.Add(name))
     }
 
     suspend fun delete(id: TagId) {
-        TODO()
-//        dao.delete(id)
+        backend.call(TagRpc.Delete(id))
     }
 }

@@ -1,11 +1,11 @@
 package dev.younesgouyd.apps.music.client.common.usecases
 
-import dev.younesgouyd.apps.music.common.TrackId
-import dev.younesgouyd.apps.music.common.spotifyapimodels.Track
-import io.ktor.client.*
+import dev.younesgouyd.apps.music.client.common.data.Backend
+import dev.younesgouyd.apps.music.common.models.TrackId
+import dev.younesgouyd.apps.music.common.models.spotify.Track
 
 class SetTrackMetadataFromSpotifyUseCase(
-    private val client: HttpClient
+    private val backend: Backend
 ) {
     suspend fun execute(
         trackId: TrackId,

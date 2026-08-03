@@ -11,8 +11,8 @@ import androidx.compose.ui.window.*
 import dev.younesgouyd.apps.music.client.common.Application
 
 fun main() {
+//    System.setProperty("sun.java2d.uiScale", "1.0")
     val app = Application()
-    app.start()
     application {
         Window(
             state = rememberWindowState(

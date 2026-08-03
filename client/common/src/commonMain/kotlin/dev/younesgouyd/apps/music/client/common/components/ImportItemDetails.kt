@@ -19,10 +19,10 @@ import dev.younesgouyd.apps.music.client.common.data.repoes.ImportSessionRepo
 import dev.younesgouyd.apps.music.client.common.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.client.common.data.repoes.TrackRepo
 import dev.younesgouyd.apps.music.client.common.util.Component
-import dev.younesgouyd.apps.music.common.ImportSessionId
-import dev.younesgouyd.apps.music.common.ImportSessionItem
-import dev.younesgouyd.apps.music.common.ImportSessionItemId
-import dev.younesgouyd.apps.music.common.TrackId
+import dev.younesgouyd.apps.music.common.models.ImportSessionId
+import dev.younesgouyd.apps.music.common.models.ImportSessionItem
+import dev.younesgouyd.apps.music.common.models.ImportSessionItemId
+import dev.younesgouyd.apps.music.common.models.TrackId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*

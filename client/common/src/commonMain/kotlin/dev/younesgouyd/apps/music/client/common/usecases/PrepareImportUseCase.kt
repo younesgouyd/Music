@@ -1,12 +1,12 @@
 package dev.younesgouyd.apps.music.client.common.usecases
 
-import dev.younesgouyd.apps.music.common.FolderId
-import dev.younesgouyd.apps.music.common.ImportSessionId
-import dev.younesgouyd.apps.music.common.Inspection
-import io.ktor.client.*
+import dev.younesgouyd.apps.music.client.common.data.Backend
+import dev.younesgouyd.apps.music.common.models.FolderId
+import dev.younesgouyd.apps.music.common.models.ImportSessionId
+import dev.younesgouyd.apps.music.common.models.Inspection
 
 class PrepareImportUseCase(
-    private val client: HttpClient
+    private val backend: Backend
 ) {
     suspend fun execute(
         selected: List<Long>,

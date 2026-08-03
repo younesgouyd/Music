@@ -1,7 +1,7 @@
 package dev.younesgouyd.apps.music.server.common.data.room.entities
 
 import androidx.room.*
-import dev.younesgouyd.apps.music.common.*
+import dev.younesgouyd.apps.music.common.models.*
 
 @Entity(
     foreignKeys = [

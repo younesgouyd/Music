@@ -1,6 +1,6 @@
 package dev.younesgouyd.apps.music.server.common.spotify.repoes
 
-import dev.younesgouyd.apps.music.common.spotifyapimodels.SpotifyToken
+import dev.younesgouyd.apps.music.common.models.spotify.SpotifyToken
 import dev.younesgouyd.apps.music.server.common.spotify.InvalidCredentials
 import dev.younesgouyd.apps.music.server.common.spotify.Spotify
 import io.ktor.client.*
@@ -8,16 +8,17 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlin.io.encoding.Base64
 import kotlin.time.Clock
 
 internal class AuthRepo(
     private val httpClient: HttpClient,
     private val tokenSaver: Spotify.TokenSaver,
-    private val getCredentials: suspend () -> Spotify.Credentials
+    private val credentialsSaver: Spotify.CredentialsSaver
 ) {
-    private var clientId: String? = null
-    private var clientSecret: String? = null
+    private var credentials: Spotify.Credentials? = null
     private var token: Spotify.Token? = null
 
     suspend fun isAuthorized(): Boolean {
@@ -32,16 +33,17 @@ internal class AuthRepo(
         if (clientId.isBlank() || clientSecret.isBlank()) {
             throw InvalidCredentials()
         }
-        this.clientId = clientId
-        this.clientSecret = clientSecret
+        credentialsSaver.save(Spotify.Credentials(clientId = clientId, clientSecret = clientSecret))
+        this.credentials = credentialsSaver.load()
         refreshToken()
     }
 
+    // TODO
     suspend fun getToken(): String {
         if (!isAuthorized()) {
-            if (clientId == null || clientSecret == null) {
-                val credentials = getCredentials()
-                getAuthorization(credentials.clientId, credentials.clientSecret)
+            if (credentials == null) {
+                credentials = credentialsSaver.load()!!
+                getAuthorization(credentials!!.clientId, credentials!!.clientSecret)
             } else {
                 refreshToken()
             }
@@ -49,9 +51,13 @@ internal class AuthRepo(
         return token!!.accessToken
     }
 
-    suspend fun clearToken() {
+    suspend fun deauthorize() {
+        credentials = null
         token = null
-        tokenSaver.clear()
+        coroutineScope {
+            launch { credentialsSaver.clear() }
+            launch { tokenSaver.clear() }
+        }
     }
 
     private suspend fun refreshToken() {
@@ -71,9 +77,10 @@ internal class AuthRepo(
 
     private suspend fun getTokenFromSpotify(): Result<SpotifyToken> {
         return try {
+            val credentials = this.credentials!!
             val response = httpClient.post {
                 url("https://accounts.spotify.com/api/token")
-                header("Authorization", "Basic ${Base64.encode("$clientId:$clientSecret".toByteArray())}")
+                header("Authorization", "Basic ${Base64.encode("${credentials.clientId}:${credentials.clientSecret}".toByteArray())}")
                 header("Content-Type", "application/x-www-form-urlencoded")
                 setBody("grant_type=client_credentials")
             }
