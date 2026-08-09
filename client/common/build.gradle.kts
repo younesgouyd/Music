@@ -30,6 +30,7 @@ kotlin {
             implementation(libs.ktor.client.engine)
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.client.contentNegotiation)
+            implementation(libs.ktor.client.websockets)
         }
         jvmMain.dependencies {
             implementation(libs.coroutines.desktop)

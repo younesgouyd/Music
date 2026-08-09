@@ -5,43 +5,25 @@ import dev.younesgouyd.apps.music.common.models.Tag
 import dev.younesgouyd.apps.music.common.models.TagId
 import dev.younesgouyd.apps.music.common.models.TrackId
 import dev.younesgouyd.apps.music.common.models.rpc.TagRpc
-import io.ktor.client.call.*
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 
 class TagRepo(
     private val backend: Backend
 ) {
     fun get(id: TagId): Flow<Tag?> {
-        return flow {
-            emit(
-                backend.call(TagRpc.Get(id)).body<Tag?>()
-            )
-        }
+        return backend.stream(TagRpc.Get(id))
     }
 
     fun search(nameQuery: String): Flow<List<Tag>> {
-        return flow {
-            emit(
-                backend.call(TagRpc.Search(nameQuery)).body<List<Tag>>()
-            )
-        }
+        return backend.stream(TagRpc.Search(nameQuery))
     }
 
     fun getTrackTags(id: TrackId): Flow<List<Tag>> {
-        return flow {
-            emit(
-                backend.call(TagRpc.GetTrackTags(id)).body<List<Tag>>()
-            )
-        }
+        return backend.stream(TagRpc.GetTrackTags(id))
     }
 
     fun getTrackUnsetTags(id: TrackId): Flow<List<Tag>> {
-        return flow {
-            emit(
-                backend.call(TagRpc.GetTrackUnsetTags(id)).body<List<Tag>>()
-            )
-        }
+        return backend.stream(TagRpc.GetTrackUnsetTags(id))
     }
 
     suspend fun add(name: String) {

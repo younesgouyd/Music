@@ -3,76 +3,46 @@ package dev.younesgouyd.apps.music.client.common.data.repoes
 import dev.younesgouyd.apps.music.client.common.data.Backend
 import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.models.rpc.PlaylistRpc
-import io.ktor.client.call.*
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 
 class PlaylistRepo(
     private val backend: Backend
 ) {
     suspend fun getAll(limit: Int, offset: Offset.Id<PlaylistId>): List<Playlist> {
-        return backend.call(
+        return backend.callForResult(
             PlaylistRpc.GetAll(
                 limit = limit,
                 offset = offset
             )
-        ).body<List<Playlist>>()
+        )
     }
 
     fun get(id: PlaylistId): Flow<Playlist?> {
-        return flow {
-            emit(
-                backend.call(
-                    PlaylistRpc.Get(id)
-                ).body<Playlist?>()
-            )
-        }
+        return backend.stream(PlaylistRpc.Get(id))
     }
 
     fun search(nameQuery: String): Flow<List<Playlist>> {
-        return flow {
-            emit(
-                backend.call(
-                    PlaylistRpc.Search(nameQuery)
-                ).body<List<Playlist>>()
-            )
-        }
+        return backend.stream(PlaylistRpc.Search(nameQuery))
     }
 
     fun searchFolder(
         folderId: FolderId?,
         nameQuery: String
     ): Flow<List<Playlist>> {
-        return flow {
-            emit(
-                backend.call(
-                    PlaylistRpc.SearchFolder(
-                        folderId = folderId,
-                        nameQuery = nameQuery
-                    )
-                ).body<List<Playlist>>()
+        return backend.stream(
+            PlaylistRpc.SearchFolder(
+                folderId = folderId,
+                nameQuery = nameQuery
             )
-        }
+        )
     }
 
     fun getFolderPlaylists(folderId: FolderId?): Flow<List<Playlist>> {
-        return flow {
-            emit(
-                backend.call(
-                    PlaylistRpc.GetFolderPlaylists(folderId)
-                ).body<List<Playlist>>()
-            )
-        }
+        return backend.stream(PlaylistRpc.GetFolderPlaylists(folderId))
     }
 
     fun getTrackPlaylists(id: TrackId): Flow<List<Playlist>> {
-        return flow {
-            emit(
-                backend.call(
-                    PlaylistRpc.GetTrackPlaylists(id)
-                ).body<List<Playlist>>()
-            )
-        }
+        return backend.stream(PlaylistRpc.GetTrackPlaylists(id))
     }
 
     suspend fun add(
@@ -80,12 +50,12 @@ class PlaylistRepo(
         folderId: FolderId?
     ): PlaylistId {
         require(name.isNotEmpty())
-        return backend.call(
+        return backend.callForResult(
             PlaylistRpc.Add(
                 name = name,
                 folderId = folderId
             )
-        ).body<PlaylistId>()
+        )
     }
 
     suspend fun updateName(id: PlaylistId, name: String) {

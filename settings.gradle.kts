@@ -103,10 +103,12 @@ dependencyResolutionManagement {
             library("ktor.server.logging", "io.ktor", "ktor-server-call-logging").version(versions.ktor)
             library("ktor.server.contentNegotiation", "io.ktor", "ktor-server-content-negotiation").version(versions.ktor)
             library("ktor.server.sse", "io.ktor", "ktor-server-sse").version(versions.ktor)
+            library("ktor.server.websockets", "io.ktor", "ktor-server-websockets").version(versions.ktor)
             library("ktor.client.core", "io.ktor", "ktor-client-core").version(versions.ktor)
             library("ktor.client.engine", "io.ktor", "ktor-client-cio").version(versions.ktor)
             library("ktor.client.logging", "io.ktor", "ktor-client-logging").version(versions.ktor)
             library("ktor.client.contentNegotiation", "io.ktor", "ktor-client-content-negotiation").version(versions.ktor)
+            library("ktor.client.websockets", "io.ktor", "ktor-client-websockets").version(versions.ktor)
 
             library("android.coreKtx", "androidx.core", "core-ktx").version(versions.android.coreKtx)
             library("android.activityKtx", "androidx.activity", "activity-ktx").version(versions.android.activity)

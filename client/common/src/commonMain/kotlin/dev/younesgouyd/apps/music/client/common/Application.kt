@@ -8,7 +8,6 @@ import androidx.compose.ui.Modifier
 import dev.younesgouyd.apps.music.client.common.components.Main
 import dev.younesgouyd.apps.music.client.common.components.SplashScreen
 import dev.younesgouyd.apps.music.client.common.data.Backend
-import dev.younesgouyd.apps.music.client.common.data.FileManager
 import dev.younesgouyd.apps.music.client.common.data.RepoStore
 import dev.younesgouyd.apps.music.client.common.usecases.*
 import dev.younesgouyd.apps.music.client.common.util.Component
@@ -43,7 +42,6 @@ class Application {
 
     private lateinit var mediaController: MediaController
     private lateinit var backend: Backend
-    private lateinit var fileManager: FileManager
     private lateinit var repoStore: RepoStore
 
     private lateinit var unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase
@@ -60,16 +58,19 @@ class Application {
         )
     )
 
-    private fun start(serverAddress: String) {
+    private fun start(serverHost: String, serverPort: Int) {
         coroutineScope.launch {
             val tempDir = withContext(Dispatchers.IO) {
                 appDir.mkdir()
-                File(appDir, "temp").also { it.mkdir() }
+                val dir = File(appDir, "temp")
+                if (dir.exists()) {
+                    dir.delete()
+                }
+                dir.mkdir()
+                dir
             }
-            backend = Backend(serverAddress)
-            fileManager = FileManager(tempDir)
-            fileManager.clearTemp()
-            repoStore = RepoStore(backend, fileManager)
+            backend = Backend(serverHost, serverPort, tempDir)
+            repoStore = RepoStore(backend)
             unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(backend)
             setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(backend)
             clearImportItemUseCase = ClearImportItemUseCase(backend)
@@ -82,6 +83,7 @@ class Application {
                 artistRepo = repoStore.spotifyArtistRepo,
                 albumRepo = repoStore.spotifyAlbumRepo,
             )
+            backend.connect()
             currentComponent.update {
                 it.clear()
                 Main(

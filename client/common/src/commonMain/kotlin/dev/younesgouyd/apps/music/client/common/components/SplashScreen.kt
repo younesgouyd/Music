@@ -15,6 +15,7 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
+import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class SplashScreen(
-    val onStart: (serverAddress: String) -> Unit,
+    val onStart: (host: String, port: Int) -> Unit,
     val loading: StateFlow<Boolean>
 ) : Component() {
     override val title: String = ""
@@ -35,7 +36,8 @@ class SplashScreen(
 
     @Composable
     override fun show(modifier: Modifier) {
-        var address by remember { mutableStateOf("http://localhost:8080") }
+        var host by remember { mutableStateOf("localhost") }
+        var port by remember { mutableStateOf("8080") }
         val loading by loading.collectAsState()
         val error by error.collectAsState()
 
@@ -56,13 +58,20 @@ class SplashScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             OutlinedTextField(
-                                label = { Text("Server Address") },
-                                value = address,
-                                onValueChange = { address = it },
+                                label = { Text("Host") },
+                                value = host,
+                                onValueChange = { host = it },
                                 singleLine = true
                             )
+                            OutlinedTextField(
+                                label = { Text("Port") },
+                                value = port,
+                                onValueChange = { port = it },
+                                singleLine = true,
+                                isError = port.toIntOrNull() == null
+                            )
                             Button(
-                                onClick = { setAddress(address) }
+                                onClick = { setAddress(host, port.toInt()) }
                             ) {
                                 Text("Connect")
                             }
@@ -91,16 +100,22 @@ class SplashScreen(
         client.close()
     }
 
-    private fun setAddress(address: String) {
+    private fun setAddress(host: String, port: Int) {
         coroutineScope.launch {
             val result = try {
-                client.request(address).bodyAsText()
+                client.request {
+                    url {
+                        this.protocol = URLProtocol.HTTP
+                        this.host = host
+                        this.port = port
+                    }
+                }.bodyAsText()
             } catch (e: Exception) {
                 logger.error(e) {}
                 null
             }
             if (result == "music backend") {
-                onStart(address)
+                onStart(host, port)
             } else {
                 error.value = true
             }

@@ -4,53 +4,39 @@ import dev.younesgouyd.apps.music.client.common.data.Backend
 import dev.younesgouyd.apps.music.common.models.Folder
 import dev.younesgouyd.apps.music.common.models.FolderId
 import dev.younesgouyd.apps.music.common.models.rpc.FolderRpc
-import io.ktor.client.call.*
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 
 class FolderRepo(
     private val backend: Backend
 ) {
     fun get(id: FolderId): Flow<Folder?> {
-        return flow {
-            emit(
-                backend.call(FolderRpc.Get(id)).body<Folder?>()
-            )
-        }
+        return backend.stream(FolderRpc.Get(id))
     }
 
     fun searchFolder(
         folderId: FolderId?,
         nameQuery: String
     ): Flow<List<Folder>> {
-        return flow {
-            emit(
-                backend.call(
-                    FolderRpc.SearchFolder(
-                        folderId = folderId,
-                        nameQuery = nameQuery
-                    )
-                ).body<List<Folder>>()
+        return backend.stream(
+            FolderRpc.SearchFolder(
+                folderId = folderId,
+                nameQuery = nameQuery
             )
-        }
+        )
     }
 
     fun getSubfolders(id: FolderId?): Flow<List<Folder>> {
-        return flow {
-            emit(
-                backend.call(FolderRpc.GetSubfolders(id)).body<List<Folder>>()
-            )
-        }
+        return backend.stream(FolderRpc.GetSubfolders(id))
     }
 
     suspend fun add(name: String, parentFolderId: FolderId?): FolderId {
         require(name.isNotEmpty())
-        return backend.call(
+        return backend.callForResult(
             FolderRpc.Add(
                 name = name,
                 parentFolderId = parentFolderId
             )
-        ).body<FolderId>()
+        )
     }
 
     suspend fun updateName(id: FolderId, name: String) {

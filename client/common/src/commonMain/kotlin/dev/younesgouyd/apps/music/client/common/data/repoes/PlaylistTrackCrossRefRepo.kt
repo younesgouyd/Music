@@ -5,24 +5,18 @@ import dev.younesgouyd.apps.music.common.models.PlaylistId
 import dev.younesgouyd.apps.music.common.models.PlaylistTrackCrossRef
 import dev.younesgouyd.apps.music.common.models.TrackId
 import dev.younesgouyd.apps.music.common.models.rpc.PlaylistTrackCrossRefRpc
-import io.ktor.client.call.*
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 
 class PlaylistTrackCrossRefRepo(
     private val backend: Backend
 ) {
     fun get(playlistId: PlaylistId, trackId: TrackId): Flow<PlaylistTrackCrossRef?> {
-        return flow {
-            emit(
-                backend.call(
-                    PlaylistTrackCrossRefRpc.Get(
-                        playlistId = playlistId,
-                        trackId = trackId
-                    )
-                ).body<PlaylistTrackCrossRef?>()
+        return backend.stream(
+            PlaylistTrackCrossRefRpc.Get(
+                playlistId = playlistId,
+                trackId = trackId
             )
-        }
+        )
     }
 
     suspend fun add(playlistId: PlaylistId, trackId: TrackId) {
