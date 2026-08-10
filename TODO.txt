@@ -1,4 +1,5 @@
-
+- support seamless connection to the backend.
+- encrypt data in client-server communication.
 - in Library, support dragging items into folders.
 - check why when trying to launch system file picker on an old android os (android 10 if I remember), the app crashes
 - the items of import session containers may change in the source. so re-importing items is only possible
