@@ -7,37 +7,49 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.common.util.Component
-import dev.younesgouyd.apps.music.common.json
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.*
-import io.ktor.client.engine.cio.*
-import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
+import javax.net.ssl.SSLContext
+import javax.net.ssl.X509TrustManager
 
 class SplashScreen(
-    val onStart: (host: String, port: Int) -> Unit,
+    val onStart: (host: String) -> Unit,
     val loading: StateFlow<Boolean>
 ) : Component() {
     override val title: String = ""
     private val logger = KotlinLogging.logger {  }
-    private val client = HttpClient(CIO) {
+    private val client = HttpClient(OkHttp) {
+        engine {
+            config {
+                val trustAllCerts = object : X509TrustManager {
+                    override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+                    override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+                    override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+                }
+                val sslContext = SSLContext.getInstance("TLS")
+                sslContext.init(null, arrayOf(trustAllCerts), SecureRandom())
+                sslSocketFactory(sslContext.socketFactory, trustAllCerts)
+                hostnameVerifier { _, _ -> true }
+            }
+        }
         install(Logging) { level = LogLevel.ALL }
-        install(ContentNegotiation) { json(json) }
     }
     private val error: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
     @Composable
     override fun show(modifier: Modifier) {
         var host by remember { mutableStateOf("localhost") }
-        var port by remember { mutableStateOf("8080") }
         val loading by loading.collectAsState()
         val error by error.collectAsState()
 
@@ -63,15 +75,8 @@ class SplashScreen(
                                 onValueChange = { host = it },
                                 singleLine = true
                             )
-                            OutlinedTextField(
-                                label = { Text("Port") },
-                                value = port,
-                                onValueChange = { port = it },
-                                singleLine = true,
-                                isError = port.toIntOrNull() == null
-                            )
                             Button(
-                                onClick = { setAddress(host, port.toInt()) }
+                                onClick = { setAddress(host) }
                             ) {
                                 Text("Connect")
                             }
@@ -100,14 +105,14 @@ class SplashScreen(
         client.close()
     }
 
-    private fun setAddress(host: String, port: Int) {
+    private fun setAddress(host: String) {
         coroutineScope.launch {
             val result = try {
                 client.request {
                     url {
-                        this.protocol = URLProtocol.HTTP
+                        this.protocol = URLProtocol.HTTPS
                         this.host = host
-                        this.port = port
+                        this.port = 8443
                     }
                 }.bodyAsText()
             } catch (e: Exception) {
@@ -115,7 +120,7 @@ class SplashScreen(
                 null
             }
             if (result == "music backend") {
-                onStart(host, port)
+                onStart(host)
             } else {
                 error.value = true
             }

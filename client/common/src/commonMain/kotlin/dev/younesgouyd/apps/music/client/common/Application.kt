@@ -58,7 +58,7 @@ class Application {
         )
     )
 
-    private fun start(serverHost: String, serverPort: Int) {
+    private fun start(serverHost: String) {
         coroutineScope.launch {
             val tempDir = withContext(Dispatchers.IO) {
                 appDir.mkdir()
@@ -69,7 +69,7 @@ class Application {
                 dir.mkdir()
                 dir
             }
-            backend = Backend(serverHost, serverPort, tempDir)
+            backend = Backend(serverHost, tempDir)
             repoStore = RepoStore(backend)
             unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(backend)
             setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(backend)

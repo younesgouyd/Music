@@ -4,7 +4,7 @@ import dev.younesgouyd.apps.music.common.json
 import dev.younesgouyd.apps.music.common.models.Inspection
 import io.ktor.client.*
 import io.ktor.client.call.*
-import io.ktor.client.engine.cio.*
+import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
@@ -18,11 +18,28 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.job
 import java.io.InputStream
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
+import javax.net.ssl.SSLContext
+import javax.net.ssl.X509TrustManager
 
 class YtDlp(
     var serverAddress: String
 ) {
-    private val client = HttpClient(CIO) {
+    private val client = HttpClient(OkHttp) {
+        engine {
+            config {
+                val trustAllCerts = object : X509TrustManager {
+                    override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+                    override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+                    override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+                }
+                val sslContext = SSLContext.getInstance("TLS")
+                sslContext.init(null, arrayOf(trustAllCerts), SecureRandom())
+                sslSocketFactory(sslContext.socketFactory, trustAllCerts)
+                hostnameVerifier { _, _ -> true }
+            }
+        }
         install(Logging) {
             level = LogLevel.ALL
             logger = object : Logger {

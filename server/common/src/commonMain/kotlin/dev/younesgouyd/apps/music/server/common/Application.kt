@@ -1,8 +1,6 @@
 package dev.younesgouyd.apps.music.server.common
 
 import dev.younesgouyd.apps.music.common.json
-import dev.younesgouyd.apps.music.common.models.Folder
-import dev.younesgouyd.apps.music.common.models.FolderId
 import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.rpc.*
 import dev.younesgouyd.apps.music.common.models.rpc.websocket.WsRequest
@@ -15,11 +13,12 @@ import dev.younesgouyd.apps.music.server.common.spotify.Spotify
 import dev.younesgouyd.apps.music.server.common.usecases.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.*
+import io.ktor.network.tls.certificates.*
 import io.ktor.serialization.kotlinx.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
-import io.ktor.server.cio.*
 import io.ktor.server.engine.*
+import io.ktor.server.netty.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
@@ -33,6 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.slf4j.event.Level
 import java.io.File
+import java.security.SecureRandom
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
@@ -66,7 +66,7 @@ class Application {
     private lateinit var deleteFolderUseCase: DeleteFolderUseCase
     private lateinit var prepareImportUseCase: PrepareImportUseCase
 
-    private lateinit var server: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>
+    private lateinit var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>
 
     fun start(homeDir: File) {
         logger.info { "--> Application::start" }
@@ -184,7 +184,37 @@ class Application {
             transaction = database.prepareImportFromInternet()
         )
 
-        server = embeddedServer(factory = CIO, port = 8080) {
+        setupSecurityProvider()
+        server = embeddedServer(
+            factory = Netty,
+            configure = {
+                val serverKeyStorePassword = run {
+                    val random = SecureRandom()
+                    val minAscii = 32
+                    val maxAscii = 126
+                    val range = maxAscii - minAscii + 1
+                    (1..32)
+                        .map { (random.nextInt(range) + minAscii).toChar() }
+                        .joinToString("")
+                }
+                val keyAlias = "servercert"
+                sslConnector(
+                    keyStore = generateCertificate(
+                        algorithm = "SHA256withRSA",
+                        keyAlias = keyAlias,
+                        keyPassword = serverKeyStorePassword,
+                        jksPassword = serverKeyStorePassword,
+                        keySizeInBits = 2048,
+                        keyType = KeyType.Server
+                    ),
+                    keyAlias = keyAlias,
+                    keyStorePassword = { serverKeyStorePassword.toCharArray() },
+                    privateKeyPassword = { serverKeyStorePassword.toCharArray() }
+                ) {
+                    port = 8443
+                }
+            }
+        ) {
             install(CallLogging) {
                 level = Level.DEBUG
                 this.format { call ->
@@ -221,7 +251,7 @@ class Application {
                                                 is FolderRpc -> when (rpc) {
                                                     is FolderRpc.Add -> {
                                                         val result = folderRepo.add(rpc.name, rpc.parentFolderId)
-                                                        sendSerialized<WsResponse<FolderId>>(WsResponse(request.correlationId, result))
+                                                        sendWsResponse(request.correlationId, result)
                                                     }
                                                     is FolderRpc.Delete -> {
                                                         folderRepo.delete(rpc.id)
@@ -229,12 +259,12 @@ class Application {
                                                     is FolderRpc.Get -> {
                                                         folderRepo.get(rpc.id)
                                                             .map { it?.toModel() }
-                                                            .collect { sendSerialized<WsResponse<Folder?>>(WsResponse(request.correlationId, it)) }
+                                                            .collect { sendWsResponse(request.correlationId, it) }
                                                     }
                                                     is FolderRpc.GetSubfolders -> {
                                                         folderRepo.getSubfolders(rpc.id)
                                                             .map { it.map { it.toModel() } }
-                                                            .collect { sendSerialized<WsResponse<List<Folder>>>(WsResponse(request.correlationId, it)) }
+                                                            .collect { sendWsResponse(request.correlationId, it) }
                                                     }
                                                     is FolderRpc.SearchFolder -> {
                                                         folderRepo.searchFolder(
@@ -701,7 +731,4 @@ class Application {
     private suspend inline fun <reified T> WebSocketServerSession.sendWsResponse(correlationId: Uuid, data: T) {
         sendSerialized<WsResponse<T>>(WsResponse(correlationId, data))
     }
-//    private suspend inline fun <reified T> WebSocketServerSession.sendWsResponse(response: WsResponse<T>) {
-//        sendSerialized(response)
-//    }
 }

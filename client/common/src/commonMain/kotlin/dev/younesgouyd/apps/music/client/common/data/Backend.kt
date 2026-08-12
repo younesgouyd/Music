@@ -6,7 +6,7 @@ import dev.younesgouyd.apps.music.common.models.rpc.Rpc
 import dev.younesgouyd.apps.music.common.models.rpc.websocket.WsRequest
 import dev.younesgouyd.apps.music.common.models.rpc.websocket.WsResponse
 import io.ktor.client.*
-import io.ktor.client.engine.cio.*
+import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.plugins.websocket.*
@@ -25,30 +25,45 @@ import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
 import java.io.File
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.util.concurrent.ConcurrentHashMap
+import javax.net.ssl.SSLContext
+import javax.net.ssl.X509TrustManager
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
 class Backend(
     private val serverHost: String,
-    private val serverPort: Int,
     private val tempDir: File
 ) {
-
     // TODO
     // DON'T USE
     val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    private val httpClient = HttpClient(CIO) {
+    private val httpClient = HttpClient(OkHttp) {
+        engine {
+            config {
+                val trustAllCerts = object : X509TrustManager {
+                    override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+                    override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+                    override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+                }
+                val sslContext = SSLContext.getInstance("TLS")
+                sslContext.init(null, arrayOf(trustAllCerts), SecureRandom())
+                sslSocketFactory(sslContext.socketFactory, trustAllCerts)
+                hostnameVerifier { _, _ -> true }
+            }
+        }
         install(Logging) { level = LogLevel.ALL }
         install(WebSockets) {
             contentConverter = KotlinxWebsocketSerializationConverter(json)
         }
         defaultRequest {
             url {
-                this.protocol = URLProtocol.HTTP
+                this.protocol = URLProtocol.HTTPS
                 this.host = serverHost
-                this.port = serverPort
+                this.port = 8443
             }
         }
     }
@@ -63,9 +78,9 @@ class Backend(
     suspend fun connect() {
         val currentSession = httpClient.webSocketSession {
             url {
-                this.protocol = URLProtocol.WS
+                this.protocol = URLProtocol.WSS
                 this.host = serverHost
-                this.port = serverPort
+                this.port = 8443
                 this.path("rpc")
             }
         }

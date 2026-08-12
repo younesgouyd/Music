@@ -13,6 +13,10 @@ kotlin {
         compileSdk = libs.versions.androidCompileSdk.get().toInt()
         minSdk = libs.versions.androidMinSdk.get().toInt()
         androidResources.enable = true
+        packaging.resources {
+            excludes += "/META-INF/INDEX.LIST"
+            excludes += "/META-INF/io.netty.versions.properties"
+        }
     }
     jvm()
     sourceSets {
@@ -26,10 +30,12 @@ kotlin {
             implementation(libs.logging)
             implementation(libs.ktor.serialization)
             implementation(libs.ktor.server.core)
-            implementation(libs.ktor.server.engine.cio)
+            implementation(libs.ktor.server.engine.netty)
             implementation(libs.ktor.server.logging)
             implementation(libs.ktor.server.contentNegotiation)
             implementation(libs.ktor.server.websockets)
+            runtimeOnly(libs.ktor.server.tls)
+            implementation(libs.ktor.tlsCertificates)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.engine)
             implementation(libs.ktor.client.logging)
@@ -39,6 +45,7 @@ kotlin {
             implementation(libs.sqlite.jvm)
             implementation(libs.coroutines.desktop)
             implementation(libs.logback.jvm)
+            implementation(libs.conscrypt.jvm)
         }
         androidMain.dependencies {
             implementation(libs.sqlite.android)
@@ -46,6 +53,7 @@ kotlin {
             implementation(libs.android.coreKtx)
             implementation(libs.android.activityKtx)
             implementation(libs.logback.android)
+            implementation(libs.conscrypt.android)
         }
     }
 }
