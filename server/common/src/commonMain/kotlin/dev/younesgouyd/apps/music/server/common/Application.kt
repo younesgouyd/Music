@@ -5,6 +5,7 @@ import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.rpc.*
 import dev.younesgouyd.apps.music.common.models.rpc.websocket.WsRequest
 import dev.younesgouyd.apps.music.common.models.rpc.websocket.WsResponse
+import dev.younesgouyd.apps.music.common.sha256Hash
 import dev.younesgouyd.apps.music.server.common.data.FileManager
 import dev.younesgouyd.apps.music.server.common.data.repoes.*
 import dev.younesgouyd.apps.music.server.common.data.room.AppDatabase
@@ -14,6 +15,7 @@ import dev.younesgouyd.apps.music.server.common.usecases.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.*
 import io.ktor.network.tls.certificates.*
+import io.ktor.network.tls.extensions.*
 import io.ktor.serialization.kotlinx.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -25,19 +27,28 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
-import kotlinx.coroutines.Job
+import io.ktor.websocket.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.slf4j.event.Level
 import java.io.File
+import java.io.FileInputStream
+import java.security.KeyStore
 import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.util.concurrent.ConcurrentHashMap
+import javax.security.auth.x500.X500Principal
+import kotlin.io.encoding.Base64
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
 class Application {
+    val state get() = _state.asStateFlow()
+    val certificateFingerprint get() = _certificateFingerprint.asStateFlow()
+    val password get() = _password.asStateFlow()
+
     private val logger = KotlinLogging.logger {}
     private lateinit var database: AppDatabase
     private lateinit var fileManager: FileManager
@@ -68,18 +79,24 @@ class Application {
 
     private lateinit var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>
 
+    private val _state: MutableStateFlow<AppState> = MutableStateFlow(AppState.Stopped)
+    private val _certificateFingerprint: MutableStateFlow<String> = MutableStateFlow("")
+    private val _password: MutableStateFlow<String> = MutableStateFlow("")
+
     fun start(homeDir: File) {
+        if (_state.value == AppState.Starting || _state.value == AppState.Stopping) return
         logger.info { "--> Application::start" }
+        _state.value = AppState.Starting
         val appDir = File(homeDir, "younesmusicserverdata").also { it.mkdir() }
         val mediaDir = File(appDir, "media").also { it.mkdir() }
         val logsDir = File(appDir, "logs").also { it.mkdir() }
         val dbDir = File(appDir, "database").also { it.mkdir() }
         val dbFile = File(dbDir, "younesmusic.db").also { if (!it.exists()) it.createNewFile() }
         val ytDlpDir = File(appDir, "ytdlp").also { it.mkdir() }
-        val ytDlpFile = File(ytDlpDir, "serveraddress.txt").also { if (!it.exists()) it.createNewFile() }
+        val ytDlpFile = File(ytDlpDir, "server_address.txt").also { if (!it.exists()) it.createNewFile() }
         val spotifyDir = File(appDir, "spotify").also { it.mkdir() }
-        val spotifyTokensFile = File(spotifyDir, "tokens").also { if (!it.exists()) it.createNewFile() }
-        val spotifyCredentialsFile = File(spotifyDir, "credentials").also { if (!it.exists()) it.createNewFile() }
+        val spotifyTokensFile = File(spotifyDir, "tokens.json").also { if (!it.exists()) it.createNewFile() }
+        val spotifyCredentialsFile = File(spotifyDir, "credentials.json").also { if (!it.exists()) it.createNewFile() }
 
         database = createDatabaseInstance(dbFile)
         fileManager = FileManager(mediaDir)
@@ -184,44 +201,64 @@ class Application {
             transaction = database.prepareImportFromInternet()
         )
 
+        fun generatePassword(): String {
+            val random = SecureRandom()
+            val minAscii = 33
+            val maxAscii = 126
+            return (1..64)
+                .map { (minAscii + random.nextInt(maxAscii - minAscii + 1)).toChar() }
+                .joinToString("")
+        }
+        _password.value = generatePassword()
         setupSecurityProvider()
         server = embeddedServer(
             factory = Netty,
             configure = {
-                val serverKeyStorePassword = run {
-                    val random = SecureRandom()
-                    val minAscii = 32
-                    val maxAscii = 126
-                    val range = maxAscii - minAscii + 1
-                    (1..32)
-                        .map { (random.nextInt(range) + minAscii).toChar() }
-                        .joinToString("")
-                }
-                val keyAlias = "servercert"
-                sslConnector(
-                    keyStore = generateCertificate(
-                        algorithm = "SHA256withRSA",
-                        keyAlias = keyAlias,
-                        keyPassword = serverKeyStorePassword,
-                        jksPassword = serverKeyStorePassword,
-                        keySizeInBits = 2048,
+                val alias = "servercertificate"
+                val keyStorePassword = generatePassword()
+                val keyStore = buildKeyStore {
+                    certificate(alias) {
+                        hash = HashAlgorithm.SHA256
+                        sign = SignatureAlgorithm.RSA
+                        this.password = keyStorePassword
+                        subject = X500Principal("CN=localhost, O=Music, C=MA")
+                        daysValid = 3
+                        keySizeInBits = 2048
                         keyType = KeyType.Server
-                    ),
-                    keyAlias = keyAlias,
-                    keyStorePassword = { serverKeyStorePassword.toCharArray() },
-                    privateKeyPassword = { serverKeyStorePassword.toCharArray() }
+                    }
+                }
+                _certificateFingerprint.value = run {
+                    val cert = keyStore.getCertificate(alias) as? X509Certificate ?: error("Certificate with alias '$alias' not found in KeyStore.")
+                    cert.sha256Hash()
+                }
+                sslConnector(
+                    keyStore = keyStore,
+                    keyAlias = alias,
+                    keyStorePassword = { keyStorePassword.toCharArray() },
+                    privateKeyPassword = { keyStorePassword.toCharArray() }
                 ) {
                     port = 8443
+                    enabledProtocols = listOf("TLSv1.3")
                 }
             }
         ) {
             install(CallLogging) {
                 level = Level.DEBUG
-                this.format { call ->
+                format { call ->
                     val status = call.response.status()
                     val httpMethod = call.request.httpMethod.value
                     val userAgent = call.request.headers["User-Agent"]
-                    "Status: $status, HTTP method: $httpMethod, User agent: $userAgent"
+                    buildString {
+                        appendLine()
+                        appendLine("=================================================")
+                        appendLine("$httpMethod ${call.request.path()}")
+                        appendLine("Status: $status, User agent: $userAgent")
+                        appendLine("request headers: ")
+                        call.request.headers.forEach { name, values ->
+                            appendLine("  $name: ${values.joinToString(", ")}")
+                        }
+                        appendLine("=================================================")
+                    }
                 }
             }
             install(ContentNegotiation) {
@@ -233,12 +270,27 @@ class Application {
                 timeout = 15.seconds
             }
             routing {
+                fun ApplicationCall.verifyPassword(): Boolean {
+                    val authHeader = request.headers[HttpHeaders.Authorization] ?: return false
+                    return runCatching {
+                        val decodedPassword = String(Base64.decode(authHeader), Charsets.UTF_8)
+                        decodedPassword == _password.value
+                    }.getOrDefault(false)
+                }
                 route("/") {
                     handle {
-                        call.respond("music backend")
+                        if (!call.verifyPassword()) {
+                            call.respond(HttpStatusCode.Unauthorized, "Invalid or missing credentials")
+                            return@handle
+                        }
+                        call.respond("music server")
                     }
                 }
                 webSocket("rpc") {
+                    if (!call.verifyPassword()) {
+                        close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Invalid or missing credentials"))
+                        return@webSocket
+                    }
                     val jobs = ConcurrentHashMap<Uuid, Job>()
                     try {
                         while (isActive) {
@@ -698,6 +750,10 @@ class Application {
                 }
                 route("files/{id}") {
                     handle {
+                        if (!call.verifyPassword()) {
+                            call.respond(HttpStatusCode.Unauthorized, "Invalid or missing credentials")
+                            return@handle
+                        }
                         val id = try {
                             MediaFileId(call.parameters["id"]!!.toLong())
                         } catch (_: Exception) {
@@ -712,21 +768,33 @@ class Application {
 
         server.start()
         importWorker.start()
+        _state.value = AppState.Running
         logger.info { "<-- Application::start" }
     }
 
-    fun stop() {
+    suspend fun stop() {
+        if (_state.value == AppState.Stopping) return
         logger.info { "--> Application::stop" }
-        runBlocking {
+        withContext(Dispatchers.IO) {
+            _state.value = AppState.Stopping
             try { server.stopSuspend(1000, 1000) } catch (_: Exception) { }
             try { importWorker.stop() } catch (_: Exception) { }
             try { ytDlp.close() } catch (_: Exception) { }
             try { spotify.close() } catch (_: Exception) { }
             try { database.close() } catch (_: Exception) { }
+            _state.value = AppState.Stopped
         }
         logger.info { "<-- Application::stop" }
     }
 
+    fun loadKeyStore(file: File, password: String): KeyStore {
+        require(file.exists()) { "Keystore file does not exist at path: ${file.absolutePath}" }
+        val keyStore = KeyStore.getInstance("JKS") // TODO
+        FileInputStream(file).use { inputStream ->
+            keyStore.load(inputStream, password.toCharArray())
+        }
+        return keyStore
+    }
 
     private suspend inline fun <reified T> WebSocketServerSession.sendWsResponse(correlationId: Uuid, data: T) {
         sendSerialized<WsResponse<T>>(WsResponse(correlationId, data))

@@ -1,6 +1,6 @@
 package dev.younesgouyd.apps.music.client.common.data.repoes
 
-import dev.younesgouyd.apps.music.client.common.data.Backend
+import dev.younesgouyd.apps.music.client.common.data.Server
 import dev.younesgouyd.apps.music.common.models.Tag
 import dev.younesgouyd.apps.music.common.models.TagId
 import dev.younesgouyd.apps.music.common.models.TrackId
@@ -8,30 +8,30 @@ import dev.younesgouyd.apps.music.common.models.rpc.TagRpc
 import kotlinx.coroutines.flow.Flow
 
 class TagRepo(
-    private val backend: Backend
+    private val server: Server
 ) {
     fun get(id: TagId): Flow<Tag?> {
-        return backend.stream(TagRpc.Get(id))
+        return server.stream(TagRpc.Get(id))
     }
 
     fun search(nameQuery: String): Flow<List<Tag>> {
-        return backend.stream(TagRpc.Search(nameQuery))
+        return server.stream(TagRpc.Search(nameQuery))
     }
 
     fun getTrackTags(id: TrackId): Flow<List<Tag>> {
-        return backend.stream(TagRpc.GetTrackTags(id))
+        return server.stream(TagRpc.GetTrackTags(id))
     }
 
     fun getTrackUnsetTags(id: TrackId): Flow<List<Tag>> {
-        return backend.stream(TagRpc.GetTrackUnsetTags(id))
+        return server.stream(TagRpc.GetTrackUnsetTags(id))
     }
 
     suspend fun add(name: String) {
         require(name.isNotBlank())
-        backend.call(TagRpc.Add(name))
+        server.call(TagRpc.Add(name))
     }
 
     suspend fun delete(id: TagId) {
-        backend.call(TagRpc.Delete(id))
+        server.call(TagRpc.Delete(id))
     }
 }

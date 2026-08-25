@@ -1,6 +1,6 @@
 package dev.younesgouyd.apps.music.client.common.data.repoes
 
-import dev.younesgouyd.apps.music.client.common.data.Backend
+import dev.younesgouyd.apps.music.client.common.data.Server
 import dev.younesgouyd.apps.music.common.models.DbOrder
 import dev.younesgouyd.apps.music.common.models.ImportSessionId
 import dev.younesgouyd.apps.music.common.models.ImportSessionItem
@@ -9,10 +9,10 @@ import dev.younesgouyd.apps.music.common.models.rpc.ImportSessionItemRpc
 import kotlinx.coroutines.flow.Flow
 
 class ImportSessionItemRepo(
-    private val backend: Backend
+    private val server: Server
 ) {
     fun get(id: ImportSessionItemId): Flow<ImportSessionItem?> {
-        return backend.stream(ImportSessionItemRpc.Get(id))
+        return server.stream(ImportSessionItemRpc.Get(id))
     }
 
     fun search(
@@ -21,7 +21,7 @@ class ImportSessionItemRepo(
         titleQuery: String,
         order: DbOrder
     ): Flow<List<ImportSessionItem>> {
-        return backend.stream(
+        return server.stream(
             ImportSessionItemRpc.Search(
                 importSessionId = importSessionId,
                 state = state,
@@ -35,7 +35,7 @@ class ImportSessionItemRepo(
         id: ImportSessionItemId,
         state: ImportSessionItem.State
     ) {
-        backend.call(
+        server.call(
             ImportSessionItemRpc.UpdateState(
                 id = id,
                 state = state

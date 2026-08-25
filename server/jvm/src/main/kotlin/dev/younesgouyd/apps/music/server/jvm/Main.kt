@@ -1,19 +1,57 @@
 package dev.younesgouyd.apps.music.server.jvm
 
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.window.*
 import dev.younesgouyd.apps.music.server.common.Application
+import dev.younesgouyd.apps.music.server.common.Ui
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.io.File
-import java.util.concurrent.CountDownLatch
 
 fun main() {
-    val app = Application()
-    val homeDir = File(System.getProperty("user.home"))
-    val latch = CountDownLatch(1)
-    app.start(homeDir)
-    Runtime.getRuntime().addShutdownHook(
-        Thread {
-            app.stop()
-            latch.countDown()
+    application {
+        Window(
+            state = rememberWindowState(
+                placement = WindowPlacement.Maximized,
+                position = WindowPosition(Alignment.Center)
+            ),
+            onCloseRequest = { MusicServerService.stop(); exitApplication() },
+            content = {
+                Ui(
+                    serverStatus = MusicServerService.appState,
+                    certificateSignature = MusicServerService.certificateFingerprint,
+                    password = MusicServerService.password,
+                    onStartClick = {
+                        MusicServerService.start()
+                    },
+                    onStopClick = {
+                        MusicServerService.stop()
+                    }
+                )
+            },
+        )
+    }
+}
+
+private object MusicServerService {
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val app = Application()
+    val appState = app.state
+    val certificateFingerprint = app.certificateFingerprint
+    val password = app.password
+
+    fun start() {
+        scope.launch {
+            val homeDir = File(System.getProperty("user.home"))
+            app.start(homeDir)
         }
-    )
-    latch.await()
+    }
+
+    fun stop() {
+        scope.launch {
+            app.stop()
+        }
+    }
 }

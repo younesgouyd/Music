@@ -1,15 +1,15 @@
 package dev.younesgouyd.apps.music.client.common.data.repoes
 
-import dev.younesgouyd.apps.music.client.common.data.Backend
+import dev.younesgouyd.apps.music.client.common.data.Server
 import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.models.rpc.PlaylistRpc
 import kotlinx.coroutines.flow.Flow
 
 class PlaylistRepo(
-    private val backend: Backend
+    private val server: Server
 ) {
     suspend fun getAll(limit: Int, offset: Offset.Id<PlaylistId>): List<Playlist> {
-        return backend.callForResult(
+        return server.callForResult(
             PlaylistRpc.GetAll(
                 limit = limit,
                 offset = offset
@@ -18,18 +18,18 @@ class PlaylistRepo(
     }
 
     fun get(id: PlaylistId): Flow<Playlist?> {
-        return backend.stream(PlaylistRpc.Get(id))
+        return server.stream(PlaylistRpc.Get(id))
     }
 
     fun search(nameQuery: String): Flow<List<Playlist>> {
-        return backend.stream(PlaylistRpc.Search(nameQuery))
+        return server.stream(PlaylistRpc.Search(nameQuery))
     }
 
     fun searchFolder(
         folderId: FolderId?,
         nameQuery: String
     ): Flow<List<Playlist>> {
-        return backend.stream(
+        return server.stream(
             PlaylistRpc.SearchFolder(
                 folderId = folderId,
                 nameQuery = nameQuery
@@ -38,11 +38,11 @@ class PlaylistRepo(
     }
 
     fun getFolderPlaylists(folderId: FolderId?): Flow<List<Playlist>> {
-        return backend.stream(PlaylistRpc.GetFolderPlaylists(folderId))
+        return server.stream(PlaylistRpc.GetFolderPlaylists(folderId))
     }
 
     fun getTrackPlaylists(id: TrackId): Flow<List<Playlist>> {
-        return backend.stream(PlaylistRpc.GetTrackPlaylists(id))
+        return server.stream(PlaylistRpc.GetTrackPlaylists(id))
     }
 
     suspend fun add(
@@ -50,7 +50,7 @@ class PlaylistRepo(
         folderId: FolderId?
     ): PlaylistId {
         require(name.isNotEmpty())
-        return backend.callForResult(
+        return server.callForResult(
             PlaylistRpc.Add(
                 name = name,
                 folderId = folderId
@@ -60,7 +60,7 @@ class PlaylistRepo(
 
     suspend fun updateName(id: PlaylistId, name: String) {
         require(name.isNotEmpty())
-        backend.call(
+        server.call(
             PlaylistRpc.UpdateName(
                 id = id,
                 name = name
@@ -69,7 +69,7 @@ class PlaylistRepo(
     }
 
     suspend fun updateFolderId(id: PlaylistId, folderId: FolderId) {
-        backend.call(
+        server.call(
             PlaylistRpc.UpdateFolderId(
                 id = id,
                 folderId = folderId
@@ -78,7 +78,7 @@ class PlaylistRepo(
     }
 
     suspend fun delete(id: PlaylistId) {
-        backend.call(
+        server.call(
             PlaylistRpc.Delete(id)
         )
     }

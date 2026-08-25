@@ -1,15 +1,15 @@
 package dev.younesgouyd.apps.music.client.common.data.repoes
 
-import dev.younesgouyd.apps.music.client.common.data.Backend
+import dev.younesgouyd.apps.music.client.common.data.Server
 import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.models.rpc.TrackRpc
 import kotlinx.coroutines.flow.Flow
 
 class TrackRepo(
-    private val backend: Backend
+    private val server: Server
 ) {
     fun get(id: TrackId): Flow<TrackRelation?> {
-        return backend.stream(TrackRpc.Get(id))
+        return server.stream(TrackRpc.Get(id))
     }
 
     suspend fun search(
@@ -17,7 +17,7 @@ class TrackRepo(
         limit: Int,
         offset: Offset.Id<TrackId>
     ): List<TrackRelation> {
-        return backend.callForResult(
+        return server.callForResult(
             TrackRpc.Search(
                 nameQuery = nameQuery,
                 limit = limit,
@@ -33,7 +33,7 @@ class TrackRepo(
         limit: Int,
         offset: Offset.Id<TrackId>
     ): List<TrackRelation> {
-        return backend.callForResult(
+        return server.callForResult(
             TrackRpc.SearchWithTags(
                 nameQuery = nameQuery,
                 tags = tags,
@@ -48,7 +48,7 @@ class TrackRepo(
         folderId: FolderId,
         nameQuery: String
     ): Flow<List<TrackRelation>> {
-        return backend.stream(
+        return server.stream(
             TrackRpc.SearchFolder(
                 folderId = folderId,
                 nameQuery = nameQuery
@@ -62,7 +62,7 @@ class TrackRepo(
         tags: List<TagId>,
         includeUntagged: Boolean
     ): Flow<List<TrackRelation>> {
-        return backend.stream(
+        return server.stream(
             TrackRpc.SearchFolderWithTags(
                 folderId = folderId,
                 nameQuery = nameQuery,
@@ -78,7 +78,7 @@ class TrackRepo(
         limit: Int,
         offset: Offset.Id<TrackId>
     ): List<TrackRelation> {
-        return backend.callForResult(
+        return server.callForResult(
             TrackRpc.SearchArtistContributions(
                 id = id,
                 nameQuery = nameQuery,
@@ -89,7 +89,7 @@ class TrackRepo(
     }
 
     fun searchPlaylist(id: PlaylistId, nameQuery: String): Flow<List<PlaylistTrack>> {
-        return backend.stream(
+        return server.stream(
             TrackRpc.SearchPlaylist(
                 id = id,
                 nameQuery = nameQuery
@@ -98,7 +98,7 @@ class TrackRepo(
     }
 
     fun searchWithTag(nameQuery: String, tag: TagId): Flow<List<TrackRelation>> {
-        return backend.stream(
+        return server.stream(
             TrackRpc.SearchWithTag(
                 nameQuery = nameQuery,
                 tag = tag
@@ -107,29 +107,29 @@ class TrackRepo(
     }
 
     fun getFolderTracks(id: FolderId): Flow<List<Track>> {
-        return backend.stream(TrackRpc.GetFolderTracks(id))
+        return server.stream(TrackRpc.GetFolderTracks(id))
     }
 
     fun getArtistTracks(id: SpotifyArtistId): Flow<List<TrackRelation>> {
-        return backend.stream(TrackRpc.GetArtistTracks(id))
+        return server.stream(TrackRpc.GetArtistTracks(id))
     }
 
     fun getAlbumTracks(id: SpotifyAlbumId): Flow<List<TrackRelation>> {
-        return backend.stream(TrackRpc.GetAlbumTracks(id))
+        return server.stream(TrackRpc.GetAlbumTracks(id))
     }
 
     fun getPlaylistTracks(id: PlaylistId): Flow<List<TrackRelation>> {
-        return backend.stream(TrackRpc.GetPlaylistTracks(id))
+        return server.stream(TrackRpc.GetPlaylistTracks(id))
     }
 
     suspend fun getId(spotifyId: String): TrackId? {
-        return backend.callForResult(
+        return server.callForResult(
             TrackRpc.GetId(spotifyId)
         )
     }
 
     fun getImportSessionTrack(id: ImportSessionItemId): Flow<TrackRelation?> {
-        return backend.stream(TrackRpc.GetImportSessionTrack(id))
+        return server.stream(TrackRpc.GetImportSessionTrack(id))
     }
 
     suspend fun add(
@@ -137,7 +137,7 @@ class TrackRepo(
         spotifyTrackId: SpotifyTrackId?,
         folderId: FolderId
     ): TrackId {
-        return backend.callForResult(
+        return server.callForResult(
             TrackRpc.Add(
                 importSessionItemId = importSessionItemId,
                 spotifyTrackId = spotifyTrackId,
@@ -147,7 +147,7 @@ class TrackRepo(
     }
 
     suspend fun updateFolderId(id: TrackId, folderId: FolderId) {
-        backend.call(
+        server.call(
             TrackRpc.UpdateFolderId(
                 id = id,
                 folderId = folderId

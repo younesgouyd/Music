@@ -6,9 +6,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import dev.younesgouyd.apps.music.client.common.components.Main
-import dev.younesgouyd.apps.music.client.common.components.SplashScreen
-import dev.younesgouyd.apps.music.client.common.data.Backend
+import dev.younesgouyd.apps.music.client.common.components.StartupScreen
 import dev.younesgouyd.apps.music.client.common.data.RepoStore
+import dev.younesgouyd.apps.music.client.common.data.Server
 import dev.younesgouyd.apps.music.client.common.usecases.*
 import dev.younesgouyd.apps.music.client.common.util.Component
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -41,7 +41,7 @@ class Application {
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private lateinit var mediaController: MediaController
-    private lateinit var backend: Backend
+    private lateinit var server: Server
     private lateinit var repoStore: RepoStore
 
     private lateinit var unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase
@@ -52,13 +52,17 @@ class Application {
 
     private val loading = MutableStateFlow(false)
     private val currentComponent: MutableStateFlow<Component> = MutableStateFlow(
-        SplashScreen(
+        StartupScreen(
             onStart = ::start,
             loading = loading.asStateFlow()
         )
     )
 
-    private fun start(serverHost: String) {
+    private fun start(
+        serverIpAddr: String,
+        serverFingerprint: String,
+        password: String
+    ) {
         coroutineScope.launch {
             val tempDir = withContext(Dispatchers.IO) {
                 appDir.mkdir()
@@ -69,13 +73,13 @@ class Application {
                 dir.mkdir()
                 dir
             }
-            backend = Backend(serverHost, tempDir)
-            repoStore = RepoStore(backend)
-            unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(backend)
-            setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(backend)
-            clearImportItemUseCase = ClearImportItemUseCase(backend)
-            deleteFolderUseCase = DeleteFolderUseCase(backend)
-            prepareImportUseCase = PrepareImportUseCase(backend)
+            server = Server(serverIpAddr, serverFingerprint, password,tempDir)
+            repoStore = RepoStore(server)
+            unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(server)
+            setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(server)
+            clearImportItemUseCase = ClearImportItemUseCase(server)
+            deleteFolderUseCase = DeleteFolderUseCase(server)
+            prepareImportUseCase = PrepareImportUseCase(server)
             mediaController = MediaController(
                 mediaPlayer = createMediaPlayer(),
                 mediaFileRepo = repoStore.mediaFileRepo,
@@ -83,7 +87,7 @@ class Application {
                 artistRepo = repoStore.spotifyArtistRepo,
                 albumRepo = repoStore.spotifyAlbumRepo,
             )
-            backend.connect()
+            server.connect()
             currentComponent.update {
                 it.clear()
                 Main(
@@ -109,7 +113,7 @@ class Application {
     fun clear() {
         try { currentComponent.value.clear() } catch (_: Exception) { }
         try { mediaController.release() } catch (_: Exception) { }
-        try { runBlocking { backend.close() } } catch (_: Exception) { }
+        try { runBlocking { server.close() } } catch (_: Exception) { }
         try { coroutineScope.cancel() } catch (_: Exception) { }
     }
 

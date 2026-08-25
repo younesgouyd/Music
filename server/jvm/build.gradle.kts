@@ -1,8 +1,12 @@
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+
 group = "dev.younesgouyd"
 version = "0.1.0"
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.composeMultiplatform)
 }
 
 kotlin {
@@ -11,4 +15,17 @@ kotlin {
 
 dependencies {
     implementation(project(":server:common"))
+    implementation(libs.compose.uiDesktop)
+    implementation(libs.compose.material3)
+}
+
+compose.desktop {
+    application {
+        mainClass = "dev.younesgouyd.apps.music.server.jvm.MainKt"
+
+        nativeDistributions {
+            targetFormats(TargetFormat.AppImage, TargetFormat.Deb)
+            packageName = "dev.younesgouyd.apps.music.server.jvm"
+        }
+    }
 }

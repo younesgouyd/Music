@@ -1,13 +1,13 @@
 package dev.younesgouyd.apps.music.client.common.usecases
 
-import dev.younesgouyd.apps.music.client.common.data.Backend
+import dev.younesgouyd.apps.music.client.common.data.Server
 import dev.younesgouyd.apps.music.common.models.FolderId
 import dev.younesgouyd.apps.music.common.models.ImportSessionId
 import dev.younesgouyd.apps.music.common.models.Inspection
 import dev.younesgouyd.apps.music.common.models.rpc.PrepareImportRpc
 
 class PrepareImportUseCase(
-    private val backend: Backend
+    private val server: Server
 ) {
     suspend fun execute(
         selected: List<Long>,
@@ -15,7 +15,7 @@ class PrepareImportUseCase(
         inspection: Inspection,
         destinationFolderId: FolderId
     ): ImportSessionId {
-        return backend.callForResult<ImportSessionId>(
+        return server.callForResult<ImportSessionId>(
             PrepareImportRpc(
                 selected = selected,
                 url = url,

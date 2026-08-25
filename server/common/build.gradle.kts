@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.room)
+    alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.composeMultiplatform)
 }
 
 kotlin {
@@ -11,7 +13,7 @@ kotlin {
     androidLibrary {
         namespace = "dev.younesgouyd.apps.music.server.common"
         compileSdk = libs.versions.androidCompileSdk.get().toInt()
-        minSdk = libs.versions.androidMinSdk.get().toInt()
+        minSdk = 36
         androidResources.enable = true
         packaging.resources {
             excludes += "/META-INF/INDEX.LIST"
@@ -40,12 +42,17 @@ kotlin {
             implementation(libs.ktor.client.engine)
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.client.contentNegotiation)
+            implementation(libs.compose.material3)
+            implementation(libs.compose.materialIconsExtended)
         }
         jvmMain.dependencies {
             implementation(libs.sqlite.jvm)
             implementation(libs.coroutines.desktop)
             implementation(libs.logback.jvm)
             implementation(libs.conscrypt.jvm)
+            implementation(compose.desktop.currentOs) {
+                exclude("org.jetbrains.compose.material") // todo
+            }
         }
         androidMain.dependencies {
             implementation(libs.sqlite.android)
@@ -54,6 +61,7 @@ kotlin {
             implementation(libs.android.activityKtx)
             implementation(libs.logback.android)
             implementation(libs.conscrypt.android)
+            implementation(libs.android.activityCompose)
         }
     }
 }

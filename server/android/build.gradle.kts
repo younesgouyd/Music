@@ -3,6 +3,8 @@ version = "0.1.0"
 
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.composeMultiplatform)
 }
 
 kotlin {
@@ -13,6 +15,8 @@ dependencies {
     implementation(project(":server:common"))
     implementation(libs.coroutines.core)
     implementation(libs.android.coreKtx)
+    implementation(libs.android.activityCompose)
+    implementation(libs.compose.material3)
 }
 
 android {
@@ -20,7 +24,7 @@ android {
     compileSdk = libs.versions.androidCompileSdk.get().toInt()
     defaultConfig {
         applicationId = "dev.younesgouyd.apps.music.server.android"
-        minSdk = libs.versions.androidMinSdk.get().toInt()
+        minSdk = 36
         targetSdk = libs.versions.androidTargetSdk.get().toInt()
         versionCode = 1
         versionName = "0.1"

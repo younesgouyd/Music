@@ -1,6 +1,6 @@
 package dev.younesgouyd.apps.music.client.common.data.repoes
 
-import dev.younesgouyd.apps.music.client.common.data.Backend
+import dev.younesgouyd.apps.music.client.common.data.Server
 import dev.younesgouyd.apps.music.common.models.ImportSession
 import dev.younesgouyd.apps.music.common.models.ImportSessionId
 import dev.younesgouyd.apps.music.common.models.Offset
@@ -8,10 +8,10 @@ import dev.younesgouyd.apps.music.common.models.rpc.ImportSessionRpc
 import kotlinx.coroutines.flow.Flow
 
 class ImportSessionRepo(
-    private val backend: Backend
+    private val server: Server
 ) {
     suspend fun getAll(limit: Int, offset: Offset.Index): List<ImportSession> {
-        return backend.callForResult(
+        return server.callForResult(
             ImportSessionRpc.GetAll(
                 limit = limit,
                 offset = offset
@@ -20,6 +20,6 @@ class ImportSessionRepo(
     }
 
     fun get(id: ImportSessionId): Flow<ImportSession?> {
-        return backend.stream(ImportSessionRpc.Get(id))
+        return server.stream(ImportSessionRpc.Get(id))
     }
 }

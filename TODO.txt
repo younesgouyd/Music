@@ -1,4 +1,4 @@
-- implement auth.
+
 - support seamless connection to the backend.
 - in Library, support dragging items into folders.
 - the items of import session containers may change in the source. so re-importing items is only possible
@@ -15,6 +15,7 @@
 - implement sorting playlists/albums/folders.
 
 done:
+- implement auth.
 - encrypt data in client-server communication.
 - check why when trying to launch system file picker on an old android os (android 10 if I remember), the app crashes.
 - fix bug: images array of spotify api may be empty

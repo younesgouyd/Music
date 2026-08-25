@@ -4,10 +4,17 @@ import android.app.*
 import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import dev.younesgouyd.apps.music.server.common.AppState
 import dev.younesgouyd.apps.music.server.common.Application
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
-class MusicBackendService : Service() {
+class MusicServerService : Service() {
     private lateinit var app: Application
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     override fun onCreate() {
         super.onCreate()
@@ -19,17 +26,30 @@ class MusicBackendService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-
         startForeground(NOTIFICATION_ID, createNotification())
-        app.start(applicationContext.filesDir)
-        isRunning = true
+        if (appState.value == AppState.Stopping) { TODO() }
+        if (appState.value != AppState.Starting && appState.value != AppState.Running) {
+            serviceScope.launch {
+                app.start(applicationContext.filesDir)
+            }
+            serviceScope.launch {
+                app.state.collect(appState)
+            }
+            serviceScope.launch {
+                app.certificateFingerprint.collect(certificateFingerprint)
+            }
+            serviceScope.launch {
+                app.password.collect(password)
+            }
+        }
         return START_STICKY
     }
 
     override fun onDestroy() {
-        super.onDestroy() // TODO
-        app.stop()
-        isRunning = false
+        serviceScope.launch {
+            app.stop()
+        }
+        super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -42,7 +62,7 @@ class MusicBackendService : Service() {
         val manager = getSystemService(NotificationManager::class.java)
         manager?.createNotificationChannel(channel)
 
-        val stopIntent = Intent(this, MusicBackendService::class.java).apply {
+        val stopIntent = Intent(this, MusicServerService::class.java).apply {
             action = ACTION_STOP
         }
         val stopPendingIntent = PendingIntent.getService(
@@ -68,7 +88,8 @@ class MusicBackendService : Service() {
         private const val NOTIFICATION_ID = 101
         private const val ACTION_STOP = "dev.younesgouyd.apps.music.server.android.ACTION_STOP"
 
-        var isRunning = false
-            private set
+        val appState = MutableStateFlow(AppState.Stopped)
+        val certificateFingerprint = MutableStateFlow("")
+        val password = MutableStateFlow("")
     }
 }

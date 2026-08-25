@@ -2,21 +2,21 @@ package dev.younesgouyd.apps.music.client.common.data
 
 import dev.younesgouyd.apps.music.client.common.data.repoes.*
 
-class RepoStore(backend: Backend) {
-    val folderRepo = FolderRepo(backend)
-    val importSessionItemRepo = ImportSessionItemRepo(backend)
-    val importSessionRepo = ImportSessionRepo(backend)
-    val inspectionRepo = InspectionRepo(backend)
-    val mediaFileRepo = MediaFileRepo(backend)
-    val playlistRepo = PlaylistRepo(backend)
-    val playlistTrackCrossRefRepo = PlaylistTrackCrossRefRepo(backend)
-    val settingRepo = SettingRepo(backend)
-    val spotifyAlbumRepo = SpotifyAlbumRepo(backend)
-    val spotifyArtistRepo = SpotifyArtistRepo(backend)
-    val spotifyAuthRepo = SpotifyAuthRepo(backend)
-    val spotifySearchRepo = SpotifySearchRepo(backend)
-    val spotifyTrackRepo = SpotifyTrackRepo(backend)
-    val tagRepo = TagRepo(backend)
-    val tagTrackCrossRefRepo = TagTrackCrossRefRepo(backend)
-    val trackRepo = TrackRepo(backend)
+class RepoStore(server: Server) {
+    val folderRepo = FolderRepo(server)
+    val importSessionItemRepo = ImportSessionItemRepo(server)
+    val importSessionRepo = ImportSessionRepo(server)
+    val inspectionRepo = InspectionRepo(server)
+    val mediaFileRepo = MediaFileRepo(server)
+    val playlistRepo = PlaylistRepo(server)
+    val playlistTrackCrossRefRepo = PlaylistTrackCrossRefRepo(server)
+    val settingRepo = SettingRepo(server)
+    val spotifyAlbumRepo = SpotifyAlbumRepo(server)
+    val spotifyArtistRepo = SpotifyArtistRepo(server)
+    val spotifyAuthRepo = SpotifyAuthRepo(server)
+    val spotifySearchRepo = SpotifySearchRepo(server)
+    val spotifyTrackRepo = SpotifyTrackRepo(server)
+    val tagRepo = TagRepo(server)
+    val tagTrackCrossRefRepo = TagTrackCrossRefRepo(server)
+    val trackRepo = TrackRepo(server)
 }
