@@ -12,7 +12,7 @@ kotlin {
 }
 
 dependencies {
-    implementation(project(":server:common"))
+    implementation(project(":server:multiplatform"))
     implementation(libs.coroutines.core)
     implementation(libs.android.coreKtx)
     implementation(libs.android.activityCompose)

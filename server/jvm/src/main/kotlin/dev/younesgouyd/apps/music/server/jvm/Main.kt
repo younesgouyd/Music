@@ -2,8 +2,8 @@ package dev.younesgouyd.apps.music.server.jvm
 
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.window.*
-import dev.younesgouyd.apps.music.server.common.Application
-import dev.younesgouyd.apps.music.server.common.Ui
+import dev.younesgouyd.apps.music.server.multiplatform.Application
+import dev.younesgouyd.apps.music.server.multiplatform.Ui
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

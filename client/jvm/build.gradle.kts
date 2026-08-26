@@ -14,7 +14,7 @@ kotlin {
 }
 
 dependencies {
-    implementation(project(":client:common"))
+    implementation(project(":client:multiplatform"))
     implementation(libs.compose.uiDesktop)
     implementation(libs.compose.material3)
 }

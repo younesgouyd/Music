@@ -1,10 +1,10 @@
 rootProject.name = "Music"
 
-include(":server:common")
+include(":server:multiplatform")
 include(":server:jvm")
 include(":server:android")
 include(":common")
-include(":client:common")
+include(":client:multiplatform")
 include(":client:jvm")
 include(":client:android")
 include(":ytdlpserver")

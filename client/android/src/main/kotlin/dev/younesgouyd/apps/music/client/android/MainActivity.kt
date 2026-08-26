@@ -8,7 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.ui.Modifier
-import dev.younesgouyd.apps.music.client.common.Application
+import dev.younesgouyd.apps.music.client.multiplatform.Application
 
 class MainActivity : ComponentActivity() {
     private lateinit var app: Application

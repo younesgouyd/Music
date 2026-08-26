@@ -8,7 +8,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.window.*
-import dev.younesgouyd.apps.music.client.common.Application
+import dev.younesgouyd.apps.music.client.multiplatform.Application
 
 fun main() {
 //    System.setProperty("sun.java2d.uiScale", "1.0")

@@ -8,8 +8,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import dev.younesgouyd.apps.music.server.common.AppState
-import dev.younesgouyd.apps.music.server.common.Ui
+import dev.younesgouyd.apps.music.server.multiplatform.AppState
+import dev.younesgouyd.apps.music.server.multiplatform.Ui
 import kotlinx.coroutines.flow.asStateFlow
 
 class MainActivity : ComponentActivity() {
