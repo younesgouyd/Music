@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.appDir
 import dev.younesgouyd.apps.music.client.multiplatform.createHttpClient
 import dev.younesgouyd.apps.music.client.multiplatform.util.Component
+import dev.younesgouyd.apps.music.common.models.ServerInfo
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -22,6 +23,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.json.Json
 import java.io.File
 import kotlin.io.encoding.Base64
 
@@ -165,9 +167,11 @@ class StartupScreen(
             var ipAddress by remember { mutableStateOf(state.serverIpAddress) }
             var fingerprint by remember { mutableStateOf(state.serverFingerprint) }
             var password by remember { mutableStateOf(state.serverPassword) }
+            var base64 by remember { mutableStateOf("") }
             val testingConnection by state.testingConnection.collectAsState()
             val error by state.error.collectAsState()
             var passwordVisible by remember { mutableStateOf(false) }
+            var base64Error by remember { mutableStateOf(false) }
 
             if (testingConnection) {
                 Text("Connecting...")
@@ -179,19 +183,19 @@ class StartupScreen(
                     OutlinedTextField(
                         label = { Text("server ip address") },
                         value = ipAddress,
-                        onValueChange = { ipAddress = it },
+                        onValueChange = { ipAddress = it; base64 = "" },
                         singleLine = true
                     )
                     OutlinedTextField(
                         label = { Text("server fingerprint") },
                         value = fingerprint,
-                        onValueChange = { fingerprint = it },
+                        onValueChange = { fingerprint = it; base64 = "" },
                         singleLine = true
                     )
                     OutlinedTextField(
                         label = { Text("password") },
                         value = password,
-                        onValueChange = { password = it },
+                        onValueChange = { password = it; base64 = "" },
                         singleLine = true,
                         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         trailingIcon = {
@@ -201,6 +205,26 @@ class StartupScreen(
                                 Icon(imageVector = image, contentDescription = description)
                             }
                         }
+                    )
+                    OutlinedTextField(
+                        label = { Text("base64") },
+                        value = base64,
+                        onValueChange = {
+                            base64 = it
+                            try {
+                                val some: ServerInfo = Json.decodeFromString(
+                                    Base64.decode(it).decodeToString()
+                                )
+                                ipAddress = some.ipAddress
+                                fingerprint = some.certificateFingerprint
+                                password = some.password
+                                base64Error = false
+                            } catch (_: Exception) {
+                                base64Error = true
+                            }
+                        },
+                        singleLine = true,
+                        isError = base64Error
                     )
                     Button(
                         onClick = {

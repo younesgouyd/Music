@@ -14,11 +14,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.common.models.ServerInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import java.net.Inet4Address
 import java.net.NetworkInterface
+import kotlin.io.encoding.Base64
 
 @Composable
 fun Ui(
@@ -33,6 +36,13 @@ fun Ui(
     val certificateSignature by certificateSignature.collectAsState()
     val password by password.collectAsState()
     var passwordVisible by remember { mutableStateOf(false) }
+    val base64Json = remember(ipAddress, certificateSignature, password) {
+        Base64.encode(
+            Json.encodeToString(
+                ServerInfo(ipAddress, certificateSignature, password)
+            ).encodeToByteArray()
+        ).also { println("base64: $it") }
+    }
 
     MaterialTheme(
         colorScheme = darkColorScheme()
@@ -80,6 +90,13 @@ fun Ui(
                             Icon(imageVector = image, contentDescription = description)
                         }
                     }
+                )
+                OutlinedTextField(
+                    label = { Text("base64") },
+                    value = base64Json,
+                    onValueChange = {},
+                    readOnly = true,
+                    singleLine = true
                 )
                 when (serverStatus) {
                     AppState.Running -> Button(onStopClick) { Text("stop server") }
