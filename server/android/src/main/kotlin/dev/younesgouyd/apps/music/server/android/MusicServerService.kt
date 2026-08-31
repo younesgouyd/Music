@@ -4,7 +4,7 @@ import android.app.*
 import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import dev.younesgouyd.apps.music.server.multiplatform.AppState
+import dev.younesgouyd.apps.music.common.ServerState
 import dev.younesgouyd.apps.music.server.multiplatform.Application
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,13 +27,13 @@ class MusicServerService : Service() {
             return START_NOT_STICKY
         }
         startForeground(NOTIFICATION_ID, createNotification())
-        if (appState.value == AppState.Stopping) { TODO() }
-        if (appState.value != AppState.Starting && appState.value != AppState.Running) {
+        if (serverState.value == ServerState.Stopping) { TODO() }
+        if (serverState.value != ServerState.Starting && serverState.value != ServerState.Running) {
             serviceScope.launch {
-                app.start(applicationContext.filesDir)
+                app.start(applicationContext.filesDir, MainActivity.ytDlpServerInfo.value)
             }
             serviceScope.launch {
-                app.state.collect(appState)
+                app.state.collect(serverState)
             }
             serviceScope.launch {
                 app.certificateFingerprint.collect(certificateFingerprint)
@@ -88,7 +88,7 @@ class MusicServerService : Service() {
         private const val NOTIFICATION_ID = 101
         private const val ACTION_STOP = "dev.younesgouyd.apps.music.server.android.ACTION_STOP"
 
-        val appState = MutableStateFlow(AppState.Stopped)
+        val serverState = MutableStateFlow(ServerState.Stopped)
         val certificateFingerprint = MutableStateFlow("")
         val password = MutableStateFlow("")
     }

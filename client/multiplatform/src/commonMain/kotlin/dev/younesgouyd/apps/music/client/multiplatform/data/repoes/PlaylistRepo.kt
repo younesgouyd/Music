@@ -9,7 +9,7 @@ class PlaylistRepo(
     private val server: Server
 ) {
     suspend fun getAll(limit: Int, offset: Offset.Id<PlaylistId>): List<Playlist> {
-        return server.callForResult(
+        return server.call(
             PlaylistRpc.GetAll(
                 limit = limit,
                 offset = offset
@@ -18,18 +18,18 @@ class PlaylistRepo(
     }
 
     fun get(id: PlaylistId): Flow<Playlist?> {
-        return server.stream(PlaylistRpc.Get(id))
+        return server.observe(PlaylistRpc.Get(id))
     }
 
     fun search(nameQuery: String): Flow<List<Playlist>> {
-        return server.stream(PlaylistRpc.Search(nameQuery))
+        return server.observe(PlaylistRpc.Search(nameQuery))
     }
 
     fun searchFolder(
         folderId: FolderId?,
         nameQuery: String
     ): Flow<List<Playlist>> {
-        return server.stream(
+        return server.observe(
             PlaylistRpc.SearchFolder(
                 folderId = folderId,
                 nameQuery = nameQuery
@@ -38,11 +38,11 @@ class PlaylistRepo(
     }
 
     fun getFolderPlaylists(folderId: FolderId?): Flow<List<Playlist>> {
-        return server.stream(PlaylistRpc.GetFolderPlaylists(folderId))
+        return server.observe(PlaylistRpc.GetFolderPlaylists(folderId))
     }
 
     fun getTrackPlaylists(id: TrackId): Flow<List<Playlist>> {
-        return server.stream(PlaylistRpc.GetTrackPlaylists(id))
+        return server.observe(PlaylistRpc.GetTrackPlaylists(id))
     }
 
     suspend fun add(
@@ -50,7 +50,7 @@ class PlaylistRepo(
         folderId: FolderId?
     ): PlaylistId {
         require(name.isNotEmpty())
-        return server.callForResult(
+        return server.call(
             PlaylistRpc.Add(
                 name = name,
                 folderId = folderId
@@ -60,7 +60,7 @@ class PlaylistRepo(
 
     suspend fun updateName(id: PlaylistId, name: String) {
         require(name.isNotEmpty())
-        server.call(
+        server.call<Unit>(
             PlaylistRpc.UpdateName(
                 id = id,
                 name = name
@@ -69,7 +69,7 @@ class PlaylistRepo(
     }
 
     suspend fun updateFolderId(id: PlaylistId, folderId: FolderId) {
-        server.call(
+        server.call<Unit>(
             PlaylistRpc.UpdateFolderId(
                 id = id,
                 folderId = folderId
@@ -78,7 +78,7 @@ class PlaylistRepo(
     }
 
     suspend fun delete(id: PlaylistId) {
-        server.call(
+        server.call<Unit>(
             PlaylistRpc.Delete(id)
         )
     }

@@ -8,6 +8,6 @@ class ClearImportItemUseCase(
     private val server: Server
 ) {
     suspend fun execute(id: ImportSessionItemId) {
-        server.call(ClearImportItemRpc(id))
+        server.call<Unit>(ClearImportItemRpc(id))
     }
 }

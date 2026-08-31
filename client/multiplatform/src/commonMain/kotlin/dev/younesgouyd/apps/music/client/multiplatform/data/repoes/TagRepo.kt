@@ -11,27 +11,27 @@ class TagRepo(
     private val server: Server
 ) {
     fun get(id: TagId): Flow<Tag?> {
-        return server.stream(TagRpc.Get(id))
+        return server.observe(TagRpc.Get(id))
     }
 
     fun search(nameQuery: String): Flow<List<Tag>> {
-        return server.stream(TagRpc.Search(nameQuery))
+        return server.observe(TagRpc.Search(nameQuery))
     }
 
     fun getTrackTags(id: TrackId): Flow<List<Tag>> {
-        return server.stream(TagRpc.GetTrackTags(id))
+        return server.observe(TagRpc.GetTrackTags(id))
     }
 
     fun getTrackUnsetTags(id: TrackId): Flow<List<Tag>> {
-        return server.stream(TagRpc.GetTrackUnsetTags(id))
+        return server.observe(TagRpc.GetTrackUnsetTags(id))
     }
 
     suspend fun add(name: String) {
         require(name.isNotBlank())
-        server.call(TagRpc.Add(name))
+        server.call<Unit>(TagRpc.Add(name))
     }
 
     suspend fun delete(id: TagId) {
-        server.call(TagRpc.Delete(id))
+        server.call<Unit>(TagRpc.Delete(id))
     }
 }

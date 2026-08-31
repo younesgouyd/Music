@@ -44,7 +44,7 @@ class StartupScreen(
     private var tries = 0
 
     private val serverInfoDir = File(appDir, "server_info")
-    private val ipAddressFile = File(serverInfoDir, "ip_address_file.txt")
+    private val ipAddressFile = File(serverInfoDir, "ip_address.txt")
     private val fingerprintFile = File(serverInfoDir, "fingerprint.txt")
     private val passwordFile = File(serverInfoDir, "password.txt")
 

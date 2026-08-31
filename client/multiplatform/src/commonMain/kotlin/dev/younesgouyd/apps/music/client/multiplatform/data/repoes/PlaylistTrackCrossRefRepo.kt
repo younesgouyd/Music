@@ -11,7 +11,7 @@ class PlaylistTrackCrossRefRepo(
     private val server: Server
 ) {
     fun get(playlistId: PlaylistId, trackId: TrackId): Flow<PlaylistTrackCrossRef?> {
-        return server.stream(
+        return server.observe(
             PlaylistTrackCrossRefRpc.Get(
                 playlistId = playlistId,
                 trackId = trackId
@@ -20,7 +20,7 @@ class PlaylistTrackCrossRefRepo(
     }
 
     suspend fun add(playlistId: PlaylistId, trackId: TrackId) {
-        server.call(
+        server.call<Unit>(
             PlaylistTrackCrossRefRpc.Add(
                 playlistId = playlistId,
                 trackId = trackId
@@ -29,7 +29,7 @@ class PlaylistTrackCrossRefRepo(
     }
 
     suspend fun changeItemPosition(playlistId: PlaylistId, from: Int, to: Int) {
-        server.call(
+        server.call<Unit>(
             PlaylistTrackCrossRefRpc.ChangeItemPosition(
                 playlistId = playlistId,
                 from = from,
@@ -39,7 +39,7 @@ class PlaylistTrackCrossRefRepo(
     }
 
     suspend fun delete(playlistId: PlaylistId, trackId: TrackId) {
-        server.call(
+        server.call<Unit>(
             PlaylistTrackCrossRefRpc.Delete(
                 playlistId = playlistId,
                 trackId = trackId

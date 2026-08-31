@@ -1,11 +1,10 @@
 package dev.younesgouyd.apps.music.server.multiplatform
 
-import dev.younesgouyd.apps.music.common.json
+import dev.younesgouyd.apps.music.common.*
 import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.rpc.*
 import dev.younesgouyd.apps.music.common.models.rpc.websocket.WsRequest
 import dev.younesgouyd.apps.music.common.models.rpc.websocket.WsResponse
-import dev.younesgouyd.apps.music.common.sha256Hash
 import dev.younesgouyd.apps.music.server.multiplatform.data.FileManager
 import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.*
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.AppDatabase
@@ -27,18 +26,18 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
+import io.ktor.utils.io.CancellationException
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.encodeToJsonElement
 import org.slf4j.event.Level
 import java.io.File
-import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import java.util.concurrent.ConcurrentHashMap
 import javax.security.auth.x500.X500Principal
-import kotlin.io.encoding.Base64
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
@@ -77,21 +76,22 @@ class Application {
 
     private lateinit var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>
 
-    private val _state: MutableStateFlow<AppState> = MutableStateFlow(AppState.Stopped)
+    private val _state: MutableStateFlow<ServerState> = MutableStateFlow(ServerState.Stopped)
     private val _certificateFingerprint: MutableStateFlow<String> = MutableStateFlow("")
     private val _password: MutableStateFlow<String> = MutableStateFlow("")
 
-    fun start(homeDir: File) {
-        if (_state.value == AppState.Starting || _state.value == AppState.Stopping) return
+    fun start(
+        homeDir: File,
+        ytDlpServerInfo: YtDlpServerInfo
+    ) {
+        if (_state.value == ServerState.Starting || _state.value == ServerState.Stopping) return
         logger.info { "--> Application::start" }
-        _state.value = AppState.Starting
+        _state.value = ServerState.Starting
         val appDir = File(homeDir, "younesmusicserverdata").also { it.mkdir() }
         val mediaDir = File(appDir, "media").also { it.mkdir() }
         val logsDir = File(appDir, "logs").also { it.mkdir() }
         val dbDir = File(appDir, "database").also { it.mkdir() }
         val dbFile = File(dbDir, "younesmusic.db").also { if (!it.exists()) it.createNewFile() }
-        val ytDlpDir = File(appDir, "ytdlp").also { it.mkdir() }
-        val ytDlpFile = File(ytDlpDir, "server_address.txt").also { if (!it.exists()) it.createNewFile() }
         val spotifyDir = File(appDir, "spotify").also { it.mkdir() }
         val spotifyTokensFile = File(spotifyDir, "tokens.json").also { if (!it.exists()) it.createNewFile() }
         val spotifyCredentialsFile = File(spotifyDir, "credentials.json").also { if (!it.exists()) it.createNewFile() }
@@ -158,7 +158,11 @@ class Application {
         spotifyArtistRepo = SpotifyArtistRepo(database.spotifyArtistDao())
         spotifyTrackRepo = SpotifyTrackRepo(database.spotifyTrackDao())
 
-        ytDlp = YtDlp(ytDlpFile.readText())
+        ytDlp = YtDlp(
+            serverHost = ytDlpServerInfo.ipAddress,
+            serverFingerprint = ytDlpServerInfo.serverFingerprint,
+            password = ytDlpServerInfo.password
+        )
 
         spotify = Spotify(tokensFile = spotifyTokensFile, credentialsFile = spotifyCredentialsFile)
 
@@ -199,14 +203,6 @@ class Application {
             transaction = database.prepareImportFromInternet()
         )
 
-        fun generatePassword(): String {
-            val random = SecureRandom()
-            val minAscii = 33
-            val maxAscii = 126
-            return (1..64)
-                .map { (minAscii + random.nextInt(maxAscii - minAscii + 1)).toChar() }
-                .joinToString("")
-        }
         _password.value = generatePassword()
         setupSecurityProvider()
         server = embeddedServer(
@@ -241,7 +237,7 @@ class Application {
             }
         ) {
             install(CallLogging) {
-                level = Level.DEBUG
+                level = Level.TRACE
                 format { call ->
                     val status = call.response.status()
                     val httpMethod = call.request.httpMethod.value
@@ -268,16 +264,9 @@ class Application {
                 timeout = 15.seconds
             }
             routing {
-                fun ApplicationCall.verifyPassword(): Boolean {
-                    val authHeader = request.headers[HttpHeaders.Authorization] ?: return false
-                    return runCatching {
-                        val decodedPassword = String(Base64.decode(authHeader), Charsets.UTF_8)
-                        decodedPassword == _password.value
-                    }.getOrDefault(false)
-                }
                 route("/") {
                     handle {
-                        if (!call.verifyPassword()) {
+                        if (!call.verifyPassword(_password.value)) {
                             call.respond(HttpStatusCode.Unauthorized, "Invalid or missing credentials")
                             return@handle
                         }
@@ -285,452 +274,26 @@ class Application {
                     }
                 }
                 webSocket("rpc") {
-                    if (!call.verifyPassword()) {
+                    if (!call.verifyPassword(_password.value)) {
                         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Invalid or missing credentials"))
                         return@webSocket
                     }
                     val jobs = ConcurrentHashMap<Uuid, Job>()
                     try {
                         while (isActive) {
-                            when (val request = receiveDeserialized<WsRequest>()) {
+                            val request = receiveDeserialized<WsRequest>()
+                            logger.debug { "request: $request" }
+                            when (request) {
                                 is WsRequest.Execute -> {
                                     jobs[request.correlationId]?.cancel()
                                     jobs[request.correlationId] = launch {
                                         try {
-                                            when (val rpc = request.rpc) {
-                                                is FolderRpc -> when (rpc) {
-                                                    is FolderRpc.Add -> {
-                                                        val result = folderRepo.add(rpc.name, rpc.parentFolderId)
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                    is FolderRpc.Delete -> {
-                                                        folderRepo.delete(rpc.id)
-                                                    }
-                                                    is FolderRpc.Get -> {
-                                                        folderRepo.get(rpc.id)
-                                                            .map { it?.toModel() }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is FolderRpc.GetSubfolders -> {
-                                                        folderRepo.getSubfolders(rpc.id)
-                                                            .map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is FolderRpc.SearchFolder -> {
-                                                        folderRepo.searchFolder(
-                                                            folderId = rpc.folderId,
-                                                            nameQuery = rpc.nameQuery
-                                                        ).map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is FolderRpc.UpdateName -> {
-                                                        folderRepo.updateName(
-                                                            id = rpc.id,
-                                                            name = rpc.name
-                                                        )
-                                                    }
-                                                    is FolderRpc.UpdateParentFolderId -> {
-                                                        folderRepo.updateParentFolderId(
-                                                            id = rpc.id,
-                                                            parentFolderId = rpc.parentFolderId
-                                                        )
-                                                    }
-                                                }
-                                                is ImportSessionItemRpc -> when (rpc) {
-                                                    is ImportSessionItemRpc.Get -> {
-                                                        importSessionItemRepo.get(rpc.id)
-                                                            .map { it?.toModel() }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is ImportSessionItemRpc.Search -> {
-                                                        importSessionItemRepo.search(
-                                                            importSessionId = rpc.importSessionId,
-                                                            state = rpc.state,
-                                                            titleQuery = rpc.titleQuery,
-                                                            order = rpc.order
-                                                        ).map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is ImportSessionItemRpc.UpdateState -> {
-                                                        importSessionItemRepo.updateState(
-                                                            id = rpc.id,
-                                                            state = rpc.state
-                                                        )
-                                                    }
-                                                }
-                                                is ImportSessionRpc -> when (rpc) {
-                                                    is ImportSessionRpc.Get -> {
-                                                        importSessionRepo.get(rpc.id)
-                                                            .map { it?.toModel() }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is ImportSessionRpc.GetAll -> {
-                                                        val result = importSessionRepo.getAll(
-                                                            limit = rpc.limit,
-                                                            offset = rpc.offset
-                                                        ).map { it.toModel() }
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                }
-                                                is InspectionRpc.Inspect -> TODO()
-                                                is MediaFileRpc -> when (rpc) {
-                                                    is MediaFileRpc.GetImportSessionImage -> {
-                                                        val result = mediaFileRepo.getImportSessionImage(rpc.id)
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                    is MediaFileRpc.GetImportSessionItemImage -> {
-                                                        val result = mediaFileRepo.getImportSessionItemImage(rpc.id)
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                    is MediaFileRpc.GetSpotifyAlbumImage -> {
-                                                        val result = mediaFileRepo.getSpotifyAlbumImage(rpc.id)
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                    is MediaFileRpc.GetSpotifyArtistImage -> {
-                                                        val result = mediaFileRepo.getSpotifyArtistImage(rpc.id)
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                    is MediaFileRpc.GetImportSessionItemAudio -> {
-                                                        val result = mediaFileRepo.getImportSessionItemAudio(rpc.id)
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                }
-                                                is PlaylistRpc -> when (rpc) {
-                                                    is PlaylistRpc.GetAll -> {
-                                                        val result = playlistRepo.getAll(
-                                                            limit = rpc.limit,
-                                                            offset = rpc.offset
-                                                        ).map { it.toModel() }
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                    is PlaylistRpc.Get -> {
-                                                        playlistRepo.get(rpc.id)
-                                                            .map { it?.toModel() }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is PlaylistRpc.Search -> {
-                                                        playlistRepo.search(rpc.nameQuery)
-                                                            .map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is PlaylistRpc.SearchFolder -> {
-                                                        playlistRepo.searchFolder(
-                                                            folderId = rpc.folderId,
-                                                            nameQuery = rpc.nameQuery
-                                                        ).map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is PlaylistRpc.GetFolderPlaylists -> {
-                                                        playlistRepo.getFolderPlaylists(
-                                                            folderId = rpc.folderId
-                                                        ).map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is PlaylistRpc.GetTrackPlaylists -> {
-                                                        playlistRepo.getTrackPlaylists(rpc.id)
-                                                            .map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is PlaylistRpc.Add -> {
-                                                        val result = playlistRepo.add(
-                                                            name = rpc.name,
-                                                            folderId = rpc.folderId
-                                                        )
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                    is PlaylistRpc.UpdateName -> {
-                                                        playlistRepo.updateName(
-                                                            id = rpc.id,
-                                                            name = rpc.name
-                                                        )
-                                                    }
-                                                    is PlaylistRpc.UpdateFolderId -> {
-                                                        playlistRepo.updateFolderId(
-                                                            id = rpc.id,
-                                                            folderId = rpc.folderId
-                                                        )
-                                                    }
-                                                    is PlaylistRpc.Delete -> {
-                                                        playlistRepo.delete(rpc.id)
-                                                    }
-                                                }
-                                                is PlaylistTrackCrossRefRpc -> when (rpc) {
-                                                    is PlaylistTrackCrossRefRpc.Get -> {
-                                                        playlistTrackCrossRefRepo.get(
-                                                            playlistId = rpc.playlistId,
-                                                            trackId = rpc.trackId
-                                                        ).map { it?.toModel() }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is PlaylistTrackCrossRefRpc.Add -> {
-                                                        playlistTrackCrossRefRepo.add(
-                                                            playlistId = rpc.playlistId,
-                                                            trackId = rpc.trackId
-                                                        )
-                                                    }
-                                                    is PlaylistTrackCrossRefRpc.ChangeItemPosition -> {
-                                                        playlistTrackCrossRefRepo.changeItemPosition(
-                                                            playlistId = rpc.playlistId,
-                                                            from = rpc.from,
-                                                            to = rpc.to
-                                                        )
-                                                    }
-                                                    is PlaylistTrackCrossRefRpc.Delete -> {
-                                                        playlistTrackCrossRefRepo.delete(
-                                                            playlistId = rpc.playlistId,
-                                                            trackId = rpc.trackId
-                                                        )
-                                                    }
-                                                }
-                                                is SettingRpc -> when (rpc) {
-                                                    is SettingRpc.GetDarkTheme -> {
-                                                        settingRepo.getDarkTheme()
-                                                            .map { it.toModel() }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is SettingRpc.UpdateDarkTheme -> {
-                                                        settingRepo.updateDarkTheme(rpc.theme)
-                                                    }
-                                                }
-                                                is SpotifyAlbumRpc -> when (rpc) {
-                                                    is SpotifyAlbumRpc.Get -> {
-                                                        spotifyAlbumRepo.get(
-                                                            id = rpc.id
-                                                        ).map { it?.toModel() }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is SpotifyAlbumRpc.SearchArtist -> {
-                                                        spotifyAlbumRepo.searchArtist(
-                                                            id = rpc.id,
-                                                            nameQuery = rpc.nameQuery
-                                                        ).map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                }
-                                                is SpotifyArtistRpc -> when (rpc) {
-                                                    is SpotifyArtistRpc.Get -> {
-                                                        spotifyArtistRepo.get(rpc.id)
-                                                            .map { it?.toModel() }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is SpotifyArtistRpc.Search -> {
-                                                        val result = spotifyArtistRepo.search(
-                                                            nameQuery = rpc.nameQuery,
-                                                            limit = rpc.limit,
-                                                            offset = rpc.offset
-                                                        ).map { it.toModel() }
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                    is SpotifyArtistRpc.GetSpotifyTrackSpotifyArtists -> {
-                                                        spotifyArtistRepo.getSpotifyTrackSpotifyArtists(rpc.id)
-                                                            .map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is SpotifyArtistRpc.GetSpotifyAlbumSpotifyArtists -> {
-                                                        spotifyArtistRepo.getSpotifyAlbumSpotifyArtists(rpc.id)
-                                                            .map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                }
-                                                is SpotifyAuthRpc -> when (rpc) {
-                                                    is SpotifyAuthRpc.GetAuthState -> {
-                                                        val result = spotify.getAuthState()
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                    is SpotifyAuthRpc.Authorize -> {
-                                                        spotify.getAuthorization(
-                                                            clientId = rpc.clientId,
-                                                            clientSecret = rpc.clientSecret
-                                                        )
-                                                    }
-                                                    is SpotifyAuthRpc.Deauthorize -> {
-                                                        spotify.deauthorize()
-                                                    }
-                                                }
-                                                is SpotifySearchRpc.Search -> {
-                                                    val result = spotify.search(
-                                                        track = rpc.track,
-                                                        artist = rpc.artist,
-                                                        album = rpc.album,
-                                                        year = rpc.year
-                                                    )
-                                                    sendWsResponse(request.correlationId, result)
-                                                }
-                                                is SpotifyTrackRpc -> when (rpc) {
-                                                    is SpotifyTrackRpc.GetId -> {
-                                                        val result = spotifyTrackRepo.getId(rpc.spotifyId)
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                    is SpotifyTrackRpc.GetAlbumTracks -> {
-                                                        spotifyTrackRepo.getAlbumTracks(rpc.id)
-                                                            .map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                }
-                                                is TagRpc -> when (rpc) {
-                                                    is TagRpc.Get -> {
-                                                        tagRepo.get(rpc.id)
-                                                            .map { it?.toModel() }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is TagRpc.Search -> {
-                                                        tagRepo.search(rpc.nameQuery)
-                                                            .map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is TagRpc.GetTrackTags -> {
-                                                        tagRepo.getTrackTags(rpc.id)
-                                                            .map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is TagRpc.GetTrackUnsetTags -> {
-                                                        tagRepo.getTrackUnsetTags(rpc.id)
-                                                            .map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is TagRpc.Add -> { tagRepo.add(rpc.name) }
-                                                    is TagRpc.Delete -> { tagRepo.delete(rpc.id) }
-                                                }
-                                                is TagTrackCrossRefRpc -> when (rpc) {
-                                                    is TagTrackCrossRefRpc.Add -> { tagTrackCrossRefRepo.add(rpc.tagId, rpc.trackId) }
-                                                    is TagTrackCrossRefRpc.Delete -> { tagTrackCrossRefRepo.delete(rpc.tagId, rpc.trackId) }
-                                                }
-                                                is TrackRpc -> when (rpc) {
-                                                    is TrackRpc.Get -> {
-                                                        trackRepo.get(rpc.id)
-                                                            .map { it?.toModel() }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is TrackRpc.Search -> {
-                                                        val result = trackRepo.search(
-                                                            nameQuery = rpc.nameQuery,
-                                                            limit = rpc.limit,
-                                                            offset = rpc.offset
-                                                        ).map { it.toModel() }
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                    is TrackRpc.SearchWithTags -> {
-                                                        val result = trackRepo.searchWithTags(
-                                                            nameQuery = rpc.nameQuery,
-                                                            tags = rpc.tags,
-                                                            includeUntagged = rpc.includeUntagged,
-                                                            limit = rpc.limit,
-                                                            offset = rpc.offset
-                                                        ).map { it.toModel() }
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                    is TrackRpc.SearchFolder -> {
-                                                        trackRepo.searchFolder(
-                                                            folderId = rpc.folderId,
-                                                            nameQuery = rpc.nameQuery
-                                                        ).map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is TrackRpc.SearchFolderWithTags -> {
-                                                        trackRepo.searchFolderWithTags(
-                                                            folderId = rpc.folderId,
-                                                            nameQuery = rpc.nameQuery,
-                                                            tags = rpc.tags,
-                                                            includeUntagged = rpc.includeUntagged
-                                                        ).map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is TrackRpc.SearchArtistContributions -> {
-                                                        val result = trackRepo.searchArtistContributions(
-                                                            id = rpc.id,
-                                                            nameQuery = rpc.nameQuery,
-                                                            limit = rpc.limit,
-                                                            offset = rpc.offset
-                                                        ).map { it.toModel() }
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                    is TrackRpc.SearchPlaylist -> {
-                                                        trackRepo.searchPlaylist(
-                                                            id = rpc.id,
-                                                            nameQuery = rpc.nameQuery
-                                                        ).map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is TrackRpc.SearchWithTag -> {
-                                                        trackRepo.searchWithTag(
-                                                            nameQuery = rpc.nameQuery,
-                                                            tag = rpc.tag
-                                                        ).map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is TrackRpc.GetFolderTracks -> {
-                                                        trackRepo.getFolderTracks(rpc.id)
-                                                            .map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is TrackRpc.GetArtistTracks -> {
-                                                        trackRepo.getArtistTracks(rpc.id)
-                                                            .map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is TrackRpc.GetAlbumTracks -> {
-                                                        trackRepo.getAlbumTracks(rpc.id)
-                                                            .map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is TrackRpc.GetPlaylistTracks -> {
-                                                        trackRepo.getPlaylistTracks(rpc.id)
-                                                            .map { it.map { it.toModel() } }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is TrackRpc.GetId -> {
-                                                        val result = trackRepo.getId(rpc.spotifyId)
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                    is TrackRpc.GetImportSessionTrack -> {
-                                                        trackRepo.getImportSessionTrack(rpc.id)
-                                                            .map { it?.toModel() }
-                                                            .collect { sendWsResponse(request.correlationId, it) }
-                                                    }
-                                                    is TrackRpc.Add -> {
-                                                        val result = trackRepo.add(
-                                                            importSessionItemId = rpc.importSessionItemId,
-                                                            spotifyTrackId = rpc.spotifyTrackId,
-                                                            folderId = rpc.folderId
-                                                        )
-                                                        sendWsResponse(request.correlationId, result)
-                                                    }
-                                                    is TrackRpc.UpdateFolderId -> {
-                                                        trackRepo.updateFolderId(
-                                                            id = rpc.id,
-                                                            folderId = rpc.folderId
-                                                        )
-                                                    }
-                                                }
-                                                is ClearImportItemRpc -> {
-                                                    clearImportItemUseCase.execute(rpc.id)
-                                                }
-                                                is DeleteFolderRpc -> {
-                                                    deleteFolderUseCase.execute(rpc.id)
-                                                }
-                                                is PrepareImportRpc -> {
-                                                    val result = prepareImportUseCase.execute(
-                                                        selected = rpc.selected,
-                                                        url = rpc.url,
-                                                        inspection = rpc.inspection,
-                                                        destinationFolderId = rpc.destinationFolderId
-                                                    )
-                                                    sendWsResponse(request.correlationId, result)
-                                                }
-                                                is SetTrackMetadataFromSpotifyRpc -> {
-                                                    setTrackMetadataFromSpotifyUseCase.execute(
-                                                        trackId = rpc.trackId,
-                                                        spotifyApiTrack = rpc.spotifyApiTrack
-                                                    )
-                                                }
-                                                is UnsetSpotifyTrackRpc -> {
-                                                    unsetSpotifyTrackUseCase.execute(
-                                                        trackId = rpc.trackId,
-                                                        spotifyTrackId = rpc.spotifyTrackId,
-                                                        spotifyAlbumId = rpc.spotifyAlbumId
-                                                    )
-                                                }
-                                            }
+                                            process(request)
+                                        } catch (e: CancellationException) {
+                                            logger.debug { "RPC ${request.correlationId} cancelled" }
+                                            throw e
+                                        } catch (e: Exception) {
+                                            logger.error(e) { "RPC execution failed for ${request.correlationId}" }
                                         } finally {
                                             jobs.remove(request.correlationId)
                                         }
@@ -744,11 +307,12 @@ class Application {
                     } finally {
                         jobs.values.forEach { it.cancel() }
                         jobs.clear()
+                        logger.debug { "cancelled all jobs" }
                     }
                 }
                 route("files/{id}") {
                     handle {
-                        if (!call.verifyPassword()) {
+                        if (!call.verifyPassword(_password.value)) {
                             call.respond(HttpStatusCode.Unauthorized, "Invalid or missing credentials")
                             return@handle
                         }
@@ -766,26 +330,581 @@ class Application {
 
         server.start()
         importWorker.start()
-        _state.value = AppState.Running
+        _state.value = ServerState.Running
         logger.info { "<-- Application::start" }
     }
 
+    private suspend fun DefaultWebSocketServerSession.process(request: WsRequest.Execute) {
+        when (val rpc = request.rpc) {
+            is FolderRpc -> when (rpc) {
+                is FolderRpc.Add -> {
+                    val result = folderRepo.add(rpc.name, rpc.parentFolderId)
+                    sendWsResponse(request.correlationId, result)
+                }
+
+                is FolderRpc.Delete -> {
+                    folderRepo.delete(rpc.id)
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+
+                is FolderRpc.Get -> {
+                    folderRepo.get(rpc.id)
+                        .map { it?.toModel() }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is FolderRpc.GetSubfolders -> {
+                    folderRepo.getSubfolders(rpc.id)
+                        .map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is FolderRpc.SearchFolder -> {
+                    folderRepo.searchFolder(
+                        folderId = rpc.folderId,
+                        nameQuery = rpc.nameQuery
+                    ).map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is FolderRpc.UpdateName -> {
+                    folderRepo.updateName(
+                        id = rpc.id,
+                        name = rpc.name
+                    )
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+
+                is FolderRpc.UpdateParentFolderId -> {
+                    folderRepo.updateParentFolderId(
+                        id = rpc.id,
+                        parentFolderId = rpc.parentFolderId
+                    )
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+            }
+
+            is ImportSessionItemRpc -> when (rpc) {
+                is ImportSessionItemRpc.Get -> {
+                    importSessionItemRepo.get(rpc.id)
+                        .map { it?.toModel() }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is ImportSessionItemRpc.Search -> {
+                    importSessionItemRepo.search(
+                        importSessionId = rpc.importSessionId,
+                        state = rpc.state,
+                        titleQuery = rpc.titleQuery,
+                        order = rpc.order
+                    ).map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is ImportSessionItemRpc.UpdateState -> {
+                    importSessionItemRepo.updateState(
+                        id = rpc.id,
+                        state = rpc.state
+                    )
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+            }
+
+            is ImportSessionRpc -> when (rpc) {
+                is ImportSessionRpc.Get -> {
+                    importSessionRepo.get(rpc.id)
+                        .map { it?.toModel() }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is ImportSessionRpc.GetAll -> {
+                    val result = importSessionRepo.getAll(
+                        limit = rpc.limit,
+                        offset = rpc.offset
+                    ).map { it.toModel() }
+                    sendWsResponse(request.correlationId, result)
+                }
+            }
+
+            is InspectionRpc.Inspect -> {
+                try {
+                    val result = ytDlp.inspect(rpc.url)
+                    sendWsResponse(request.correlationId, result)
+                } catch (e: Throwable) {
+                    logger.error(e) {}
+                    sendSerialized<WsResponse>(WsResponse.Failure(request.correlationId))
+                }
+            }
+
+            is MediaFileRpc -> when (rpc) {
+                is MediaFileRpc.GetImportSessionImage -> {
+                    val result = mediaFileRepo.getImportSessionImage(rpc.id)
+                    sendWsResponse(request.correlationId, result)
+                }
+
+                is MediaFileRpc.GetImportSessionItemImage -> {
+                    val result = mediaFileRepo.getImportSessionItemImage(rpc.id)
+                    sendWsResponse(request.correlationId, result)
+                }
+
+                is MediaFileRpc.GetSpotifyAlbumImage -> {
+                    val result = mediaFileRepo.getSpotifyAlbumImage(rpc.id)
+                    sendWsResponse(request.correlationId, result)
+                }
+
+                is MediaFileRpc.GetSpotifyArtistImage -> {
+                    val result = mediaFileRepo.getSpotifyArtistImage(rpc.id)
+                    sendWsResponse(request.correlationId, result)
+                }
+
+                is MediaFileRpc.GetImportSessionItemAudio -> {
+                    val result = mediaFileRepo.getImportSessionItemAudio(rpc.id)
+                    sendWsResponse(request.correlationId, result)
+                }
+            }
+
+            is PlaylistRpc -> when (rpc) {
+                is PlaylistRpc.GetAll -> {
+                    val result = playlistRepo.getAll(
+                        limit = rpc.limit,
+                        offset = rpc.offset
+                    ).map { it.toModel() }
+                    sendWsResponse(request.correlationId, result)
+                }
+
+                is PlaylistRpc.Get -> {
+                    playlistRepo.get(rpc.id)
+                        .map { it?.toModel() }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is PlaylistRpc.Search -> {
+                    playlistRepo.search(rpc.nameQuery)
+                        .map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is PlaylistRpc.SearchFolder -> {
+                    playlistRepo.searchFolder(
+                        folderId = rpc.folderId,
+                        nameQuery = rpc.nameQuery
+                    ).map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is PlaylistRpc.GetFolderPlaylists -> {
+                    playlistRepo.getFolderPlaylists(
+                        folderId = rpc.folderId
+                    ).map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is PlaylistRpc.GetTrackPlaylists -> {
+                    playlistRepo.getTrackPlaylists(rpc.id)
+                        .map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is PlaylistRpc.Add -> {
+                    val result = playlistRepo.add(
+                        name = rpc.name,
+                        folderId = rpc.folderId
+                    )
+                    sendWsResponse(request.correlationId, result)
+                }
+
+                is PlaylistRpc.UpdateName -> {
+                    playlistRepo.updateName(
+                        id = rpc.id,
+                        name = rpc.name
+                    )
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+
+                is PlaylistRpc.UpdateFolderId -> {
+                    playlistRepo.updateFolderId(
+                        id = rpc.id,
+                        folderId = rpc.folderId
+                    )
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+
+                is PlaylistRpc.Delete -> {
+                    playlistRepo.delete(rpc.id)
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+            }
+
+            is PlaylistTrackCrossRefRpc -> when (rpc) {
+                is PlaylistTrackCrossRefRpc.Get -> {
+                    playlistTrackCrossRefRepo.get(
+                        playlistId = rpc.playlistId,
+                        trackId = rpc.trackId
+                    ).map { it?.toModel() }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is PlaylistTrackCrossRefRpc.Add -> {
+                    playlistTrackCrossRefRepo.add(
+                        playlistId = rpc.playlistId,
+                        trackId = rpc.trackId
+                    )
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+
+                is PlaylistTrackCrossRefRpc.ChangeItemPosition -> {
+                    playlistTrackCrossRefRepo.changeItemPosition(
+                        playlistId = rpc.playlistId,
+                        from = rpc.from,
+                        to = rpc.to
+                    )
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+
+                is PlaylistTrackCrossRefRpc.Delete -> {
+                    playlistTrackCrossRefRepo.delete(
+                        playlistId = rpc.playlistId,
+                        trackId = rpc.trackId
+                    )
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+            }
+
+            is SettingRpc -> when (rpc) {
+                is SettingRpc.GetDarkTheme -> {
+                    settingRepo.getDarkTheme()
+                        .map { it.toModel() }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is SettingRpc.UpdateDarkTheme -> {
+                    settingRepo.updateDarkTheme(rpc.theme)
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+            }
+
+            is SpotifyAlbumRpc -> when (rpc) {
+                is SpotifyAlbumRpc.Get -> {
+                    spotifyAlbumRepo.get(
+                        id = rpc.id
+                    ).map { it?.toModel() }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is SpotifyAlbumRpc.SearchArtist -> {
+                    spotifyAlbumRepo.searchArtist(
+                        id = rpc.id,
+                        nameQuery = rpc.nameQuery
+                    ).map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+            }
+
+            is SpotifyArtistRpc -> when (rpc) {
+                is SpotifyArtistRpc.Get -> {
+                    spotifyArtistRepo.get(rpc.id)
+                        .map { it?.toModel() }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is SpotifyArtistRpc.Search -> {
+                    val result = spotifyArtistRepo.search(
+                        nameQuery = rpc.nameQuery,
+                        limit = rpc.limit,
+                        offset = rpc.offset
+                    ).map { it.toModel() }
+                    sendWsResponse(request.correlationId, result)
+                }
+
+                is SpotifyArtistRpc.GetSpotifyTrackSpotifyArtists -> {
+                    spotifyArtistRepo.getSpotifyTrackSpotifyArtists(rpc.id)
+                        .map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is SpotifyArtistRpc.GetSpotifyAlbumSpotifyArtists -> {
+                    spotifyArtistRepo.getSpotifyAlbumSpotifyArtists(rpc.id)
+                        .map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+            }
+
+            is SpotifyAuthRpc -> when (rpc) {
+                is SpotifyAuthRpc.GetAuthState -> {
+                    val result = spotify.getAuthState()
+                    sendWsResponse(request.correlationId, result)
+                }
+
+                is SpotifyAuthRpc.Authorize -> {
+                    spotify.getAuthorization(
+                        clientId = rpc.clientId,
+                        clientSecret = rpc.clientSecret
+                    )
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+
+                is SpotifyAuthRpc.Deauthorize -> {
+                    spotify.deauthorize()
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+            }
+
+            is SpotifySearchRpc.Search -> {
+                val result = spotify.search(
+                    track = rpc.track,
+                    artist = rpc.artist,
+                    album = rpc.album,
+                    year = rpc.year
+                )
+                sendWsResponse(request.correlationId, result)
+            }
+
+            is SpotifyTrackRpc -> when (rpc) {
+                is SpotifyTrackRpc.GetId -> {
+                    val result = spotifyTrackRepo.getId(rpc.spotifyId)
+                    sendWsResponse(request.correlationId, result)
+                }
+
+                is SpotifyTrackRpc.GetAlbumTracks -> {
+                    spotifyTrackRepo.getAlbumTracks(rpc.id)
+                        .map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+            }
+
+            is TagRpc -> when (rpc) {
+                is TagRpc.Get -> {
+                    tagRepo.get(rpc.id)
+                        .map { it?.toModel() }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is TagRpc.Search -> {
+                    tagRepo.search(rpc.nameQuery)
+                        .map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is TagRpc.GetTrackTags -> {
+                    tagRepo.getTrackTags(rpc.id)
+                        .map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is TagRpc.GetTrackUnsetTags -> {
+                    tagRepo.getTrackUnsetTags(rpc.id)
+                        .map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is TagRpc.Add -> {
+                    tagRepo.add(rpc.name)
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+
+                is TagRpc.Delete -> {
+                    tagRepo.delete(rpc.id)
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+            }
+
+            is TagTrackCrossRefRpc -> when (rpc) {
+                is TagTrackCrossRefRpc.Add -> {
+                    tagTrackCrossRefRepo.add(rpc.tagId, rpc.trackId)
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+
+                is TagTrackCrossRefRpc.Delete -> {
+                    tagTrackCrossRefRepo.delete(rpc.tagId, rpc.trackId)
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+            }
+
+            is TrackRpc -> when (rpc) {
+                is TrackRpc.Get -> {
+                    trackRepo.get(rpc.id)
+                        .map { it?.toModel() }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is TrackRpc.Search -> {
+                    val result = trackRepo.search(
+                        nameQuery = rpc.nameQuery,
+                        limit = rpc.limit,
+                        offset = rpc.offset
+                    ).map { it.toModel() }
+                    sendWsResponse(request.correlationId, result)
+                }
+
+                is TrackRpc.SearchWithTags -> {
+                    val result = trackRepo.searchWithTags(
+                        nameQuery = rpc.nameQuery,
+                        tags = rpc.tags,
+                        includeUntagged = rpc.includeUntagged,
+                        limit = rpc.limit,
+                        offset = rpc.offset
+                    ).map { it.toModel() }
+                    sendWsResponse(request.correlationId, result)
+                }
+
+                is TrackRpc.SearchFolder -> {
+                    trackRepo.searchFolder(
+                        folderId = rpc.folderId,
+                        nameQuery = rpc.nameQuery
+                    ).map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is TrackRpc.SearchFolderWithTags -> {
+                    trackRepo.searchFolderWithTags(
+                        folderId = rpc.folderId,
+                        nameQuery = rpc.nameQuery,
+                        tags = rpc.tags,
+                        includeUntagged = rpc.includeUntagged
+                    ).map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is TrackRpc.SearchArtistContributions -> {
+                    val result = trackRepo.searchArtistContributions(
+                        id = rpc.id,
+                        nameQuery = rpc.nameQuery,
+                        limit = rpc.limit,
+                        offset = rpc.offset
+                    ).map { it.toModel() }
+                    sendWsResponse(request.correlationId, result)
+                }
+
+                is TrackRpc.SearchPlaylist -> {
+                    trackRepo.searchPlaylist(
+                        id = rpc.id,
+                        nameQuery = rpc.nameQuery
+                    ).map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is TrackRpc.SearchWithTag -> {
+                    trackRepo.searchWithTag(
+                        nameQuery = rpc.nameQuery,
+                        tag = rpc.tag
+                    ).map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is TrackRpc.GetFolderTracks -> {
+                    trackRepo.getFolderTracks(rpc.id)
+                        .map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is TrackRpc.GetArtistTracks -> {
+                    trackRepo.getArtistTracks(rpc.id)
+                        .map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is TrackRpc.GetAlbumTracks -> {
+                    trackRepo.getAlbumTracks(rpc.id)
+                        .map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is TrackRpc.GetPlaylistTracks -> {
+                    trackRepo.getPlaylistTracks(rpc.id)
+                        .map { it.map { it.toModel() } }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is TrackRpc.GetId -> {
+                    val result = trackRepo.getId(rpc.spotifyId)
+                    sendWsResponse(request.correlationId, result)
+                }
+
+                is TrackRpc.GetImportSessionTrack -> {
+                    trackRepo.getImportSessionTrack(rpc.id)
+                        .map { it?.toModel() }
+                        .collect { sendWsResponse(request.correlationId, it) }
+                }
+
+                is TrackRpc.Add -> {
+                    val result = trackRepo.add(
+                        importSessionItemId = rpc.importSessionItemId,
+                        spotifyTrackId = rpc.spotifyTrackId,
+                        folderId = rpc.folderId
+                    )
+                    sendWsResponse(request.correlationId, result)
+                }
+
+                is TrackRpc.UpdateFolderId -> {
+                    trackRepo.updateFolderId(
+                        id = rpc.id,
+                        folderId = rpc.folderId
+                    )
+                    sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+                }
+            }
+
+            is ClearImportItemRpc -> {
+                clearImportItemUseCase.execute(rpc.id)
+                sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+            }
+
+            is DeleteFolderRpc -> {
+                deleteFolderUseCase.execute(rpc.id)
+                sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+            }
+
+            is PrepareImportRpc -> {
+                val result = prepareImportUseCase.execute(
+                    selected = rpc.selected,
+                    url = rpc.url,
+                    inspection = rpc.inspection,
+                    destinationFolderId = rpc.destinationFolderId
+                )
+                sendWsResponse(request.correlationId, result)
+            }
+
+            is SetTrackMetadataFromSpotifyRpc -> {
+                setTrackMetadataFromSpotifyUseCase.execute(
+                    trackId = rpc.trackId,
+                    spotifyApiTrack = rpc.spotifyApiTrack
+                )
+                sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+            }
+
+            is UnsetSpotifyTrackRpc -> {
+                unsetSpotifyTrackUseCase.execute(
+                    trackId = rpc.trackId,
+                    spotifyTrackId = rpc.spotifyTrackId,
+                    spotifyAlbumId = rpc.spotifyAlbumId
+                )
+                sendSerialized<WsResponse>(WsResponse.Done(request.correlationId))
+            }
+        }
+    }
+
     suspend fun stop() {
-        if (_state.value == AppState.Stopping) return
+        if (_state.value == ServerState.Stopping || _state.value == ServerState.Stopped) return
         logger.info { "--> Application::stop" }
         withContext(Dispatchers.IO) {
-            _state.value = AppState.Stopping
+            _state.value = ServerState.Stopping
             try { server.stopSuspend(1000, 1000) } catch (_: Exception) { }
             try { importWorker.stop() } catch (_: Exception) { }
             try { ytDlp.close() } catch (_: Exception) { }
             try { spotify.close() } catch (_: Exception) { }
             try { database.close() } catch (_: Exception) { }
-            _state.value = AppState.Stopped
+            _state.value = ServerState.Stopped
         }
         logger.info { "<-- Application::stop" }
     }
 
-    private suspend inline fun <reified T> WebSocketServerSession.sendWsResponse(correlationId: Uuid, data: T) {
-        sendSerialized<WsResponse<T>>(WsResponse(correlationId, data))
+    // TODO: make this private
+    suspend inline fun <reified T> WebSocketServerSession.sendWsResponse(correlationId: Uuid, data: T) {
+        sendSerialized<WsResponse>(
+            WsResponse.Data(
+                correlationId = correlationId,
+                value = json.encodeToJsonElement<T>(data)
+            )
+        )
     }
 }

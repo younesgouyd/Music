@@ -8,14 +8,14 @@ class SpotifyAuthRepo(
     private val server: Server
 ) {
     suspend fun getAuthState(): SpotifyAuthState {
-        return server.callForResult(SpotifyAuthRpc.GetAuthState)
+        return server.call(SpotifyAuthRpc.GetAuthState)
     }
 
     suspend fun authorize(clientId: String, clientSecret: String) {
-        server.call(SpotifyAuthRpc.Authorize(clientId, clientSecret))
+        server.call<Unit>(SpotifyAuthRpc.Authorize(clientId, clientSecret))
     }
 
     suspend fun deauthorize() {
-        server.call(SpotifyAuthRpc.Deauthorize)
+        server.call<Unit>(SpotifyAuthRpc.Deauthorize)
     }
 }

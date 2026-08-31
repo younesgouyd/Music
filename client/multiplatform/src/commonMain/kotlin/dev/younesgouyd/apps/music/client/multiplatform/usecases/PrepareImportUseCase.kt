@@ -15,7 +15,7 @@ class PrepareImportUseCase(
         inspection: Inspection,
         destinationFolderId: FolderId
     ): ImportSessionId {
-        return server.callForResult<ImportSessionId>(
+        return server.call<ImportSessionId>(
             PrepareImportRpc(
                 selected = selected,
                 url = url,

@@ -9,11 +9,11 @@ class SpotifyArtistRepo(
     private val server: Server
 ) {
     fun get(id: SpotifyArtistId): Flow<SpotifyArtist?> {
-        return server.stream(SpotifyArtistRpc.Get(id))
+        return server.observe(SpotifyArtistRpc.Get(id))
     }
 
     suspend fun search(nameQuery: String, limit: Int, offset: Offset.Id<SpotifyArtistId>): List<SpotifyArtist> {
-        return server.callForResult(
+        return server.call(
             SpotifyArtistRpc.Search(
                 nameQuery = nameQuery,
                 limit = limit,
@@ -23,10 +23,10 @@ class SpotifyArtistRepo(
     }
 
     fun getSpotifyTrackSpotifyArtists(id: SpotifyTrackId): Flow<List<SpotifyArtist>> {
-        return server.stream(SpotifyArtistRpc.GetSpotifyTrackSpotifyArtists(id))
+        return server.observe(SpotifyArtistRpc.GetSpotifyTrackSpotifyArtists(id))
     }
 
     fun getSpotifyAlbumSpotifyArtists(id: SpotifyAlbumId): Flow<List<SpotifyArtist>> {
-        return server.stream(SpotifyArtistRpc.GetSpotifyAlbumSpotifyArtists(id))
+        return server.observe(SpotifyArtistRpc.GetSpotifyAlbumSpotifyArtists(id))
     }
 }

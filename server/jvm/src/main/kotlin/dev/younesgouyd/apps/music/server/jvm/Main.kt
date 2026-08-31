@@ -4,6 +4,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.window.*
 import dev.younesgouyd.apps.music.server.multiplatform.Application
 import dev.younesgouyd.apps.music.server.multiplatform.Ui
+import dev.younesgouyd.apps.music.server.multiplatform.YtDlpServerInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -21,10 +22,10 @@ fun main() {
             content = {
                 Ui(
                     serverStatus = MusicServerService.appState,
-                    certificateSignature = MusicServerService.certificateFingerprint,
+                    certificateFingerprint = MusicServerService.certificateFingerprint,
                     password = MusicServerService.password,
                     onStartClick = {
-                        MusicServerService.start()
+                        MusicServerService.start(it)
                     },
                     onStopClick = {
                         MusicServerService.stop()
@@ -42,10 +43,10 @@ private object MusicServerService {
     val certificateFingerprint = app.certificateFingerprint
     val password = app.password
 
-    fun start() {
+    fun start(ytDlpServerInfo: YtDlpServerInfo) {
         scope.launch {
             val homeDir = File(System.getProperty("user.home"))
-            app.start(homeDir)
+            app.start(homeDir, ytDlpServerInfo)
         }
     }
 

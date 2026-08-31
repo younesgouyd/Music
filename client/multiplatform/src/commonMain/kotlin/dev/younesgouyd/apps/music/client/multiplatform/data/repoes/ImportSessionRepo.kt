@@ -11,7 +11,7 @@ class ImportSessionRepo(
     private val server: Server
 ) {
     suspend fun getAll(limit: Int, offset: Offset.Index): List<ImportSession> {
-        return server.callForResult(
+        return server.call(
             ImportSessionRpc.GetAll(
                 limit = limit,
                 offset = offset
@@ -20,6 +20,6 @@ class ImportSessionRepo(
     }
 
     fun get(id: ImportSessionId): Flow<ImportSession?> {
-        return server.stream(ImportSessionRpc.Get(id))
+        return server.observe(ImportSessionRpc.Get(id))
     }
 }

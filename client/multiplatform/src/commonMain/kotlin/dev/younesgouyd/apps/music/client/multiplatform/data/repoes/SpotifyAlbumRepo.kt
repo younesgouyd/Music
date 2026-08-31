@@ -11,11 +11,11 @@ class SpotifyAlbumRepo(
     private val server: Server
 ) {
     fun get(id: SpotifyAlbumId): Flow<SpotifyAlbum?> {
-        return server.stream(SpotifyAlbumRpc.Get(id))
+        return server.observe(SpotifyAlbumRpc.Get(id))
     }
 
     fun searchArtist(id: SpotifyArtistId, nameQuery: String): Flow<List<SpotifyAlbum>> {
-        return server.stream(
+        return server.observe(
             SpotifyAlbumRpc.SearchArtist(
                 id = id,
                 nameQuery = nameQuery

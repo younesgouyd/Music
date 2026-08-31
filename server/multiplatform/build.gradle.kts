@@ -32,7 +32,7 @@ kotlin {
             implementation(libs.logging)
             implementation(libs.ktor.serialization)
             implementation(libs.ktor.server.core)
-            implementation(libs.ktor.server.engine.netty)
+            implementation(libs.ktor.server.engine)
             implementation(libs.ktor.server.logging)
             implementation(libs.ktor.server.contentNegotiation)
             implementation(libs.ktor.server.websockets)
@@ -50,7 +50,7 @@ kotlin {
             implementation(libs.coroutines.desktop)
             implementation(libs.logback.jvm)
             implementation(libs.conscrypt.jvm)
-            implementation(compose.desktop.currentOs) {
+            runtimeOnly(compose.desktop.currentOs) {
                 exclude("org.jetbrains.compose.material") // todo
             }
         }

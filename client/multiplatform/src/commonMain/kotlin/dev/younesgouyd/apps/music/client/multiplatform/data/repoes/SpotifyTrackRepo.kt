@@ -11,12 +11,12 @@ class SpotifyTrackRepo(
     private val server: Server
 ) {
     suspend fun getId(spotifyId: String): SpotifyTrackId? {
-        return server.callForResult(
+        return server.call(
             SpotifyTrackRpc.GetId(spotifyId)
         )
     }
 
     fun getAlbumTracks(id: SpotifyAlbumId): Flow<List<SpotifyTrackRelation>> {
-        return server.stream(SpotifyTrackRpc.GetAlbumTracks(id))
+        return server.observe(SpotifyTrackRpc.GetAlbumTracks(id))
     }
 }

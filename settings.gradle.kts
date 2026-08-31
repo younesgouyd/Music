@@ -99,8 +99,7 @@ dependencyResolutionManagement {
 
             library("ktor.serialization", "io.ktor", "ktor-serialization-kotlinx-json").version(versions.ktor)
             library("ktor.server.core", "io.ktor", "ktor-server-core").version(versions.ktor)
-            library("ktor.server.engine.cio", "io.ktor", "ktor-server-cio").version(versions.ktor)
-            library("ktor.server.engine.netty", "io.ktor", "ktor-server-netty").version(versions.ktor)
+            library("ktor.server.engine", "io.ktor", "ktor-server-netty").version(versions.ktor)
             library("ktor.server.logging", "io.ktor", "ktor-server-call-logging").version(versions.ktor)
             library("ktor.server.contentNegotiation", "io.ktor", "ktor-server-content-negotiation").version(versions.ktor)
             library("ktor.server.sse", "io.ktor", "ktor-server-sse").version(versions.ktor)

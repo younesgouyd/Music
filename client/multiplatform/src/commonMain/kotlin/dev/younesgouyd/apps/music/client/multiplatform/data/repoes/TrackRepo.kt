@@ -9,7 +9,7 @@ class TrackRepo(
     private val server: Server
 ) {
     fun get(id: TrackId): Flow<TrackRelation?> {
-        return server.stream(TrackRpc.Get(id))
+        return server.observe(TrackRpc.Get(id))
     }
 
     suspend fun search(
@@ -17,7 +17,7 @@ class TrackRepo(
         limit: Int,
         offset: Offset.Id<TrackId>
     ): List<TrackRelation> {
-        return server.callForResult(
+        return server.call(
             TrackRpc.Search(
                 nameQuery = nameQuery,
                 limit = limit,
@@ -33,7 +33,7 @@ class TrackRepo(
         limit: Int,
         offset: Offset.Id<TrackId>
     ): List<TrackRelation> {
-        return server.callForResult(
+        return server.call(
             TrackRpc.SearchWithTags(
                 nameQuery = nameQuery,
                 tags = tags,
@@ -48,7 +48,7 @@ class TrackRepo(
         folderId: FolderId,
         nameQuery: String
     ): Flow<List<TrackRelation>> {
-        return server.stream(
+        return server.observe(
             TrackRpc.SearchFolder(
                 folderId = folderId,
                 nameQuery = nameQuery
@@ -62,7 +62,7 @@ class TrackRepo(
         tags: List<TagId>,
         includeUntagged: Boolean
     ): Flow<List<TrackRelation>> {
-        return server.stream(
+        return server.observe(
             TrackRpc.SearchFolderWithTags(
                 folderId = folderId,
                 nameQuery = nameQuery,
@@ -78,7 +78,7 @@ class TrackRepo(
         limit: Int,
         offset: Offset.Id<TrackId>
     ): List<TrackRelation> {
-        return server.callForResult(
+        return server.call(
             TrackRpc.SearchArtistContributions(
                 id = id,
                 nameQuery = nameQuery,
@@ -89,7 +89,7 @@ class TrackRepo(
     }
 
     fun searchPlaylist(id: PlaylistId, nameQuery: String): Flow<List<PlaylistTrack>> {
-        return server.stream(
+        return server.observe(
             TrackRpc.SearchPlaylist(
                 id = id,
                 nameQuery = nameQuery
@@ -98,7 +98,7 @@ class TrackRepo(
     }
 
     fun searchWithTag(nameQuery: String, tag: TagId): Flow<List<TrackRelation>> {
-        return server.stream(
+        return server.observe(
             TrackRpc.SearchWithTag(
                 nameQuery = nameQuery,
                 tag = tag
@@ -107,29 +107,29 @@ class TrackRepo(
     }
 
     fun getFolderTracks(id: FolderId): Flow<List<Track>> {
-        return server.stream(TrackRpc.GetFolderTracks(id))
+        return server.observe(TrackRpc.GetFolderTracks(id))
     }
 
     fun getArtistTracks(id: SpotifyArtistId): Flow<List<TrackRelation>> {
-        return server.stream(TrackRpc.GetArtistTracks(id))
+        return server.observe(TrackRpc.GetArtistTracks(id))
     }
 
     fun getAlbumTracks(id: SpotifyAlbumId): Flow<List<TrackRelation>> {
-        return server.stream(TrackRpc.GetAlbumTracks(id))
+        return server.observe(TrackRpc.GetAlbumTracks(id))
     }
 
     fun getPlaylistTracks(id: PlaylistId): Flow<List<TrackRelation>> {
-        return server.stream(TrackRpc.GetPlaylistTracks(id))
+        return server.observe(TrackRpc.GetPlaylistTracks(id))
     }
 
     suspend fun getId(spotifyId: String): TrackId? {
-        return server.callForResult(
+        return server.call(
             TrackRpc.GetId(spotifyId)
         )
     }
 
     fun getImportSessionTrack(id: ImportSessionItemId): Flow<TrackRelation?> {
-        return server.stream(TrackRpc.GetImportSessionTrack(id))
+        return server.observe(TrackRpc.GetImportSessionTrack(id))
     }
 
     suspend fun add(
@@ -137,7 +137,7 @@ class TrackRepo(
         spotifyTrackId: SpotifyTrackId?,
         folderId: FolderId
     ): TrackId {
-        return server.callForResult(
+        return server.call(
             TrackRpc.Add(
                 importSessionItemId = importSessionItemId,
                 spotifyTrackId = spotifyTrackId,
@@ -147,7 +147,7 @@ class TrackRepo(
     }
 
     suspend fun updateFolderId(id: TrackId, folderId: FolderId) {
-        server.call(
+        server.call<Unit>(
             TrackRpc.UpdateFolderId(
                 id = id,
                 folderId = folderId

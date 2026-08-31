@@ -1,4 +1,5 @@
 
+- implement hostnameVerifier in HttpClient engine config.
 - support seamless connection to the backend.
 - in Library, support dragging items into folders.
 - the items of import session containers may change in the source. so re-importing items is only possible

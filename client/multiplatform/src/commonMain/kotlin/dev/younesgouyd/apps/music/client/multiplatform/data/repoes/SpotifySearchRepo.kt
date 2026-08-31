@@ -9,7 +9,7 @@ class SpotifySearchRepo(
 ) {
     suspend fun search(track: String, artist: String?, album: String?, year: String?): SearchResult {
         require(track.isNotBlank())
-        return server.callForResult(
+        return server.call(
             SpotifySearchRpc.Search(
                 track = track,
                 artist = artist,

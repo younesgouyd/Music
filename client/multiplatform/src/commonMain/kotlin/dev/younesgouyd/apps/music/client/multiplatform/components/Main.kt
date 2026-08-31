@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -85,7 +86,7 @@ class Main(
     private val mainComponent: MutableStateFlow<Component> = MutableStateFlow(navigationHost)
     private val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Library)
 
-    private val drawerState: MutableStateFlow<DrawerState> = MutableStateFlow(DrawerState(initialValue = DrawerValue.Closed))
+    private val isDrawerOpen = MutableStateFlow(false)
 
     @Composable
     override fun show(modifier: Modifier) {
@@ -100,7 +101,7 @@ class Main(
             playerExpanded = playerExpanded,
             queue = queue,
             selectedNavigationDrawerItem = selectedNavigationDrawerItem.asStateFlow(),
-            drawerState = drawerState.asStateFlow(),
+            isDrawerOpen = isDrawerOpen.asStateFlow(),
             onMinimizePlayerClick = ::minimizePlayer,
             onNavigationDrawerItemClick = ::handleNavigationDrawerItemClick
         )
@@ -117,13 +118,6 @@ class Main(
 
     private fun minimizePlayer() {
         playerExpanded.value = false
-    }
-
-    private suspend fun toggleDrawerState() {
-        when (drawerState.value.currentValue) {
-            DrawerValue.Open -> drawerState.value.close()
-            DrawerValue.Closed -> drawerState.value.open()
-        }
     }
 
     private fun handleNavigationDrawerItemClick(item: NavigationDrawerItems) {
@@ -168,7 +162,7 @@ class Main(
 
     private fun getNewNavHost(startDestination: NavigationHost.Destination): NavigationHost {
         return NavigationHost(
-            toggleDrawerState = ::toggleDrawerState,
+            toggleDrawerState = { isDrawerOpen.update { !it } },
             repoStore = repoStore,
             deleteFolderUseCase = deleteFolderUseCase,
             clearImportItemUseCase = clearImportItemUseCase,
@@ -216,12 +210,13 @@ class Main(
             queue: Component,
             playerExpanded: StateFlow<Boolean>,
             selectedNavigationDrawerItem: StateFlow<NavigationDrawerItems>,
-            drawerState: StateFlow<DrawerState>,
+            isDrawerOpen: StateFlow<Boolean>,
             onMinimizePlayerClick: () -> Unit,
             onNavigationDrawerItemClick: (NavigationDrawerItems) -> Unit
         ) {
             val mainComponent by mainComponent.collectAsState()
-            val drawerState by drawerState.collectAsState()
+            val isDrawerOpen by isDrawerOpen.collectAsState()
+            val drawerState = rememberDrawerState(initialValue = if (isDrawerOpen) DrawerValue.Open else DrawerValue.Closed)
             val playerExpanded by playerExpanded.collectAsState()
             val selectedNavigationDrawerItem by selectedNavigationDrawerItem.collectAsState()
 
@@ -290,6 +285,10 @@ class Main(
                         }
                     }
                 }
+            }
+
+            LaunchedEffect(isDrawerOpen) {
+                if (isDrawerOpen) drawerState.open() else drawerState.close()
             }
         }
     }

@@ -12,7 +12,7 @@ class ImportSessionItemRepo(
     private val server: Server
 ) {
     fun get(id: ImportSessionItemId): Flow<ImportSessionItem?> {
-        return server.stream(ImportSessionItemRpc.Get(id))
+        return server.observe(ImportSessionItemRpc.Get(id))
     }
 
     fun search(
@@ -21,7 +21,7 @@ class ImportSessionItemRepo(
         titleQuery: String,
         order: DbOrder
     ): Flow<List<ImportSessionItem>> {
-        return server.stream(
+        return server.observe(
             ImportSessionItemRpc.Search(
                 importSessionId = importSessionId,
                 state = state,
@@ -35,7 +35,7 @@ class ImportSessionItemRepo(
         id: ImportSessionItemId,
         state: ImportSessionItem.State
     ) {
-        server.call(
+        server.call<Unit>(
             ImportSessionItemRpc.UpdateState(
                 id = id,
                 state = state

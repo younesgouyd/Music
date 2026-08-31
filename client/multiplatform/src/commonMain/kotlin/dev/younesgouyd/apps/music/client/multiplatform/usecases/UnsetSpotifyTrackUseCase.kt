@@ -14,7 +14,7 @@ class UnsetSpotifyTrackUseCase(
         spotifyTrackId: SpotifyTrackId,
         spotifyAlbumId: SpotifyAlbumId
     ) {
-        server.call(
+        server.call<Unit>(
             UnsetSpotifyTrackRpc(trackId, spotifyTrackId, spotifyAlbumId)
         )
     }

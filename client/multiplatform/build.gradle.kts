@@ -34,7 +34,7 @@ kotlin {
         }
         jvmMain.dependencies {
             implementation(libs.coroutines.desktop)
-            implementation(compose.desktop.currentOs) {
+            runtimeOnly(compose.desktop.currentOs) {
                 exclude("org.jetbrains.compose.material") // todo
             }
             implementation(libs.logback.jvm)

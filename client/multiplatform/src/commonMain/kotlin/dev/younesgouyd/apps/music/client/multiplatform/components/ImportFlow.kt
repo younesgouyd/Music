@@ -25,6 +25,7 @@ import dev.younesgouyd.apps.music.common.models.FolderId
 import dev.younesgouyd.apps.music.common.models.ImportSessionId
 import dev.younesgouyd.apps.music.common.models.ImportSessionItem
 import dev.younesgouyd.apps.music.common.models.Inspection
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,6 +42,7 @@ class ImportFlow(
     showImportSession: (ImportSessionId, ImportSessionItem.State) -> Unit
 ) : Component() {
     override val title: String = "Inspection"
+    private val logger = KotlinLogging.logger {}
     private val state: Ui.State
 
     init {
@@ -70,9 +72,9 @@ class ImportFlow(
                     require(url.isNotBlank())
                     try {
                         inspection.value = inspectionRepo.inspect(url)
-                    } catch (e: Exception) {
+                    } catch (t: Throwable) {
+                        logger.error(t) {}
                         inspectionError.value = true
-                        e.printStackTrace()
                     }
                     inspecting.value = false
                 }

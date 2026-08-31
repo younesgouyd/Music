@@ -16,6 +16,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(libs.ktor.serialization)
+            implementation(libs.ktor.server.core)
         }
         androidMain.dependencies {
             implementation(libs.android.coreKtx)

@@ -10,14 +10,14 @@ class FolderRepo(
     private val server: Server
 ) {
     fun get(id: FolderId): Flow<Folder?> {
-        return server.stream(FolderRpc.Get(id))
+        return server.observe(FolderRpc.Get(id))
     }
 
     fun searchFolder(
         folderId: FolderId?,
         nameQuery: String
     ): Flow<List<Folder>> {
-        return server.stream(
+        return server.observe(
             FolderRpc.SearchFolder(
                 folderId = folderId,
                 nameQuery = nameQuery
@@ -26,12 +26,12 @@ class FolderRepo(
     }
 
     fun getSubfolders(id: FolderId?): Flow<List<Folder>> {
-        return server.stream(FolderRpc.GetSubfolders(id))
+        return server.observe(FolderRpc.GetSubfolders(id))
     }
 
     suspend fun add(name: String, parentFolderId: FolderId?): FolderId {
         require(name.isNotEmpty())
-        return server.callForResult(
+        return server.call(
             FolderRpc.Add(
                 name = name,
                 parentFolderId = parentFolderId
@@ -41,7 +41,7 @@ class FolderRepo(
 
     suspend fun updateName(id: FolderId, name: String) {
         require(name.isNotEmpty())
-        server.call(
+        server.call<Unit>(
             FolderRpc.UpdateName(
                 id = id,
                 name = name
@@ -50,7 +50,7 @@ class FolderRepo(
     }
 
     suspend fun updateParentFolderId(id: FolderId, parentFolderId: FolderId?) {
-        server.call(
+        server.call<Unit>(
             FolderRpc.UpdateParentFolderId(
                 id = id,
                 parentFolderId = parentFolderId
@@ -59,6 +59,6 @@ class FolderRepo(
     }
 
     suspend fun delete(id: FolderId) {
-        server.call(FolderRpc.Delete(id))
+        server.call<Unit>(FolderRpc.Delete(id))
     }
 }

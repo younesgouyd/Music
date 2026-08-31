@@ -1,7 +1,8 @@
-package dev.younesgouyd.apps.music.server
+package dev.younesgouyd.apps.music.ytdlp
 
 import dev.younesgouyd.apps.music.common.models.Base64Image
 import dev.younesgouyd.apps.music.common.models.Inspection
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -15,6 +16,7 @@ import kotlin.io.encoding.Base64
 import kotlin.time.Duration.Companion.seconds
 
 object Api {
+    private val logger = KotlinLogging.logger {}
     private val tempDir = File(System.getProperty("user.home"), "younesmusicserverdata").also { it.mkdir() }
     private val downloadDir = File(tempDir, "download").also { it.mkdir() }
     private val ytDlpOutput = File(tempDir, "yt-dlp_output")
@@ -22,11 +24,11 @@ object Api {
     private val ytDlpSerializer = Json { ignoreUnknownKeys = true }
 
     suspend fun inspect(url: String): Inspection {
+        logger.debug { "--> ::inspect(url: $url)" }
         val containerCommand = runCommand(
             args = listOf("--dump-single-json", "--simulate", "--quiet", "--no-warnings", url),
             ignoreError = true
         )
-        println("::inspect | commandResponse: $containerCommand")
         val ytDlpType = ytDlpSerializer.decodeFromString<YtDlpModels.Type>(containerCommand)
         return when (ytDlpType.type) {
             "playlist" -> {
@@ -116,7 +118,7 @@ object Api {
                     url
                 )
             )
-            println("::download | command response for $url: \n$commandResponse")
+            logger.debug { "::download | command response for $url: \n$commandResponse" }
         }
     }
 
@@ -128,14 +130,14 @@ object Api {
 
     private suspend fun runCommand(args: List<String>, ignoreError: Boolean = false): String {
         return withContext(Dispatchers.IO) {
-            println("::runCommand | args: ${args.joinToString(" ")}")
+            logger.debug { "::runCommand | args: ${args.joinToString(" ")}" }
             val process = ProcessBuilder("yt-dlp", *args.toTypedArray())
                 .redirectOutput(ytDlpOutput)
                 .redirectError(ytDlpErrorOutput)
                 .start()
-            println("::runCommand | waiting for command to finish...")
+            logger.debug { "::runCommand | waiting for command to finish..." }
             val exitCode = process.waitFor()
-            println("::runCommand | command finished with exitCode: $exitCode")
+            logger.debug { "::runCommand | command finished with exitCode: $exitCode" }
             if (!ignoreError && exitCode != 0) {
                 val errorMsg = ytDlpErrorOutput.readText()
                 throw Exception("yt-dlp failed: $errorMsg")

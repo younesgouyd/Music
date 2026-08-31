@@ -10,10 +10,10 @@ class SettingRepo(
     private val server: Server
 ) {
     fun getDarkTheme(): Flow<Setting> {
-        return server.stream(SettingRpc.GetDarkTheme)
+        return server.observe(SettingRpc.GetDarkTheme)
     }
 
     suspend fun updateDarkTheme(theme: DarkThemeOptions) {
-        server.call(SettingRpc.UpdateDarkTheme(theme))
+        server.call<Unit>(SettingRpc.UpdateDarkTheme(theme))
     }
 }

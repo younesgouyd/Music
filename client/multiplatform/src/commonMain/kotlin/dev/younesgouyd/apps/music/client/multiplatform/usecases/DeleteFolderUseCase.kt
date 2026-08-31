@@ -8,6 +8,6 @@ class DeleteFolderUseCase(
     private val server: Server
 ) {
     suspend fun execute(id: FolderId) {
-        server.call(DeleteFolderRpc(id))
+        server.call<Unit>(DeleteFolderRpc(id))
     }
 }

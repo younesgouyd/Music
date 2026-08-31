@@ -22,7 +22,7 @@ fun createHttpClient(
     serverFingerprint: String,
     password: String
 ): HttpClient {
-    return  HttpClient(OkHttp) {
+    return HttpClient(OkHttp) {
         engine {
             config {
                 val trustManager = object : X509TrustManager {

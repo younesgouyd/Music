@@ -38,7 +38,7 @@ class Application {
         }
     }
 
-    private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private lateinit var mediaController: MediaController
     private lateinit var server: Server
@@ -64,16 +64,13 @@ class Application {
         password: String
     ) {
         coroutineScope.launch {
-            val tempDir = withContext(Dispatchers.IO) {
-                appDir.mkdir()
-                val dir = File(appDir, "temp")
-                if (dir.exists()) {
-                    dir.delete()
-                }
-                dir.mkdir()
-                dir
+            appDir.mkdir()
+            val tempDir = File(appDir, "temp").also { it.mkdir() }
+            val tempMediaFilesDir = File(tempDir, "media").also {
+                if (it.exists()) { it.deleteRecursively() }
+                it.mkdir()
             }
-            server = Server(serverIpAddr, serverFingerprint, password,tempDir)
+            server = Server(serverIpAddr, serverFingerprint, password, tempMediaFilesDir)
             repoStore = RepoStore(server)
             unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(server)
             setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(server)

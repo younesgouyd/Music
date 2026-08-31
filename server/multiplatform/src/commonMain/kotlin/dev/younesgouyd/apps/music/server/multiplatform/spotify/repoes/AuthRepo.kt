@@ -3,6 +3,7 @@ package dev.younesgouyd.apps.music.server.multiplatform.spotify.repoes
 import dev.younesgouyd.apps.music.common.models.spotify.SpotifyToken
 import dev.younesgouyd.apps.music.server.multiplatform.spotify.InvalidCredentials
 import dev.younesgouyd.apps.music.server.multiplatform.spotify.Spotify
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -18,6 +19,7 @@ internal class AuthRepo(
     private val tokenSaver: Spotify.TokenSaver,
     private val credentialsSaver: Spotify.CredentialsSaver
 ) {
+    private val logger = KotlinLogging.logger {}
     private var credentials: Spotify.Credentials? = null
     private var token: Spotify.Token? = null
 
@@ -89,9 +91,9 @@ internal class AuthRepo(
             } else {
                 Result.failure(Exception(response.bodyAsText()))
             }
-        } catch (e: Throwable) {
-            e.printStackTrace()
-            Result.failure(e)
+        } catch (t: Throwable) {
+            logger.error(t) {}
+            Result.failure(t)
         }
     }
 }

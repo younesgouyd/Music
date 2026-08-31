@@ -9,10 +9,10 @@ class TagTrackCrossRefRepo(
     private val server: Server
 ) {
     suspend fun add(tagId: TagId, trackId: TrackId) {
-        server.call(TagTrackCrossRefRpc.Add(tagId, trackId))
+        server.call<Unit>(TagTrackCrossRefRpc.Add(tagId, trackId))
     }
 
     suspend fun delete(tagId: TagId, trackId: TrackId) {
-        server.call(TagTrackCrossRefRpc.Delete(tagId, trackId))
+        server.call<Unit>(TagTrackCrossRefRpc.Delete(tagId, trackId))
     }
 }

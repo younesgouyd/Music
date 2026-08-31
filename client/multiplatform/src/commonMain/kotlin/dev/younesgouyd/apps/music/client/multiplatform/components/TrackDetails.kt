@@ -28,6 +28,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.usecases.UnsetSpotifyTrac
 import dev.younesgouyd.apps.music.client.multiplatform.util.Component
 import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.models.spotify.Track
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -60,6 +61,7 @@ class TrackDetails(
     showArtist: (SpotifyArtistId) -> Unit
 ) : Component() {
     override val title: String = "Track"
+    private val logger = KotlinLogging.logger {}
     private val selectedTab = MutableStateFlow(Ui.State.Loaded.Tab.Import)
     private val state: StateFlow<Ui.State>
 
@@ -151,8 +153,8 @@ class TrackDetails(
                                         )
                                     } ?: emptyList()
                                     apiError.value = false
-                                } catch (e: Throwable) {
-                                    e.printStackTrace() // TODO()
+                                } catch (t: Throwable) {
+                                    logger.error(t) {}
                                     apiError.value = true
                                 }
                                 searching.value = false
