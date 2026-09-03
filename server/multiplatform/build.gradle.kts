@@ -49,7 +49,6 @@ kotlin {
             implementation(libs.sqlite.jvm)
             implementation(libs.coroutines.desktop)
             implementation(libs.logback.jvm)
-            implementation(libs.conscrypt.jvm)
             runtimeOnly(compose.desktop.currentOs) {
                 exclude("org.jetbrains.compose.material") // todo
             }
@@ -60,7 +59,6 @@ kotlin {
             implementation(libs.android.coreKtx)
             implementation(libs.android.activityKtx)
             implementation(libs.logback.android)
-            implementation(libs.conscrypt.android)
             implementation(libs.android.activityCompose)
         }
     }

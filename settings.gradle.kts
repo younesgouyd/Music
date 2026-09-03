@@ -42,7 +42,6 @@ dependencyResolutionManagement {
                     val android = "3.0.0"
                 }
                 val ktor = "3.5.1"
-                val conscrypt = "2.6.1"
                 val compose = object {
                     val plugin = "1.11.1"
                     val material3 = "1.9.0"
@@ -111,9 +110,6 @@ dependencyResolutionManagement {
             library("ktor.client.logging", "io.ktor", "ktor-client-logging").version(versions.ktor)
             library("ktor.client.contentNegotiation", "io.ktor", "ktor-client-content-negotiation").version(versions.ktor)
             library("ktor.client.websockets", "io.ktor", "ktor-client-websockets").version(versions.ktor)
-
-            library("conscrypt.android", "org.conscrypt", "conscrypt-android").version(versions.conscrypt)
-            library("conscrypt.jvm", "org.conscrypt", "conscrypt-openjdk-uber").version(versions.conscrypt)
 
             library("android.coreKtx", "androidx.core", "core-ktx").version(versions.android.coreKtx)
             library("android.activityKtx", "androidx.activity", "activity-ktx").version(versions.android.activity)

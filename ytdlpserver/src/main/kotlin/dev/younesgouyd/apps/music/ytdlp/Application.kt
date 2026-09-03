@@ -22,10 +22,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
-import org.conscrypt.Conscrypt
 import org.slf4j.event.Level
 import java.io.File
-import java.security.Security
 import java.security.cert.X509Certificate
 import javax.security.auth.x500.X500Principal
 
@@ -46,7 +44,6 @@ class Application {
         logger.info { "--> Application::start" }
         _state.value = ServerState.Starting
         _password.value = generatePassword()
-        Security.insertProviderAt(Conscrypt.newProvider(), 1)
         server = embeddedServer(
             factory = Netty,
             configure = {
@@ -117,7 +114,6 @@ class Application {
                         call.respond(HttpStatusCode.Unauthorized, "Invalid or missing credentials")
                         return@get
                     }
-                    logger.debug { "--> /Magic/inspect" }
                     val url = call.request.queryParameters["url"]
                     if (url.isNullOrBlank()) {
                         call.respond(HttpStatusCode.BadRequest)
@@ -125,7 +121,6 @@ class Application {
                     }
                     try {
                         val result: Inspection = Api.inspect(url)
-                        logger.debug { "result.container: ${result.container}" }
                         call.respond<Inspection>(result)
                     } catch (t: Throwable) {
                         logger.error(t) {}

@@ -44,7 +44,7 @@ class Server(
             try {
                 while (currentSession.isActive) {
                     val response = currentSession.receiveDeserialized<WsResponse>()
-                    channels[response.correlationId]?.send(response)
+                    channels[response.correlationId]?.trySend(response)
                 }
             } catch (e: Exception) {
                 channels.values.forEach { it.close(e) }
@@ -54,13 +54,6 @@ class Server(
             }
         }
     }
-
-//    suspend fun call(rpc: Rpc) {
-//        val currentSession = session ?: error("WebSocket not connected")
-//        val request: WsRequest = WsRequest.Execute(Uuid.random(), rpc)
-//        logger.debug { "... ::call | request : ${json.encodeToString(request)}"}
-//        currentSession.sendSerialized<WsRequest>(request)
-//    }
 
     suspend inline fun <reified T> call(rpc: Rpc): T {
         val currentSession = session ?: error("WebSocket not connected")

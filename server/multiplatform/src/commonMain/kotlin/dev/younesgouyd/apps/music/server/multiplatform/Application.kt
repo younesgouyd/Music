@@ -89,7 +89,7 @@ class Application {
         _state.value = ServerState.Starting
         val appDir = File(homeDir, "younesmusicserverdata").also { it.mkdir() }
         val mediaDir = File(appDir, "media").also { it.mkdir() }
-        val logsDir = File(appDir, "logs").also { it.mkdir() }
+        // logs dir is set in logback.xml
         val dbDir = File(appDir, "database").also { it.mkdir() }
         val dbFile = File(dbDir, "younesmusic.db").also { if (!it.exists()) it.createNewFile() }
         val spotifyDir = File(appDir, "spotify").also { it.mkdir() }
@@ -204,7 +204,6 @@ class Application {
         )
 
         _password.value = generatePassword()
-        setupSecurityProvider()
         server = embeddedServer(
             factory = Netty,
             configure = {

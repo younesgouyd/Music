@@ -28,7 +28,6 @@ dependencies {
     implementation(libs.ktor.server.sse)
     implementation(libs.ktor.tlsCertificates)
     runtimeOnly(libs.ktor.server.tls)
-    implementation(libs.conscrypt.jvm)
     implementation(libs.compose.uiDesktop)
     implementation(libs.compose.material3)
     implementation(libs.compose.materialIconsExtended)

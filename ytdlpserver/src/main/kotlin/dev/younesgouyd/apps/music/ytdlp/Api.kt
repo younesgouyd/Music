@@ -4,6 +4,7 @@ import dev.younesgouyd.apps.music.common.models.Base64Image
 import dev.younesgouyd.apps.music.common.models.Inspection
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
@@ -12,19 +13,21 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNames
 import java.io.File
 import java.net.URI
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.io.encoding.Base64
 import kotlin.time.Duration.Companion.seconds
 
 object Api {
     private val logger = KotlinLogging.logger {}
-    private val tempDir = File(System.getProperty("user.home"), "younesmusicserverdata").also { it.mkdir() }
+    private val tempDir = File(System.getProperty("user.home"), "ytdlpserverdata").also { it.mkdir() }
     private val downloadDir = File(tempDir, "download").also { it.mkdir() }
-    private val ytDlpOutput = File(tempDir, "yt-dlp_output")
-    private val ytDlpErrorOutput = File(tempDir, "yt-dlp_error_output")
+    private val ytDlpOutput = File(tempDir, "ytdlp_stdout")
+    private val ytDlpErrorOutput = File(tempDir, "ytdlp_stderr")
     private val ytDlpSerializer = Json { ignoreUnknownKeys = true }
 
     suspend fun inspect(url: String): Inspection {
         logger.debug { "--> ::inspect(url: $url)" }
+        ensureLatestVersion()
         val containerCommand = runCommand(
             args = listOf("--dump-single-json", "--simulate", "--quiet", "--no-warnings", url),
             ignoreError = true
@@ -32,10 +35,6 @@ object Api {
         val ytDlpType = ytDlpSerializer.decodeFromString<YtDlpModels.Type>(containerCommand)
         return when (ytDlpType.type) {
             "playlist" -> {
-                val nonNullEntries = ytDlpSerializer.decodeFromString<YtDlpModels.Container>(
-                    runCommand(listOf("--dump-single-json", "--flat-playlist", "--simulate", "--quiet", "--no-warnings", url))
-                ).entries
-                if (nonNullEntries.contains(null)) { TODO() }
                 val container = ytDlpSerializer.decodeFromString<YtDlpModels.Container>(containerCommand)
                 val containerThumbnailUrl = container.thumbnails
                     .filter { !it.url.contains("maxresdefault") }
@@ -49,32 +48,33 @@ object Api {
                         thumbnailUrl = containerThumbnailUrl,
                         thumbnail = downloadThumbnail(containerThumbnailUrl),
                     ),
-                    items = runCommand(listOf("--get-url", "--flat-playlist", "--simulate", "--quiet", "--no-warnings", url))
-                        .split("\n")
-                        .distinct()
-                        .filter { it != "null" && it.isNotBlank() }
-                        .mapIndexed { index, url ->
-                            val ytDlpInspection = runCommand(
-                                args = listOf("--dump-single-json", "--simulate", "--quiet", "--no-warnings", url),
-                                ignoreError = true
-                            )
-                            val entry = if (ytDlpInspection.trim() == "null") {
-                                nonNullEntries.find { it!!.url == url }!!
-                            } else {
-                                ytDlpSerializer.decodeFromString<YtDlpModels.Entry>(ytDlpInspection)
+                    items = buildList {
+                        runCommand(listOf("--get-url", "--flat-playlist", "--simulate", "--quiet", "--no-warnings", url))
+                            .split("\n")
+                            .distinct()
+                            .filter { it != "null" && it.isNotBlank() }
+                            .forEachIndexed { index, url ->
+                                val ytDlpInspection = runCommand(
+                                    args = listOf("--dump-single-json", "--simulate", "--quiet", "--no-warnings", url),
+                                    ignoreError = true
+                                )
+                                if (ytDlpInspection.isNotBlank() && ytDlpInspection.trim() != "null") {
+                                    val entry = ytDlpSerializer.decodeFromString<YtDlpModels.Entry>(ytDlpInspection)
+                                    val itemThumbnailUrl = entry.thumbnail?.nullIfBlank()
+                                    val item = Inspection.Item(
+                                        uri = entry.url.ifBlank { TODO() },
+                                        title = entry.title.ifBlank { TODO() },
+                                        durationMilliseconds = entry.duration?.seconds?.inWholeMilliseconds ?: TODO(),
+                                        artists = entry.artists,
+                                        album = entry.album?.let { if (it == "null") null else it.nullIfBlank() },
+                                        id = (index + 1).toLong(),
+                                        thumbnailUrl = itemThumbnailUrl,
+                                        thumbnail = itemThumbnailUrl?.let { downloadThumbnail(it) }
+                                    )
+                                    add(item)
+                                }
                             }
-                            val itemThumbnailUrl = entry.thumbnail?.nullIfBlank()
-                            Inspection.Item(
-                                uri = entry.url.ifBlank { TODO() },
-                                title = entry.title.ifBlank { TODO() },
-                                durationMilliseconds = entry.duration?.seconds?.inWholeMilliseconds ?: TODO(),
-                                artists = entry.artists,
-                                album = entry.album?.let { if (it == "null") null else it.nullIfBlank() },
-                                id = (index + 1).toLong(),
-                                thumbnailUrl = itemThumbnailUrl,
-                                thumbnail = itemThumbnailUrl?.let { downloadThumbnail(it) }
-                            )
-                        }
+                    }
                 )
             }
             else -> {
@@ -128,6 +128,19 @@ object Api {
         return downloads[0]
     }
 
+    private suspend fun ensureLatestVersion() {
+        withContext(Dispatchers.IO) {
+            val version = runCommand(listOf("--version"))
+            logger.debug { "yt-dlp version: $version" }
+            logger.debug { "calling --update..." }
+            runCommand(listOf("--update"))
+            val stdout = ytDlpOutput.readText()
+            val stderr = ytDlpErrorOutput.readText()
+            logger.debug { "--update stdout: \n$stdout" }
+            logger.debug { "--update stderr: \n$stderr" }
+        }
+    }
+
     private suspend fun runCommand(args: List<String>, ignoreError: Boolean = false): String {
         return withContext(Dispatchers.IO) {
             logger.debug { "::runCommand | args: ${args.joinToString(" ")}" }
@@ -135,14 +148,20 @@ object Api {
                 .redirectOutput(ytDlpOutput)
                 .redirectError(ytDlpErrorOutput)
                 .start()
-            logger.debug { "::runCommand | waiting for command to finish..." }
-            val exitCode = process.waitFor()
-            logger.debug { "::runCommand | command finished with exitCode: $exitCode" }
-            if (!ignoreError && exitCode != 0) {
-                val errorMsg = ytDlpErrorOutput.readText()
-                throw Exception("yt-dlp failed: $errorMsg")
+            try {
+                logger.debug { "::runCommand | waiting for command to finish..." }
+                val exitCode = runInterruptible { process.waitFor() }
+                logger.debug { "::runCommand | command finished with exitCode: $exitCode" }
+                if (!ignoreError && exitCode != 0) {
+                    val errorMsg = ytDlpErrorOutput.readText()
+                    throw Exception("yt-dlp failed: $errorMsg")
+                }
+                ytDlpOutput.readText()
+            } catch (e: CancellationException) {
+                logger.debug { "::runCommand | coroutine cancelled, terminating yt-dlp..." }
+                process.destroyForcibly()
+                throw e
             }
-            ytDlpOutput.readText()
         }
     }
 
@@ -183,8 +202,7 @@ object Api {
             val id: String,
             val title: String,
             val description: String?,
-            val thumbnails: List<Thumbnail>,
-            val entries: List<Entry?>
+            val thumbnails: List<Thumbnail>
         ) {
             @Serializable
             data class Thumbnail(
