@@ -10,4 +10,4 @@ data class PrepareImportRpc(
     val url: String,
     val inspection: Inspection,
     val destinationFolderId: FolderId
-) : Rpc()
+) : Rpc.ToServer()

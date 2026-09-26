@@ -23,6 +23,7 @@ import dev.younesgouyd.apps.music.common.models.Offset
 import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
 import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
 import dev.younesgouyd.apps.music.common.models.TrackId
+import dev.younesgouyd.apps.music.common.models.playback.QueueItemParameter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -108,9 +109,9 @@ class ArtistDetails(
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     onTabClick = { selectedTab.value = it },
-                    onPlayClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Artist(id))) },
+                    onPlayClick = { mediaController.playQueue(listOf(QueueItemParameter.Artist(id))) },
                     onSearchQueryChange = { searchQuery.value = it },
-                    onAddToQueueClick = { mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Artist(id))) },
+                    onAddToQueueClick = { mediaController.addToQueue(listOf(QueueItemParameter.Artist(id))) },
                     onAddToPlaylistClick = {
                         addToPlaylist.update {
                             AddToPlaylist(
@@ -147,8 +148,8 @@ class ArtistDetails(
                         }
                         addToPlaylistDialogVisible.value = true
                     },
-                    onAddAlbumToQueueClick = { id -> mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Album(id))) },
-                    onTrackClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
+                    onAddAlbumToQueueClick = { id -> mediaController.addToQueue(listOf(QueueItemParameter.Album(id))) },
+                    onTrackClick = { mediaController.playQueue(listOf(QueueItemParameter.Track(it))) },
                     onShowTrackDetailsClick = showTrack,
                     onAddTrackToPlaylistClick = { trackId ->
                         addToPlaylist.update {
@@ -167,7 +168,7 @@ class ArtistDetails(
                         }
                         addToPlaylistDialogVisible.value = true
                     },
-                    onAddTrackToQueueClick = { mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(it))) }
+                    onAddTrackToQueueClick = { mediaController.addToQueue(listOf(QueueItemParameter.Track(it))) }
                 )
             }
         }.map {

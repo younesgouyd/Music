@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
 import java.io.File
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 typealias Uri = String
 
@@ -76,35 +75,35 @@ fun Duration?.formatted(): String {
 @Composable
 fun PlaybackSlider(
     modifier: Modifier = Modifier,
-    duration: Duration?,
-    currentPosition: Duration,
+    durationMs: Long?,
+    positionMs: Long?,
     enabled: Boolean,
-    onSeek: (Duration) -> Unit,
+    onSeek: (positionMs: Long) -> Unit,
 ) {
-    var isInteracting by remember { mutableStateOf(false) }
-    var sliderPosition by remember { mutableFloatStateOf(0f) }
-    val sliderValue = if (isInteracting) sliderPosition else currentPosition.inWholeMilliseconds.toFloat()
+    var isInteracting: Boolean by remember { mutableStateOf(false) }
+    var selectedPositon: Float by remember { mutableFloatStateOf(0f) }
 
-    if (duration == null) {
+    if (durationMs == null || positionMs == null) {
         Slider(
             modifier = modifier,
-            enabled = enabled,
-            value = sliderValue,
+            enabled = false,
+            value = 0f,
             onValueChange = {}
         )
     } else {
+        val sliderValue: Float = if (isInteracting) selectedPositon else positionMs.toFloat() // TODO
         Slider(
             modifier = modifier,
             enabled = enabled,
             value = sliderValue,
-            valueRange = 0f..duration.inWholeMilliseconds.toFloat(),
+            valueRange = 0f..durationMs.toFloat(),
             onValueChange = { newValue ->
                 isInteracting = true
-                sliderPosition = newValue
+                selectedPositon = newValue
             },
             onValueChangeFinished = {
                 isInteracting = false
-                onSeek(sliderPosition.toLong().milliseconds)
+                onSeek(selectedPositon.toLong())
             }
         )
     }

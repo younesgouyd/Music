@@ -7,7 +7,7 @@ import dev.younesgouyd.apps.music.common.models.ImportSessionItemId
 import kotlinx.serialization.Serializable
 
 @Serializable
-sealed class ImportSessionItemRpc : Rpc() {
+sealed class ImportSessionItemRpc : Rpc.ToServer() {
     @Serializable
     data class Get(
         val id: ImportSessionItemId

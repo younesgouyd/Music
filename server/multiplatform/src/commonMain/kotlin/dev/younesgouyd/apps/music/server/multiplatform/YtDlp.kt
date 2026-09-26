@@ -70,31 +70,8 @@ class YtDlp(
                 hostnameVerifier { _, _ -> true }
             }
         }
-        install(Logging) {
-            level = LogLevel.HEADERS
-//            logger = object : Logger {
-//                private val binaryContentTypes = setOf(
-//                    "application/octet-stream",
-//                    "audio/",
-//                    "video/",
-//                    "image/",
-//                    "application/zip",
-//                    "application/pdf"
-//                )
-//                override fun log(message: String) {
-//                    if (message.contains("BODY START") && message.contains("Content-Type")) {
-//                        val contentType = message.substringAfter("Content-Type: ").substringBefore("\n")
-//                        if (binaryContentTypes.any { contentType.contains(it) }) {
-//                            return
-//                        }
-//                    }
-//                    println(message)
-//                }
-//            }
-        }
-        install(ContentNegotiation) {
-            json(json)
-        }
+        install(Logging) { level = LogLevel.HEADERS }
+        install(ContentNegotiation) { json(json) }
         install(SSE)
         install(HttpTimeout) {
             requestTimeoutMillis = 5*60*1000

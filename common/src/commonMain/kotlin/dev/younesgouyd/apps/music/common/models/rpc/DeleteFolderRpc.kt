@@ -6,4 +6,4 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class DeleteFolderRpc(
     val id: FolderId
-) : Rpc()
+) : Rpc.ToServer()

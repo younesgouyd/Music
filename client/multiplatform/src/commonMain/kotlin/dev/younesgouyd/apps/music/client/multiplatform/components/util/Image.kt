@@ -10,12 +10,46 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.decodeToImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import dev.younesgouyd.apps.music.client.multiplatform.data.Server
+import dev.younesgouyd.apps.music.common.models.MediaFileId
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.net.URI
 import java.time.Instant
+
+@Volatile var server: Server? = null // TODO
+
+@Composable
+fun Image(
+    modifier: Modifier = Modifier,
+    id: MediaFileId?,
+    contentScale: ContentScale = ContentScale.Fit,
+    alignment: Alignment = Alignment.Center
+) {
+    val image = produceState<Result<ImageBitmap>>(Result.Loading, id) {
+        val server = server
+        value = if (id == null || server == null) {
+            Result.Error
+        } else {
+            val file = server.getFile(id)
+            Result.Success(Cache.get(Key.File(file.path)))
+        }
+    }
+
+    when (val img = image.value) {
+        is Result.Error -> BrokenImage(modifier)
+        is Result.Loading -> BrokenImage(modifier)
+        is Result.Success<ImageBitmap> -> Image(
+            modifier = modifier,
+            bitmap = img.value,
+            contentDescription = null,
+            contentScale = contentScale,
+            alignment = alignment
+        )
+    }
+}
 
 @Composable
 fun Image(

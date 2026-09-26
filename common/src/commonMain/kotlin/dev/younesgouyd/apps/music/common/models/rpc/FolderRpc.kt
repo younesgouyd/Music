@@ -4,7 +4,7 @@ import dev.younesgouyd.apps.music.common.models.FolderId
 import kotlinx.serialization.Serializable
 
 @Serializable
-sealed class FolderRpc : Rpc() {
+sealed class FolderRpc : Rpc.ToServer() {
     @Serializable
     data class Get(
         val id: FolderId

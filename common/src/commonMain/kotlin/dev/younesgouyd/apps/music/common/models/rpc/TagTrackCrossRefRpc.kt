@@ -5,7 +5,7 @@ import dev.younesgouyd.apps.music.common.models.TrackId
 import kotlinx.serialization.Serializable
 
 @Serializable
-sealed class TagTrackCrossRefRpc : Rpc() {
+sealed class TagTrackCrossRefRpc : Rpc.ToServer() {
     @Serializable
     data class Add(
         val tagId: TagId,

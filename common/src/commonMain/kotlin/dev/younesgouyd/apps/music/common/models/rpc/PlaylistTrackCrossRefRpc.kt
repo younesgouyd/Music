@@ -5,7 +5,7 @@ import dev.younesgouyd.apps.music.common.models.TrackId
 import kotlinx.serialization.Serializable
 
 @Serializable
-sealed class PlaylistTrackCrossRefRpc : Rpc() {
+sealed class PlaylistTrackCrossRefRpc : Rpc.ToServer() {
     @Serializable
     data class Get(
         val playlistId: PlaylistId,

@@ -6,4 +6,4 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ClearImportItemRpc(
     val id: ImportSessionItemId
-) : Rpc()
+) : Rpc.ToServer()

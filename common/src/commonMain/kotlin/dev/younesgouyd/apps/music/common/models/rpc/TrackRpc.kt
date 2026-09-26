@@ -4,7 +4,7 @@ import dev.younesgouyd.apps.music.common.models.*
 import kotlinx.serialization.Serializable
 
 @Serializable
-sealed class TrackRpc : Rpc() {
+sealed class TrackRpc : Rpc.ToServer() {
     @Serializable
     data class Get(
         val id: TrackId

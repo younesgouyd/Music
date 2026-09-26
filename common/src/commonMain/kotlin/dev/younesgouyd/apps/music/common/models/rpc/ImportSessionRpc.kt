@@ -5,7 +5,7 @@ import dev.younesgouyd.apps.music.common.models.Offset
 import kotlinx.serialization.Serializable
 
 @Serializable
-sealed class ImportSessionRpc : Rpc() {
+sealed class ImportSessionRpc : Rpc.ToServer() {
     @Serializable
     data class GetAll(
         val limit: Int,

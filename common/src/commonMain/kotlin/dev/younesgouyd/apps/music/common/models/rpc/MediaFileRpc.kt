@@ -7,7 +7,7 @@ import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
 import kotlinx.serialization.Serializable
 
 @Serializable
-sealed class MediaFileRpc : Rpc() {
+sealed class MediaFileRpc : Rpc.ToServer() {
     @Serializable
     data class GetImportSessionImage(
         val id: ImportSessionId

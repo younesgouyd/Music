@@ -1,29 +1,34 @@
 package dev.younesgouyd.apps.music.client.multiplatform.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
+import dev.younesgouyd.apps.music.client.multiplatform.MediaControllerState
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.*
 import dev.younesgouyd.apps.music.client.multiplatform.util.Component
 import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
 import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
 import dev.younesgouyd.apps.music.common.models.TrackId
+import dev.younesgouyd.apps.music.common.models.playback.Client
+import dev.younesgouyd.apps.music.common.models.playback.QueueItem
+import dev.younesgouyd.apps.music.common.models.playback.RepeatState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
-import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class Player(
@@ -40,19 +45,22 @@ class Player(
     init {
         val isTrackVisible = MutableStateFlow(true)
         val isQueueVisible = MutableStateFlow(false)
-
         state = mediaController.state.mapLatest { mediaControllerState ->
             when (mediaControllerState) {
-                is MediaController.MediaControllerState.Unavailable -> Ui.State.Unavailable
-                is MediaController.MediaControllerState.Loading -> Ui.State.Loading
-                is MediaController.MediaControllerState.Available -> Ui.State.Available(
+                is MediaControllerState.Unavailable -> Ui.State.Unavailable
+                is MediaControllerState.Loading -> Ui.State.Loading
+                is MediaControllerState.Available -> Ui.State.Available(
+                    clients = mediaControllerState.clients,
+                    selectedClient = mediaControllerState.selectedClient,
                     enabled = mediaControllerState.enabled,
-                    timePositionChange = mediaControllerState.timePositionChange,
-                    isPlaying = mediaControllerState.isPlaying,
+                    isPlaying = mediaControllerState.mediaPlayerState.map { it?.isPlaying ?: false }
+                        .stateIn(coroutineScope), // TODO (leak)
+                    onSelectClient = mediaController::selectClient,
                     track = mediaControllerState.currentItem,
                     isTrackVisible = isTrackVisible.asStateFlow(),
                     isQueueVisible = isQueueVisible.asStateFlow(),
                     repeatState = mediaControllerState.repeatState,
+                    positionMs = mediaControllerState.positionMs,
                     queue = queue,
                     onToggleTrackVisibility = {
                         when (windowSizeClass) {
@@ -114,20 +122,23 @@ class Player(
             data object Unavailable : State()
 
             data class Available(
+                val clients: StateFlow<List<Client>>,
+                val selectedClient: StateFlow<Uuid>,
                 val enabled: StateFlow<Boolean>,
-                val timePositionChange: StateFlow<Duration>,
                 val isPlaying: StateFlow<Boolean>,
-                val track: StateFlow<MediaController.MediaControllerState.Available.QueueItem?>,
+                val onSelectClient: (Uuid) -> Unit,
+                val track: StateFlow<QueueItem?>,
                 val isTrackVisible: StateFlow<Boolean>,
                 val isQueueVisible: StateFlow<Boolean>,
-                val repeatState: StateFlow<MediaController.MediaControllerState.Available.RepeatState>,
+                val repeatState: StateFlow<RepeatState>,
+                val positionMs: StateFlow<Long?>,
                 val queue: @Composable (Modifier) -> Unit,
                 val onToggleQueueVisibility: () -> Unit,
                 val onToggleTrackVisibility: () -> Unit,
                 val onTrackNameClick: (TrackId) -> Unit,
                 val onAlbumClick: (SpotifyAlbumId) -> Unit,
                 val onArtistClick: (SpotifyArtistId) -> Unit,
-                val onTimeChange: (Duration) -> Unit,
+                val onTimeChange: (positionMs: Long) -> Unit,
                 val onPreviousClick: () -> Unit,
                 val onPlayClick: () -> Unit,
                 val onPauseClick: () -> Unit,
@@ -140,7 +151,7 @@ class Player(
             @Composable
             fun TrackInfo(
                 modifier: Modifier,
-                track: MediaController.MediaControllerState.Available.QueueItem?,
+                track: QueueItem?,
                 onTrackNameClick: () -> Unit,
                 onAlbumClick: (SpotifyAlbumId) -> Unit,
                 onArtistClick: (SpotifyArtistId) -> Unit
@@ -161,39 +172,37 @@ class Player(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    when (track?.album) {
-                        is MediaController.MediaControllerState.Available.QueueItem.Album.ImportAlbum -> {
-                            Album(
-                                name = track.album.name ?: ""
-                            )
-                        }
-                        is MediaController.MediaControllerState.Available.QueueItem.Album.SpotifyAlbum -> {
-                            Album(
-                                name = track.album.name,
-                                onClick = { onAlbumClick(track.album.id) })
-                        }
-                        null -> {
-                            Album(
-                                name = ""
-                            )
+                    track?.album.let { album ->
+                        when (album) {
+                            is QueueItem.Album.ImportAlbum -> {
+                                Album(
+                                    name = album.name ?: ""
+                                )
+                            }
+                            is QueueItem.Album.SpotifyAlbum -> {
+                                Album(
+                                    name = album.name,
+                                    onClick = { onAlbumClick(album.id) })
+                            }
+                            null -> {
+                                Album(name = "")
+                            }
                         }
                     }
-                    when (track?.artists) {
-                        is MediaController.MediaControllerState.Available.QueueItem.Artists.ImportArtist -> {
-                            Artists(
-                                names = track.artists.list
-                            )
-                        }
-                        is MediaController.MediaControllerState.Available.QueueItem.Artists.SpotifyArtists -> {
-                            Artists(
-                                artists = track.artists.list,
-                                onArtistClick = onArtistClick
-                            )
-                        }
-                        null -> {
-                            Artists(
-                                names = emptyList()
-                            )
+                    track?.artists.let { artists ->
+                        when (artists) {
+                            is QueueItem.Artists.ImportArtist -> {
+                                Artists(names = artists.list)
+                            }
+                            is QueueItem.Artists.SpotifyArtists -> {
+                                Artists(
+                                    artists = artists.list,
+                                    onArtistClick = onArtistClick
+                                )
+                            }
+                            null -> {
+                                Artists(names = emptyList())
+                            }
                         }
                     }
                 }
@@ -203,11 +212,11 @@ class Player(
             fun PlaybackControls(
                 modifier: Modifier,
                 enabled: StateFlow<Boolean>,
-                track: MediaController.MediaControllerState.Available.QueueItem?,
+                track: QueueItem?,
                 isPlaying: StateFlow<Boolean>,
-                repeatState: StateFlow<MediaController.MediaControllerState.Available.RepeatState>,
-                timePositionChange: StateFlow<Duration>,
-                onTimeChange: (Duration) -> Unit,
+                repeatState: StateFlow<RepeatState>,
+                positionMs: StateFlow<Long?>,
+                onTimeChange: (positionMs: Long) -> Unit,
                 onPreviousClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onPauseClick: () -> Unit,
@@ -217,8 +226,8 @@ class Player(
                 val enabled by enabled.collectAsState()
                 val isPlaying by isPlaying.collectAsState()
                 val repeatState by repeatState.collectAsState()
-                val timePositionChange by timePositionChange.collectAsState()
-                val formattedDuration = remember(track?.duration) { track?.duration.formatted() }
+                val formattedDuration = remember(track?.durationMs) { track?.durationMs?.milliseconds.formatted() }
+                val positionMs by positionMs.collectAsState()
 
                 Column(
                     modifier = modifier,
@@ -228,12 +237,12 @@ class Player(
                     PlaybackSlider(
                         modifier = Modifier.fillMaxWidth().padding(8.dp),
                         enabled = enabled,
-                        duration = track?.duration,
-                        currentPosition = timePositionChange,
+                        durationMs = track?.durationMs,
+                        positionMs = positionMs,
                         onSeek = onTimeChange
                     )
                     Text(
-                        text = "${timePositionChange.formatted()}/${formattedDuration}",
+                        text = "${positionMs?.milliseconds.formatted()}/${formattedDuration}",
                         style = MaterialTheme.typography.labelMedium
                     )
                     Spacer(Modifier.height(8.dp))
@@ -246,9 +255,10 @@ class Player(
                         FilledTonalIconButton(
                             modifier = Modifier.size(40.dp),
                             enabled = enabled,
-                            onClick = onPreviousClick,
-                            content = { Icon(Icons.Default.SkipPrevious, null) }
-                        )
+                            onClick = onPreviousClick
+                        ) {
+                            Icon(Icons.Default.SkipPrevious, null)
+                        }
                         FilledIconToggleButton(
                             modifier = Modifier.size(56.dp),
                             checked = isPlaying,
@@ -264,19 +274,80 @@ class Player(
                         FilledTonalIconButton(
                             modifier = Modifier.size(40.dp),
                             enabled = enabled,
-                            onClick = onNextClick,
-                            content = { Icon(Icons.Default.SkipNext, null) }
-                        )
+                            onClick = onNextClick
+                        ) {
+                            Icon(Icons.Default.SkipNext, null)
+                        }
                         FilledIconToggleButton(
                             modifier = Modifier.size(32.dp),
                             enabled = enabled,
-                            checked = repeatState != MediaController.MediaControllerState.Available.RepeatState.Off,
+                            checked = repeatState != RepeatState.Off,
                             onCheckedChange = { onRepeatClick() }
                         ) {
                             when (repeatState) {
-                                MediaController.MediaControllerState.Available.RepeatState.Off -> Icon(Icons.Default.Repeat, null)
-                                MediaController.MediaControllerState.Available.RepeatState.List -> Icon(Icons.Default.Repeat, null)
-                                MediaController.MediaControllerState.Available.RepeatState.Track -> Icon(Icons.Default.RepeatOne, null)
+                                RepeatState.Off -> Icon(Icons.Default.Repeat, null)
+                                RepeatState.List -> Icon(Icons.Default.Repeat, null)
+                                RepeatState.Track -> Icon(Icons.Default.RepeatOne, null)
+                            }
+                        }
+                    }
+                }
+            }
+
+            @Composable
+            fun Clients(
+                modifier: Modifier,
+                enabled: StateFlow<Boolean>,
+                clients: StateFlow<List<Client>>,
+                selectedClient: StateFlow<Uuid>,
+                onSelectClient: (Uuid) -> Unit
+            ) {
+                val enabled by enabled.collectAsState()
+                val clients by clients.collectAsState()
+                val selectedClient by selectedClient.collectAsState()
+
+                Surface(
+                    modifier = modifier,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    shape = MaterialTheme.shapes.large
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(12.dp)
+                    ) {
+                        items(
+                            items = clients,
+                            key = { it.id }
+                        ) { item ->
+                            val isSelected = item.id == selectedClient
+                            Card(
+                                modifier = Modifier.fillMaxWidth().height(100.dp),
+                                enabled = enabled,
+                                onClick = { onSelectClient(item.id) },
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxSize(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier.fillMaxHeight().aspectRatio(1f),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (isSelected) {
+                                            Icon(Icons.Default.RadioButtonChecked, null)
+                                        } else {
+                                            Icon(Icons.Default.RadioButtonUnchecked, null)
+                                        }
+                                    }
+                                    Text(
+                                        modifier = Modifier.weight(1f),
+                                        text = item.id.toString(),
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                }
                             }
                         }
                     }
@@ -298,16 +369,19 @@ class Player(
             private fun Main(modifier: Modifier, state: State.Available) {
                 Main(
                     modifier = modifier,
+                    clients = state.clients,
+                    selectedClient = state.selectedClient,
                     enabled = state.enabled,
                     track = state.track,
                     isQueueVisible = state.isQueueVisible,
                     isTrackVisible = state.isTrackVisible,
                     repeatState = state.repeatState,
+                    positionMs = state.positionMs,
                     queue = state.queue,
                     onToggleTrackVisibility = state.onToggleTrackVisibility,
                     onToggleQueueVisibility = state.onToggleQueueVisibility,
-                    timePositionChange = state.timePositionChange,
                     isPlaying = state.isPlaying,
+                    onSelectClient = state.onSelectClient,
                     onTrackNameClick = state.onTrackNameClick,
                     onAlbumClick = state.onAlbumClick,
                     onArtistClick = state.onArtistClick,
@@ -323,20 +397,23 @@ class Player(
             @Composable
             private fun Main(
                 modifier: Modifier,
+                clients: StateFlow<List<Client>>,
+                selectedClient: StateFlow<Uuid>,
                 enabled: StateFlow<Boolean>,
-                track: StateFlow<MediaController.MediaControllerState.Available.QueueItem?>,
+                track: StateFlow<QueueItem?>,
                 isQueueVisible: StateFlow<Boolean>,
                 isTrackVisible: StateFlow<Boolean>,
-                repeatState: StateFlow<MediaController.MediaControllerState.Available.RepeatState>,
+                repeatState: StateFlow<RepeatState>,
+                positionMs: StateFlow<Long?>,
                 queue: @Composable (Modifier) -> Unit,
                 onToggleTrackVisibility: () -> Unit,
                 onToggleQueueVisibility: () -> Unit,
-                timePositionChange: StateFlow<Duration>,
                 isPlaying: StateFlow<Boolean>,
+                onSelectClient: (Uuid) -> Unit,
                 onTrackNameClick: (TrackId) -> Unit,
                 onAlbumClick: (SpotifyAlbumId) -> Unit,
                 onArtistClick: (SpotifyArtistId) -> Unit,
-                onTimeChange: (Duration) -> Unit,
+                onTimeChange: (positionMs: Long) -> Unit,
                 onPreviousClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onPauseClick: () -> Unit,
@@ -346,6 +423,7 @@ class Player(
                 val track by track.collectAsState()
                 val isQueueVisible by isQueueVisible.collectAsState()
                 val isTrackVisible by isTrackVisible.collectAsState()
+                var isClientsVisible by remember { mutableStateOf(false) }
 
                 Surface(
                     modifier = modifier,
@@ -385,6 +463,10 @@ class Player(
                             horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = Alignment.End),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            IconButton(
+                                onClick = { isClientsVisible = true },
+                                content = { Icon(Icons.Default.Devices, null) }
+                            )
                             FilledIconToggleButton(
                                 checked = isTrackVisible,
                                 onCheckedChange = { onToggleTrackVisibility() },
@@ -402,7 +484,7 @@ class Player(
                             track = track,
                             isPlaying = isPlaying,
                             repeatState = repeatState,
-                            timePositionChange = timePositionChange,
+                            positionMs = positionMs,
                             onTimeChange = onTimeChange,
                             onPreviousClick = onPreviousClick,
                             onPlayClick = onPlayClick,
@@ -412,12 +494,24 @@ class Player(
                         )
                     }
                 }
+
+                if (isClientsVisible) {
+                    Dialog(onDismissRequest = { isClientsVisible = false }) {
+                        Common.Clients(
+                            modifier = modifier.size(width = 500.dp, height = 600.dp),
+                            enabled = enabled,
+                            clients = clients,
+                            selectedClient = selectedClient,
+                            onSelectClient = onSelectClient,
+                        )
+                    }
+                }
             }
 
             @Composable
             private fun Track(
                 modifier: Modifier,
-                track: MediaController.MediaControllerState.Available.QueueItem?,
+                track: QueueItem?,
                 isQueueVisible: Boolean,
                 onTrackNameClick: () -> Unit,
                 onAlbumClick: (SpotifyAlbumId) -> Unit,
@@ -433,7 +527,7 @@ class Player(
                             ) {
                                 Image(
                                     modifier = Modifier.weight(1f).aspectRatio(1f),
-                                    file = track?.image
+                                    id = track?.imageId
                                 )
                                 Common.TrackInfo(
                                     modifier = Modifier.padding(top = 12.dp),
@@ -453,7 +547,7 @@ class Player(
                                 Image(
                                     modifier = Modifier.weight(1f)
                                         .aspectRatio(1f, true),
-                                    file = track?.image
+                                    id = track?.imageId
                                 )
                                 Common.TrackInfo(
                                     modifier = Modifier.weight(1f),
@@ -483,16 +577,19 @@ class Player(
             private fun Main(modifier: Modifier, state: State.Available) {
                 Main(
                     modifier = modifier,
+                    clients = state.clients,
+                    selectedClient = state.selectedClient,
                     enabled = state.enabled,
                     track = state.track,
                     isQueueVisible = state.isQueueVisible,
                     isTrackVisible = state.isTrackVisible,
                     repeatState = state.repeatState,
+                    positionMs = state.positionMs,
                     queue = state.queue,
                     onToggleTrackVisibility = state.onToggleTrackVisibility,
                     onToggleQueueVisibility = state.onToggleQueueVisibility,
-                    timePositionChange = state.timePositionChange,
                     isPlaying = state.isPlaying,
+                    onSelectClient = state.onSelectClient,
                     onTrackNameClick = state.onTrackNameClick,
                     onAlbumClick = state.onAlbumClick,
                     onArtistClick = state.onArtistClick,
@@ -508,20 +605,23 @@ class Player(
             @Composable
             private fun Main(
                 modifier: Modifier,
+                clients: StateFlow<List<Client>>,
+                selectedClient: StateFlow<Uuid>,
                 enabled: StateFlow<Boolean>,
-                track: StateFlow<MediaController.MediaControllerState.Available.QueueItem?>,
+                track: StateFlow<QueueItem?>,
                 isQueueVisible: StateFlow<Boolean>,
                 isTrackVisible: StateFlow<Boolean>,
-                repeatState: StateFlow<MediaController.MediaControllerState.Available.RepeatState>,
+                repeatState: StateFlow<RepeatState>,
+                positionMs: StateFlow<Long?>,
                 queue: @Composable (Modifier) -> Unit,
                 onToggleTrackVisibility: () -> Unit,
                 onToggleQueueVisibility: () -> Unit,
-                timePositionChange: StateFlow<Duration>,
                 isPlaying: StateFlow<Boolean>,
+                onSelectClient: (Uuid) -> Unit,
                 onTrackNameClick: (TrackId) -> Unit,
                 onAlbumClick: (SpotifyAlbumId) -> Unit,
                 onArtistClick: (SpotifyArtistId) -> Unit,
-                onTimeChange: (Duration) -> Unit,
+                onTimeChange: (positionMs: Long) -> Unit,
                 onPreviousClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onPauseClick: () -> Unit,
@@ -531,6 +631,7 @@ class Player(
                 val track by track.collectAsState()
                 val isQueueVisible by isQueueVisible.collectAsState()
                 val isTrackVisible by isTrackVisible.collectAsState()
+                var isClientsVisible by remember { mutableStateOf(false) }
 
                 Surface(
                     modifier = modifier,
@@ -562,6 +663,10 @@ class Player(
                             horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = Alignment.End),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            IconButton(
+                                onClick = { isClientsVisible = true },
+                                content = { Icon(Icons.Default.Devices, null) }
+                            )
                             FilledIconToggleButton(
                                 checked = isTrackVisible,
                                 onCheckedChange = { onToggleTrackVisibility() },
@@ -579,7 +684,7 @@ class Player(
                             track = track,
                             isPlaying = isPlaying,
                             repeatState = repeatState,
-                            timePositionChange = timePositionChange,
+                            positionMs = positionMs,
                             onTimeChange = onTimeChange,
                             onPreviousClick = onPreviousClick,
                             onPlayClick = onPlayClick,
@@ -589,12 +694,24 @@ class Player(
                         )
                     }
                 }
+
+                if (isClientsVisible) {
+                    Dialog(onDismissRequest = { isClientsVisible = false }) {
+                        Common.Clients(
+                            modifier = modifier.size(width = 500.dp, height = 600.dp),
+                            enabled = enabled,
+                            clients = clients,
+                            selectedClient = selectedClient,
+                            onSelectClient = onSelectClient,
+                        )
+                    }
+                }
             }
 
             @Composable
             private fun Track(
                 modifier: Modifier,
-                track: MediaController.MediaControllerState.Available.QueueItem?,
+                track: QueueItem?,
                 onTrackNameClick: () -> Unit,
                 onAlbumClick: (SpotifyAlbumId) -> Unit,
                 onArtistClick: (SpotifyArtistId) -> Unit
@@ -606,7 +723,7 @@ class Player(
                 ) {
                     Image(
                         modifier = Modifier.weight(1f).aspectRatio(1f),
-                        file = track?.image
+                        id = track?.imageId
                     )
                     Common.TrackInfo(
                         modifier = Modifier.padding(top = 12.dp),

@@ -61,7 +61,7 @@ fun createHttpClient(
                 hostnameVerifier { _, _ -> true }
             }
         }
-        install(Logging) { level = LogLevel.ALL }
+        install(Logging) { level = LogLevel.HEADERS }
         install(WebSockets) {
             contentConverter = KotlinxWebsocketSerializationConverter(json)
         }

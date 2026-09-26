@@ -15,11 +15,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
+import dev.younesgouyd.apps.music.client.multiplatform.MediaControllerState
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.Artists
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.Image
 import dev.younesgouyd.apps.music.client.multiplatform.util.Component
 import dev.younesgouyd.apps.music.common.Platform
 import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
+import dev.younesgouyd.apps.music.common.models.playback.QueueItem
 import dev.younesgouyd.apps.music.common.platform
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -38,9 +40,9 @@ class Queue(
         val enableAutoScrollingToCurrentItem = MutableStateFlow(true)
         state = mediaController.state.map { mediaControllerState ->
             when (mediaControllerState) {
-                is MediaController.MediaControllerState.Unavailable -> Ui.State.Unavailable
-                is MediaController.MediaControllerState.Loading -> Ui.State.Loading
-                is MediaController.MediaControllerState.Available -> {
+                is MediaControllerState.Unavailable -> Ui.State.Unavailable
+                is MediaControllerState.Loading -> Ui.State.Loading
+                is MediaControllerState.Available -> {
                     Ui.State.Available(
                         enabled = mediaControllerState.enabled,
                         queue = mediaControllerState.queue,
@@ -79,8 +81,8 @@ class Queue(
 
             data class Available(
                 val enabled: StateFlow<Boolean>,
-                val queue: StateFlow<List<MediaController.MediaControllerState.Available.QueueItem>>,
-                val currentItem: StateFlow<MediaController.MediaControllerState.Available.QueueItem?>,
+                val queue: StateFlow<List<QueueItem>>,
+                val currentItem: StateFlow<QueueItem?>,
                 val currentItemIndex: StateFlow<Int>,
                 val listState: LazyListState,
                 val enableAutoScrollingToCurrentItem: StateFlow<Boolean>,
@@ -126,8 +128,8 @@ class Queue(
         private fun Main(
             modifier: Modifier = Modifier,
             enabled: StateFlow<Boolean>,
-            queue: StateFlow<List<MediaController.MediaControllerState.Available.QueueItem>>,
-            currentItem: StateFlow<MediaController.MediaControllerState.Available.QueueItem?>,
+            queue: StateFlow<List<QueueItem>>,
+            currentItem: StateFlow<QueueItem?>,
             currentItemIndex: StateFlow<Int>,
             listState: LazyListState,
             enableAutoScrollingToCurrentItem: StateFlow<Boolean>,
@@ -208,7 +210,7 @@ class Queue(
                         itemsIndexed(
                             items = orderedItems,
                             key = { _, item -> item.key.toString() }
-                        ) { index: Int, queueItem: MediaController.MediaControllerState.Available.QueueItem ->
+                        ) { index: Int, queueItem: QueueItem ->
                             ReorderableItem(
                                 modifier = Modifier.fillMaxWidth(),
                                 state = reorderState,
@@ -296,7 +298,7 @@ class Queue(
         @Composable
         private fun QueueItem(
             modifier: Modifier = Modifier,
-            item: MediaController.MediaControllerState.Available.QueueItem,
+            item: QueueItem,
             isPlaying: Boolean,
             enabled: Boolean,
             tonalElevation: Dp,
@@ -319,7 +321,7 @@ class Queue(
                 ) {
                     Image(
                         modifier = Modifier.fillMaxHeight().aspectRatio(1f),
-                        file = item.image
+                        id = item.imageId
                     )
                     Column(
                         modifier = Modifier.fillMaxHeight().weight(1f),
@@ -330,12 +332,14 @@ class Queue(
                             text = item.name,
                             style = MaterialTheme.typography.titleMedium
                         )
-                        when (item.artists) {
-                            is MediaController.MediaControllerState.Available.QueueItem.Artists.ImportArtist -> {
-                                Artists(names = item.artists.list)
-                            }
-                            is MediaController.MediaControllerState.Available.QueueItem.Artists.SpotifyArtists -> {
-                                Artists(artists = item.artists.list, onArtistClick = onArtistClick)
+                        item.artists.let { artists ->
+                            when (artists) {
+                                is QueueItem.Artists.ImportArtist -> {
+                                    Artists(names = artists.list)
+                                }
+                                is QueueItem.Artists.SpotifyArtists -> {
+                                    Artists(artists = artists.list, onArtistClick = onArtistClick)
+                                }
                             }
                         }
                     }

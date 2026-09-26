@@ -31,6 +31,8 @@ kotlin {
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.client.contentNegotiation)
             implementation(libs.ktor.client.websockets)
+            implementation(libs.javacv)
+            runtimeOnly(libs.ffmpeg)
         }
         jvmMain.dependencies {
             implementation(libs.coroutines.desktop)
@@ -38,17 +40,12 @@ kotlin {
                 exclude("org.jetbrains.compose.material") // todo
             }
             implementation(libs.logback.jvm)
-            implementation(libs.javacv)
-            runtimeOnly(libs.ffmpeg)
         }
         androidMain.dependencies {
             implementation(libs.coroutines.android)
             implementation(libs.android.coreKtx)
             implementation(libs.android.activityKtx)
             implementation(libs.android.activityCompose)
-            implementation(libs.android.media3.common)
-            implementation(libs.android.media3.exoplayer)
-            implementation(libs.android.media3.session)
             implementation(libs.logback.android)
         }
     }

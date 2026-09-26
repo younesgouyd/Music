@@ -30,6 +30,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.usecases.ClearImportItemU
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.DeleteFolderUseCase
 import dev.younesgouyd.apps.music.client.multiplatform.util.Component
 import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.models.playback.QueueItemParameter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -202,11 +203,11 @@ class Library(
                 addToPlaylistDialogVisible.value = true
             },
             onAddFolderToQueueClick = { id: FolderId ->
-                suspend fun getFolderItems(_id: FolderId): List<MediaController.QueueItemParameter> {
+                suspend fun getFolderItems(_id: FolderId): List<QueueItemParameter> {
                     val tracks = trackRepo.getFolderTracks(_id).first()
-                        .map { dbTrack -> MediaController.QueueItemParameter.Track(dbTrack.id) }
+                        .map { dbTrack -> QueueItemParameter.Track(dbTrack.id) }
                     val playlists = playlistRepo.getFolderPlaylists(_id).first()
-                        .map { dbPlaylist -> MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
+                        .map { dbPlaylist -> QueueItemParameter.Playlist(dbPlaylist.id) }
                     return tracks + playlists + folderRepo.getSubfolders(_id).first().flatMap { getFolderItems(it.id) }
                 }
                 coroutineScope.launch {
@@ -215,11 +216,11 @@ class Library(
                 }
             },
             onPlayFolder = { folderId: FolderId ->
-                suspend fun getFolderItems(_folderId: FolderId): List<MediaController.QueueItemParameter> {
+                suspend fun getFolderItems(_folderId: FolderId): List<QueueItemParameter> {
                     val tracks = trackRepo.getFolderTracks(_folderId).first()
-                        .map { dbTrack -> MediaController.QueueItemParameter.Track(dbTrack.id) }
+                        .map { dbTrack -> QueueItemParameter.Track(dbTrack.id) }
                     val playlists = playlistRepo.getFolderPlaylists(_folderId).first()
-                        .map { dbPlaylist -> MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
+                        .map { dbPlaylist -> QueueItemParameter.Playlist(dbPlaylist.id) }
                     return tracks + playlists + folderRepo.getSubfolders(_folderId).first().flatMap { getFolderItems(it.id) }
                 }
                 coroutineScope.launch {
@@ -230,7 +231,7 @@ class Library(
             onPlaylistClick = showPlaylist,
             onPlayPlaylistClick = { id: PlaylistId ->
                 mediaController.playQueue(
-                    listOf(MediaController.QueueItemParameter.Playlist(id))
+                    listOf(QueueItemParameter.Playlist(id))
                 )
             },
             onAddPlaylistToPlaylistClick = { playlistId: PlaylistId ->
@@ -290,7 +291,7 @@ class Library(
             },
             onAddPlaylistToQueueClick = { id: PlaylistId ->
                 mediaController.addToQueue(
-                    listOf(MediaController.QueueItemParameter.Playlist(id))
+                    listOf(QueueItemParameter.Playlist(id))
                 )
             },
             onTrackClick = showTrack,
@@ -336,7 +337,7 @@ class Library(
             },
             onDeletePlaylist = { coroutineScope.launch { playlistRepo.delete(it) } },
             onDeleteTrack = { coroutineScope.launch { clearImportItemUseCase.execute(it) } },
-            onAddTrackToQueue = { mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
+            onAddTrackToQueue = { mediaController.addToQueue(listOf(QueueItemParameter.Track(it))) },
             onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
         )
     }

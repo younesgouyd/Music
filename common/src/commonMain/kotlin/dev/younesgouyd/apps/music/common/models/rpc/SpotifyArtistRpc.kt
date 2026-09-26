@@ -7,7 +7,7 @@ import dev.younesgouyd.apps.music.common.models.SpotifyTrackId
 import kotlinx.serialization.Serializable
 
 @Serializable
-sealed class SpotifyArtistRpc : Rpc() {
+sealed class SpotifyArtistRpc : Rpc.ToServer() {
     @Serializable
     data class Get(
         val id: SpotifyArtistId

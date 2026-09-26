@@ -4,7 +4,7 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
 import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
-import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.SpotifyTrackRelation
+import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.SpotifyTrackRelation
 import kotlinx.coroutines.flow.Flow
 
 @Dao

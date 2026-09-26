@@ -3,7 +3,7 @@ package dev.younesgouyd.apps.music.server.multiplatform.data.repoes
 import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
 import dev.younesgouyd.apps.music.common.models.SpotifyTrackId
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.daos.SpotifyTrackDao
-import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.SpotifyTrackRelation
+import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.SpotifyTrackRelation
 import kotlinx.coroutines.flow.Flow
 
 class SpotifyTrackRepo(

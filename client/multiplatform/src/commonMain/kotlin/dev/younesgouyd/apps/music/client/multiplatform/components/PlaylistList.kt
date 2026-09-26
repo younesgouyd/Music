@@ -25,6 +25,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.components.util.*
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.*
 import dev.younesgouyd.apps.music.client.multiplatform.util.Component
 import dev.younesgouyd.apps.music.common.models.PlaylistId
+import dev.younesgouyd.apps.music.common.models.playback.QueueItemParameter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -70,7 +71,7 @@ class PlaylistList(
                 onSearchQueryChange = { searchQuery.value = it },
                 onPlaylistClick = showPlaylistDetails,
                 onPlayPlaylist = { id: PlaylistId -> mediaController.playQueue(listOf(
-                    MediaController.QueueItemParameter.Playlist(id))) },
+                    QueueItemParameter.Playlist(id))) },
                 onAddToPlaylist = { playlistId: PlaylistId ->
                     addToPlaylist.update {
                         AddToPlaylist(
@@ -97,7 +98,7 @@ class PlaylistList(
                     }
                 },
                 onAddPlaylistToQueue = { id: PlaylistId -> mediaController.addToQueue(listOf(
-                    MediaController.QueueItemParameter.Playlist(id))) }
+                    QueueItemParameter.Playlist(id))) }
             )
         }
     }

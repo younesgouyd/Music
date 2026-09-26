@@ -14,16 +14,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
+import dev.younesgouyd.apps.music.client.multiplatform.MediaControllerState
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.*
 import dev.younesgouyd.apps.music.client.multiplatform.util.Component
 import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
 import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
+import dev.younesgouyd.apps.music.common.models.playback.QueueItem
+import dev.younesgouyd.apps.music.common.models.playback.RepeatState
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 class MiniPlayer(
     mediaController: MediaController,
@@ -37,14 +40,15 @@ class MiniPlayer(
     init {
         state = mediaController.state.map { mediaControllerState ->
             when (mediaControllerState) {
-                is MediaController.MediaControllerState.Unavailable -> Ui.State.Unavailable
-                is MediaController.MediaControllerState.Loading -> Ui.State.Loading
-                is MediaController.MediaControllerState.Available -> Ui.State.Available(
+                is MediaControllerState.Unavailable -> Ui.State.Unavailable
+                is MediaControllerState.Loading -> Ui.State.Loading
+                is MediaControllerState.Available -> Ui.State.Available(
                     enabled = mediaControllerState.enabled,
-                    timePositionChange = mediaControllerState.timePositionChange,
-                    isPlaying = mediaControllerState.isPlaying,
                     repeatState = mediaControllerState.repeatState,
                     track = mediaControllerState.currentItem,
+                    positionMs = mediaControllerState.positionMs,
+                    isPlaying = mediaControllerState.mediaPlayerState.map { it?.isPlaying ?: false }
+                        .stateIn(coroutineScope),
                     onClick = expand,
                     onAlbumClick = showAlbum,
                     onArtistClick = showArtist,
@@ -81,14 +85,14 @@ class MiniPlayer(
 
             data class Available(
                 val enabled: StateFlow<Boolean>,
-                val timePositionChange: StateFlow<Duration>,
+                val repeatState: StateFlow<RepeatState>,
+                val track: StateFlow<QueueItem?>,
+                val positionMs: StateFlow<Long?>,
                 val isPlaying: StateFlow<Boolean>,
-                val repeatState: StateFlow<MediaController.MediaControllerState.Available.RepeatState>,
-                val track: StateFlow<MediaController.MediaControllerState.Available.QueueItem?>,
                 val onClick: () -> Unit,
                 val onAlbumClick: (SpotifyAlbumId) -> Unit,
                 val onArtistClick: (SpotifyArtistId) -> Unit,
-                val onTimeChange: (Duration) -> Unit,
+                val onTimeChange: (positionMs: Long) -> Unit,
                 val onPreviousClick: () -> Unit,
                 val onPlayClick: () -> Unit,
                 val onPauseClick: () -> Unit,
@@ -112,9 +116,9 @@ class MiniPlayer(
                 Main(
                     modifier = modifier,
                     enabled = state.enabled,
-                    timePositionChange = state.timePositionChange,
                     isPlaying = state.isPlaying,
                     repeatState = state.repeatState,
+                    positionMs = state.positionMs,
                     track = state.track,
                     onClick = state.onClick,
                     onAlbumClick = state.onAlbumClick,
@@ -132,14 +136,14 @@ class MiniPlayer(
             private fun Main(
                 modifier: Modifier = Modifier,
                 enabled: StateFlow<Boolean>,
-                track: StateFlow<MediaController.MediaControllerState.Available.QueueItem?>,
-                timePositionChange: StateFlow<Duration>,
+                track: StateFlow<QueueItem?>,
                 isPlaying: StateFlow<Boolean>,
-                repeatState: StateFlow<MediaController.MediaControllerState.Available.RepeatState>,
+                repeatState: StateFlow<RepeatState>,
+                positionMs: StateFlow<Long?>,
                 onClick: () -> Unit,
                 onAlbumClick: (SpotifyAlbumId) -> Unit,
                 onArtistClick: (SpotifyArtistId) -> Unit,
-                onTimeChange: (Duration) -> Unit,
+                onTimeChange: (positionMs: Long) -> Unit,
                 onPreviousClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onPauseClick: () -> Unit,
@@ -148,10 +152,10 @@ class MiniPlayer(
             ) {
                 val enabled by enabled.collectAsState()
                 val track by track.collectAsState()
-                val timePositionChange by timePositionChange.collectAsState()
                 val isPlaying by isPlaying.collectAsState()
                 val repeatState by repeatState.collectAsState()
-                val formattedDuration = remember(track?.duration) { track?.duration.formatted() }
+                val formattedDuration = remember(track?.durationMs) { track?.durationMs?.milliseconds.formatted() }
+                val positionMs by positionMs.collectAsState()
 
                 Surface(
                     modifier = modifier,
@@ -166,7 +170,7 @@ class MiniPlayer(
                     ) {
                         Image(
                             modifier = Modifier.fillMaxHeight().aspectRatio(1f),
-                            file = track?.image
+                            id = track?.imageId
                         )
                         Column(
                             modifier = Modifier.fillMaxWidth(),
@@ -181,10 +185,10 @@ class MiniPlayer(
                             )
                             track?.album.let { album ->
                                 when (album) {
-                                    is MediaController.MediaControllerState.Available.QueueItem.Album.ImportAlbum -> {
+                                    is QueueItem.Album.ImportAlbum -> {
                                         Album(name = album.name ?: "")
                                     }
-                                    is MediaController.MediaControllerState.Available.QueueItem.Album.SpotifyAlbum -> {
+                                    is QueueItem.Album.SpotifyAlbum -> {
                                         Album(
                                             name = album.name,
                                             onClick = { onAlbumClick(album.id) }
@@ -197,10 +201,10 @@ class MiniPlayer(
                             }
                             track?.artists.let { artists ->
                                 when (artists) {
-                                    is MediaController.MediaControllerState.Available.QueueItem.Artists.ImportArtist -> {
+                                    is QueueItem.Artists.ImportArtist -> {
                                         Artists(names = artists.list)
                                     }
-                                    is MediaController.MediaControllerState.Available.QueueItem.Artists.SpotifyArtists -> {
+                                    is QueueItem.Artists.SpotifyArtists -> {
                                         Artists(artists = artists.list, onArtistClick = onArtistClick)
                                     }
                                     null -> {
@@ -268,17 +272,17 @@ class MiniPlayer(
                                             onClick = onRepeatClick,
                                             content = {
                                                 when (repeatState) {
-                                                    MediaController.MediaControllerState.Available.RepeatState.Off -> Icon(
+                                                    RepeatState.Off -> Icon(
                                                         Icons.Default.Repeat,
                                                         null
                                                     )
 
-                                                    MediaController.MediaControllerState.Available.RepeatState.Track -> Icon(
+                                                    RepeatState.Track -> Icon(
                                                         Icons.Default.RepeatOneOn,
                                                         null
                                                     )
 
-                                                    MediaController.MediaControllerState.Available.RepeatState.List -> Icon(
+                                                    RepeatState.List -> Icon(
                                                         Icons.Default.RepeatOn,
                                                         null
                                                     )
@@ -291,12 +295,12 @@ class MiniPlayer(
                                 PlaybackSlider(
                                     modifier = Modifier.weight(1f),
                                     enabled = enabled,
-                                    duration = track?.duration,
-                                    currentPosition = timePositionChange,
+                                    durationMs = track?.durationMs,
+                                    positionMs = positionMs,
                                     onSeek = onTimeChange
                                 )
                                 Text(
-                                    text = "${timePositionChange.formatted()}/${formattedDuration}",
+                                    text = "${positionMs?.milliseconds.formatted()}/${formattedDuration}",
                                     style = MaterialTheme.typography.labelMedium
                                 )
                             }
@@ -322,8 +326,7 @@ class MiniPlayer(
                 Main(
                     modifier = modifier,
                     track = state.track,
-                    timePositionChange = state.timePositionChange,
-                    isPlaying = state.isPlaying,
+                    positionMs = state.positionMs,
                     onClick = state.onClick
                 )
             }
@@ -331,14 +334,13 @@ class MiniPlayer(
             @Composable
             private fun Main(
                 modifier: Modifier = Modifier,
-                track: StateFlow<MediaController.MediaControllerState.Available.QueueItem?>,
-                timePositionChange: StateFlow<Duration>,
-                isPlaying: StateFlow<Boolean>,
+                track: StateFlow<QueueItem?>,
+                positionMs: StateFlow<Long?>,
                 onClick: () -> Unit
             ) {
                 val track by track.collectAsState()
-                val timePositionChange by timePositionChange.collectAsState()
-                val formattedDuration = remember(track?.duration) { track?.duration.formatted() }
+                val formattedDuration = remember(track?.durationMs) { track?.durationMs?.milliseconds.formatted() }
+                val positionMs by positionMs.collectAsState()
 
                 Surface(
                     modifier = modifier,
@@ -351,7 +353,7 @@ class MiniPlayer(
                     ) {
                         Image(
                             modifier = Modifier.fillMaxHeight().aspectRatio(1f),
-                            file = track?.image
+                            id = track?.imageId
                         )
                         Column(
                             modifier = Modifier.weight(1f),
@@ -371,10 +373,10 @@ class MiniPlayer(
                             ) {
                                 track?.artists.let { artists ->
                                     when (artists) {
-                                        is MediaController.MediaControllerState.Available.QueueItem.Artists.ImportArtist -> {
+                                        is QueueItem.Artists.ImportArtist -> {
                                             Artists(names = artists.list)
                                         }
-                                        is MediaController.MediaControllerState.Available.QueueItem.Artists.SpotifyArtists -> {
+                                        is QueueItem.Artists.SpotifyArtists -> {
                                             Artists(names = artists.list.map { it.second })
                                         }
                                         null -> {
@@ -383,15 +385,15 @@ class MiniPlayer(
                                     }
                                 }
                                 Text(
-                                    text = "${timePositionChange.formatted()}/${formattedDuration}",
+                                    text = "${positionMs?.milliseconds.formatted()}/${formattedDuration}",
                                     style = MaterialTheme.typography.labelMedium
                                 )
                             }
                             LinearProgressIndicator(
                                 modifier = Modifier.fillMaxWidth(),
                                 progress = {
-                                    track?.duration?.let {
-                                        timePositionChange.inWholeMilliseconds.toFloat() / it.inWholeMilliseconds.toFloat()
+                                    track?.durationMs?.let {
+                                        (positionMs?.toFloat() ?: 0f) / it.toFloat()
                                     } ?: 0f
                                 }
                             )

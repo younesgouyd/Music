@@ -54,7 +54,6 @@ dependencyResolutionManagement {
                     val androidTargetSdk = version("androidTargetSdk", "36")
                     val coreKtx = "1.17.0"
                     val activity = "1.13.0"
-                    val media3 = "1.10.1"
                     val startup = "1.2.0"
                 }
                 val javacv = "1.5.13"
@@ -114,9 +113,6 @@ dependencyResolutionManagement {
             library("android.coreKtx", "androidx.core", "core-ktx").version(versions.android.coreKtx)
             library("android.activityKtx", "androidx.activity", "activity-ktx").version(versions.android.activity)
             library("android.activityCompose", "androidx.activity", "activity-compose").version(versions.android.activity)
-            library("android.media3.common", "androidx.media3", "media3-common").version(versions.android.media3)
-            library("android.media3.exoplayer", "androidx.media3", "media3-exoplayer").version(versions.android.media3)
-            library("android.media3.session", "androidx.media3", "media3-session").version(versions.android.media3)
             library("android.startup", "androidx.startup", "startup-runtime").version(versions.android.startup)
         }
     }

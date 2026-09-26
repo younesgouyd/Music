@@ -70,21 +70,17 @@ class Application {
                 if (it.exists()) { it.deleteRecursively() }
                 it.mkdir()
             }
-            server = Server(serverIpAddr, serverFingerprint, password, tempMediaFilesDir)
+            server = Server(serverIpAddr, serverFingerprint, password, tempMediaFilesDir).apply {
+                connect() // TODO (this must be here before MediaController or any component that needs the server connected in it's init{} block)
+            }
+            dev.younesgouyd.apps.music.client.multiplatform.components.util.server = server // TODO
             repoStore = RepoStore(server)
             unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(server)
             setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(server)
             clearImportItemUseCase = ClearImportItemUseCase(server)
             deleteFolderUseCase = DeleteFolderUseCase(server)
             prepareImportUseCase = PrepareImportUseCase(server)
-            mediaController = MediaController(
-                mediaPlayer = createMediaPlayer(),
-                mediaFileRepo = repoStore.mediaFileRepo,
-                trackRepo = repoStore.trackRepo,
-                artistRepo = repoStore.spotifyArtistRepo,
-                albumRepo = repoStore.spotifyAlbumRepo,
-            )
-            server.connect()
+            mediaController = MediaController(server)
             currentComponent.update {
                 it.clear()
                 Main(

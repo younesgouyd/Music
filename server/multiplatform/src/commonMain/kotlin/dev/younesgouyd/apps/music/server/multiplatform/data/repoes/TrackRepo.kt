@@ -2,9 +2,9 @@ package dev.younesgouyd.apps.music.server.multiplatform.data.repoes
 
 import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.daos.TrackDao
-import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.PlaylistTrack
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.Track
-import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.TrackRelation
+import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.PlaylistTrack
+import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.TrackRelation
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.toSearchQuery
 import kotlinx.coroutines.flow.Flow
 

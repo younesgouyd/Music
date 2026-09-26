@@ -8,4 +8,4 @@ import kotlinx.serialization.Serializable
 data class SetTrackMetadataFromSpotifyRpc(
     val trackId: TrackId,
     val spotifyApiTrack: Track
-) : Rpc()
+) : Rpc.ToServer()

@@ -7,7 +7,7 @@ import dev.younesgouyd.apps.music.common.models.TrackId
 import kotlinx.serialization.Serializable
 
 @Serializable
-sealed class PlaylistRpc : Rpc() {
+sealed class PlaylistRpc : Rpc.ToServer() {
     @Serializable
     data class GetAll(
         val limit: Int,

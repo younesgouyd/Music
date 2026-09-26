@@ -4,7 +4,7 @@ import dev.younesgouyd.apps.music.common.models.DarkThemeOptions
 import kotlinx.serialization.Serializable
 
 @Serializable
-sealed class SettingRpc : Rpc() {
+sealed class SettingRpc : Rpc.ToServer() {
     @Serializable
     data object GetDarkTheme : SettingRpc()
 

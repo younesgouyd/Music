@@ -1,7 +1,13 @@
 package dev.younesgouyd.apps.music.server.multiplatform.data.room.entities
 
-import androidx.room.*
-import dev.younesgouyd.apps.music.common.models.*
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
+import dev.younesgouyd.apps.music.common.models.FolderId
+import dev.younesgouyd.apps.music.common.models.ImportSessionItemId
+import dev.younesgouyd.apps.music.common.models.SpotifyTrackId
+import dev.younesgouyd.apps.music.common.models.TrackId
 
 @Entity(
     foreignKeys = [
@@ -41,38 +47,4 @@ data class Track(
     val folderId: FolderId?,
     val creationDatetime: Long,
     val updateDatetime: Long
-)
-
-data class TrackRelation(
-    @Embedded val track: Track,
-    @Relation(
-        parentColumn = "importSessionItemId",
-        entityColumn = "id"
-    )
-    val originalImport: ImportSessionItem,
-    @Relation(
-        parentColumn = "spotifyTrackId",
-        entityColumn = "id"
-    )
-    val spotifyTrack: SpotifyTrack?
-)
-
-data class PlaylistTrack(
-    @Embedded val track: Track,
-    val playlistTrackCrossRefId: PlaylistTrackCrossRefId,
-    @Relation(
-        parentColumn = "importSessionItemId",
-        entityColumn = "id"
-    )
-    val originalImport: ImportSessionItem,
-    @Relation(
-        parentColumn = "spotifyTrackId",
-        entityColumn = "id"
-    )
-    val spotifyTrack: SpotifyTrack?,
-    @Relation(
-        parentColumn = "id",
-        entityColumn = "trackId"
-    )
-    val playlistCrossRef: PlaylistTrackCrossRef?
 )

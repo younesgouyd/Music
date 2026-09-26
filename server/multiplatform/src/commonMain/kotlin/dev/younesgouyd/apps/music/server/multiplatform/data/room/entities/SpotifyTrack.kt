@@ -1,6 +1,9 @@
 package dev.younesgouyd.apps.music.server.multiplatform.data.room.entities
 
-import androidx.room.*
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
 import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
 import dev.younesgouyd.apps.music.common.models.SpotifyTrackId
 
@@ -31,13 +34,4 @@ data class SpotifyTrack(
     val explicit: Boolean?,
     val apiResponse: String,
     val creationDatetime: Long
-)
-
-data class SpotifyTrackRelation(
-    @Embedded val spotifyTrack: SpotifyTrack,
-    @Relation(
-        parentColumn = "id",
-        entityColumn = "spotifyTrackId"
-    )
-    val track: Track?
 )

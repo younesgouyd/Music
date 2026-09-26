@@ -17,7 +17,7 @@
             <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} | %thread | %-5level| %logger | %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} | %thread | %-5level | %logger | %msg%n</pattern>
         </encoder>
     </appender>
     <appender name="KTOR" class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -29,31 +29,29 @@
             <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} | %thread | %-5level| %logger | %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} | %thread | %-5level | %logger | %msg%n</pattern>
         </encoder>
     </appender>
-    <appender name="OTHER" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_DIR}/other/latest.log</file>
+    <appender name="COMBINED" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/combined/latest.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_DIR}/other/app-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>${LOG_DIR}/combined/app-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
             <maxHistory>30</maxHistory>
             <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} | %thread | %-5level| %logger | %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} | %thread | %-5level | %logger | %msg%n</pattern>
         </encoder>
     </appender>
-    <root level="INFO" >
+    <root level="TRACE" >
         <appender-ref ref="LOGCAT" />
-        <appender-ref ref="OTHER" />
+        <appender-ref ref="COMBINED" />
     </root>
-    <logger name="dev.younesgouyd" level="TRACE" additivity="false">
-        <appender-ref ref="LOGCAT" />
+    <logger name="dev.younesgouyd" level="TRACE" additivity="true">
         <appender-ref ref="MAIN" />
     </logger>
-    <logger name="io.ktor" level="TRACE" additivity="false">
-        <appender-ref ref="LOGCAT" />
+    <logger name="io.ktor" level="TRACE" additivity="true">
         <appender-ref ref="KTOR" />
     </logger>
 </configuration>

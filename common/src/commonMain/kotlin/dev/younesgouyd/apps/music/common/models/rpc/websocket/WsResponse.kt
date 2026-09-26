@@ -5,7 +5,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlin.uuid.Uuid
 
 @Serializable
-sealed class WsResponse {
+sealed class WsResponse : WSMessage() {
     abstract val correlationId: Uuid
 
     @Serializable

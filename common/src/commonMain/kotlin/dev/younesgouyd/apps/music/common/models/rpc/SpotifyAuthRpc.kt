@@ -3,7 +3,7 @@ package dev.younesgouyd.apps.music.common.models.rpc
 import kotlinx.serialization.Serializable
 
 @Serializable
-sealed class SpotifyAuthRpc : Rpc() {
+sealed class SpotifyAuthRpc : Rpc.ToServer() {
     @Serializable
     data object GetAuthState : SpotifyAuthRpc()
 

@@ -28,6 +28,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.util.Component
 import dev.younesgouyd.apps.music.client.multiplatform.util.LazilyLoadedItems
 import dev.younesgouyd.apps.music.client.multiplatform.util.PageSize
 import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.models.playback.QueueItemParameter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -171,12 +172,12 @@ class TrackList(
                 onPlayClick = {
                     coroutineScope.launch {
                         mediaController.playQueue(
-                            tracks.value?.items?.value.orEmpty().map { MediaController.QueueItemParameter.Track(it.id) }
+                            tracks.value?.items?.value.orEmpty().map { QueueItemParameter.Track(it.id) }
                         )
                     }
                 },
                 onSearchQueryChange = { searchQuery.value = it },
-                onTrackClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Track(it))) },
+                onTrackClick = { mediaController.playQueue(listOf(QueueItemParameter.Track(it))) },
                 onArtistClick = showArtist,
                 onTrackDetailsClick = showTrack
             )

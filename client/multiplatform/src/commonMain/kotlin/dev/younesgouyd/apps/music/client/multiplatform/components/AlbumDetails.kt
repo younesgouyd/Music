@@ -24,6 +24,7 @@ import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
 import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
 import dev.younesgouyd.apps.music.common.models.SpotifyTrackId
 import dev.younesgouyd.apps.music.common.models.TrackId
+import dev.younesgouyd.apps.music.common.models.playback.QueueItemParameter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -72,12 +73,12 @@ class AlbumDetails(
                     scrollState = LazyListState(),
                     album = album.filterNotNull().stateIn(coroutineScope),
                     tracks = spotifyTracks,
-                    onPlayClick = { mediaController.playQueue(listOf(MediaController.QueueItemParameter.Album(id))) },
+                    onPlayClick = { mediaController.playQueue(listOf(QueueItemParameter.Album(id))) },
                     onAddToQueueClick = {
                         mediaController.addToQueue(
                             items = spotifyTracks.value.mapNotNull {
                                 it.trackId?.let {
-                                    MediaController.QueueItemParameter.Track(it)
+                                    QueueItemParameter.Track(it)
                                 }
                             }
                         )
@@ -85,14 +86,14 @@ class AlbumDetails(
                     onTrackClick = { trackId ->
                         val tracks = spotifyTracks.value.mapNotNull { it.trackId }
                         mediaController.playQueue(
-                            queue = tracks.map { MediaController.QueueItemParameter.Track(it) },
+                            queue = tracks.map { QueueItemParameter.Track(it) },
                             queueItemIndex = tracks.indexOfFirst { it == trackId }
                         )
                     },
                     onArtistClick = showArtist,
                     onAddTrackToQueueClick = {
                         mediaController.addToQueue(
-                            listOf(MediaController.QueueItemParameter.Track(it))
+                            listOf(QueueItemParameter.Track(it))
                         )
                     },
                     onShowTrackDetailsClick = showTrack

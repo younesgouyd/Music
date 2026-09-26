@@ -1,6 +1,9 @@
 package dev.younesgouyd.apps.music.server.multiplatform.data
 
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.*
+import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.PlaylistTrack
+import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.SpotifyTrackRelation
+import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.TrackRelation
 
 fun Folder.toModel() = dev.younesgouyd.apps.music.common.models.Folder(
     id = id,

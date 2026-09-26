@@ -10,4 +10,4 @@ data class UnsetSpotifyTrackRpc(
     val trackId: TrackId,
     val spotifyTrackId: SpotifyTrackId,
     val spotifyAlbumId: SpotifyAlbumId
-) : Rpc()
+) : Rpc.ToServer()

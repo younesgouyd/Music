@@ -4,9 +4,9 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
 import dev.younesgouyd.apps.music.common.models.*
-import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.PlaylistTrack
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.Track
-import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.TrackRelation
+import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.PlaylistTrack
+import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.TrackRelation
 import kotlinx.coroutines.flow.Flow
 
 @Dao

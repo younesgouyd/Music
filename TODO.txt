@@ -1,4 +1,5 @@
 
+- limit file cache size in client.
 - implement hostnameVerifier in HttpClient engine config.
 - support seamless connection to the backend.
 - in Library, support dragging items into folders.

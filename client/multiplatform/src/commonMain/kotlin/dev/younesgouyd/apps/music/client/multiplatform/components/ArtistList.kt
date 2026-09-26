@@ -21,6 +21,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.util.LazilyLoadedItems
 import dev.younesgouyd.apps.music.client.multiplatform.util.PageSize
 import dev.younesgouyd.apps.music.common.models.Offset
 import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
+import dev.younesgouyd.apps.music.common.models.playback.QueueItemParameter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -64,8 +65,8 @@ class ArtistList(
                 scrollState = LazyGridState(),
                 onSearchQueryChange = { searchQuery.value = it },
                 onArtistClick = showArtistDetails,
-                onPlayArtistClick = { id: SpotifyArtistId -> mediaController.playQueue(listOf(MediaController.QueueItemParameter.Artist(id))) },
-                onAddArtistToQueueClick = { id: SpotifyArtistId -> mediaController.addToQueue(listOf(MediaController.QueueItemParameter.Artist(id))) }
+                onPlayArtistClick = { id: SpotifyArtistId -> mediaController.playQueue(listOf(QueueItemParameter.Artist(id))) },
+                onAddArtistToQueueClick = { id: SpotifyArtistId -> mediaController.addToQueue(listOf(QueueItemParameter.Artist(id))) }
             )
         }
     }
