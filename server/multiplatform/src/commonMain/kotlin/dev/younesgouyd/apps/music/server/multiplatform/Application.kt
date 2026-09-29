@@ -14,6 +14,7 @@ import io.ktor.network.tls.extensions.*
 import io.ktor.serialization.kotlinx.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.calllogging.*
@@ -22,7 +23,6 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
-import io.ktor.websocket.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +30,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.slf4j.event.Level
 import java.io.File
+import java.security.KeyStore
+import java.security.PrivateKey
 import java.security.cert.X509Certificate
 import javax.security.auth.x500.X500Principal
 import kotlin.time.Duration.Companion.seconds
@@ -75,6 +77,7 @@ class Application {
         // logs dir is set in logback.xml
         val dbDir = File(appDir, "database").also { it.mkdir() }
         val dbFile = File(dbDir, "younesmusic.db").also { if (!it.exists()) it.createNewFile() }
+        val keystoreFile = File(appDir, "keystore.p12")
         val spotifyDir = File(appDir, "spotify").also { it.mkdir() }
         val spotifyTokensFile = File(spotifyDir, "tokens.json").also { if (!it.exists()) it.createNewFile() }
         val spotifyCredentialsFile = File(spotifyDir, "credentials.json").also { if (!it.exists()) it.createNewFile() }
@@ -186,17 +189,56 @@ class Application {
         server = embeddedServer(
             factory = Netty,
             configure = {
-                val alias = "servercertificate"
-                val keyStorePassword = generatePassword()
-                val keyStore = buildKeyStore {
-                    certificate(alias) {
-                        hash = HashAlgorithm.SHA256
-                        sign = SignatureAlgorithm.RSA
-                        this.password = keyStorePassword
-                        subject = X500Principal("CN=localhost, O=Music, C=MA")
-                        daysValid = 3
-                        keySizeInBits = 2048
-                        keyType = KeyType.Server
+                val alias = "blabla"
+                val keyStorePassword = "123456789"
+                val passwordChars = keyStorePassword.toCharArray()
+                val keyStore: KeyStore = run {
+                    var loaded: KeyStore? = null
+                    if (keystoreFile.exists() && keystoreFile.length() > 0) {
+                        val loadedKeyStore = KeyStore.getInstance("PKCS12")
+                        keystoreFile.inputStream().use { input ->
+                            loadedKeyStore.load(input, passwordChars)
+                        }
+                        loaded = loadedKeyStore
+                    }
+                    val valid: Boolean = loaded?.let { loaded ->
+                        try {
+                            val cert = loaded.getCertificate(alias) as? X509Certificate
+                            cert?.checkValidity()
+                            cert != null
+                        } catch (_: Exception) {
+                            false
+                        }
+                    } ?: false
+                    if (valid) {
+                        loaded
+                    } else {
+                        val pkcs12KeyStore: KeyStore = run {
+                            val tempKeyStore: KeyStore = buildKeyStore {
+                                certificate(alias) {
+                                    hash = HashAlgorithm.SHA256
+                                    sign = SignatureAlgorithm.RSA
+                                    password = keyStorePassword
+                                    subject = X500Principal("CN=localhost, O=Music, C=MA")
+                                    daysValid = 3
+                                    keySizeInBits = 2048
+                                    keyType = KeyType.Server
+                                }
+                            }
+                            KeyStore.getInstance("PKCS12").apply {
+                                load(null, passwordChars)
+                                setKeyEntry(
+                                    /* alias = */ alias,
+                                    /* key = */ tempKeyStore.getKey(alias, passwordChars) as PrivateKey,
+                                    /* password = */ passwordChars,
+                                    /* chain = */ tempKeyStore.getCertificateChain(alias)
+                                )
+                            }
+                        }
+                        keystoreFile.outputStream().use { output ->
+                            pkcs12KeyStore.store(output, passwordChars)
+                        }
+                        pkcs12KeyStore
                     }
                 }
                 _certificateFingerprint.value = run {
@@ -238,58 +280,57 @@ class Application {
             }
             install(WebSockets) {
                 contentConverter = KotlinxWebsocketSerializationConverter(json)
-                pingPeriod = 15.seconds
-                timeout = 15.seconds
+                pingPeriod = 10.seconds
+                timeout = 10.seconds
+            }
+            install(Authentication) {
+                provider("custom-auth") {
+                    authenticate { context ->
+                        if (!context.call.verifyPassword(_password.value)) {
+                            context.call.respond(HttpStatusCode.Unauthorized, "Invalid or missing credentials")
+                        }
+                    }
+                }
             }
             routing {
-                route("/") {
-                    handle {
-                        if (!call.verifyPassword(_password.value)) {
-                            call.respond(HttpStatusCode.Unauthorized, "Invalid or missing credentials")
-                            return@handle
+                authenticate("custom-auth") {
+                    route("/") {
+                        handle {
+                            call.respond("music server")
                         }
-                        call.respond("music server")
                     }
-                }
-                webSocket("rpc") {
-                    if (!call.verifyPassword(_password.value)) {
-                        close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Invalid or missing credentials"))
-                        return@webSocket
-                    }
-                    val sessionId = Uuid.random()
-                    try {
-                        val client = Client(
-                            id = sessionId,
-                            session = this,
-                            repoStore = repoStore,
-                            mediaController = mediaController,
-                            ytDlp = ytDlp,
-                            spotify = spotify,
-                            unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
-                            setTrackMetadataFromSpotifyUseCase = setTrackMetadataFromSpotifyUseCase,
-                            clearImportItemUseCase = clearImportItemUseCase,
-                            deleteFolderUseCase = deleteFolderUseCase,
-                            prepareImportUseCase = prepareImportUseCase,
-                        )
-                        clientManager.register(client)
-                        client.connect()
-                    } finally {
-                        clientManager.remove(sessionId)
-                    }
-                }
-                route("files/{id}") {
-                    handle {
-                        if (!call.verifyPassword(_password.value)) {
-                            call.respond(HttpStatusCode.Unauthorized, "Invalid or missing credentials")
-                            return@handle
+                    webSocket("rpc") {
+                        val sessionId = Uuid.random()
+                        try {
+                            val client = Client(
+                                id = sessionId,
+                                session = this,
+                                repoStore = repoStore,
+                                mediaController = mediaController,
+                                ytDlp = ytDlp,
+                                spotify = spotify,
+                                unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
+                                setTrackMetadataFromSpotifyUseCase = setTrackMetadataFromSpotifyUseCase,
+                                clearImportItemUseCase = clearImportItemUseCase,
+                                deleteFolderUseCase = deleteFolderUseCase,
+                                prepareImportUseCase = prepareImportUseCase,
+                            )
+                            clientManager.register(client)
+                            client.connect()
+                        } finally {
+                            clientManager.remove(sessionId)
                         }
-                        val id = try {
-                            MediaFileId(call.parameters["id"]!!.toLong())
-                        } catch (_: Exception) {
-                            return@handle call.respond(HttpStatusCode.BadRequest)
+                    }
+                    route("files/{id}") {
+                        handle {
+                            val id = try {
+                                MediaFileId(call.parameters["id"]!!.toLong())
+                            } catch (_: Exception) {
+                                return@handle call.respond(HttpStatusCode.BadRequest)
+                            }
+                            val file = fileManager.getMediaFile(id)
+                            call.respondFile(file)
                         }
-                        val file = fileManager.getMediaFile(id)
-                        call.respondFile(file)
                     }
                 }
             }
@@ -306,12 +347,12 @@ class Application {
         logger.info { "--> Application::stop" }
         withContext(Dispatchers.IO) {
             _state.value = ServerState.Stopping
-            try { mediaController.release() } catch (e: Exception) { logger.error(e) {} }
-            try { server.stopSuspend(1000, 1000) } catch (e: Exception) { logger.error(e) {} }
-            try { importWorker.stop() } catch (e: Exception) { logger.error(e) {} }
-            try { ytDlp.close() } catch (e: Exception) { logger.error(e) {} }
-            try { spotify.close() } catch (e: Exception) { logger.error(e) {} }
-            try { database.close() } catch (e: Exception) { logger.error(e) {} }
+            try { mediaController.release() } catch (e: Throwable) { logger.error(e) {} }
+            try { server.stopSuspend(1000, 1000) } catch (e: Throwable) { logger.error(e) {} }
+            try { importWorker.stop() } catch (e: Throwable) { logger.error(e) {} }
+            try { ytDlp.close() } catch (e: Throwable) { logger.error(e) {} }
+            try { spotify.close() } catch (e: Throwable) { logger.error(e) {} }
+            try { database.close() } catch (e: Throwable) { logger.error(e) {} }
             _state.value = ServerState.Stopped
         }
         logger.info { "<-- Application::stop" }

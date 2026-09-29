@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import java.io.File
 import java.util.*
+import kotlin.system.exitProcess
 
 class Application {
     companion object {
@@ -38,7 +39,7 @@ class Application {
         }
     }
 
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private lateinit var mediaController: MediaController
     private lateinit var server: Server
@@ -51,28 +52,101 @@ class Application {
     private lateinit var prepareImportUseCase: PrepareImportUseCase
 
     private val loading = MutableStateFlow(false)
+    private val error: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val currentComponent: MutableStateFlow<Component> = MutableStateFlow(
         StartupScreen(
-            onStart = ::start,
-            loading = loading.asStateFlow()
+            onConnect = { serverIpAddr: String, serverFingerprint: String, password: String ->
+                coroutineScope.launch {
+                    try {
+                        loading.value = true
+                        val result = start(serverIpAddr, serverFingerprint, password)
+                        val err = result.exceptionOrNull()
+                        if (err != null) {
+                            logger.error(err) {}
+                            error.value = true
+                        } else {
+                            error.value = false
+                        }
+                        loading.value = false
+                    } catch (e: Throwable) {
+                        logger.error(e) {}
+                    }
+                }
+            },
+            loading = loading.asStateFlow(),
+            error = error.asStateFlow()
         )
     )
+    private val tempDir = File(appDir, "temp")
+    private val tempMediaFilesDir = File(tempDir, "media")
+    private val serverInfoDir = File(appDir, "server_info")
+    private val ipAddressFile = File(serverInfoDir, "ip_address.txt")
+    private val fingerprintFile = File(serverInfoDir, "fingerprint.txt")
+    private val passwordFile = File(serverInfoDir, "password.txt")
 
-    private fun start(
+    init {
+        coroutineScope.launch {
+            loading.value = true
+            var ipAddr = ""
+            var fng = ""
+            var pass = ""
+            withContext(Dispatchers.IO) {
+                appDir.mkdir()
+                tempDir.mkdir()
+                if (tempMediaFilesDir.exists()) { tempMediaFilesDir.deleteRecursively() }
+                tempMediaFilesDir.mkdir()
+                serverInfoDir.mkdir()
+                if (!ipAddressFile.exists()) ipAddressFile.createNewFile()
+                if (!fingerprintFile.exists()) fingerprintFile.createNewFile()
+                if (!passwordFile.exists()) passwordFile.createNewFile()
+                ipAddr = ipAddressFile.readText()
+                fng = fingerprintFile.readText()
+                pass = passwordFile.readText()
+            }
+            if (ipAddr.isNotBlank() && fng.isNotBlank() && pass.isNotBlank()) {
+                try {
+                    val result = start(ipAddr, fng, pass)
+                    val err = result.exceptionOrNull()
+                    if (err != null) {
+                        logger.error(err) {}
+                        error.value = true
+                    } else {
+                        error.value = false
+                    }
+                } catch (e: Throwable) {
+                    logger.error(e) {}
+                }
+            }
+            loading.value = false
+        }
+    }
+
+    private suspend fun start(
         serverIpAddr: String,
         serverFingerprint: String,
         password: String
-    ) {
-        coroutineScope.launch {
-            appDir.mkdir()
-            val tempDir = File(appDir, "temp").also { it.mkdir() }
-            val tempMediaFilesDir = File(tempDir, "media").also {
-                if (it.exists()) { it.deleteRecursively() }
-                it.mkdir()
+    ): Result<Unit> {
+        val disconnection = CompletableDeferred<Unit>()
+        val srvr = Server(serverIpAddr, serverFingerprint, password, tempMediaFilesDir, disconnection)
+        val disconnectionJob = coroutineScope.launch {
+            disconnection.await()
+            logger.debug { "disconnected!" }
+            clear()
+            exitProcess(1) // TODO
+        }
+        val rslt: Result<Unit> = runCatching { srvr.connect() }
+        if (rslt.isFailure) {
+            srvr.close()
+            disconnectionJob.cancel()
+            return rslt
+        } else {
+            withContext(Dispatchers.IO) {
+                logger.debug { "writing server info" }
+                ipAddressFile.writeText(serverIpAddr)
+                fingerprintFile.writeText(serverFingerprint)
+                passwordFile.writeText(password)
             }
-            server = Server(serverIpAddr, serverFingerprint, password, tempMediaFilesDir).apply {
-                connect() // TODO (this must be here before MediaController or any component that needs the server connected in it's init{} block)
-            }
+            server = srvr
             dev.younesgouyd.apps.music.client.multiplatform.components.util.server = server // TODO
             repoStore = RepoStore(server)
             unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(server)
@@ -81,6 +155,7 @@ class Application {
             deleteFolderUseCase = DeleteFolderUseCase(server)
             prepareImportUseCase = PrepareImportUseCase(server)
             mediaController = MediaController(server)
+            logger.debug { "updating to main component" }
             currentComponent.update {
                 it.clear()
                 Main(
@@ -93,6 +168,7 @@ class Application {
                     mediaController = mediaController,
                 )
             }
+            return Result.success(Unit)
         }
     }
 
@@ -104,10 +180,10 @@ class Application {
     }
 
     fun clear() {
-        try { currentComponent.value.clear() } catch (_: Exception) { }
-        try { mediaController.release() } catch (_: Exception) { }
-        try { runBlocking { server.close() } } catch (_: Exception) { }
-        try { coroutineScope.cancel() } catch (_: Exception) { }
+        try { currentComponent.value.clear() } catch (e: Throwable) { logger.error(e) {} }
+        try { mediaController.release() } catch (e: Throwable) { logger.error(e) {} }
+        try { runBlocking { server.close() } } catch (e: Throwable) { logger.error(e) {} }
+        try { coroutineScope.cancel() } catch (e: Throwable) { logger.error(e) {} }
     }
 
     fun navigateBack() {

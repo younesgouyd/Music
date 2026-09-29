@@ -16,6 +16,7 @@ import java.security.cert.X509Certificate
 import javax.net.ssl.SSLContext
 import javax.net.ssl.X509TrustManager
 import kotlin.io.encoding.Base64
+import kotlin.time.Duration.Companion.seconds
 
 fun createHttpClient(
     serverHost: String,
@@ -59,11 +60,13 @@ fun createHttpClient(
                 }
                 sslSocketFactory(sslContext.socketFactory, trustManager)
                 hostnameVerifier { _, _ -> true }
+                pingInterval(10.seconds)
             }
         }
         install(Logging) { level = LogLevel.HEADERS }
         install(WebSockets) {
             contentConverter = KotlinxWebsocketSerializationConverter(json)
+//            pingInterval = 15.seconds // here it's not supported with OkHttp engine, it is instead specified above in engine config
         }
         defaultRequest {
             url {

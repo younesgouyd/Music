@@ -37,6 +37,7 @@ kotlin {
             implementation(libs.ktor.server.contentNegotiation)
             implementation(libs.ktor.server.websockets)
             runtimeOnly(libs.ktor.server.tls)
+            implementation(libs.ktor.server.auth)
             implementation(libs.ktor.tlsCertificates)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.engine)

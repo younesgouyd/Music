@@ -35,7 +35,8 @@ class Server(
     private val serverHost: String,
     private val serverFingerprint: String,
     private val password: String,
-    private val tempDir: File
+    private val tempDir: File,
+    private val disconnection: CompletableDeferred<Unit>
 ) {
     suspend fun connect() {
         session = httpClient.webSocketSession {
@@ -47,22 +48,27 @@ class Server(
             }
         }
         with(session) {
-            launch {
+            val job = launch {
                 try {
                     while (isActive) {
                         val message = receiveDeserialized<WSMessage>()
                         handleIncomingMessage(message)
                     }
                 } catch (e: Throwable) {
-                    logger.error(e) { "FATAL EXCEPTION. DISCONNECTING..." }
+                    logger.error(e) {}
                     throw e
                 } finally {
                     jobs.values.forEach { it.cancel() }
                     jobs.clear()
                     responseChannels.values.forEach { it.close() }
                     responseChannels.clear()
-                    logger.debug { "cancelled all jobs" }
+                    logger.debug { "cancelled all jobs. signaling disconnection..." }
+                    disconnection.complete(Unit)
                 }
+            }
+            if (!job.isActive) {
+                logger.debug { "message collection job is not active. signaling disconnection..." }
+                disconnection.complete(Unit)
             }
         }
     }
@@ -82,7 +88,7 @@ class Server(
                 is WsResponse.Failure -> TODO()
             }
         } catch (e: CancellationException) {
-            logger.debug { "--> ::call | CancellationException, requesting server to cancel $correlationId corresponding to RPC: $rpcJson" }
+            logger.debug { "... ::call | CancellationException, requesting server to cancel $correlationId corresponding to RPC: $rpcJson" }
             requestCancel(correlationId)
             throw e
         } finally {
@@ -134,7 +140,7 @@ class Server(
     }
 
     suspend fun close() {
-        session.close()
+        try { session.close() } catch (_: Throwable) {}
         httpClient.close()
         httpClient.coroutineContext.job.join()
         fileCache.clear()

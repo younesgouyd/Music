@@ -31,7 +31,7 @@ fun main() {
                         MusicServerService.stop()
                     }
                 )
-            },
+            }
         )
     }
 }

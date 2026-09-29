@@ -103,6 +103,7 @@ dependencyResolutionManagement {
             library("ktor.server.sse", "io.ktor", "ktor-server-sse").version(versions.ktor)
             library("ktor.server.websockets", "io.ktor", "ktor-server-websockets").version(versions.ktor)
             library("ktor.server.tls", "io.ktor", "ktor-network-tls").version(versions.ktor)
+            library("ktor.server.auth", "io.ktor", "ktor-server-auth").version(versions.ktor)
             library("ktor.tlsCertificates", "io.ktor", "ktor-network-tls-certificates").version(versions.ktor)
             library("ktor.client.core", "io.ktor", "ktor-client-core").version(versions.ktor)
             library("ktor.client.engine", "io.ktor", "ktor-client-okhttp").version(versions.ktor)
