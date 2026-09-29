@@ -78,6 +78,7 @@ class Application {
         val dbDir = File(appDir, "database").also { it.mkdir() }
         val dbFile = File(dbDir, "younesmusic.db").also { if (!it.exists()) it.createNewFile() }
         val keystoreFile = File(appDir, "keystore.p12")
+        val passwordFile = File(appDir, "password.txt").also { if (!it.exists()) it.createNewFile() }
         val spotifyDir = File(appDir, "spotify").also { it.mkdir() }
         val spotifyTokensFile = File(spotifyDir, "tokens.json").also { if (!it.exists()) it.createNewFile() }
         val spotifyCredentialsFile = File(spotifyDir, "credentials.json").also { if (!it.exists()) it.createNewFile() }
@@ -185,7 +186,6 @@ class Application {
             transaction = database.prepareImportFromInternet()
         )
 
-        _password.value = generatePassword()
         server = embeddedServer(
             factory = Netty,
             configure = {
@@ -210,9 +210,18 @@ class Application {
                             false
                         }
                     } ?: false
+                    logger.debug { "valid: $valid" }
                     if (valid) {
+                        val pswrd = passwordFile.readText()
+                        _password.value = if (pswrd.isNotBlank()) pswrd else {
+                            val ps = generatePassword()
+                            passwordFile.writeText(ps)
+                            ps
+                        }
                         loaded
                     } else {
+                        val pswrd = generatePassword()
+                        _password.value = pswrd
                         val pkcs12KeyStore: KeyStore = run {
                             val tempKeyStore: KeyStore = buildKeyStore {
                                 certificate(alias) {
@@ -238,6 +247,7 @@ class Application {
                         keystoreFile.outputStream().use { output ->
                             pkcs12KeyStore.store(output, passwordChars)
                         }
+                        passwordFile.writeText(pswrd)
                         pkcs12KeyStore
                     }
                 }
