@@ -23,11 +23,9 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import org.slf4j.event.Level
 import java.io.File
 import java.security.KeyStore
@@ -39,15 +37,19 @@ import kotlin.uuid.Uuid
 
 class Application {
     val state get() = _state.asStateFlow()
+    val nsdStatus get() = _nsdStatus.asStateFlow()
+    val nsdServiceName get() = _nsdServiceName.asStateFlow()
     val certificateFingerprint get() = _certificateFingerprint.asStateFlow()
     val password get() = _password.asStateFlow()
 
     private val logger = KotlinLogging.logger {}
+    private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private lateinit var database: AppDatabase
     private lateinit var fileManager: FileManager
     private lateinit var clientManager: ClientManager
     private lateinit var repoStore: RepoStore
     private lateinit var mediaController: MediaController
+    private lateinit var mDnsAdvertiser: NsdAdvertiser
     private lateinit var ytDlp: YtDlp
     private lateinit var spotify: Spotify
 
@@ -62,6 +64,8 @@ class Application {
     private lateinit var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>
 
     private val _state: MutableStateFlow<ServerState> = MutableStateFlow(ServerState.Stopped)
+    private val _nsdStatus: MutableStateFlow<NsdStatus> = MutableStateFlow(NsdStatus.Idle)
+    private val _nsdServiceName: MutableStateFlow<String> = MutableStateFlow("")
     private val _certificateFingerprint: MutableStateFlow<String> = MutableStateFlow("")
     private val _password: MutableStateFlow<String> = MutableStateFlow("")
 
@@ -78,6 +82,7 @@ class Application {
         val dbDir = File(appDir, "database").also { it.mkdir() }
         val dbFile = File(dbDir, "younesmusic.db").also { if (!it.exists()) it.createNewFile() }
         val keystoreFile = File(appDir, "keystore.p12")
+        val nsdServiceNameFile = File(appDir, "nsdservicename.txt").also { if (!it.exists()) it.createNewFile() }
         val passwordFile = File(appDir, "password.txt").also { if (!it.exists()) it.createNewFile() }
         val spotifyDir = File(appDir, "spotify").also { it.mkdir() }
         val spotifyTokensFile = File(spotifyDir, "tokens.json").also { if (!it.exists()) it.createNewFile() }
@@ -86,7 +91,7 @@ class Application {
         database = createDatabaseInstance(dbFile)
         fileManager = FileManager(mediaDir)
 
-        runBlocking {
+        runBlocking(Dispatchers.IO) {
             if (database.settingDao().darkThemeExists() == null) {
                 val currentTime = System.currentTimeMillis()
                 database.settingDao().initDarkTheme(
@@ -185,7 +190,10 @@ class Application {
             fileManager = fileManager,
             transaction = database.prepareImportFromInternet()
         )
-
+        mDnsAdvertiser = NsdAdvertiser()
+        coroutineScope.launch {
+            mDnsAdvertiser.status.collect(_nsdStatus)
+        }
         server = embeddedServer(
             factory = Netty,
             configure = {
@@ -214,14 +222,22 @@ class Application {
                     if (valid) {
                         val pswrd = passwordFile.readText()
                         _password.value = if (pswrd.isNotBlank()) pswrd else {
-                            val ps = generatePassword()
-                            passwordFile.writeText(ps)
-                            ps
+                            val new = generatePassword()
+                            passwordFile.writeText(new)
+                            new
+                        }
+                        val nsdServiceName = nsdServiceNameFile.readText()
+                        _nsdServiceName.value = if (nsdServiceName.isNotBlank()) nsdServiceName else {
+                            val new = Uuid.random().toString()
+                            nsdServiceNameFile.writeText(new)
+                            new
                         }
                         loaded
                     } else {
                         val pswrd = generatePassword()
                         _password.value = pswrd
+                        val nsdServiceName = Uuid.random().toString()
+                        _nsdServiceName.value = nsdServiceName
                         val pkcs12KeyStore: KeyStore = run {
                             val tempKeyStore: KeyStore = buildKeyStore {
                                 certificate(alias) {
@@ -248,6 +264,7 @@ class Application {
                             pkcs12KeyStore.store(output, passwordChars)
                         }
                         passwordFile.writeText(pswrd)
+                        nsdServiceNameFile.writeText(nsdServiceName)
                         pkcs12KeyStore
                     }
                 }
@@ -348,6 +365,14 @@ class Application {
 
         server.start()
         importWorker.start()
+        runBlocking(Dispatchers.IO) {
+            val name = _nsdServiceName.value
+            if (name.isNotBlank()) {
+                mDnsAdvertiser.registerService(name)
+            } else {
+                logger.error { "NSD service name was not set" }
+            }
+        }
         _state.value = ServerState.Running
         logger.info { "<-- Application::start" }
     }
@@ -357,6 +382,7 @@ class Application {
         logger.info { "--> Application::stop" }
         withContext(Dispatchers.IO) {
             _state.value = ServerState.Stopping
+            try { mDnsAdvertiser.unregisterService() } catch (e: Throwable) { logger.error(e) {} }
             try { mediaController.release() } catch (e: Throwable) { logger.error(e) {} }
             try { server.stopSuspend(1000, 1000) } catch (e: Throwable) { logger.error(e) {} }
             try { importWorker.stop() } catch (e: Throwable) { logger.error(e) {} }

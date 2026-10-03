@@ -46,6 +46,8 @@ class MainActivity : ComponentActivity() {
             ) {
                 Ui(
                     serverStatus = MusicServerService.serverState,
+                    nsdStatus = MusicServerService.nsdStatus,
+                    nsdServiceName = MusicServerService.nsdServiceName,
                     certificateFingerprint = MusicServerService.certificateFingerprint.asStateFlow(),
                     password = MusicServerService.password.asStateFlow(),
                     onStartClick = {

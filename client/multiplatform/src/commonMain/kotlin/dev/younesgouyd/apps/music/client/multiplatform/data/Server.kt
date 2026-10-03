@@ -1,6 +1,5 @@
 package dev.younesgouyd.apps.music.client.multiplatform.data
 
-import dev.younesgouyd.apps.music.client.multiplatform.createHttpClient
 import dev.younesgouyd.apps.music.client.multiplatform.createMediaPlayer
 import dev.younesgouyd.apps.music.common.MediaPlayer
 import dev.younesgouyd.apps.music.common.json
@@ -11,11 +10,17 @@ import dev.younesgouyd.apps.music.common.models.rpc.websocket.WSMessage
 import dev.younesgouyd.apps.music.common.models.rpc.websocket.WsRequest
 import dev.younesgouyd.apps.music.common.models.rpc.websocket.WsResponse
 import dev.younesgouyd.apps.music.common.models.rpc.websocket.WsResponse.Done
+import dev.younesgouyd.apps.music.common.sha256Hash
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.client.*
+import io.ktor.client.engine.okhttp.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.logging.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.serialization.kotlinx.*
 import io.ktor.utils.io.CancellationException
 import io.ktor.utils.io.jvm.javaio.*
 import io.ktor.websocket.*
@@ -26,7 +31,13 @@ import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import java.io.File
+import java.security.SecureRandom
+import java.security.cert.CertificateException
+import java.security.cert.X509Certificate
 import java.util.concurrent.ConcurrentHashMap
+import javax.net.ssl.SSLContext
+import javax.net.ssl.X509TrustManager
+import kotlin.io.encoding.Base64
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
@@ -153,11 +164,60 @@ class Server(
     // TODO: find a way to make these private
     // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> PRIVATE MEMBER, DONT USE >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     val logger = KotlinLogging.logger {}
-    private val httpClient = createHttpClient(
-        serverHost = serverHost,
-        serverFingerprint = serverFingerprint,
-        password = password
-    )
+    private val httpClient = HttpClient(OkHttp) {
+        engine {
+            config {
+                val trustManager = object : X509TrustManager {
+                    override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+
+                    override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+                        verify(chain)
+                    }
+
+                    override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+
+                    @Suppress("unused")
+                    @Throws(CertificateException::class)
+                    fun checkServerTrusted(
+                        chain: Array<out X509Certificate>?,
+                        authType: String?,
+                        host: String?
+                    ): List<X509Certificate> {
+                        verify(chain)
+                        return chain?.filterNotNull() ?: emptyList()
+                    }
+
+                    private fun verify(chain: Array<out X509Certificate>?) {
+                        if (chain.isNullOrEmpty()) throw CertificateException("Empty certificate chain")
+                        val serverCert = chain[0]
+                        val actualFingerprint = serverCert.sha256Hash()
+                        if (!actualFingerprint.equals(serverFingerprint, ignoreCase = true)) {
+                            throw CertificateException("Certificate fingerprint mismatch! Expected: $serverFingerprint, Got: $actualFingerprint")
+                        }
+                    }
+                }
+                val sslContext = SSLContext.getInstance("TLSv1.3").apply {
+                    init(null, arrayOf(trustManager), SecureRandom())
+                }
+                sslSocketFactory(sslContext.socketFactory, trustManager)
+                hostnameVerifier { _, _ -> true }
+                pingInterval(10.seconds)
+            }
+        }
+        install(Logging) { level = LogLevel.HEADERS }
+        install(WebSockets) {
+            contentConverter = KotlinxWebsocketSerializationConverter(json)
+//            pingInterval = 15.seconds // here it's not supported with OkHttp engine, it is instead specified above in engine config
+        }
+        defaultRequest {
+            url {
+                protocol = URLProtocol.HTTPS
+                host = serverHost
+                port = 8443
+            }
+            header(HttpHeaders.Authorization, Base64.encode(password.encodeToByteArray()))
+        }
+    }
     private val fileCache = ConcurrentHashMap<MediaFileId, Deferred<File>>()
     @Volatile lateinit var session: DefaultClientWebSocketSession
     val responseChannels = ConcurrentHashMap<Uuid, SendChannel<WsResponse>>()

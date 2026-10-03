@@ -19,11 +19,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.serialization.json.Json
-import kotlin.io.encoding.Base64
 
 class StartupScreen(
     val onConnect: (
-        serverIpAddr: String,
+        nsdServiceName: String,
         serverFingerprint: String,
         password: String
     ) -> Unit,
@@ -52,7 +51,7 @@ class StartupScreen(
             data class Loaded(
                 val error: StateFlow<Boolean>,
                 val onConnectClick: (
-                    serverIpAddr: String,
+                    nsdServiceName: String,
                     serverFingerprint: String,
                     password: String
                 ) -> Unit
@@ -91,34 +90,34 @@ class StartupScreen(
 
         @Composable
         private fun Main(state: State.Loaded) {
-            var ipAddress by remember { mutableStateOf("") }
+            var nsdServiceName by remember { mutableStateOf("") }
             var fingerprint by remember { mutableStateOf("") }
             var password by remember { mutableStateOf("") }
-            var base64 by remember { mutableStateOf("") }
+            var json by remember { mutableStateOf("") }
             val error by state.error.collectAsState()
             var passwordVisible by remember { mutableStateOf(false) }
-            var base64Error by remember { mutableStateOf(false) }
+            var jsonError by remember { mutableStateOf(false) }
 
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedTextField(
-                    label = { Text("server ip address") },
-                    value = ipAddress,
-                    onValueChange = { ipAddress = it; base64 = "" },
+                    label = { Text("NSD service name") },
+                    value = nsdServiceName,
+                    onValueChange = { nsdServiceName = it; json = "" },
                     singleLine = true
                 )
                 OutlinedTextField(
                     label = { Text("server fingerprint") },
                     value = fingerprint,
-                    onValueChange = { fingerprint = it; base64 = "" },
+                    onValueChange = { fingerprint = it; json = "" },
                     singleLine = true
                 )
                 OutlinedTextField(
                     label = { Text("password") },
                     value = password,
-                    onValueChange = { password = it; base64 = "" },
+                    onValueChange = { password = it; json = "" },
                     singleLine = true,
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
@@ -130,29 +129,27 @@ class StartupScreen(
                     }
                 )
                 OutlinedTextField(
-                    label = { Text("base64") },
-                    value = base64,
+                    label = { Text("JSON") },
+                    value = json,
                     onValueChange = {
-                        base64 = it
+                        json = it
                         try {
-                            val some: ServerInfo = Json.decodeFromString(
-                                Base64.decode(it).decodeToString()
-                            )
-                            ipAddress = some.ipAddress
+                            val some: ServerInfo = Json.decodeFromString(it)
+                            nsdServiceName = some.nsdServiceName
                             fingerprint = some.certificateFingerprint
                             password = some.password
-                            base64Error = false
+                            jsonError = false
                         } catch (_: Exception) {
-                            base64Error = true
+                            jsonError = true
                         }
                     },
                     singleLine = true,
-                    isError = base64Error
+                    isError = jsonError
                 )
                 Button(
-                    enabled = ipAddress.isNotBlank() && fingerprint.isNotBlank() && password.isNotBlank(),
+                    enabled = nsdServiceName.isNotBlank() && fingerprint.isNotBlank() && password.isNotBlank(),
                     onClick = {
-                        state.onConnectClick(ipAddress, fingerprint, password)
+                        state.onConnectClick(nsdServiceName, fingerprint, password)
                     }
                 ) {
                     Text("Connect")

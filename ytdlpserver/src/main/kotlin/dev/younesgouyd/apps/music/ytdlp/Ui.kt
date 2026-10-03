@@ -17,7 +17,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.common.ServerState
-import dev.younesgouyd.apps.music.common.getLocalIpAddress
+import dev.younesgouyd.apps.music.common.getLocalInetAddress
 import dev.younesgouyd.apps.music.common.models.ServerInfo
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.Json
@@ -32,7 +32,7 @@ fun Ui(
     onStopClick: () -> Unit
 ) {
     val serverStatus by serverStatus.collectAsState()
-    val ipAddress by produceState("") { value = getLocalIpAddress() }
+    val ipAddress by produceState("") { value = getLocalInetAddress()?.hostAddress ?: "" }
     val certificateSignature by certificateSignature.collectAsState()
     val password by password.collectAsState()
     var passwordVisible by remember { mutableStateOf(false) }

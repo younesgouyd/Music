@@ -17,7 +17,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.common.ServerState
-import dev.younesgouyd.apps.music.common.getLocalIpAddress
 import dev.younesgouyd.apps.music.common.models.ServerInfo
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.Json
@@ -26,21 +25,22 @@ import kotlin.io.encoding.Base64
 @Composable
 fun Ui(
     serverStatus: StateFlow<ServerState>,
+    nsdStatus: StateFlow<NsdStatus>,
+    nsdServiceName: StateFlow<String>,
     certificateFingerprint: StateFlow<String>,
     password: StateFlow<String>,
     onStartClick: (YtDlpServerInfo) -> Unit,
     onStopClick: () -> Unit
 ) {
     val serverStatus by serverStatus.collectAsState()
-    val ipAddress by produceState("") { value = getLocalIpAddress() }
+    val nsdStatus by nsdStatus.collectAsState()
+    val nsdServiceName by nsdServiceName.collectAsState()
     val certificateFingerprint by certificateFingerprint.collectAsState()
     val password by password.collectAsState()
     var passwordVisible by remember { mutableStateOf(false) }
-    val base64Json = remember(ipAddress, certificateFingerprint, password) {
-        Base64.encode(
-            Json.encodeToString(
-                ServerInfo(ipAddress, certificateFingerprint, password)
-            ).encodeToByteArray()
+    val json = remember(nsdServiceName, certificateFingerprint, password) {
+        Json.encodeToString(
+            ServerInfo(nsdServiceName, certificateFingerprint, password)
         )
     }
     var ytDlpServerInfo by remember { mutableStateOf(YtDlpServerInfo.Empty) }
@@ -63,9 +63,15 @@ fun Ui(
                     Text("server status: ")
                     Text(serverStatus.toString())
                 }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("NSD service status: ")
+                    Text(nsdStatus.toString())
+                }
                 OutlinedTextField(
-                    label = { Text("ip address") },
-                    value = ipAddress,
+                    label = { Text("NSD service name") },
+                    value = nsdServiceName,
                     onValueChange = {},
                     readOnly = true,
                     singleLine = true
@@ -94,7 +100,7 @@ fun Ui(
                 )
                 OutlinedTextField(
                     label = { Text("base64") },
-                    value = base64Json,
+                    value = json,
                     onValueChange = {},
                     readOnly = true,
                     singleLine = true
@@ -186,7 +192,7 @@ private fun YtDlp(
                         val some: ServerInfo = Json.decodeFromString(
                             Base64.decode(it).decodeToString()
                         )
-                        ipAddress = some.ipAddress
+                        ipAddress = some.nsdServiceName
                         fingerprint = some.certificateFingerprint
                         password = some.password
                         onStateChange(YtDlpServerInfo(ipAddress, fingerprint, password))

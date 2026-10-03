@@ -1,5 +1,4 @@
 
-- support seamless connection to the server.
 - remember clients.
 - limit file cache size in client.
 - implement hostnameVerifier in HttpClient engine config.
@@ -18,6 +17,7 @@
 - implement sorting playlists/albums/folders.
 
 done:
+- support seamless connection to the server.
 - implement auth.
 - encrypt data in client-server communication.
 - check why when trying to launch system file picker on an old android os (android 10 if I remember), the app crashes.

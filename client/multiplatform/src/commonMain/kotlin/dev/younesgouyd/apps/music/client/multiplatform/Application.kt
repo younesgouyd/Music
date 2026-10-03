@@ -11,6 +11,8 @@ import dev.younesgouyd.apps.music.client.multiplatform.data.RepoStore
 import dev.younesgouyd.apps.music.client.multiplatform.data.Server
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.*
 import dev.younesgouyd.apps.music.client.multiplatform.util.Component
+import dev.younesgouyd.apps.music.common.getLocalInetAddress
+import dev.younesgouyd.apps.music.common.nsdServiceNameToServiceType
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +20,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import java.io.File
 import java.util.*
+import javax.jmdns.JmDNS
+import javax.jmdns.ServiceEvent
+import javax.jmdns.ServiceListener
+import kotlin.coroutines.resume
 import kotlin.system.exitProcess
+import kotlin.time.Duration.Companion.seconds
 
 class Application {
     companion object {
@@ -55,11 +62,11 @@ class Application {
     private val error: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val currentComponent: MutableStateFlow<Component> = MutableStateFlow(
         StartupScreen(
-            onConnect = { serverIpAddr: String, serverFingerprint: String, password: String ->
+            onConnect = { nsdServiceName: String, serverFingerprint: String, password: String ->
                 coroutineScope.launch {
                     try {
                         loading.value = true
-                        val result = start(serverIpAddr, serverFingerprint, password)
+                        val result = start(nsdServiceName, serverFingerprint, password)
                         val err = result.exceptionOrNull()
                         if (err != null) {
                             logger.error(err) {}
@@ -80,14 +87,14 @@ class Application {
     private val tempDir = File(appDir, "temp")
     private val tempMediaFilesDir = File(tempDir, "media")
     private val serverInfoDir = File(appDir, "server_info")
-    private val ipAddressFile = File(serverInfoDir, "ip_address.txt")
+    private val nsdServiceNameFile = File(serverInfoDir, "nsdservicename.txt")
     private val fingerprintFile = File(serverInfoDir, "fingerprint.txt")
     private val passwordFile = File(serverInfoDir, "password.txt")
 
     init {
         coroutineScope.launch {
             loading.value = true
-            var ipAddr = ""
+            var nsdServiceName = ""
             var fng = ""
             var pass = ""
             withContext(Dispatchers.IO) {
@@ -96,16 +103,16 @@ class Application {
                 if (tempMediaFilesDir.exists()) { tempMediaFilesDir.deleteRecursively() }
                 tempMediaFilesDir.mkdir()
                 serverInfoDir.mkdir()
-                if (!ipAddressFile.exists()) ipAddressFile.createNewFile()
+                if (!nsdServiceNameFile.exists()) nsdServiceNameFile.createNewFile()
                 if (!fingerprintFile.exists()) fingerprintFile.createNewFile()
                 if (!passwordFile.exists()) passwordFile.createNewFile()
-                ipAddr = ipAddressFile.readText()
+                nsdServiceName = nsdServiceNameFile.readText()
                 fng = fingerprintFile.readText()
                 pass = passwordFile.readText()
             }
-            if (ipAddr.isNotBlank() && fng.isNotBlank() && pass.isNotBlank()) {
+            if (nsdServiceName.isNotBlank() && fng.isNotBlank() && pass.isNotBlank()) {
                 try {
-                    val result = start(ipAddr, fng, pass)
+                    val result = start(nsdServiceName, fng, pass)
                     val err = result.exceptionOrNull()
                     if (err != null) {
                         logger.error(err) {}
@@ -122,12 +129,18 @@ class Application {
     }
 
     private suspend fun start(
-        serverIpAddr: String,
+        nsdServiceName: String,
         serverFingerprint: String,
         password: String
     ): Result<Unit> {
+        val serverIpAddress = try {
+            getServerIpAddress(nsdServiceName)
+        } catch (e: Throwable) {
+            logger.error(e) {}
+            return Result.failure(e)
+        }
         val disconnection = CompletableDeferred<Unit>()
-        val srvr = Server(serverIpAddr, serverFingerprint, password, tempMediaFilesDir, disconnection)
+        val srvr = Server(serverIpAddress, serverFingerprint, password, tempMediaFilesDir, disconnection)
         val disconnectionJob = coroutineScope.launch {
             disconnection.await()
             logger.debug { "disconnected!" }
@@ -142,7 +155,7 @@ class Application {
         } else {
             withContext(Dispatchers.IO) {
                 logger.debug { "writing server info" }
-                ipAddressFile.writeText(serverIpAddr)
+                nsdServiceNameFile.writeText(nsdServiceName)
                 fingerprintFile.writeText(serverFingerprint)
                 passwordFile.writeText(password)
             }
@@ -188,5 +201,45 @@ class Application {
 
     fun navigateBack() {
         backHandlers.lastOrNull()?.invoke()
+    }
+
+    private suspend fun getServerIpAddress(nsdServiceName: String): String {
+        return withContext(Dispatchers.IO) {
+            withTimeout(5.seconds) {
+                val jmDns = JmDNS.create(
+                    getLocalInetAddress() ?: throw IllegalStateException("Could not determine local InetAddress")
+                )
+                val serviceType = nsdServiceNameToServiceType(nsdServiceName)
+                suspendCancellableCoroutine { cont ->
+                    val listener = object : ServiceListener {
+                        override fun serviceAdded(event: ServiceEvent) {
+                            if (event.name == nsdServiceName) {
+                                jmDns.requestServiceInfo(event.type, event.name)
+                            }
+                        }
+                        override fun serviceResolved(event: ServiceEvent) {
+                            if (event.name == nsdServiceName) {
+                                val ipAddress = event.info.inet4Addresses.firstOrNull()?.hostAddress
+                                    ?: event.info.inetAddresses.firstOrNull { !it.isLinkLocalAddress }?.hostAddress
+                                    ?: event.info.hostAddresses.firstOrNull()
+                                if (ipAddress != null && cont.isActive) {
+                                    try {
+                                        jmDns.removeServiceListener(serviceType, this)
+                                    } catch (_: Exception) {}
+                                    cont.resume(ipAddress)
+                                }
+                            }
+                        }
+                        override fun serviceRemoved(event: ServiceEvent) {}
+                    }
+                    jmDns.addServiceListener(serviceType, listener)
+                    cont.invokeOnCancellation {
+                        try {
+                            jmDns.removeServiceListener(serviceType, listener)
+                        } catch (_: Exception) {}
+                    }
+                }
+            }
+        }
     }
 }
