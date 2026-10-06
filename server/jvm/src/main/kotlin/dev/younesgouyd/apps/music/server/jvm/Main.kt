@@ -22,8 +22,6 @@ fun main() {
             content = {
                 Ui(
                     serverStatus = MusicServerService.appState,
-                    nsdStatus = MusicServerService.nsdStatus,
-                    nsdServiceName = MusicServerService.nsdServiceName,
                     certificateFingerprint = MusicServerService.certificateFingerprint,
                     password = MusicServerService.password,
                     onStartClick = {
@@ -42,8 +40,6 @@ private object MusicServerService {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val app = Application()
     val appState = app.state
-    val nsdStatus = app.nsdStatus
-    val nsdServiceName = app.nsdServiceName
     val certificateFingerprint = app.certificateFingerprint
     val password = app.password
 

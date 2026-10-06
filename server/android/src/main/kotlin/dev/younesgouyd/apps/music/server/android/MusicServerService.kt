@@ -8,7 +8,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import dev.younesgouyd.apps.music.common.ServerState
 import dev.younesgouyd.apps.music.server.multiplatform.Application
-import dev.younesgouyd.apps.music.server.multiplatform.NsdStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,7 +21,7 @@ class MusicServerService : Service() {
     override fun onCreate() {
         super.onCreate()
         applicationContext.getSystemService<WifiManager>()
-            ?.createMulticastLock("MdnsLock")
+            ?.createMulticastLock("MusicServerService")
             ?.apply { acquire() }
         app = Application()
     }
@@ -40,12 +39,6 @@ class MusicServerService : Service() {
             }
             serviceScope.launch {
                 app.state.collect(serverState)
-            }
-            serviceScope.launch {
-                app.nsdStatus.collect(nsdStatus)
-            }
-            serviceScope.launch {
-                app.nsdServiceName.collect(nsdServiceName)
             }
             serviceScope.launch {
                 app.certificateFingerprint.collect(certificateFingerprint)
@@ -101,8 +94,6 @@ class MusicServerService : Service() {
         private const val ACTION_STOP = "dev.younesgouyd.apps.music.server.android.ACTION_STOP"
 
         val serverState = MutableStateFlow(ServerState.Stopped)
-        val nsdStatus = MutableStateFlow(NsdStatus.Idle)
-        val nsdServiceName = MutableStateFlow("")
         val certificateFingerprint = MutableStateFlow("")
         val password = MutableStateFlow("")
     }

@@ -31,7 +31,6 @@ kotlin {
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.client.contentNegotiation)
             implementation(libs.ktor.client.websockets)
-            implementation(libs.jmdns)
             implementation(libs.javacv)
             runtimeOnly(libs.ffmpeg)
         }

@@ -18,6 +18,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.common.ServerState
 import dev.younesgouyd.apps.music.common.models.ServerInfo
+import dev.younesgouyd.apps.music.common.models.YtDlpServerInfo
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.Json
 import kotlin.io.encoding.Base64
@@ -25,22 +26,18 @@ import kotlin.io.encoding.Base64
 @Composable
 fun Ui(
     serverStatus: StateFlow<ServerState>,
-    nsdStatus: StateFlow<NsdStatus>,
-    nsdServiceName: StateFlow<String>,
     certificateFingerprint: StateFlow<String>,
     password: StateFlow<String>,
     onStartClick: (YtDlpServerInfo) -> Unit,
     onStopClick: () -> Unit
 ) {
     val serverStatus by serverStatus.collectAsState()
-    val nsdStatus by nsdStatus.collectAsState()
-    val nsdServiceName by nsdServiceName.collectAsState()
     val certificateFingerprint by certificateFingerprint.collectAsState()
     val password by password.collectAsState()
     var passwordVisible by remember { mutableStateOf(false) }
-    val json = remember(nsdServiceName, certificateFingerprint, password) {
+    val json = remember(certificateFingerprint, password) {
         Json.encodeToString(
-            ServerInfo(nsdServiceName, certificateFingerprint, password)
+            ServerInfo(certificateFingerprint, password)
         )
     }
     var ytDlpServerInfo by remember { mutableStateOf(YtDlpServerInfo.Empty) }
@@ -63,19 +60,6 @@ fun Ui(
                     Text("server status: ")
                     Text(serverStatus.toString())
                 }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("NSD service status: ")
-                    Text(nsdStatus.toString())
-                }
-                OutlinedTextField(
-                    label = { Text("NSD service name") },
-                    value = nsdServiceName,
-                    onValueChange = {},
-                    readOnly = true,
-                    singleLine = true
-                )
                 OutlinedTextField(
                     label = { Text("certificate fingerprint") },
                     value = certificateFingerprint,
@@ -99,7 +83,7 @@ fun Ui(
                     }
                 )
                 OutlinedTextField(
-                    label = { Text("base64") },
+                    label = { Text("JSON") },
                     value = json,
                     onValueChange = {},
                     readOnly = true,
@@ -133,7 +117,6 @@ private fun YtDlp(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-//        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = MaterialTheme.shapes.large,
         tonalElevation = 8.dp
     ) {
@@ -189,11 +172,11 @@ private fun YtDlp(
                 onValueChange = {
                     base64 = it
                     try {
-                        val some: ServerInfo = Json.decodeFromString(
+                        val some: YtDlpServerInfo = Json.decodeFromString(
                             Base64.decode(it).decodeToString()
                         )
-                        ipAddress = some.nsdServiceName
-                        fingerprint = some.certificateFingerprint
+                        ipAddress = some.ipAddress
+                        fingerprint = some.serverFingerprint
                         password = some.password
                         onStateChange(YtDlpServerInfo(ipAddress, fingerprint, password))
                         base64Error = false

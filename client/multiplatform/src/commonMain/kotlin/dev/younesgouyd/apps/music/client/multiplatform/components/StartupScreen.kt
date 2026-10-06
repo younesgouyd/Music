@@ -22,7 +22,6 @@ import kotlinx.serialization.json.Json
 
 class StartupScreen(
     val onConnect: (
-        nsdServiceName: String,
         serverFingerprint: String,
         password: String
     ) -> Unit,
@@ -51,7 +50,6 @@ class StartupScreen(
             data class Loaded(
                 val error: StateFlow<Boolean>,
                 val onConnectClick: (
-                    nsdServiceName: String,
                     serverFingerprint: String,
                     password: String
                 ) -> Unit
@@ -90,7 +88,6 @@ class StartupScreen(
 
         @Composable
         private fun Main(state: State.Loaded) {
-            var nsdServiceName by remember { mutableStateOf("") }
             var fingerprint by remember { mutableStateOf("") }
             var password by remember { mutableStateOf("") }
             var json by remember { mutableStateOf("") }
@@ -102,12 +99,6 @@ class StartupScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedTextField(
-                    label = { Text("NSD service name") },
-                    value = nsdServiceName,
-                    onValueChange = { nsdServiceName = it; json = "" },
-                    singleLine = true
-                )
                 OutlinedTextField(
                     label = { Text("server fingerprint") },
                     value = fingerprint,
@@ -135,7 +126,6 @@ class StartupScreen(
                         json = it
                         try {
                             val some: ServerInfo = Json.decodeFromString(it)
-                            nsdServiceName = some.nsdServiceName
                             fingerprint = some.certificateFingerprint
                             password = some.password
                             jsonError = false
@@ -147,9 +137,9 @@ class StartupScreen(
                     isError = jsonError
                 )
                 Button(
-                    enabled = nsdServiceName.isNotBlank() && fingerprint.isNotBlank() && password.isNotBlank(),
+                    enabled = fingerprint.isNotBlank() && password.isNotBlank(),
                     onClick = {
-                        state.onConnectClick(nsdServiceName, fingerprint, password)
+                        state.onConnectClick(fingerprint, password)
                     }
                 ) {
                     Text("Connect")

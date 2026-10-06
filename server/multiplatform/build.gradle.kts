@@ -36,7 +36,6 @@ kotlin {
             implementation(libs.ktor.server.logging)
             implementation(libs.ktor.server.contentNegotiation)
             implementation(libs.ktor.server.websockets)
-            implementation(libs.jmdns)
             runtimeOnly(libs.ktor.server.tls)
             implementation(libs.ktor.server.auth)
             implementation(libs.ktor.tlsCertificates)

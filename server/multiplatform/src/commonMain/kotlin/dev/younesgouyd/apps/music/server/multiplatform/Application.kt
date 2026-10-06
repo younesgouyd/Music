@@ -2,6 +2,7 @@ package dev.younesgouyd.apps.music.server.multiplatform
 
 import dev.younesgouyd.apps.music.common.*
 import dev.younesgouyd.apps.music.common.models.MediaFileId
+import dev.younesgouyd.apps.music.common.models.YtDlpServerInfo
 import dev.younesgouyd.apps.music.server.multiplatform.data.FileManager
 import dev.younesgouyd.apps.music.server.multiplatform.data.RepoStore
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.AppDatabase
@@ -23,9 +24,11 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.slf4j.event.Level
 import java.io.File
 import java.security.KeyStore
@@ -37,19 +40,16 @@ import kotlin.uuid.Uuid
 
 class Application {
     val state get() = _state.asStateFlow()
-    val nsdStatus get() = _nsdStatus.asStateFlow()
-    val nsdServiceName get() = _nsdServiceName.asStateFlow()
     val certificateFingerprint get() = _certificateFingerprint.asStateFlow()
     val password get() = _password.asStateFlow()
 
     private val logger = KotlinLogging.logger {}
-    private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private lateinit var database: AppDatabase
     private lateinit var fileManager: FileManager
     private lateinit var clientManager: ClientManager
     private lateinit var repoStore: RepoStore
     private lateinit var mediaController: MediaController
-    private lateinit var mDnsAdvertiser: NsdAdvertiser
+    private lateinit var serverDiscoveryService: ServerDiscoveryService
     private lateinit var ytDlp: YtDlp
     private lateinit var spotify: Spotify
 
@@ -64,8 +64,6 @@ class Application {
     private lateinit var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>
 
     private val _state: MutableStateFlow<ServerState> = MutableStateFlow(ServerState.Stopped)
-    private val _nsdStatus: MutableStateFlow<NsdStatus> = MutableStateFlow(NsdStatus.Idle)
-    private val _nsdServiceName: MutableStateFlow<String> = MutableStateFlow("")
     private val _certificateFingerprint: MutableStateFlow<String> = MutableStateFlow("")
     private val _password: MutableStateFlow<String> = MutableStateFlow("")
 
@@ -82,7 +80,6 @@ class Application {
         val dbDir = File(appDir, "database").also { it.mkdir() }
         val dbFile = File(dbDir, "younesmusic.db").also { if (!it.exists()) it.createNewFile() }
         val keystoreFile = File(appDir, "keystore.p12")
-        val nsdServiceNameFile = File(appDir, "nsdservicename.txt").also { if (!it.exists()) it.createNewFile() }
         val passwordFile = File(appDir, "password.txt").also { if (!it.exists()) it.createNewFile() }
         val spotifyDir = File(appDir, "spotify").also { it.mkdir() }
         val spotifyTokensFile = File(spotifyDir, "tokens.json").also { if (!it.exists()) it.createNewFile() }
@@ -190,10 +187,7 @@ class Application {
             fileManager = fileManager,
             transaction = database.prepareImportFromInternet()
         )
-        mDnsAdvertiser = NsdAdvertiser()
-        coroutineScope.launch {
-            mDnsAdvertiser.status.collect(_nsdStatus)
-        }
+        serverDiscoveryService = ServerDiscoveryService()
         server = embeddedServer(
             factory = Netty,
             configure = {
@@ -220,30 +214,19 @@ class Application {
                     } ?: false
                     logger.debug { "valid: $valid" }
                     if (valid) {
-                        val pswrd = passwordFile.readText()
-                        _password.value = if (pswrd.isNotBlank()) pswrd else {
+                        _password.value = passwordFile.readText().ifBlank {
                             val new = generatePassword()
                             passwordFile.writeText(new)
                             new
                         }
-                        val nsdServiceName = nsdServiceNameFile.readText()
-                        _nsdServiceName.value = if (nsdServiceName.isNotBlank()) nsdServiceName else {
-                            val new = Uuid.random().toString()
-                            nsdServiceNameFile.writeText(new)
-                            new
-                        }
                         loaded
                     } else {
-                        val pswrd = generatePassword()
-                        _password.value = pswrd
-                        val nsdServiceName = Uuid.random().toString()
-                        _nsdServiceName.value = nsdServiceName
                         val pkcs12KeyStore: KeyStore = run {
                             val tempKeyStore: KeyStore = buildKeyStore {
                                 certificate(alias) {
                                     hash = HashAlgorithm.SHA256
                                     sign = SignatureAlgorithm.RSA
-                                    password = keyStorePassword
+                                    this.password = keyStorePassword // TODO
                                     subject = X500Principal("CN=localhost, O=Music, C=MA")
                                     daysValid = 3
                                     keySizeInBits = 2048
@@ -263,8 +246,11 @@ class Application {
                         keystoreFile.outputStream().use { output ->
                             pkcs12KeyStore.store(output, passwordChars)
                         }
-                        passwordFile.writeText(pswrd)
-                        nsdServiceNameFile.writeText(nsdServiceName)
+                        run { // values linked to the lifecycle of server certificate
+                            val password = generatePassword()
+                            passwordFile.writeText(password)
+                            _password.value = password
+                        }
                         pkcs12KeyStore
                     }
                 }
@@ -321,11 +307,6 @@ class Application {
             }
             routing {
                 authenticate("custom-auth") {
-                    route("/") {
-                        handle {
-                            call.respond("music server")
-                        }
-                    }
                     webSocket("rpc") {
                         val sessionId = Uuid.random()
                         try {
@@ -365,14 +346,7 @@ class Application {
 
         server.start()
         importWorker.start()
-        runBlocking(Dispatchers.IO) {
-            val name = _nsdServiceName.value
-            if (name.isNotBlank()) {
-                mDnsAdvertiser.registerService(name)
-            } else {
-                logger.error { "NSD service name was not set" }
-            }
-        }
+        serverDiscoveryService.start()
         _state.value = ServerState.Running
         logger.info { "<-- Application::start" }
     }
@@ -382,7 +356,7 @@ class Application {
         logger.info { "--> Application::stop" }
         withContext(Dispatchers.IO) {
             _state.value = ServerState.Stopping
-            try { mDnsAdvertiser.unregisterService() } catch (e: Throwable) { logger.error(e) {} }
+            try { serverDiscoveryService.stop() } catch (e: Throwable) { logger.error(e) {} }
             try { mediaController.release() } catch (e: Throwable) { logger.error(e) {} }
             try { server.stopSuspend(1000, 1000) } catch (e: Throwable) { logger.error(e) {} }
             try { importWorker.stop() } catch (e: Throwable) { logger.error(e) {} }

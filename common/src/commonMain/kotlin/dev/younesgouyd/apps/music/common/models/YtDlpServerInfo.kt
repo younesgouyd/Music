@@ -1,5 +1,8 @@
-package dev.younesgouyd.apps.music.server.multiplatform
+package dev.younesgouyd.apps.music.common.models
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class YtDlpServerInfo(
     val ipAddress: String,
     val serverFingerprint: String,

@@ -18,7 +18,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.common.ServerState
 import dev.younesgouyd.apps.music.common.getLocalInetAddress
-import dev.younesgouyd.apps.music.common.models.ServerInfo
+import dev.younesgouyd.apps.music.common.models.YtDlpServerInfo
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.Json
 import kotlin.io.encoding.Base64
@@ -39,7 +39,7 @@ fun Ui(
     val base64Json = remember(ipAddress, certificateSignature, password) {
         Base64.encode(
             Json.encodeToString(
-                ServerInfo(ipAddress, certificateSignature, password)
+                YtDlpServerInfo(ipAddress, certificateSignature, password)
             ).encodeToByteArray()
         )
     }

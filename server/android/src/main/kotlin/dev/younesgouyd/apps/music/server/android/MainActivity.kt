@@ -15,8 +15,8 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import dev.younesgouyd.apps.music.common.ServerState
+import dev.younesgouyd.apps.music.common.models.YtDlpServerInfo
 import dev.younesgouyd.apps.music.server.multiplatform.Ui
-import dev.younesgouyd.apps.music.server.multiplatform.YtDlpServerInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -46,8 +46,6 @@ class MainActivity : ComponentActivity() {
             ) {
                 Ui(
                     serverStatus = MusicServerService.serverState,
-                    nsdStatus = MusicServerService.nsdStatus,
-                    nsdServiceName = MusicServerService.nsdServiceName,
                     certificateFingerprint = MusicServerService.certificateFingerprint.asStateFlow(),
                     password = MusicServerService.password.asStateFlow(),
                     onStartClick = {
