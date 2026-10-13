@@ -28,6 +28,7 @@ kotlin {
             implementation(libs.serialization.json)
             implementation(libs.jsonJava)
             implementation(libs.coroutines.core)
+            implementation(libs.datetime)
             implementation(libs.room.runtime)
             implementation(libs.logging)
             implementation(libs.ktor.serialization)

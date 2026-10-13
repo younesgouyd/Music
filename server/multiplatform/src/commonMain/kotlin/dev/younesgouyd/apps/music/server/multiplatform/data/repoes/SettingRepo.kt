@@ -1,6 +1,5 @@
 package dev.younesgouyd.apps.music.server.multiplatform.data.repoes
 
-import dev.younesgouyd.apps.music.common.models.DarkThemeOptions
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.daos.SettingDao
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.Setting
 import kotlinx.coroutines.flow.Flow
@@ -8,47 +7,23 @@ import kotlinx.coroutines.flow.Flow
 class SettingRepo(
     private val dao: SettingDao
 ) {
-    // TODO
-    suspend fun init() {
+    object SettingName {
+        const val PASSWORD = "password"
+        const val YT_DLP_SERVER_INFO = "ytdlp_server_info"
     }
 
-    fun getDarkTheme(): Flow<Setting> {
-        return dao.getDarkTheme()
+    fun get(name: String): Flow<Setting?> {
+        return dao.get(name)
     }
 
-    fun getSpotifyClientId(): Flow<Setting> {
-        return dao.getSpotifyClientId()
+    suspend fun set(
+        name: String,
+        value: String
+    ) {
+        dao.set(name, value)
     }
 
-    fun getSpotifyClientSecret(): Flow<Setting> {
-        return dao.getSpotifyClientSecret()
-    }
-
-    fun getSpotifyAccessToken(): Flow<Setting> {
-        return dao.getSpotifyAccessToken()
-    }
-
-    fun getSpotifyTokenExpirationTime(): Flow<Setting> {
-        return dao.getSpotifyTokenExpirationTime()
-    }
-
-    fun getSpotifyTokenDatetime(): Flow<Setting> {
-        return dao.getSpotifyTokenDatetime()
-    }
-
-    suspend fun updateDarkTheme(theme: DarkThemeOptions) {
-        dao.updateDarkTheme(darkTheme = theme, System.currentTimeMillis())
-    }
-
-    suspend fun updateSpotifyCredentials(clientId: String, clientSecret: String) {
-        dao.updateSpotifyCredentials(clientId, clientSecret)
-    }
-
-    suspend fun updateSpotifyToken(accessToken: String, expirationTimeSeconds: String, creationDatetimeEpochSecond: String) {
-        dao.updateSpotifyToken(
-            accessToken = accessToken,
-            expirationTimeSeconds = expirationTimeSeconds,
-            creationDatetimeEpochSecond = creationDatetimeEpochSecond
-        )
+    suspend fun delete(name: String) {
+        dao.delete(name)
     }
 }

@@ -3,13 +3,11 @@ package dev.younesgouyd.apps.music.client.multiplatform.data
 import dev.younesgouyd.apps.music.client.multiplatform.createMediaPlayer
 import dev.younesgouyd.apps.music.common.MediaPlayer
 import dev.younesgouyd.apps.music.common.json
+import dev.younesgouyd.apps.music.common.models.ClientId
 import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.rpc.MediaPlayerRpc
 import dev.younesgouyd.apps.music.common.models.rpc.Rpc
-import dev.younesgouyd.apps.music.common.models.rpc.websocket.WSMessage
-import dev.younesgouyd.apps.music.common.models.rpc.websocket.WsRequest
-import dev.younesgouyd.apps.music.common.models.rpc.websocket.WsResponse
-import dev.younesgouyd.apps.music.common.models.rpc.websocket.WsResponse.Done
+import dev.younesgouyd.apps.music.common.models.rpc.WSMessage
 import dev.younesgouyd.apps.music.common.sha256Hash
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.*
@@ -46,16 +44,27 @@ class Server(
     private val serverHost: String,
     private val serverFingerprint: String,
     private val password: String,
+    private val clientIdFile: File,
     private val tempDir: File,
     private val disconnection: CompletableDeferred<Unit>
 ) {
+    @Volatile private var clientId: ClientId? = null
+
     suspend fun connect() {
+        if (clientId == null) {
+            withContext(Dispatchers.IO) {
+                try {
+                    clientId = ClientId(clientIdFile.readText().toLong())
+                } catch (_: Exception) {}
+            }
+        }
         session = httpClient.webSocketSession {
             url {
                 protocol = URLProtocol.WSS
                 host = serverHost
                 port = 8443
                 path("rpc")
+                clientId?.let { header("Client-ID", it.value.toString()) }
             }
         }
         with(session) {
@@ -86,17 +95,17 @@ class Server(
 
     suspend inline fun <reified T> call(rpc: Rpc): T {
         val correlationId = Uuid.random()
-        val channel = Channel<WsResponse>(Channel.CONFLATED)
+        val channel = Channel<WSMessage.Response>(Channel.CONFLATED)
         responseChannels[correlationId] = channel
         val rpcJson: String = json.encodeToString(rpc)
         try {
-            val request: WSMessage = WsRequest.Execute(correlationId, rpc)
+            val request: WSMessage = WSMessage.Request.Execute(correlationId, rpc)
             logger.debug { "... ::call | request: $correlationId , rpc: $rpcJson"}
             session.sendSerialized<WSMessage>(request)
             return when (val response = channel.receive()) {
-                is WsResponse.Done -> Unit as T
-                is WsResponse.Data -> json.decodeFromJsonElement<T>(response.value)
-                is WsResponse.Failure -> TODO()
+                is WSMessage.Response.Done -> Unit as T
+                is WSMessage.Response.Data -> json.decodeFromJsonElement<T>(response.value)
+                is WSMessage.Response.Failure -> TODO()
             }
         } catch (e: CancellationException) {
             logger.debug { "... ::call | CancellationException, requesting server to cancel $correlationId corresponding to RPC: $rpcJson" }
@@ -128,7 +137,9 @@ class Server(
                 val download = File(tempDir, "${key.value}_${Uuid.random()}.tmp")
                 try {
                     logger.debug { "--> ::getFile | downloading file $id" }
-                    httpClient.prepareGet("files/${key.value}").execute { response ->
+                    httpClient.prepareGet("files/${key.value}") {
+                        clientId?.let { header("Client-ID", it.value.toString()) }
+                    }.execute { response ->
                         download.outputStream().use { outStream ->
                             response.bodyAsChannel().toInputStream().use { inStream ->
                                 inStream.copyTo(outStream)
@@ -220,7 +231,7 @@ class Server(
     }
     private val fileCache = ConcurrentHashMap<MediaFileId, Deferred<File>>()
     @Volatile lateinit var session: DefaultClientWebSocketSession
-    val responseChannels = ConcurrentHashMap<Uuid, SendChannel<WsResponse>>()
+    val responseChannels = ConcurrentHashMap<Uuid, SendChannel<WSMessage.Response>>()
     private val jobs = ConcurrentHashMap<Uuid, Job>()
     val states = ConcurrentHashMap<Rpc, SharedFlow<Any?>>()
 
@@ -230,10 +241,16 @@ class Server(
         }
     }
 
-    private fun  DefaultClientWebSocketSession.handleIncomingMessage(message: WSMessage) {
+    private fun DefaultClientWebSocketSession.handleIncomingMessage(message: WSMessage) {
         when (message) {
-            is WsRequest -> when (message) {
-                is WsRequest.Execute -> {
+            is WSMessage.Registration -> {
+                launch(Dispatchers.IO) {
+                    clientIdFile.writeText(message.value.value.toString())
+                    clientId = message.value
+                }
+            }
+            is WSMessage.Request -> when (message) {
+                is WSMessage.Request.Execute -> {
                     jobs[message.correlationId]?.cancel() // TODO
                     jobs[message.correlationId] = launch {
                         try {
@@ -251,11 +268,11 @@ class Server(
                         }
                     }
                 }
-                is WsRequest.Cancel -> {
+                is WSMessage.Request.Cancel -> {
                     jobs.remove(message.correlationId)?.cancel()
                 }
             }
-            is WsResponse -> {
+            is WSMessage.Response -> {
                 responseChannels[message.correlationId]?.trySend(message)
             }
         }
@@ -264,7 +281,7 @@ class Server(
     fun requestCancel(id: Uuid) {
         session.launch {
             try {
-                val request: WSMessage = WsRequest.Cancel(id)
+                val request: WSMessage = WSMessage.Request.Cancel(id)
                 session.sendSerialized<WSMessage>(request)
             } catch (e: Exception) {
                 logger.error(e) { "::requestCancel | Cancellation Request $id failed" }
@@ -277,17 +294,17 @@ class Server(
             lateinit var sharedFlow: SharedFlow<T>
             sharedFlow = flow {
                 val correlationId = Uuid.random()
-                val channel = Channel<WsResponse>(Channel.CONFLATED)
+                val channel = Channel<WSMessage.Response>(Channel.CONFLATED)
                 responseChannels[correlationId] = channel
                 try {
-                    val request: WSMessage = WsRequest.Execute(correlationId, rpc)
+                    val request: WSMessage = WSMessage.Request.Execute(correlationId, rpc)
                     logger.debug { "... ::getOrCreateObservable | request: $correlationId , rpc: ${json.encodeToString(rpc)}"}
                     session.sendSerialized<WSMessage>(request)
                     for (state in channel) {
                         val parsed = when (state) {
-                            is WsResponse.Done -> TODO()
-                            is WsResponse.Data -> json.decodeFromJsonElement<T>(state.value)
-                            is WsResponse.Failure -> TODO()
+                            is WSMessage.Response.Done -> TODO()
+                            is WSMessage.Response.Data -> json.decodeFromJsonElement<T>(state.value)
+                            is WSMessage.Response.Failure -> TODO()
                         }
                         emit(parsed)
                     }
@@ -316,27 +333,27 @@ class Server(
                     }
                     is MediaPlayerRpc.SetTrack -> {
                         mediaPlayer.setTrack(rpc.id)
-                        sendSerialized<WSMessage>(Done(correlationId))
+                        sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                     }
                     is MediaPlayerRpc.Play -> {
                         mediaPlayer.play()
-                        sendSerialized<WSMessage>(Done(correlationId))
+                        sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                     }
                     is MediaPlayerRpc.Pause -> {
                         mediaPlayer.pause()
-                        sendSerialized<WSMessage>(Done(correlationId))
+                        sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                     }
                     is MediaPlayerRpc.Stop -> {
                         mediaPlayer.stop()
-                        sendSerialized<WSMessage>(Done(correlationId))
+                        sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                     }
                     is MediaPlayerRpc.SetTime -> {
                         mediaPlayer.setTime(rpc.timeMillis.milliseconds)
-                        sendSerialized<WSMessage>(Done(correlationId))
+                        sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                     }
                     is MediaPlayerRpc.SetState -> {
                         mediaPlayer.setState(rpc.value)
-                        sendSerialized<WSMessage>(Done(correlationId))
+                        sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                     }
                 }
             }
@@ -346,7 +363,7 @@ class Server(
     // TODO: make this private
     suspend inline fun <reified T> DefaultClientWebSocketSession.sendWsResponse(correlationId: Uuid, data: T) {
         sendSerialized<WSMessage>(
-            WsResponse.Data(
+            WSMessage.Response.Data(
                 correlationId = correlationId,
                 value = json.encodeToJsonElement<T>(data)
             )

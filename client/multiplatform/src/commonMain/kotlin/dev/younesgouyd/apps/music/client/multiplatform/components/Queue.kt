@@ -18,11 +18,11 @@ import dev.younesgouyd.apps.music.client.multiplatform.MediaController
 import dev.younesgouyd.apps.music.client.multiplatform.MediaControllerState
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.Artists
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.Image
-import dev.younesgouyd.apps.music.client.multiplatform.util.Component
 import dev.younesgouyd.apps.music.common.Platform
 import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
 import dev.younesgouyd.apps.music.common.models.playback.QueueItem
 import dev.younesgouyd.apps.music.common.platform
+import dev.younesgouyd.apps.music.common.ui.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch

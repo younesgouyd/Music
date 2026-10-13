@@ -2,7 +2,9 @@ package dev.younesgouyd.apps.music.server.multiplatform
 
 import dev.younesgouyd.apps.music.common.json
 import dev.younesgouyd.apps.music.common.models.Inspection
+import dev.younesgouyd.apps.music.common.models.YtDlpServerInfo
 import dev.younesgouyd.apps.music.common.sha256Hash
+import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.SettingRepo
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
@@ -15,9 +17,10 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.utils.io.jvm.javaio.*
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.job
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+import kotlinx.serialization.json.Json
+import okhttp3.internal.closeQuietly
 import java.io.InputStream
 import java.security.SecureRandom
 import java.security.cert.CertificateException
@@ -27,76 +30,67 @@ import javax.net.ssl.X509TrustManager
 import kotlin.io.encoding.Base64
 
 class YtDlp(
-    serverHost: String,
-    serverFingerprint: String,
-    password: String
+    settingRepo: SettingRepo
 ) {
-    private val client = HttpClient(OkHttp) {
-        engine {
-            config {
-                val trustManager = object : X509TrustManager {
-                    override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-                    override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
-                        verify(chain)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val client: StateFlow<HttpClient?> =
+        settingRepo.get(SettingRepo.SettingName.YT_DLP_SERVER_INFO)
+            .transformLatest { setting ->
+                val info: YtDlpServerInfo? = setting?.value?.let { Json.decodeFromString(it) }
+                if (info == null) {
+                    emit(null)
+                } else {
+                    val httpClient = HttpClient(OkHttp) {
+                        engine {
+                            config {
+                                val trustManager: X509TrustManager = TrustManager(info.serverFingerprint)
+                                val sslContext = SSLContext.getInstance("TLSv1.3").apply {
+                                    init(null, arrayOf(trustManager), SecureRandom())
+                                }
+                                sslSocketFactory(sslContext.socketFactory, trustManager)
+                                hostnameVerifier { _, _ -> true }
+                            }
+                        }
+                        install(Logging) { level = LogLevel.HEADERS }
+                        install(ContentNegotiation) { json(json) }
+                        install(SSE)
+                        install(HttpTimeout) {
+                            requestTimeoutMillis = 5*60*1000
+                            socketTimeoutMillis = 5*60*1000
+                        }
+                        defaultRequest {
+                            url {
+                                protocol = URLProtocol.HTTPS
+                                host = info.ipAddress
+                                port = 8443
+                                path("Magic/")
+                            }
+                            header(HttpHeaders.Authorization, Base64.encode(info.password.encodeToByteArray()))
+                        }
                     }
-
-                    override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
-
-                    @Suppress("unused")
-                    @Throws(CertificateException::class)
-                    fun checkServerTrusted(
-                        chain: Array<out X509Certificate>?,
-                        authType: String?,
-                        host: String?
-                    ): List<X509Certificate> {
-                        verify(chain)
-                        return chain?.filterNotNull() ?: emptyList()
-                    }
-
-                    private fun verify(chain: Array<out X509Certificate>?) {
-                        if (chain.isNullOrEmpty()) throw CertificateException("Empty certificate chain")
-                        val serverCert = chain[0]
-                        val actualFingerprint = serverCert.sha256Hash()
-                        if (!actualFingerprint.equals(serverFingerprint, ignoreCase = true)) {
-                            throw CertificateException("Certificate fingerprint mismatch! Expected: $serverFingerprint, Got: $actualFingerprint")
+                    try {
+                        emit(httpClient)
+                        awaitCancellation()
+                    } finally {
+                        withContext(NonCancellable) {
+                            httpClient.closeQuietly()
+                            httpClient.coroutineContext.job.join()
                         }
                     }
                 }
-                val sslContext = SSLContext.getInstance("TLSv1.3").apply {
-                    init(null, arrayOf(trustManager), SecureRandom())
-                }
-                sslSocketFactory(sslContext.socketFactory, trustManager)
-                hostnameVerifier { _, _ -> true }
-            }
-        }
-        install(Logging) { level = LogLevel.HEADERS }
-        install(ContentNegotiation) { json(json) }
-        install(SSE)
-        install(HttpTimeout) {
-            requestTimeoutMillis = 5*60*1000
-            socketTimeoutMillis = 5*60*1000
-        }
-        defaultRequest {
-            url {
-                protocol = URLProtocol.HTTPS
-                host = serverHost
-                port = 8443
-                path("Magic/")
-            }
-            header(HttpHeaders.Authorization, Base64.encode(password.encodeToByteArray()))
-        }
-    }
+            }.stateIn(coroutineScope, SharingStarted.Eagerly, null)
 
     suspend fun inspect(url: String): Inspection {
-        return client.get("inspect") {
+        return client.value!!.get("inspect") {
             parameter("url", url)
         }.body<Inspection>()
     }
 
     fun download(url: String): Flow<String> {
         return flow {
-            client.sse(
+            client.value!!.sse(
                 urlString = "download",
                 request = { parameter("url", url) }
             ) {
@@ -108,7 +102,7 @@ class YtDlp(
     }
 
     suspend fun getResult(): Pair<String, InputStream> {
-        val response = client.get("getResult")
+        val response = client.value!!.get("getResult")
         val stream = response.bodyAsChannel().toInputStream()
         val filename = response.headers[HttpHeaders.ContentDisposition]!!
             .substringAfter("filename=\"")
@@ -117,7 +111,44 @@ class YtDlp(
     }
 
     suspend fun close() {
-        client.close()
-        client.coroutineContext.job.join()
+        val client = client.value
+        if (client != null) {
+            client.closeQuietly()
+            client.coroutineContext.job.join()
+        }
+    }
+
+    @Suppress("CustomX509TrustManager")
+    private class TrustManager(
+        private val certificateFingerprint: String
+    ) : X509TrustManager {
+        @Suppress("TrustAllX509TrustManager")
+        override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+
+        override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+            verify(chain)
+        }
+
+        override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+
+        @Suppress("unused")
+        @Throws(CertificateException::class)
+        fun checkServerTrusted(
+            chain: Array<out X509Certificate>?,
+            authType: String?,
+            host: String?
+        ): List<X509Certificate> {
+            verify(chain)
+            return chain?.filterNotNull() ?: emptyList()
+        }
+
+        private fun verify(chain: Array<out X509Certificate>?) {
+            if (chain.isNullOrEmpty()) throw CertificateException("Empty certificate chain")
+            val serverCert = chain[0]
+            val actualFingerprint = serverCert.sha256Hash()
+            if (!actualFingerprint.equals(certificateFingerprint, ignoreCase = true)) {
+                throw CertificateException("Certificate fingerprint mismatch! Expected: ${certificateFingerprint}, Got: $actualFingerprint")
+            }
+        }
     }
 }

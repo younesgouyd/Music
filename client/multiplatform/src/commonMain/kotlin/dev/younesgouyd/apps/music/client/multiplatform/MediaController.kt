@@ -1,6 +1,7 @@
 package dev.younesgouyd.apps.music.client.multiplatform
 
 import dev.younesgouyd.apps.music.client.multiplatform.data.Server
+import dev.younesgouyd.apps.music.common.models.ClientId
 import dev.younesgouyd.apps.music.common.models.playback.*
 import dev.younesgouyd.apps.music.common.models.rpc.MediaControllerRpc
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -9,7 +10,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MediaController(
@@ -21,7 +21,7 @@ class MediaController(
 
     // UI STATE
     private val clients: StateFlow<List<Client>>
-    private val selectedClient: StateFlow<Uuid?>
+    private val selectedClient: StateFlow<ClientId?>
     private val enabled: StateFlow<Boolean>
     private val queue: StateFlow<List<QueueItem>>
     private val currentItemIndex: StateFlow<Int>
@@ -32,10 +32,9 @@ class MediaController(
     val state: StateFlow<MediaControllerState> get() = _state.asStateFlow()
 
     init {
-
         clients = server.observe<List<Client>>(MediaControllerRpc.ObserveAvailableState.Clients)
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
-        selectedClient = server.observe<Uuid?>(MediaControllerRpc.ObserveAvailableState.SelectedClient)
+        selectedClient = server.observe<ClientId?>(MediaControllerRpc.ObserveAvailableState.SelectedClient)
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
         enabled = server.observe<Boolean>(MediaControllerRpc.ObserveAvailableState.Enabled)
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), false)
@@ -88,7 +87,7 @@ class MediaController(
         }
     }
 
-    fun selectClient(id: Uuid) {
+    fun selectClient(id: ClientId) {
         coroutineScope.launch {
             mutex.withLock {
                 server.call<Unit>(MediaControllerRpc.SelectClient(id))

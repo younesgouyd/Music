@@ -1,12 +1,31 @@
 package dev.younesgouyd.apps.music.server.multiplatform
 
-import dev.younesgouyd.apps.music.common.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.common.generatePassword
+import dev.younesgouyd.apps.music.common.json
+import dev.younesgouyd.apps.music.common.models.ClientId
 import dev.younesgouyd.apps.music.common.models.MediaFileId
-import dev.younesgouyd.apps.music.common.models.YtDlpServerInfo
+import dev.younesgouyd.apps.music.common.models.rpc.WSMessage
+import dev.younesgouyd.apps.music.common.sha256Hash
+import dev.younesgouyd.apps.music.common.ui.Component
+import dev.younesgouyd.apps.music.common.verifyPassword
 import dev.younesgouyd.apps.music.server.multiplatform.data.FileManager
 import dev.younesgouyd.apps.music.server.multiplatform.data.RepoStore
+import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.SettingRepo
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.AppDatabase
 import dev.younesgouyd.apps.music.server.multiplatform.spotify.Spotify
+import dev.younesgouyd.apps.music.server.multiplatform.spotify.Spotify.Credentials
+import dev.younesgouyd.apps.music.server.multiplatform.spotify.Spotify.Token
 import dev.younesgouyd.apps.music.server.multiplatform.usecases.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.*
@@ -24,347 +43,368 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.Json
 import org.slf4j.event.Level
 import java.io.File
 import java.security.KeyStore
 import java.security.PrivateKey
 import java.security.cert.X509Certificate
+import java.util.concurrent.ConcurrentHashMap
 import javax.security.auth.x500.X500Principal
 import kotlin.time.Duration.Companion.seconds
-import kotlin.uuid.Uuid
 
-class Application {
-    val state get() = _state.asStateFlow()
-    val certificateFingerprint get() = _certificateFingerprint.asStateFlow()
-    val password get() = _password.asStateFlow()
+abstract class Application(appDir: File) {
+    companion object {
+        protected const val APP_DIR_NAME = "younesmusicserverdata"
+    }
 
     private val logger = KotlinLogging.logger {}
-    private lateinit var database: AppDatabase
-    private lateinit var fileManager: FileManager
-    private lateinit var clientManager: ClientManager
-    private lateinit var repoStore: RepoStore
-    private lateinit var mediaController: MediaController
-    private lateinit var serverDiscoveryService: ServerDiscoveryService
-    private lateinit var ytDlp: YtDlp
-    private lateinit var spotify: Spotify
+    private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    private lateinit var importWorker: ImportWorker
+    private val currentComponent: MutableStateFlow<Component> = MutableStateFlow(
+        object : Component() {
+            override val title: String get() = ""
 
-    private lateinit var unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase
-    private lateinit var setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase
-    private lateinit var clearImportItemUseCase: ClearImportItemUseCase
-    private lateinit var deleteFolderUseCase: DeleteFolderUseCase
-    private lateinit var prepareImportUseCase: PrepareImportUseCase
-
-    private lateinit var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>
-
-    private val _state: MutableStateFlow<ServerState> = MutableStateFlow(ServerState.Stopped)
-    private val _certificateFingerprint: MutableStateFlow<String> = MutableStateFlow("")
-    private val _password: MutableStateFlow<String> = MutableStateFlow("")
-
-    fun start(
-        homeDir: File,
-        ytDlpServerInfo: YtDlpServerInfo
-    ) {
-        if (_state.value == ServerState.Starting || _state.value == ServerState.Stopping) return
-        logger.info { "--> Application::start" }
-        _state.value = ServerState.Starting
-        val appDir = File(homeDir, "younesmusicserverdata").also { it.mkdir() }
-        val mediaDir = File(appDir, "media").also { it.mkdir() }
-        // logs dir is set in logback.xml
-        val dbDir = File(appDir, "database").also { it.mkdir() }
-        val dbFile = File(dbDir, "younesmusic.db").also { if (!it.exists()) it.createNewFile() }
-        val keystoreFile = File(appDir, "keystore.p12")
-        val passwordFile = File(appDir, "password.txt").also { if (!it.exists()) it.createNewFile() }
-        val spotifyDir = File(appDir, "spotify").also { it.mkdir() }
-        val spotifyTokensFile = File(spotifyDir, "tokens.json").also { if (!it.exists()) it.createNewFile() }
-        val spotifyCredentialsFile = File(spotifyDir, "credentials.json").also { if (!it.exists()) it.createNewFile() }
-
-        database = createDatabaseInstance(dbFile)
-        fileManager = FileManager(mediaDir)
-
-        runBlocking(Dispatchers.IO) {
-            if (database.settingDao().darkThemeExists() == null) {
-                val currentTime = System.currentTimeMillis()
-                database.settingDao().initDarkTheme(
-                    creationDatetime = currentTime,
-                    updateDatetime = currentTime
-                )
+            @Composable
+            override fun show(modifier: Modifier) {
+                AppThemeContainer {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator()
+                        Text("Please wait...")
+                    }
+                }
             }
-            if (database.settingDao().spotifyClientIdExists() == null) {
-                val currentTime = System.currentTimeMillis()
-                database.settingDao().initSpotifyClientId(
-                    creationDatetime = currentTime,
-                    updateDatetime = currentTime
-                )
-            }
-            if (database.settingDao().spotifyClientSecretExists() == null) {
-                val currentTime = System.currentTimeMillis()
-                database.settingDao().initSpotifyClientSecret(
-                    creationDatetime = currentTime,
-                    updateDatetime = currentTime
-                )
-            }
-            if (database.settingDao().spotifyAccessTokenExists() == null) {
-                val currentTime = System.currentTimeMillis()
-                database.settingDao().initSpotifyAccessToken(
-                    creationDatetime = currentTime,
-                    updateDatetime = currentTime
-                )
-            }
-            if (database.settingDao().spotifyTokenExpirationTimeExists() == null) {
-                val currentTime = System.currentTimeMillis()
-                database.settingDao().initSpotifyTokenExpirationTime(
-                    creationDatetime = currentTime,
-                    updateDatetime = currentTime
-                )
-            }
-            if (database.settingDao().spotifyTokenDatetimeExists() == null) {
-                val currentTime = System.currentTimeMillis()
-                database.settingDao().initSpotifyTokenDatetime(
-                    creationDatetime = currentTime,
-                    updateDatetime = currentTime
-                )
+
+            override fun clear() {
+                coroutineScope.cancel()
             }
         }
+    )
 
-        clientManager = ClientManager()
-        repoStore = RepoStore(database)
-        mediaController = MediaController(
-            mediaFileRepo = repoStore.mediaFileRepo,
-            trackRepo = repoStore.trackRepo,
-            artistRepo = repoStore.spotifyArtistRepo,
-            albumRepo = repoStore.spotifyAlbumRepo,
-            clientManager = clientManager
-        )
-
-        ytDlp = YtDlp(
-            serverHost = ytDlpServerInfo.ipAddress,
-            serverFingerprint = ytDlpServerInfo.serverFingerprint,
-            password = ytDlpServerInfo.password
-        )
-
-        spotify = Spotify(tokensFile = spotifyTokensFile, credentialsFile = spotifyCredentialsFile)
-
-        importWorker = ImportWorker(
-            importSessionRepo = repoStore.importSessionRepo,
-            importSessionItemRepo = repoStore.importSessionItemRepo,
-            transaction = database.importTrx(),
-            ytDlp = ytDlp,
-            fileManager = fileManager,
-        )
-
-        unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(
-            transaction = database.unsetSpotifyTrack(),
-            fileManager = fileManager
-        )
-        setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(
-            unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
-            trackRepo = repoStore.trackRepo,
-            spotifyAlbumRepo = repoStore.spotifyAlbumRepo,
-            transaction = database.setTrackMetadataFromSpotify(),
-            spotify = spotify,
-            fileManager = fileManager
-        )
-        clearImportItemUseCase = ClearImportItemUseCase(
-            unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
-            trackRepo = repoStore.trackRepo,
-            transaction = database.clearImportSessionItem(),
-            fileManager = fileManager
-        )
-        deleteFolderUseCase = DeleteFolderUseCase(
-            playlistRepo = repoStore.playlistRepo,
-            trackRepo = repoStore.trackRepo,
-            clearImportItemUseCase = clearImportItemUseCase,
-            folderRepo = repoStore.folderRepo
-        )
-        prepareImportUseCase = PrepareImportUseCase(
-            fileManager = fileManager,
-            transaction = database.prepareImportFromInternet()
-        )
-        serverDiscoveryService = ServerDiscoveryService()
-        server = embeddedServer(
-            factory = Netty,
-            configure = {
-                val alias = "blabla"
-                val keyStorePassword = "123456789"
-                val passwordChars = keyStorePassword.toCharArray()
-                val keyStore: KeyStore = run {
-                    var loaded: KeyStore? = null
-                    if (keystoreFile.exists() && keystoreFile.length() > 0) {
-                        val loadedKeyStore = KeyStore.getInstance("PKCS12")
-                        keystoreFile.inputStream().use { input ->
-                            loadedKeyStore.load(input, passwordChars)
-                        }
-                        loaded = loadedKeyStore
+    init {
+        coroutineScope.launch {
+            val mediaDir = File(appDir, "media")
+            // logs dir is set in logback.xml
+            val dbDir = File(appDir, "database")
+            val dbFile = File(dbDir, "younesmusic.db")
+            val keystoreFile = File(appDir, "keystore.p12")
+            withContext(Dispatchers.IO) {
+                mediaDir.mkdir()
+                // logs dir is set in logback.xml
+                dbDir.mkdir()
+                if (!dbFile.exists()) dbFile.createNewFile()
+                if (!keystoreFile.exists()) keystoreFile.createNewFile()
+            }
+            val database = createDatabaseInstance(dbFile)
+            val fileManager = FileManager(mediaDir)
+            val repoStore = RepoStore(database)
+            repoStore.clientSessionRepo.serverCrashUpdate()
+            val webSocketSessionHandlersMap = ConcurrentHashMap<ClientId, WebSocketSessionHandler>()
+            val websocketSessionHandlers = WebSocketSessionHandlers(webSocketSessionHandlersMap)
+            val mediaController = MediaController(
+                clientRepo = repoStore.clientRepo,
+                websocketSessionHandlers = websocketSessionHandlers,
+                mediaFileRepo = repoStore.mediaFileRepo,
+                trackRepo = repoStore.trackRepo,
+                artistRepo = repoStore.spotifyArtistRepo,
+                albumRepo = repoStore.spotifyAlbumRepo
+            )
+            val ytDlp = YtDlp(repoStore.settingRepo)
+            val spotify = Spotify(
+                credentialsSaver = object : Spotify.CredentialsSaver() {
+                    val settingName = "spotify_credentials"
+                    override suspend fun save(credentials: Credentials) {
+                        repoStore.settingRepo.set(settingName, Json.encodeToString(credentials))
                     }
-                    val valid: Boolean = loaded?.let { loaded ->
-                        try {
-                            val cert = loaded.getCertificate(alias) as? X509Certificate
-                            cert?.checkValidity()
-                            cert != null
-                        } catch (_: Exception) {
-                            false
+                    override suspend fun load(): Credentials? {
+                        val setting = repoStore.settingRepo.get(settingName).firstOrNull() ?: return null
+                        return Json.decodeFromString<Credentials>(setting.value)
+                    }
+                    override suspend fun clear() {
+                        repoStore.settingRepo.delete(settingName)
+                    }
+                },
+                tokenSaver = object : Spotify.TokenSaver() {
+                    private val settingName = "spotify_token"
+                    override suspend fun save(token: Token) {
+                        repoStore.settingRepo.set(settingName, Json.encodeToString(token))
+                    }
+                    override suspend fun load(): Token? {
+                        val setting = repoStore.settingRepo.get(settingName).firstOrNull() ?: return null
+                        return Json.decodeFromString<Token>(setting.value)
+                    }
+                    override suspend fun clear() {
+                        repoStore.settingRepo.delete(settingName)
+                    }
+                }
+            )
+            val importWorker = ImportWorker(
+                importSessionRepo = repoStore.importSessionRepo,
+                importSessionItemRepo = repoStore.importSessionItemRepo,
+                transaction = database.importTrx(),
+                ytDlp = ytDlp,
+                fileManager = fileManager,
+            )
+
+            val unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(
+                transaction = database.unsetSpotifyTrack(),
+                fileManager = fileManager
+            )
+            val setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(
+                unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
+                trackRepo = repoStore.trackRepo,
+                spotifyAlbumRepo = repoStore.spotifyAlbumRepo,
+                transaction = database.setTrackMetadataFromSpotify(),
+                spotify = spotify,
+                fileManager = fileManager
+            )
+            val clearImportItemUseCase = ClearImportItemUseCase(
+                unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
+                trackRepo = repoStore.trackRepo,
+                transaction = database.clearImportSessionItem(),
+                fileManager = fileManager
+            )
+            val deleteFolderUseCase = DeleteFolderUseCase(
+                playlistRepo = repoStore.playlistRepo,
+                trackRepo = repoStore.trackRepo,
+                clearImportItemUseCase = clearImportItemUseCase,
+                folderRepo = repoStore.folderRepo
+            )
+            val prepareImportUseCase = PrepareImportUseCase(
+                fileManager = fileManager,
+                transaction = database.prepareImportFromInternet()
+            )
+
+            // keystore, certificate fingerprint, password
+            val alias = "blabla"
+            val keyStorePassword = "123456789"
+            val keyStorePasswordChars = keyStorePassword.toCharArray()
+            val (keyStore: KeyStore, password: String, certificateFingerprint: String) = run {
+                var loaded: KeyStore? = null
+                if (keystoreFile.exists() && keystoreFile.length() > 0) {
+                    val loadedKeyStore = KeyStore.getInstance("PKCS12")
+                    keystoreFile.inputStream().use { input ->
+                        loadedKeyStore.load(input, keyStorePasswordChars)
+                    }
+                    loaded = loadedKeyStore
+                }
+                val valid: Boolean = loaded?.let { loaded ->
+                    try {
+                        val cert = loaded.getCertificate(alias) as? X509Certificate
+                        cert?.checkValidity()
+                        cert != null
+                    } catch (_: Exception) {
+                        false
+                    }
+                } ?: false
+                logger.debug { "valid: $valid" }
+                if (valid) {
+                    val password = repoStore.settingRepo.get(SettingRepo.SettingName.PASSWORD).first()?.value.let {
+                        if (it.isNullOrBlank()) {
+                            val pass = generatePassword()
+                            repoStore.settingRepo.set(SettingRepo.SettingName.PASSWORD, pass)
+                            pass
+                        } else {
+                            it
                         }
-                    } ?: false
-                    logger.debug { "valid: $valid" }
-                    if (valid) {
-                        _password.value = passwordFile.readText().ifBlank {
-                            val new = generatePassword()
-                            passwordFile.writeText(new)
-                            new
+                    }
+                    Triple(
+                        loaded,
+                        password,
+                        (loaded.getCertificate(alias) as X509Certificate).sha256Hash()
+                    )
+                } else {
+                    val pkcs12KeyStore: KeyStore = run {
+                        val tempKeyStore: KeyStore = buildKeyStore {
+                            certificate(alias) {
+                                hash = HashAlgorithm.SHA256
+                                sign = SignatureAlgorithm.RSA
+                                this.password = keyStorePassword // TODO
+                                subject = X500Principal("CN=localhost, O=Music, C=MA")
+                                daysValid = 3
+                                keySizeInBits = 2048
+                                keyType = KeyType.Server
+                            }
                         }
-                        loaded
-                    } else {
-                        val pkcs12KeyStore: KeyStore = run {
-                            val tempKeyStore: KeyStore = buildKeyStore {
-                                certificate(alias) {
-                                    hash = HashAlgorithm.SHA256
-                                    sign = SignatureAlgorithm.RSA
-                                    this.password = keyStorePassword // TODO
-                                    subject = X500Principal("CN=localhost, O=Music, C=MA")
-                                    daysValid = 3
-                                    keySizeInBits = 2048
-                                    keyType = KeyType.Server
+                        KeyStore.getInstance("PKCS12").apply {
+                            load(null, keyStorePasswordChars)
+                            setKeyEntry(
+                                /* alias = */ alias,
+                                /* key = */ tempKeyStore.getKey(alias, keyStorePasswordChars) as PrivateKey,
+                                /* password = */ keyStorePasswordChars,
+                                /* chain = */ tempKeyStore.getCertificateChain(alias)
+                            )
+                        }
+                    }
+                    keystoreFile.outputStream().use { output ->
+                        pkcs12KeyStore.store(output, keyStorePasswordChars)
+                    }
+                    Triple(
+                        pkcs12KeyStore,
+                        generatePassword().also {
+                            repoStore.settingRepo.set(SettingRepo.SettingName.PASSWORD, it)
+                        },
+                        (pkcs12KeyStore.getCertificate(alias) as X509Certificate).sha256Hash()
+                    )
+                }
+            }
+            // -----------------------------------------------
+
+            val serverDiscoveryService = ServerDiscoveryService()
+            val server = embeddedServer(
+                factory = Netty,
+                configure = {
+                    sslConnector(
+                        keyStore = keyStore,
+                        keyAlias = alias,
+                        keyStorePassword = { keyStorePasswordChars },
+                        privateKeyPassword = { keyStorePasswordChars }
+                    ) {
+                        port = 8443
+                        enabledProtocols = listOf("TLSv1.3")
+                    }
+                }
+            ) {
+                install(CallLogging) {
+                    level = Level.TRACE
+                    format { call ->
+                        val status = call.response.status()
+                        val httpMethod = call.request.httpMethod.value
+                        val userAgent = call.request.headers["User-Agent"]
+                        buildString {
+                            appendLine()
+                            appendLine("=================================================")
+                            appendLine("$httpMethod ${call.request.path()}")
+                            appendLine("Status: $status, User agent: $userAgent")
+                            appendLine("request headers: ")
+                            call.request.headers.forEach { name, values ->
+                                appendLine("  $name: ${values.joinToString(", ")}")
+                            }
+                            appendLine("=================================================")
+                        }
+                    }
+                }
+                install(ContentNegotiation) {
+                    json(json)
+                }
+                install(WebSockets) {
+                    contentConverter = KotlinxWebsocketSerializationConverter(json)
+                    pingPeriod = 10.seconds
+                    timeout = 10.seconds
+                }
+                install(Authentication) {
+                    provider("custom-auth") {
+                        authenticate { context ->
+                            if (!context.call.verifyPassword(password)) {
+                                context.call.respond(HttpStatusCode.Unauthorized, "Invalid or missing credentials")
+                            }
+                        }
+                    }
+                }
+                routing {
+                    authenticate("custom-auth") {
+                        val mutex = Mutex()
+                        webSocket("rpc") {
+                            val connectionDatetime = System.currentTimeMillis()
+                            val clientRepo = repoStore.clientRepo
+                            val sessionRepo = repoStore.clientSessionRepo
+                            val clientId: ClientId = run {
+                                val header = call.request.headers["Client-ID"]
+                                if (header != null) {
+                                    try {
+                                        ClientId(header.toLong())
+                                    } catch (_: Exception) {
+                                        logger.error { "received invalid client id" }
+                                        call.respond(HttpStatusCode.BadRequest, "invalid client id")
+                                        return@webSocket
+                                    }
+                                } else {
+                                    val id = clientRepo.add("", null)
+                                    sendSerialized<WSMessage>(WSMessage.Registration(id))
+                                    id
                                 }
                             }
-                            KeyStore.getInstance("PKCS12").apply {
-                                load(null, passwordChars)
-                                setKeyEntry(
-                                    /* alias = */ alias,
-                                    /* key = */ tempKeyStore.getKey(alias, passwordChars) as PrivateKey,
-                                    /* password = */ passwordChars,
-                                    /* chain = */ tempKeyStore.getCertificateChain(alias)
+                            val (sessionId, handler) = mutex.withLock {
+                                val isConnected = clientRepo.getConnected().first().any { it.id == clientId }
+                                if (isConnected) {
+                                    logger.error { "client $clientId is already connected" }
+                                    call.respond(HttpStatusCode.BadRequest, "already connected")
+                                    return@webSocket
+                                }
+                                val sessionId = sessionRepo.add(clientId, connectionDatetime)
+                                val handler = WebSocketSessionHandler(
+                                    clientId = clientId,
+                                    session = this,
+                                    repoStore = repoStore,
+                                    mediaController = mediaController,
+                                    ytDlp = ytDlp,
+                                    spotify = spotify,
+                                    unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
+                                    setTrackMetadataFromSpotifyUseCase = setTrackMetadataFromSpotifyUseCase,
+                                    clearImportItemUseCase = clearImportItemUseCase,
+                                    deleteFolderUseCase = deleteFolderUseCase,
+                                    prepareImportUseCase = prepareImportUseCase,
+                                )
+                                webSocketSessionHandlersMap[clientId] = handler
+                                sessionId to handler
+                            }
+                            try {
+                                handler.start()
+                            } finally {
+                                val disconnectionDatetime = System.currentTimeMillis()
+                                logger.debug { "handling session closure" }
+                                webSocketSessionHandlersMap.remove(clientId, handler)
+                                handler.close()
+                                logger.debug { "recording session closure time" }
+                                sessionRepo.webSocketDisconnectionUpdate(
+                                    id = sessionId,
+                                    disconnectionDatetime = disconnectionDatetime
                                 )
                             }
                         }
-                        keystoreFile.outputStream().use { output ->
-                            pkcs12KeyStore.store(output, passwordChars)
-                        }
-                        run { // values linked to the lifecycle of server certificate
-                            val password = generatePassword()
-                            passwordFile.writeText(password)
-                            _password.value = password
-                        }
-                        pkcs12KeyStore
-                    }
-                }
-                _certificateFingerprint.value = run {
-                    val cert = keyStore.getCertificate(alias) as? X509Certificate ?: error("Certificate with alias '$alias' not found in KeyStore.")
-                    cert.sha256Hash()
-                }
-                sslConnector(
-                    keyStore = keyStore,
-                    keyAlias = alias,
-                    keyStorePassword = { keyStorePassword.toCharArray() },
-                    privateKeyPassword = { keyStorePassword.toCharArray() }
-                ) {
-                    port = 8443
-                    enabledProtocols = listOf("TLSv1.3")
-                }
-            }
-        ) {
-            install(CallLogging) {
-                level = Level.TRACE
-                format { call ->
-                    val status = call.response.status()
-                    val httpMethod = call.request.httpMethod.value
-                    val userAgent = call.request.headers["User-Agent"]
-                    buildString {
-                        appendLine()
-                        appendLine("=================================================")
-                        appendLine("$httpMethod ${call.request.path()}")
-                        appendLine("Status: $status, User agent: $userAgent")
-                        appendLine("request headers: ")
-                        call.request.headers.forEach { name, values ->
-                            appendLine("  $name: ${values.joinToString(", ")}")
-                        }
-                        appendLine("=================================================")
-                    }
-                }
-            }
-            install(ContentNegotiation) {
-                json(json)
-            }
-            install(WebSockets) {
-                contentConverter = KotlinxWebsocketSerializationConverter(json)
-                pingPeriod = 10.seconds
-                timeout = 10.seconds
-            }
-            install(Authentication) {
-                provider("custom-auth") {
-                    authenticate { context ->
-                        if (!context.call.verifyPassword(_password.value)) {
-                            context.call.respond(HttpStatusCode.Unauthorized, "Invalid or missing credentials")
-                        }
-                    }
-                }
-            }
-            routing {
-                authenticate("custom-auth") {
-                    webSocket("rpc") {
-                        val sessionId = Uuid.random()
-                        try {
-                            val client = Client(
-                                id = sessionId,
-                                session = this,
-                                repoStore = repoStore,
-                                mediaController = mediaController,
-                                ytDlp = ytDlp,
-                                spotify = spotify,
-                                unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
-                                setTrackMetadataFromSpotifyUseCase = setTrackMetadataFromSpotifyUseCase,
-                                clearImportItemUseCase = clearImportItemUseCase,
-                                deleteFolderUseCase = deleteFolderUseCase,
-                                prepareImportUseCase = prepareImportUseCase,
-                            )
-                            clientManager.register(client)
-                            client.connect()
-                        } finally {
-                            clientManager.remove(sessionId)
-                        }
-                    }
-                    route("files/{id}") {
-                        handle {
-                            val id = try {
-                                MediaFileId(call.parameters["id"]!!.toLong())
-                            } catch (_: Exception) {
-                                return@handle call.respond(HttpStatusCode.BadRequest)
+                        route("files/{id}") {
+                            handle {
+                                val id = try {
+                                    MediaFileId(call.parameters["id"]!!.toLong())
+                                } catch (_: Exception) {
+                                    return@handle call.respond(HttpStatusCode.BadRequest)
+                                }
+                                val file = fileManager.getMediaFile(id)
+                                call.respondFile(file)
                             }
-                            val file = fileManager.getMediaFile(id)
-                            call.respondFile(file)
                         }
                     }
                 }
             }
-        }
+            server.start()
+            importWorker.start()
+            serverDiscoveryService.start()
 
-        server.start()
-        importWorker.start()
-        serverDiscoveryService.start()
-        _state.value = ServerState.Running
-        logger.info { "<-- Application::start" }
+            currentComponent.value = MainUi(
+                password = password,
+                certificateFingerprint = certificateFingerprint,
+                clientRepo = repoStore.clientRepo,
+                clientSessionRepo = repoStore.clientSessionRepo,
+                settingRepo = repoStore.settingRepo
+            )
+        }
     }
 
-    suspend fun stop() {
-        if (_state.value == ServerState.Stopping || _state.value == ServerState.Stopped) return
-        logger.info { "--> Application::stop" }
-        withContext(Dispatchers.IO) {
-            _state.value = ServerState.Stopping
-            try { serverDiscoveryService.stop() } catch (e: Throwable) { logger.error(e) {} }
-            try { mediaController.release() } catch (e: Throwable) { logger.error(e) {} }
-            try { server.stopSuspend(1000, 1000) } catch (e: Throwable) { logger.error(e) {} }
-            try { importWorker.stop() } catch (e: Throwable) { logger.error(e) {} }
-            try { ytDlp.close() } catch (e: Throwable) { logger.error(e) {} }
-            try { spotify.close() } catch (e: Throwable) { logger.error(e) {} }
-            try { database.close() } catch (e: Throwable) { logger.error(e) {} }
-            _state.value = ServerState.Stopped
-        }
-        logger.info { "<-- Application::stop" }
+    @Composable
+    fun show(modifier: Modifier) {
+        val currentComponent by currentComponent.collectAsState()
+
+        currentComponent.show(modifier.fillMaxSize())
     }
+
+    protected abstract fun createDatabaseInstance(dbFile: File): AppDatabase
 }

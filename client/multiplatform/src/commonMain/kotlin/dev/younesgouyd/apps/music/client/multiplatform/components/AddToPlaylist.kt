@@ -15,10 +15,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.Image
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.*
-import dev.younesgouyd.apps.music.client.multiplatform.util.Component
 import dev.younesgouyd.apps.music.client.multiplatform.util.LazilyLoadedItems
 import dev.younesgouyd.apps.music.client.multiplatform.util.PageSize
 import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.ui.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -305,7 +305,7 @@ class AddToPlaylist(
                                 item {
                                     var name by remember { mutableStateOf("") }
 
-                                    dev.younesgouyd.apps.music.client.multiplatform.components.util.Item(
+                                    dev.younesgouyd.apps.music.common.ui.Item(
                                         modifier = Modifier.padding(8.dp)
                                     ) {
                                         Row(
@@ -339,7 +339,7 @@ class AddToPlaylist(
                                     items = playlists,
                                     key = { it.id.value }
                                 ) { playlistOption ->
-                                    dev.younesgouyd.apps.music.client.multiplatform.components.util.Item(
+                                    dev.younesgouyd.apps.music.common.ui.Item(
                                         modifier = Modifier.padding(8.dp),
                                         onClick = {
                                             loaded.onDoneClick(

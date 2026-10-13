@@ -10,8 +10,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.SettingRepo
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.SpotifyAuthRepo
-import dev.younesgouyd.apps.music.client.multiplatform.util.Component
 import dev.younesgouyd.apps.music.common.models.DarkThemeOptions
+import dev.younesgouyd.apps.music.common.ui.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -30,7 +30,7 @@ class Settings(
     init {
         coroutineScope.launch {
             state.value = Ui.State.Loaded(
-                darkTheme = settingRepo.getDarkTheme().map { DarkThemeOptions.valueOf(it.value) }.stateIn(coroutineScope),
+                darkTheme = settingRepo.getDarkTheme().map { it?.value?.let { DarkThemeOptions.valueOf(it) } }.stateIn(coroutineScope),
                 spotifyState = spotifyState.asStateFlow(),
                 onDarkThemeChange = ::updateDarkTheme
             )

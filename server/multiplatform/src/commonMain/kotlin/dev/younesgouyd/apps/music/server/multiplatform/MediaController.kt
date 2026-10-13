@@ -1,13 +1,11 @@
 package dev.younesgouyd.apps.music.server.multiplatform
 
 import dev.younesgouyd.apps.music.common.MediaPlayer
+import dev.younesgouyd.apps.music.common.models.ClientId
 import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.playback.*
 import dev.younesgouyd.apps.music.common.models.rpc.MediaPlayerRpc
-import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.MediaFileRepo
-import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.SpotifyAlbumRepo
-import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.SpotifyArtistRepo
-import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.TrackRepo
+import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.*
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.TrackRelation
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
@@ -17,21 +15,21 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.time.Duration
-import kotlin.uuid.Uuid
 import dev.younesgouyd.apps.music.common.models.playback.Client as ClientModel
 
 class MediaController(
+    clientRepo: ClientRepo,
+    websocketSessionHandlers: WebSocketSessionHandlers,
     private val mediaFileRepo: MediaFileRepo,
     private val trackRepo: TrackRepo,
     private val artistRepo: SpotifyArtistRepo,
-    private val albumRepo: SpotifyAlbumRepo,
-    private val clientManager: ClientManager
+    private val albumRepo: SpotifyAlbumRepo
 ) {
     private val coroutineScope = CoroutineScope(Dispatchers.Default)
     private val mutex = Mutex()
     private val logger = KotlinLogging.logger {}
 
-    private val _selectedClient: MutableStateFlow<Uuid?> = MutableStateFlow(null)
+    private val _selectedClient: MutableStateFlow<ClientId?> = MutableStateFlow(null)
     private val _enabled: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val _queue: MutableStateFlow<List<QueueItem>> = MutableStateFlow(emptyList())
     private val _currentItemIndex: MutableStateFlow<Int> = MutableStateFlow(0)
@@ -39,13 +37,13 @@ class MediaController(
 
     private val _state: MutableStateFlow<MediaControllerGeneralState> = MutableStateFlow(MediaControllerGeneralState.Unavailable)
 
-    private val mediaPlayer: MediaPlayerImpl = MediaPlayerImpl()
+    private val mediaPlayer: MediaPlayerImpl = MediaPlayerImpl(websocketSessionHandlers)
 
-    val clients: StateFlow<List<ClientModel>> = clientManager.clients
-        .map { it.map { ClientModel(it.id) } }
+    val clients: StateFlow<List<ClientModel>> = clientRepo.getConnected()
+        .map { it.map { ClientModel(it.id, it.name, it.deviceType) } } // TODO
         .stateIn(coroutineScope, SharingStarted.Eagerly, emptyList())
 
-    val selectedClient: StateFlow<Uuid?> = _selectedClient.asStateFlow()
+    val selectedClient: StateFlow<ClientId?> = _selectedClient.asStateFlow()
     val enabled: StateFlow<Boolean> = _enabled.asStateFlow()
     val queue: StateFlow<List<QueueItem>> = _queue.asStateFlow()
     val currentItemIndex: StateFlow<Int> = _currentItemIndex.asStateFlow()
@@ -102,13 +100,13 @@ class MediaController(
         }
     }
 
-    fun selectClient(id: Uuid?) {
+    fun selectClient(id: ClientId?) {
         launchCommand {
             selectClientImpl(id)
         }
     }
 
-    fun playQueue(clientId: Uuid, queue: List<QueueItemParameter>, queueItemIndex: Int = 0) {
+    fun playQueue(clientId: ClientId, queue: List<QueueItemParameter>, queueItemIndex: Int = 0) {
         if (queue.isEmpty()) {
             logger.warn { "::playQueue | queue is empty" }
             return
@@ -138,7 +136,7 @@ class MediaController(
         }
     }
 
-    fun play(clientId: Uuid) {
+    fun play(clientId: ClientId) {
         launchCommand {
             if (!mediaPlayerState.value.isPlaying) {
                 if (_selectedClient.value == null) {
@@ -163,13 +161,13 @@ class MediaController(
         }
     }
 
-    fun next(clientId: Uuid) {
+    fun next(clientId: ClientId) {
         launchCommand {
             _next(clientId)
         }
     }
 
-    fun previous(clientId: Uuid) {
+    fun previous(clientId: ClientId) {
         launchCommand {
             var wasPlaying: Boolean? = null
             if (mediaPlayerState.value.isPlaying) {
@@ -207,7 +205,7 @@ class MediaController(
         }
     }
 
-    fun addToQueue(clientId: Uuid, items: List<QueueItemParameter>) {
+    fun addToQueue(clientId: ClientId, items: List<QueueItemParameter>) {
         launchCommand {
             if (_state.value == MediaControllerGeneralState.Unavailable) {
                 _state.value = MediaControllerGeneralState.Loading
@@ -231,7 +229,7 @@ class MediaController(
         }
     }
 
-    fun playItem(clientId: Uuid, index: Int) {
+    fun playItem(clientId: ClientId, index: Int) {
         launchCommand {
             if (mediaPlayerState.value.isPlaying) {
                 mediaPlayer.stop()
@@ -272,7 +270,7 @@ class MediaController(
         }
     }
 
-    fun removeItem(clientId: Uuid, key: Int) {
+    fun removeItem(clientId: ClientId, key: Int) {
         launchCommand {
             val toBeRemoved = _queue.value.indexOfFirst { it.key == key }
             _queue.update { queue ->
@@ -308,12 +306,12 @@ class MediaController(
         }
     }
 
-    private suspend fun selectClientImpl(id: Uuid?) {
-        mediaPlayer.setClient(id?.let { clientManager.get(it) })
+    private suspend fun selectClientImpl(id: ClientId?) {
+        mediaPlayer.setClient(id)
         _selectedClient.value = id
     }
 
-    private suspend fun playQueueImpl(clientId: Uuid, queue: List<QueueItemParameter>, queueItemIndex: Int = 0) {
+    private suspend fun playQueueImpl(clientId: ClientId, queue: List<QueueItemParameter>, queueItemIndex: Int = 0) {
         if (_selectedClient.value == null) {
             selectClientImpl(clientId)
         }
@@ -328,7 +326,7 @@ class MediaController(
         _currentItemIndex.value = queueItemIndex
     }
 
-    private suspend fun _next(clientId: Uuid?) {
+    private suspend fun _next(clientId: ClientId?) {
         if (_queue.value.isEmpty()) { TODO() }
         if (_selectedClient.value == null) {
             selectClientImpl(clientId)
@@ -429,26 +427,25 @@ class MediaController(
         mediaPlayer.release()
     }
 
-    private class MediaPlayerImpl : MediaPlayer() {
+    private class MediaPlayerImpl(
+        private val websocketSessionHandlers: WebSocketSessionHandlers
+    ) : MediaPlayer() {
         private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         private val logger = KotlinLogging.logger {}
         private val _state: MutableStateFlow<MediaPlayerState> = MutableStateFlow(MediaPlayerState.initial())
         @Volatile private var observeJob: Job? = null
-        @Volatile private var client: Client? = null
+        @Volatile private var client: WebSocketSessionHandler? = null
 
         override val state: StateFlow<MediaPlayerState> = _state.asStateFlow()
 
-        suspend fun setClient(client: Client?) {
+        suspend fun setClient(id: ClientId?) {
+            val client: WebSocketSessionHandler? = id?.let { websocketSessionHandlers.get(it) }
             observeJob?.cancelAndJoin()
             observeJob = null
             val previousState = _state.value
             val newStartPosition = previousState.positionMs
             try {
                 this.client?.call<Unit>(MediaPlayerRpc.Stop)
-            // this does not work as expected (handling CancellationException of this function)
-            // it seems if the websocket session is already closed it throws CancellationException, which is not desired in this case
-//            } catch (e: CancellationException) {
-//                throw e
             } catch (e: Exception) {
                 logger.error(e) { "could not stop playback in previous client" }
             }

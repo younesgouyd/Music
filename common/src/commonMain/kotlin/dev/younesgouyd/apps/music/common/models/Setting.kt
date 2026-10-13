@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Setting(
-    val id: SettingId,
+    val id: ClientSettingId,
     val name: String,
     val value: String,
     val creationDatetime: Long,

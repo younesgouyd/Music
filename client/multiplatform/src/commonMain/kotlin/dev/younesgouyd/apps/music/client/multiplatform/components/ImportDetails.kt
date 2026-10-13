@@ -12,16 +12,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.client.multiplatform.components.util.Image
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.formatted
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.ImportSessionItemRepo
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.ImportSessionRepo
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.ClearImportItemUseCase
-import dev.younesgouyd.apps.music.client.multiplatform.util.Component
 import dev.younesgouyd.apps.music.common.models.DbOrder
 import dev.younesgouyd.apps.music.common.models.ImportSessionId
 import dev.younesgouyd.apps.music.common.models.ImportSessionItem
 import dev.younesgouyd.apps.music.common.models.ImportSessionItemId
+import dev.younesgouyd.apps.music.common.ui.Component
+import dev.younesgouyd.apps.music.common.ui.Item
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -349,7 +351,7 @@ class ImportDetails(
             onClearClick: () -> Unit,
             onRetryClick: () -> Unit
         ) {
-            dev.younesgouyd.apps.music.client.multiplatform.components.util.Item(
+            Item(
                 modifier = modifier,
                 onClick = onClick,
                 contentPadding = PaddingValues(8.dp)
@@ -359,7 +361,7 @@ class ImportDetails(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    dev.younesgouyd.apps.music.client.multiplatform.components.util.Image(
+                    Image(
                         modifier = Modifier.size(64.dp).aspectRatio(1f),
                         file = item.image
                     )

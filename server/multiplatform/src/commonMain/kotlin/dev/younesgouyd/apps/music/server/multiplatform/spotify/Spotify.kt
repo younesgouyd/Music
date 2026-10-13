@@ -15,12 +15,9 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.job
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.io.File
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import javax.net.ssl.SSLContext
@@ -30,8 +27,8 @@ import kotlin.time.Clock
 typealias ApiRespJson = String
 
 class Spotify(
-    tokensFile: File,
-    credentialsFile: File
+    private val credentialsSaver: CredentialsSaver,
+    private val tokenSaver: TokenSaver
 ) {
     private val serializer = Json { ignoreUnknownKeys = true }
 
@@ -62,9 +59,6 @@ class Spotify(
         install(Logging) { level = LogLevel.ALL }
         install(ContentNegotiation) { json(Json) }
     }
-
-    private val tokenSaver = TokenSaver(tokensFile)
-    private val credentialsSaver = CredentialsSaver(credentialsFile)
 
     private val authRepo = AuthRepo(authClient, tokenSaver, credentialsSaver)
     private val albumRepo = AlbumRepo(client, serializer, authRepo::getToken)
@@ -116,48 +110,16 @@ class Spotify(
         authClient.coroutineContext.job.join()
     }
 
-    class CredentialsSaver(private val credentialsFile: File) {
-        suspend fun save(credentials: Credentials) {
-            withContext(Dispatchers.IO) {
-                credentialsFile.writeText(Json.encodeToString(credentials))
-            }
-        }
-
-        suspend fun load(): Credentials? {
-            return withContext(Dispatchers.IO) {
-                runCatching {
-                    Json.decodeFromString<Credentials>(credentialsFile.readText())
-                }.getOrNull()
-            }
-        }
-
-        suspend fun clear() {
-            withContext(Dispatchers.IO) {
-                credentialsFile.delete()
-            }
-        }
+    abstract class CredentialsSaver {
+        abstract suspend fun save(credentials: Credentials)
+        abstract suspend fun load(): Credentials?
+        abstract suspend fun clear()
     }
 
-    class TokenSaver(private val tokensFile: File) {
-        suspend fun save(token: Token) {
-            withContext(Dispatchers.IO) {
-                tokensFile.writeText(Json.encodeToString(token))
-            }
-        }
-
-        suspend fun load(): Token? {
-            return withContext(Dispatchers.IO) {
-                runCatching {
-                    Json.decodeFromString<Token>(tokensFile.readText())
-                }.getOrNull()
-            }
-        }
-
-        suspend fun clear() {
-            withContext(Dispatchers.IO) {
-                tokensFile.delete()
-            }
-        }
+    abstract class TokenSaver {
+        abstract suspend fun save(token: Token)
+        abstract suspend fun load(): Token?
+        abstract suspend fun clear()
     }
 
     @Serializable

@@ -30,6 +30,7 @@ dependencyResolutionManagement {
             val versions = object {
                 val java = version("java", "21")
                 val kotlin = "2.4.0"
+                val datetime = "0.8.0"
                 val serialization = "1.11.0"
                 val jsonJava = "20260522"
                 val coroutines = "1.11.0"
@@ -54,7 +55,6 @@ dependencyResolutionManagement {
                     val androidTargetSdk = version("androidTargetSdk", "36")
                     val coreKtx = "1.17.0"
                     val activity = "1.13.0"
-                    val startup = "1.2.0"
                 }
                 val javacv = "1.5.13"
                 val ffmpeg = "8.0.1-1.5.13"
@@ -82,6 +82,7 @@ dependencyResolutionManagement {
             library("coroutines.core", "org.jetbrains.kotlinx", "kotlinx-coroutines-core").version(versions.coroutines)
             library("coroutines.desktop", "org.jetbrains.kotlinx", "kotlinx-coroutines-swing").version(versions.coroutines)
             library("coroutines.android", "org.jetbrains.kotlinx", "kotlinx-coroutines-android").version(versions.coroutines)
+            library("datetime", "org.jetbrains.kotlinx", "kotlinx-datetime").version(versions.datetime)
 
             library("room.runtime", "androidx.room", "room-runtime").version(versions.room)
             library("room.compiler", "androidx.room", "room-compiler").version(versions.room)
@@ -114,7 +115,6 @@ dependencyResolutionManagement {
             library("android.coreKtx", "androidx.core", "core-ktx").version(versions.android.coreKtx)
             library("android.activityKtx", "androidx.activity", "activity-ktx").version(versions.android.activity)
             library("android.activityCompose", "androidx.activity", "activity-compose").version(versions.android.activity)
-            library("android.startup", "androidx.startup", "startup-runtime").version(versions.android.startup)
         }
     }
 }

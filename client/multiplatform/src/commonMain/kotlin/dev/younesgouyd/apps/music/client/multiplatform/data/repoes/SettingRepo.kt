@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 class SettingRepo(
     private val server: Server
 ) {
-    fun getDarkTheme(): Flow<Setting> {
+    fun getDarkTheme(): Flow<Setting?> {
         return server.observe(SettingRpc.GetDarkTheme)
     }
 

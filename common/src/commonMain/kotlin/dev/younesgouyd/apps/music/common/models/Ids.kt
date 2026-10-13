@@ -4,6 +4,30 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 @JvmInline
+value class ClientId(val value: Long) {
+    override fun toString(): String {
+        return value.toString()
+    }
+}
+
+@Serializable
+@JvmInline
+value class ClientSessionId(val value: Long) {
+    override fun toString(): String {
+        return value.toString()
+    }
+}
+
+@Serializable
+@JvmInline
+value class ClientSettingId(val value: Long) {
+    override fun toString(): String {
+        return value.toString()
+    }
+}
+
+@Serializable
+@JvmInline
 value class TrackId(val value: Long) {
     override fun toString(): String {
         return value.toString()

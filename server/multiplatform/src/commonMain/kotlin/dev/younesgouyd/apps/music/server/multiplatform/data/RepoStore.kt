@@ -4,6 +4,9 @@ import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.*
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.AppDatabase
 
 class RepoStore(database: AppDatabase) {
+    val clientRepo = ClientRepo(database.clientDao())
+    val clientSessionRepo = ClientSessionRepo(database.clientSessionDao())
+    val clientSettingRepo = ClientSettingRepo(database.clientSettingDao())
     val folderRepo = FolderRepo(database.folderDao())
     val playlistRepo = PlaylistRepo(database.playlistDao())
     val playlistTrackCrossRefRepo = PlaylistTrackCrossRefRepo(database.playlistTrackCrossRefDao())

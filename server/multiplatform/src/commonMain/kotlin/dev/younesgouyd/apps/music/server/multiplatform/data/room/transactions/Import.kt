@@ -11,7 +11,6 @@ import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.Import
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import java.io.InputStream
 
 @Dao
 abstract class Import {
@@ -20,9 +19,7 @@ abstract class Import {
         session: ImportSession,
         item: ImportSessionItem,
         ytDlp: YtDlp,
-        fileManager: FileManager,
-        getFileName: (uri: String) -> String,
-        getFileInputStream: (uri: String) -> InputStream
+        fileManager: FileManager
     ) {
         withContext(Dispatchers.IO) {
             val result: ImportResult? = import(

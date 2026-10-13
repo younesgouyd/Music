@@ -1,4 +1,4 @@
-package dev.younesgouyd.apps.music.client.multiplatform.components.util
+package dev.younesgouyd.apps.music.common.ui
 
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box

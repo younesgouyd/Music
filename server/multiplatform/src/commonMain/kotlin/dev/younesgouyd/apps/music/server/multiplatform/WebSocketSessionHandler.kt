@@ -1,11 +1,10 @@
 package dev.younesgouyd.apps.music.server.multiplatform
 
 import dev.younesgouyd.apps.music.common.json
+import dev.younesgouyd.apps.music.common.models.ClientId
 import dev.younesgouyd.apps.music.common.models.rpc.*
-import dev.younesgouyd.apps.music.common.models.rpc.websocket.WSMessage
-import dev.younesgouyd.apps.music.common.models.rpc.websocket.WsRequest
-import dev.younesgouyd.apps.music.common.models.rpc.websocket.WsResponse
 import dev.younesgouyd.apps.music.server.multiplatform.data.RepoStore
+import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.ClientSettingRepo
 import dev.younesgouyd.apps.music.server.multiplatform.data.toModel
 import dev.younesgouyd.apps.music.server.multiplatform.spotify.Spotify
 import dev.younesgouyd.apps.music.server.multiplatform.usecases.*
@@ -26,8 +25,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
-class Client(
-    val id: Uuid,
+class WebSocketSessionHandler(
+    val clientId: ClientId,
     val session: DefaultWebSocketServerSession,
     private val repoStore: RepoStore,
     private val mediaController: MediaController,
@@ -39,7 +38,7 @@ class Client(
     private val deleteFolderUseCase: DeleteFolderUseCase,
     private val prepareImportUseCase: PrepareImportUseCase
 ) {
-    suspend fun connect() {
+    suspend fun start() {
         with(session) {
             try {
                 while (isActive) {
@@ -51,24 +50,24 @@ class Client(
                 jobs.clear()
                 responseChannels.values.forEach { it.close() }
                 responseChannels.clear()
-                logger.debug { "client $id was disconnected" }
+                logger.debug { "client $clientId was disconnected" }
             }
         }
     }
 
     suspend inline fun <reified T> call(rpc: Rpc): T {
         val correlationId = Uuid.random()
-        val channel = Channel<WsResponse>(Channel.CONFLATED)
+        val channel = Channel<WSMessage.Response>(Channel.CONFLATED)
         responseChannels[correlationId] = channel
         val rpcJson: String = json.encodeToString(rpc)
         try {
-            val request: WSMessage = WsRequest.Execute(correlationId, rpc)
+            val request: WSMessage = WSMessage.Request.Execute(correlationId, rpc)
             logger.debug { "... ::call | request: $correlationId , rpc: $rpcJson"}
             session.sendSerialized<WSMessage>(request)
             return when (val response = channel.receive()) {
-                is WsResponse.Done -> Unit as T
-                is WsResponse.Data -> json.decodeFromJsonElement<T>(response.value)
-                is WsResponse.Failure -> TODO()
+                is WSMessage.Response.Done -> Unit as T
+                is WSMessage.Response.Data -> json.decodeFromJsonElement<T>(response.value)
+                is WSMessage.Response.Failure -> TODO()
             }
         } catch (e: CancellationException) {
             logger.debug { "... ::call | CancellationException, requesting client to cancel $correlationId corresponding to RPC: $rpcJson" }
@@ -100,10 +99,11 @@ class Client(
     // TODO: find a way to make the non-private private
     // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> PRIVATE MEMBER, DONT USE >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     val logger = KotlinLogging.logger {}
-    val responseChannels = ConcurrentHashMap<Uuid, SendChannel<WsResponse>>()
+    val responseChannels = ConcurrentHashMap<Uuid, SendChannel<WSMessage.Response>>()
     private val jobs = ConcurrentHashMap<Uuid, Job>()
     val streams = ConcurrentHashMap<Rpc, SharedFlow<Any?>>()
 
+    private val clientSettingRepo get() = repoStore.clientSettingRepo
     private val folderRepo get() = repoStore.folderRepo
     private val playlistRepo get() = repoStore.playlistRepo
     private val playlistTrackCrossRefRepo get() = repoStore.playlistTrackCrossRefRepo
@@ -113,15 +113,16 @@ class Client(
     private val importSessionItemRepo get() = repoStore.importSessionItemRepo
     private val tagRepo get() = repoStore.tagRepo
     private val tagTrackCrossRefRepo get() = repoStore.tagTrackCrossRefRepo
-    private val settingRepo get() = repoStore.settingRepo
     private val spotifyAlbumRepo get() = repoStore.spotifyAlbumRepo
     private val spotifyArtistRepo get() = repoStore.spotifyArtistRepo
     private val spotifyTrackRepo get() = repoStore.spotifyTrackRepo
 
     private fun DefaultWebSocketServerSession.handleIncomingMessage(message: WSMessage) {
+        logger.info { "--> ::handleIncomingMessage | message: $message" }
         when (message) {
-            is WsRequest -> when (message) {
-                is WsRequest.Execute -> {
+            is WSMessage.Registration -> { TODO() }
+            is WSMessage.Request -> when (message) {
+                is WSMessage.Request.Execute -> {
                     jobs[message.correlationId]?.cancel() // TODO
                     jobs[message.correlationId] = launch {
                         try {
@@ -139,11 +140,11 @@ class Client(
                         }
                     }
                 }
-                is WsRequest.Cancel -> {
+                is WSMessage.Request.Cancel -> {
                     jobs.remove(message.correlationId)?.cancel()
                 }
             }
-            is WsResponse -> {
+            is WSMessage.Response -> {
                 responseChannels[message.correlationId]?.trySend(message)
             }
         }
@@ -152,7 +153,7 @@ class Client(
     fun requestCancel(id: Uuid) {
         session.launch {
             try {
-                val request: WSMessage = WsRequest.Cancel(id)
+                val request: WSMessage = WSMessage.Request.Cancel(id)
                 session.sendSerialized<WSMessage>(request)
             } catch (e: Exception) {
                 logger.error(e) { "::requestCancel | Cancellation Request $id failed" }
@@ -165,17 +166,17 @@ class Client(
             lateinit var sharedFlow: SharedFlow<T>
             sharedFlow = flow {
                 val correlationId = Uuid.random()
-                val channel = Channel<WsResponse>(Channel.CONFLATED)
+                val channel = Channel<WSMessage.Response>(Channel.CONFLATED)
                 responseChannels[correlationId] = channel
                 try {
-                    val request: WSMessage = WsRequest.Execute(correlationId, rpc)
+                    val request: WSMessage = WSMessage.Request.Execute(correlationId, rpc)
                     logger.debug { "... ::getOrCreateObservable | request: $correlationId , rpc: ${json.encodeToString(rpc)}"}
                     session.sendSerialized<WSMessage>(request)
                     for (state in channel) {
                         val parsed = when (state) {
-                            is WsResponse.Done -> TODO()
-                            is WsResponse.Data -> json.decodeFromJsonElement<T>(state.value)
-                            is WsResponse.Failure -> TODO()
+                            is WSMessage.Response.Done -> TODO()
+                            is WSMessage.Response.Data -> json.decodeFromJsonElement<T>(state.value)
+                            is WSMessage.Response.Failure -> TODO()
                         }
                         emit(parsed)
                     }
@@ -204,7 +205,7 @@ class Client(
                 }
                 is FolderRpc.Delete -> {
                     folderRepo.delete(rpc.id)
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is FolderRpc.Get -> {
                     folderRepo.get(rpc.id)
@@ -228,14 +229,14 @@ class Client(
                         id = rpc.id,
                         name = rpc.name
                     )
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is FolderRpc.UpdateParentFolderId -> {
                     folderRepo.updateParentFolderId(
                         id = rpc.id,
                         parentFolderId = rpc.parentFolderId
                     )
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
             }
             is ImportSessionItemRpc -> when (rpc) {
@@ -258,7 +259,7 @@ class Client(
                         id = rpc.id,
                         state = rpc.state
                     )
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
             }
             is ImportSessionRpc -> when (rpc) {
@@ -281,7 +282,7 @@ class Client(
                     sendWsResponse(correlationId, result)
                 } catch (e: Throwable) {
                     logger.error(e) {}
-                    sendSerialized<WSMessage>(WsResponse.Failure(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Failure(correlationId))
                 }
             }
             is MediaFileRpc -> when (rpc) {
@@ -354,18 +355,18 @@ class Client(
                         id = rpc.id,
                         name = rpc.name
                     )
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is PlaylistRpc.UpdateFolderId -> {
                     playlistRepo.updateFolderId(
                         id = rpc.id,
                         folderId = rpc.folderId
                     )
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is PlaylistRpc.Delete -> {
                     playlistRepo.delete(rpc.id)
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
             }
             is PlaylistTrackCrossRefRpc -> when (rpc) {
@@ -381,7 +382,7 @@ class Client(
                         playlistId = rpc.playlistId,
                         trackId = rpc.trackId
                     )
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is PlaylistTrackCrossRefRpc.ChangeItemPosition -> {
                     playlistTrackCrossRefRepo.changeItemPosition(
@@ -389,25 +390,26 @@ class Client(
                         from = rpc.from,
                         to = rpc.to
                     )
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is PlaylistTrackCrossRefRpc.Delete -> {
                     playlistTrackCrossRefRepo.delete(
                         playlistId = rpc.playlistId,
                         trackId = rpc.trackId
                     )
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
             }
             is SettingRpc -> when (rpc) {
                 is SettingRpc.GetDarkTheme -> {
-                    settingRepo.getDarkTheme()
-                        .map { it.toModel() }
+                    clientSettingRepo.get(clientId, ClientSettingRepo.SettingName.DARK_MODE)
+                        .map { it?.toModel() }
                         .collect { sendWsResponse(correlationId, it) }
                 }
                 is SettingRpc.UpdateDarkTheme -> {
-                    settingRepo.updateDarkTheme(rpc.theme)
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    logger.debug { "::process | updating dark mode" }
+                    clientSettingRepo.set(clientId, ClientSettingRepo.SettingName.DARK_MODE, rpc.theme.name)
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
             }
             is SpotifyAlbumRpc -> when (rpc) {
@@ -460,11 +462,11 @@ class Client(
                         clientId = rpc.clientId,
                         clientSecret = rpc.clientSecret
                     )
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is SpotifyAuthRpc.Deauthorize -> {
                     spotify.deauthorize()
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
             }
             is SpotifySearchRpc.Search -> {
@@ -510,23 +512,23 @@ class Client(
                 }
                 is TagRpc.Add -> {
                     tagRepo.add(rpc.name)
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
 
                 is TagRpc.Delete -> {
                     tagRepo.delete(rpc.id)
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
             }
             is TagTrackCrossRefRpc -> when (rpc) {
                 is TagTrackCrossRefRpc.Add -> {
                     tagTrackCrossRefRepo.add(rpc.tagId, rpc.trackId)
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
 
                 is TagTrackCrossRefRpc.Delete -> {
                     tagTrackCrossRefRepo.delete(rpc.tagId, rpc.trackId)
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
             }
             is TrackRpc -> when (rpc) {
@@ -634,16 +636,16 @@ class Client(
                         id = rpc.id,
                         folderId = rpc.folderId
                     )
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
             }
             is ClearImportItemRpc -> {
                 clearImportItemUseCase.execute(rpc.id)
-                sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
             }
             is DeleteFolderRpc -> {
                 deleteFolderUseCase.execute(rpc.id)
-                sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
             }
             is PrepareImportRpc -> {
                 val result = prepareImportUseCase.execute(
@@ -659,7 +661,7 @@ class Client(
                     trackId = rpc.trackId,
                     spotifyApiTrack = rpc.spotifyApiTrack
                 )
-                sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
             }
             is UnsetSpotifyTrackRpc -> {
                 unsetSpotifyTrackUseCase.execute(
@@ -667,7 +669,7 @@ class Client(
                     spotifyTrackId = rpc.spotifyTrackId,
                     spotifyAlbumId = rpc.spotifyAlbumId
                 )
-                sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
             }
             is MediaControllerRpc -> when (rpc) {
                 is MediaControllerRpc.ObserveState ->  {
@@ -698,58 +700,58 @@ class Client(
                 }
                 is MediaControllerRpc.SelectClient -> {
                     mediaController.selectClient(rpc.id)
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is MediaControllerRpc.PlayQueue -> {
                     mediaController.playQueue(
-                        clientId = id,
+                        clientId = clientId,
                         queue = rpc.queue,
                         queueItemIndex = rpc.queueItemIndex
                     )
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is MediaControllerRpc.Play -> {
-                    mediaController.play(id)
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    mediaController.play(clientId)
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is MediaControllerRpc.Pause -> {
                     mediaController.pause()
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is MediaControllerRpc.Seek -> {
                     mediaController.seek(rpc.positionMs.milliseconds)
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is MediaControllerRpc.Next -> {
-                    mediaController.next(id)
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    mediaController.next(clientId)
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is MediaControllerRpc.Previous -> {
-                    mediaController.previous(id)
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    mediaController.previous(clientId)
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is MediaControllerRpc.Repeat -> {
                     mediaController.repeat()
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is MediaControllerRpc.AddToQueue -> {
-                    mediaController.addToQueue(id, rpc.items)
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    mediaController.addToQueue(clientId, rpc.items)
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is MediaControllerRpc.PlayItem -> {
-                    mediaController.playItem(id, rpc.index)
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    mediaController.playItem(clientId, rpc.index)
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is MediaControllerRpc.ChangeItemIndex -> {
                     mediaController.changeItemIndex(
                         oldIndex = rpc.oldIndex,
                         newIndex = rpc.newIndex
                     )
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
                 is MediaControllerRpc.RemoveItem -> {
-                    mediaController.removeItem(id, rpc.key)
-                    sendSerialized<WSMessage>(WsResponse.Done(correlationId))
+                    mediaController.removeItem(clientId, rpc.key)
+                    sendSerialized<WSMessage>(WSMessage.Response.Done(correlationId))
                 }
             }
         }
@@ -758,7 +760,7 @@ class Client(
     // TODO: make this private
     suspend inline fun <reified T> DefaultWebSocketServerSession.sendWsResponse(correlationId: Uuid, data: T) {
         sendSerialized<WSMessage>(
-            WsResponse.Data(
+            WSMessage.Response.Data(
                 correlationId = correlationId,
                 value = json.encodeToJsonElement<T>(data)
             )

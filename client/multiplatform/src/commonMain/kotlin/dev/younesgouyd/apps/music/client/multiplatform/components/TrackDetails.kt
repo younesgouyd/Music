@@ -25,10 +25,11 @@ import dev.younesgouyd.apps.music.client.multiplatform.components.util.*
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.*
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.SetTrackMetadataFromSpotifyUseCase
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.UnsetSpotifyTrackUseCase
-import dev.younesgouyd.apps.music.client.multiplatform.util.Component
 import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.models.playback.QueueItemParameter
 import dev.younesgouyd.apps.music.common.models.spotify.Track
+import dev.younesgouyd.apps.music.common.ui.Component
+import dev.younesgouyd.apps.music.common.ui.Item
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel

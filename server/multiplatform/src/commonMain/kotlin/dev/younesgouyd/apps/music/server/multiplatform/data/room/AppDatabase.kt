@@ -7,6 +7,9 @@ import dev.younesgouyd.apps.music.server.multiplatform.data.room.transactions.*
 
 @Database(
     entities = [
+        Client::class,
+        ClientSession::class,
+        ClientSetting::class,
         Folder::class,
         ImportSession::class,
         ImportSessionItem::class,
@@ -28,6 +31,9 @@ import dev.younesgouyd.apps.music.server.multiplatform.data.room.transactions.*
 @TypeConverters(Converters::class)
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
+    abstract fun clientDao(): ClientDao
+    abstract fun clientSessionDao(): ClientSessionDao
+    abstract fun clientSettingDao(): ClientSettingDao
     abstract fun folderDao(): FolderDao
     abstract fun importSessionDao(): ImportSessionDao
     abstract fun importSessionItemDao(): ImportSessionItemDao

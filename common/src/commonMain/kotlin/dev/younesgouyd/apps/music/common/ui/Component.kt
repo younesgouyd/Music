@@ -1,4 +1,4 @@
-package dev.younesgouyd.apps.music.client.multiplatform.util
+package dev.younesgouyd.apps.music.common.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier

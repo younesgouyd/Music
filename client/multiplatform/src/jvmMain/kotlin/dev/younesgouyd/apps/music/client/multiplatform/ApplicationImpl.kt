@@ -2,9 +2,9 @@ package dev.younesgouyd.apps.music.client.multiplatform
 
 import java.io.File
 
-actual val appDir: File by lazy {
+class ApplicationImpl : Application(
     File(
         File(System.getProperty("user.home")),
-        "younesmusicdata"
+        APP_DIR_NAME
     )
-}
+)

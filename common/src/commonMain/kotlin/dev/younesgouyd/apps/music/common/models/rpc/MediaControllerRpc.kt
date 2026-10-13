@@ -1,8 +1,8 @@
 package dev.younesgouyd.apps.music.common.models.rpc
 
+import dev.younesgouyd.apps.music.common.models.ClientId
 import dev.younesgouyd.apps.music.common.models.playback.QueueItemParameter
 import kotlinx.serialization.Serializable
-import kotlin.uuid.Uuid
 
 @Serializable
 sealed class MediaControllerRpc : Rpc.ToServer() {
@@ -21,7 +21,7 @@ sealed class MediaControllerRpc : Rpc.ToServer() {
     }
 
     @Serializable
-    data class SelectClient(val id: Uuid) : MediaControllerRpc()
+    data class SelectClient(val id: ClientId) : MediaControllerRpc()
 
     @Serializable
     data class PlayQueue(

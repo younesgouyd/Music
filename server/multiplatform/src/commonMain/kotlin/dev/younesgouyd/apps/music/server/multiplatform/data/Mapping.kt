@@ -68,7 +68,7 @@ fun PlaylistTrackCrossRef.toModel() = dev.younesgouyd.apps.music.common.models.P
     updateDatetime = updateDatetime
 )
 
-fun Setting.toModel() = dev.younesgouyd.apps.music.common.models.Setting(
+fun ClientSetting.toModel() = dev.younesgouyd.apps.music.common.models.Setting(
     id = id,
     name = name,
     value = value,

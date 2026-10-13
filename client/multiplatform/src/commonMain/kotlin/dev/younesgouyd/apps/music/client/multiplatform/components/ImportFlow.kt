@@ -16,15 +16,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.Image
-import dev.younesgouyd.apps.music.client.multiplatform.components.util.Item
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.formatted
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.InspectionRepo
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.PrepareImportUseCase
-import dev.younesgouyd.apps.music.client.multiplatform.util.Component
 import dev.younesgouyd.apps.music.common.models.FolderId
 import dev.younesgouyd.apps.music.common.models.ImportSessionId
 import dev.younesgouyd.apps.music.common.models.ImportSessionItem
 import dev.younesgouyd.apps.music.common.models.Inspection
+import dev.younesgouyd.apps.music.common.ui.Component
+import dev.younesgouyd.apps.music.common.ui.Item
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow

@@ -17,18 +17,19 @@ import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
 import dev.younesgouyd.apps.music.client.multiplatform.MediaControllerState
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.*
-import dev.younesgouyd.apps.music.client.multiplatform.util.Component
+import dev.younesgouyd.apps.music.common.models.ClientId
 import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
 import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
 import dev.younesgouyd.apps.music.common.models.TrackId
 import dev.younesgouyd.apps.music.common.models.playback.Client
 import dev.younesgouyd.apps.music.common.models.playback.QueueItem
 import dev.younesgouyd.apps.music.common.models.playback.RepeatState
+import dev.younesgouyd.apps.music.common.ui.Component
+import dev.younesgouyd.apps.music.common.ui.DeviceIcon
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class Player(
@@ -123,10 +124,10 @@ class Player(
 
             data class Available(
                 val clients: StateFlow<List<Client>>,
-                val selectedClient: StateFlow<Uuid>,
+                val selectedClient: StateFlow<ClientId>,
                 val enabled: StateFlow<Boolean>,
                 val isPlaying: StateFlow<Boolean>,
-                val onSelectClient: (Uuid) -> Unit,
+                val onSelectClient: (ClientId) -> Unit,
                 val track: StateFlow<QueueItem?>,
                 val isTrackVisible: StateFlow<Boolean>,
                 val isQueueVisible: StateFlow<Boolean>,
@@ -299,8 +300,8 @@ class Player(
                 modifier: Modifier,
                 enabled: StateFlow<Boolean>,
                 clients: StateFlow<List<Client>>,
-                selectedClient: StateFlow<Uuid>,
-                onSelectClient: (Uuid) -> Unit
+                selectedClient: StateFlow<ClientId>,
+                onSelectClient: (ClientId) -> Unit
             ) {
                 val enabled by enabled.collectAsState()
                 val clients by clients.collectAsState()
@@ -319,13 +320,13 @@ class Player(
                     ) {
                         items(
                             items = clients,
-                            key = { it.id }
-                        ) { item ->
-                            val isSelected = item.id == selectedClient
+                            key = { it.id.value }
+                        ) { client ->
+                            val isSelected = client.id == selectedClient
                             Card(
                                 modifier = Modifier.fillMaxWidth().height(100.dp),
                                 enabled = enabled,
-                                onClick = { onSelectClient(item.id) },
+                                onClick = { onSelectClient(client.id) },
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxSize(),
@@ -342,9 +343,10 @@ class Player(
                                             Icon(Icons.Default.RadioButtonUnchecked, null)
                                         }
                                     }
+                                    DeviceIcon(client.deviceType)
                                     Text(
                                         modifier = Modifier.weight(1f),
-                                        text = item.id.toString(),
+                                        text = "${client.id} - ${client.name}",
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                 }
@@ -398,7 +400,7 @@ class Player(
             private fun Main(
                 modifier: Modifier,
                 clients: StateFlow<List<Client>>,
-                selectedClient: StateFlow<Uuid>,
+                selectedClient: StateFlow<ClientId>,
                 enabled: StateFlow<Boolean>,
                 track: StateFlow<QueueItem?>,
                 isQueueVisible: StateFlow<Boolean>,
@@ -409,7 +411,7 @@ class Player(
                 onToggleTrackVisibility: () -> Unit,
                 onToggleQueueVisibility: () -> Unit,
                 isPlaying: StateFlow<Boolean>,
-                onSelectClient: (Uuid) -> Unit,
+                onSelectClient: (ClientId) -> Unit,
                 onTrackNameClick: (TrackId) -> Unit,
                 onAlbumClick: (SpotifyAlbumId) -> Unit,
                 onArtistClick: (SpotifyArtistId) -> Unit,
@@ -606,7 +608,7 @@ class Player(
             private fun Main(
                 modifier: Modifier,
                 clients: StateFlow<List<Client>>,
-                selectedClient: StateFlow<Uuid>,
+                selectedClient: StateFlow<ClientId>,
                 enabled: StateFlow<Boolean>,
                 track: StateFlow<QueueItem?>,
                 isQueueVisible: StateFlow<Boolean>,
@@ -617,7 +619,7 @@ class Player(
                 onToggleTrackVisibility: () -> Unit,
                 onToggleQueueVisibility: () -> Unit,
                 isPlaying: StateFlow<Boolean>,
-                onSelectClient: (Uuid) -> Unit,
+                onSelectClient: (ClientId) -> Unit,
                 onTrackNameClick: (TrackId) -> Unit,
                 onAlbumClick: (SpotifyAlbumId) -> Unit,
                 onArtistClick: (SpotifyArtistId) -> Unit,

@@ -15,8 +15,8 @@ import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
 import dev.younesgouyd.apps.music.client.multiplatform.data.RepoStore
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.*
-import dev.younesgouyd.apps.music.client.multiplatform.util.Component
 import dev.younesgouyd.apps.music.common.models.DarkThemeOptions
+import dev.younesgouyd.apps.music.common.ui.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 
@@ -32,7 +32,7 @@ class Main(
     override val title: String = ""
     private val darkTheme: StateFlow<DarkThemeOptions> = run {
         repoStore.settingRepo.getDarkTheme()
-            .map { DarkThemeOptions.valueOf(it.value) }
+            .map { it?.value?.let { DarkThemeOptions.valueOf(it) } ?: DarkThemeOptions.SystemDefault }
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), DarkThemeOptions.SystemDefault)
     }
 

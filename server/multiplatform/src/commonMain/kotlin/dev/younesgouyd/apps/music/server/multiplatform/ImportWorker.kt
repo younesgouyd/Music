@@ -7,8 +7,6 @@ import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.ImportSession
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.ImportSession
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.ImportSessionItem
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.transactions.Import
-import dev.younesgouyd.apps.music.server.multiplatform.usecases.getFileName
-import dev.younesgouyd.apps.music.server.multiplatform.usecases.getInputStream
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
@@ -33,7 +31,6 @@ class ImportWorker(
     private var importJob: Job? = null
 
     fun start() {
-        logger.info { "--> ImportWorker::start" }
         if (started) {
             TODO()
         } else {
@@ -112,16 +109,13 @@ class ImportWorker(
                 }.join()
             }
         }
-        logger.info { "<-- ImportWorker::start" }
     }
 
-    suspend fun stop() {
-        logger.info { "--> ImportWorker::stop" }
+    suspend fun stop() { // TODO
         coroutineScope.cancel(message = "IntendedCancellation", cause = IntendedCancellation())
         if (currentSessionItemId != null) {
             importSessionItemRepo.updateState(currentSessionItemId!!, dev.younesgouyd.apps.music.common.models.ImportSessionItem.State.Failed, null)
         }
-        logger.info { "<-- ImportWorker::stop" }
     }
 
     private suspend fun import(session: ImportSession, item: ImportSessionItem) {
@@ -130,9 +124,7 @@ class ImportWorker(
             session = session,
             item = item,
             ytDlp = ytDlp,
-            fileManager = fileManager,
-            getFileName = ::getFileName,
-            getFileInputStream = ::getInputStream
+            fileManager = fileManager
         )
     }
 

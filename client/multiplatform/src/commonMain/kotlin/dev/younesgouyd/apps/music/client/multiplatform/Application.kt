@@ -10,8 +10,8 @@ import dev.younesgouyd.apps.music.client.multiplatform.components.StartupScreen
 import dev.younesgouyd.apps.music.client.multiplatform.data.RepoStore
 import dev.younesgouyd.apps.music.client.multiplatform.data.Server
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.*
-import dev.younesgouyd.apps.music.client.multiplatform.util.Component
 import dev.younesgouyd.apps.music.common.ServerDiscoveryConstants
+import dev.younesgouyd.apps.music.common.ui.Component
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,8 +25,10 @@ import java.net.SocketTimeoutException
 import java.util.*
 import kotlin.system.exitProcess
 
-class Application {
+abstract class Application(appDir: File) {
     companion object {
+        protected const val APP_DIR_NAME = "younesmusicdata"
+
         private val logger = KotlinLogging.logger {}
 
         private var backHandlers: Stack<() -> Unit> = Stack()
@@ -44,17 +46,8 @@ class Application {
         }
     }
 
+    private val logger = KotlinLogging.logger {}
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-
-    private lateinit var mediaController: MediaController
-    private lateinit var server: Server
-    private lateinit var repoStore: RepoStore
-
-    private lateinit var unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase
-    private lateinit var setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase
-    private lateinit var clearImportItemUseCase: ClearImportItemUseCase
-    private lateinit var deleteFolderUseCase: DeleteFolderUseCase
-    private lateinit var prepareImportUseCase: PrepareImportUseCase
 
     private val loading = MutableStateFlow(false)
     private val error: MutableStateFlow<Boolean> = MutableStateFlow(false)
@@ -76,6 +69,7 @@ class Application {
     private val serverInfoDir = File(appDir, "server_info")
     private val fingerprintFile = File(serverInfoDir, "fingerprint.txt")
     private val passwordFile = File(serverInfoDir, "password.txt")
+    private val clientIdFile = File(serverInfoDir, "client_id.txt")
 
     init {
         coroutineScope.launch {
@@ -90,6 +84,7 @@ class Application {
                 serverInfoDir.mkdir()
                 if (!fingerprintFile.exists()) fingerprintFile.createNewFile()
                 if (!passwordFile.exists()) passwordFile.createNewFile()
+                if (!clientIdFile.exists()) clientIdFile.createNewFile()
                 fng = fingerprintFile.readText()
                 pass = passwordFile.readText()
             }
@@ -112,18 +107,24 @@ class Application {
             return
         }
         val disconnection = CompletableDeferred<Unit>()
-        val srvr = Server(serverIpAddress, serverFingerprint, password, tempMediaFilesDir, disconnection)
+        val server = Server(
+            serverHost = serverIpAddress,
+            serverFingerprint = serverFingerprint,
+            password = password,
+            clientIdFile = clientIdFile,
+            tempDir = tempMediaFilesDir,
+            disconnection = disconnection
+        )
         val disconnectionJob = coroutineScope.launch {
             disconnection.await()
             logger.debug { "disconnected!" }
-            clear()
             exitProcess(1) // TODO
         }
         try {
-            srvr.connect()
+            server.connect()
         } catch (e: Throwable) {
             logger.error(e) {}
-            srvr.close()
+            server.close()
             disconnectionJob.cancel()
             error.value = true
             return
@@ -134,26 +135,18 @@ class Application {
             fingerprintFile.writeText(serverFingerprint)
             passwordFile.writeText(password)
         }
-        server = srvr
         dev.younesgouyd.apps.music.client.multiplatform.components.util.server = server // TODO
-        repoStore = RepoStore(server)
-        unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(server)
-        setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(server)
-        clearImportItemUseCase = ClearImportItemUseCase(server)
-        deleteFolderUseCase = DeleteFolderUseCase(server)
-        prepareImportUseCase = PrepareImportUseCase(server)
-        mediaController = MediaController(server)
         logger.debug { "updating to main component" }
         currentComponent.update {
             it.clear()
             Main(
-                repoStore = repoStore,
-                deleteFolderUseCase = deleteFolderUseCase,
-                clearImportItemUseCase = clearImportItemUseCase,
-                setTrackMetadataFromSpotifyUseCase = setTrackMetadataFromSpotifyUseCase,
-                unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
-                prepareImportUseCase = prepareImportUseCase,
-                mediaController = mediaController,
+                repoStore = RepoStore(server),
+                deleteFolderUseCase = DeleteFolderUseCase(server),
+                clearImportItemUseCase = ClearImportItemUseCase(server),
+                setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(server),
+                unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(server),
+                prepareImportUseCase = PrepareImportUseCase(server),
+                mediaController = MediaController(server),
             )
         }
     }
@@ -165,18 +158,11 @@ class Application {
         currentComponent.show(modifier.fillMaxSize())
     }
 
-    fun clear() {
-        try { currentComponent.value.clear() } catch (e: Throwable) { logger.error(e) {} }
-        try { mediaController.release() } catch (e: Throwable) { logger.error(e) {} }
-        try { runBlocking { server.close() } } catch (e: Throwable) { logger.error(e) {} }
-        try { coroutineScope.cancel() } catch (e: Throwable) { logger.error(e) {} }
-    }
-
     fun navigateBack() {
         backHandlers.lastOrNull()?.invoke()
     }
 
-    suspend fun getServerIpAddress(): String? {
+    private suspend fun getServerIpAddress(): String? {
         val attempts = 5
         return withContext(Dispatchers.IO) {
             var socket: DatagramSocket? = null
