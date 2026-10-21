@@ -1,11 +1,12 @@
 package dev.younesgouyd.apps.music.server.multiplatform.data
 
+import dev.younesgouyd.apps.music.common.models.datamodels.Setting
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.*
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.PlaylistTrack
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.SpotifyTrackRelation
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.TrackRelation
 
-fun Folder.toModel() = dev.younesgouyd.apps.music.common.models.Folder(
+fun Folder.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.Folder(
     id = id,
     name = name,
     parentFolderId = parentFolderId,
@@ -13,7 +14,7 @@ fun Folder.toModel() = dev.younesgouyd.apps.music.common.models.Folder(
     updateDatetime = updateDatetime
 )
 
-fun ImportSession.toModel() = dev.younesgouyd.apps.music.common.models.ImportSession(
+fun ImportSession.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.ImportSession(
     id = id,
     uri = uri,
     inspection = inspection,
@@ -22,7 +23,7 @@ fun ImportSession.toModel() = dev.younesgouyd.apps.music.common.models.ImportSes
     creationDatetime = creationDatetime
 )
 
-fun ImportSessionItem.toModel() = dev.younesgouyd.apps.music.common.models.ImportSessionItem(
+fun ImportSessionItem.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem(
     id = id,
     uri = uri,
     importSessionId = importSessionId,
@@ -37,13 +38,13 @@ fun ImportSessionItem.toModel() = dev.younesgouyd.apps.music.common.models.Impor
     updateDatetime = updateDatetime
 )
 
-fun MediaFile.toModel() = dev.younesgouyd.apps.music.common.models.MediaFile(
+fun MediaFile.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.MediaFile(
     id = id,
     fileName = fileName,
     creationDatetime = creationDatetime
 )
 
-fun Playlist.toModel() = dev.younesgouyd.apps.music.common.models.Playlist(
+fun Playlist.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.Playlist(
     id = id,
     name = name,
     folderId = folderId,
@@ -51,7 +52,7 @@ fun Playlist.toModel() = dev.younesgouyd.apps.music.common.models.Playlist(
     updateDatetime = updateDatetime
 )
 
-fun PlaylistTrack.toModel() = dev.younesgouyd.apps.music.common.models.PlaylistTrack(
+fun PlaylistTrack.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.PlaylistTrack(
     track = track.toModel(),
     playlistTrackCrossRefId = playlistTrackCrossRefId,
     originalImport = originalImport.toModel(),
@@ -59,7 +60,7 @@ fun PlaylistTrack.toModel() = dev.younesgouyd.apps.music.common.models.PlaylistT
     playlistCrossRef = playlistCrossRef?.toModel()
 )
 
-fun PlaylistTrackCrossRef.toModel() = dev.younesgouyd.apps.music.common.models.PlaylistTrackCrossRef(
+fun PlaylistTrackCrossRef.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.PlaylistTrackCrossRef(
     id = id,
     playlistId = playlistId,
     trackId = trackId,
@@ -68,7 +69,7 @@ fun PlaylistTrackCrossRef.toModel() = dev.younesgouyd.apps.music.common.models.P
     updateDatetime = updateDatetime
 )
 
-fun ClientSetting.toModel() = dev.younesgouyd.apps.music.common.models.Setting(
+fun ClientSetting.toModel() = Setting(
     id = id,
     name = name,
     value = value,
@@ -76,7 +77,7 @@ fun ClientSetting.toModel() = dev.younesgouyd.apps.music.common.models.Setting(
     updateDatetime = updateDatetime
 )
 
-fun SpotifyAlbum.toModel() = dev.younesgouyd.apps.music.common.models.SpotifyAlbum(
+fun SpotifyAlbum.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.SpotifyAlbum(
     id = id,
     spotifyId = spotifyId,
     name = name,
@@ -90,7 +91,7 @@ fun SpotifyAlbum.toModel() = dev.younesgouyd.apps.music.common.models.SpotifyAlb
     creationDatetime = creationDatetime
 )
 
-fun SpotifyArtist.toModel() = dev.younesgouyd.apps.music.common.models.SpotifyArtist(
+fun SpotifyArtist.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.SpotifyArtist(
     id = id,
     spotifyId = spotifyId,
     name = name,
@@ -101,7 +102,7 @@ fun SpotifyArtist.toModel() = dev.younesgouyd.apps.music.common.models.SpotifyAr
     creationDatetime = creationDatetime
 )
 
-fun SpotifyTrack.toModel() = dev.younesgouyd.apps.music.common.models.SpotifyTrack(
+fun SpotifyTrack.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.SpotifyTrack(
     id = id,
     spotifyId = spotifyId,
     name = name,
@@ -114,18 +115,18 @@ fun SpotifyTrack.toModel() = dev.younesgouyd.apps.music.common.models.SpotifyTra
     creationDatetime = creationDatetime
 )
 
-fun SpotifyTrackRelation.toModel() = dev.younesgouyd.apps.music.common.models.SpotifyTrackRelation(
+fun SpotifyTrackRelation.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.SpotifyTrackRelation(
     spotifyTrack = spotifyTrack.toModel(),
     track = track?.toModel()
 )
 
-fun Tag.toModel() = dev.younesgouyd.apps.music.common.models.Tag(
+fun Tag.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.Tag(
     id = id,
     name = name,
     creationDatetime = creationDatetime
 )
 
-fun Track.toModel() = dev.younesgouyd.apps.music.common.models.Track(
+fun Track.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.Track(
     id = id,
     importSessionItemId = importSessionItemId,
     spotifyTrackId = spotifyTrackId,
@@ -134,7 +135,7 @@ fun Track.toModel() = dev.younesgouyd.apps.music.common.models.Track(
     updateDatetime = updateDatetime
 )
 
-fun TrackRelation.toModel() = dev.younesgouyd.apps.music.common.models.TrackRelation(
+fun TrackRelation.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.TrackRelation(
     track = track.toModel(),
     originalImport = originalImport.toModel(),
     spotifyTrack = spotifyTrack?.toModel()

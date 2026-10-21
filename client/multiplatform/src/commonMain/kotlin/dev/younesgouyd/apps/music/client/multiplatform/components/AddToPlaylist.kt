@@ -18,6 +18,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.*
 import dev.younesgouyd.apps.music.client.multiplatform.util.LazilyLoadedItems
 import dev.younesgouyd.apps.music.client.multiplatform.util.PageSize
 import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.models.datamodels.Track
 import dev.younesgouyd.apps.music.common.ui.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*

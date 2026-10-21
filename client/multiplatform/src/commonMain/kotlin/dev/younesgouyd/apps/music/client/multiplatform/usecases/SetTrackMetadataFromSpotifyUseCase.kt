@@ -1,8 +1,8 @@
 package dev.younesgouyd.apps.music.client.multiplatform.usecases
 
 import dev.younesgouyd.apps.music.client.multiplatform.data.Server
+import dev.younesgouyd.apps.music.common.models.Rpc
 import dev.younesgouyd.apps.music.common.models.TrackId
-import dev.younesgouyd.apps.music.common.models.rpc.SetTrackMetadataFromSpotifyRpc
 import dev.younesgouyd.apps.music.common.models.spotify.Track
 
 class SetTrackMetadataFromSpotifyUseCase(
@@ -12,6 +12,6 @@ class SetTrackMetadataFromSpotifyUseCase(
         trackId: TrackId,
         spotifyApiTrack: Track
     ) {
-        server.call<Unit>(SetTrackMetadataFromSpotifyRpc(trackId, spotifyApiTrack))
+        server.call(Rpc.ToServer.SetTrackMetadataFromSpotify(trackId, spotifyApiTrack))
     }
 }

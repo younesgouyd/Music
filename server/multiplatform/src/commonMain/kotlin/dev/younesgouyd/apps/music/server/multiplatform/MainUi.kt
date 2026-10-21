@@ -20,14 +20,17 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.models.ClientId
+import dev.younesgouyd.apps.music.common.models.ClientSessionId
+import dev.younesgouyd.apps.music.common.models.DeviceType
+import dev.younesgouyd.apps.music.common.models.datamodels.ServerInfo
+import dev.younesgouyd.apps.music.common.models.datamodels.YtDlpServerInfo
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.DeviceIcon
 import dev.younesgouyd.apps.music.common.ui.Item
 import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.ClientRepo
 import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.ClientSessionRepo
 import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.SettingRepo
-import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.ClientSession.DisconnectionReason
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -69,7 +72,7 @@ class MainUi(
                                         id = it.id,
                                         connectionDatetime = Instant.fromEpochMilliseconds(it.connectionDatetime).format(datetimeFormat),
                                         disconnectionDatetime = it.disconnectionDatetime?.let { Instant.fromEpochMilliseconds(it).format(datetimeFormat) },
-                                        disconnectionReason = it.disconnectionReason
+                                        isDisconnected = it.disconnectionFlag
                                     )
                                 }
                             }
@@ -129,7 +132,7 @@ class MainUi(
                         val id: ClientSessionId,
                         val connectionDatetime: String,
                         val disconnectionDatetime: String?,
-                        val disconnectionReason: DisconnectionReason?
+                        val isDisconnected: Boolean
                     )
                 }
             }
@@ -431,7 +434,7 @@ class MainUi(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ConnectionIndicator(sessions.firstOrNull()?.disconnectionReason == null)
+                ConnectionIndicator(sessions.firstOrNull()?.isDisconnected == false)
                 DeviceIcon(client.deviceType)
                 Text(
                     modifier = Modifier.weight(1f),
@@ -553,28 +556,18 @@ class MainUi(
                             key = { it.id.value }
                         ) { session ->
                             Surface(Modifier.fillMaxWidth()) {
-                                Column(
+                                Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    horizontalArrangement = Arrangement.SpaceAround,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceAround,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = session.connectionDatetime,
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
-                                        Icon(Icons.AutoMirrored.Default.ArrowRightAlt, null)
-                                        Text(
-                                            text = session.disconnectionDatetime ?: "",
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
-                                    }
                                     Text(
-                                        text = session.disconnectionReason?.name ?: "",
+                                        text = session.connectionDatetime,
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                    Icon(Icons.AutoMirrored.Default.ArrowRightAlt, null)
+                                    Text(
+                                        text = session.disconnectionDatetime ?: "",
                                         style = MaterialTheme.typography.labelMedium
                                     )
                                 }

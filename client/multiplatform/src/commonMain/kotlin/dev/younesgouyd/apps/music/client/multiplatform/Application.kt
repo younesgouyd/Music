@@ -131,12 +131,10 @@ abstract class Application(appDir: File) {
         }
         error.value = false
         withContext(Dispatchers.IO) {
-            logger.debug { "writing server info" }
             fingerprintFile.writeText(serverFingerprint)
             passwordFile.writeText(password)
         }
         dev.younesgouyd.apps.music.client.multiplatform.components.util.server = server // TODO
-        logger.debug { "updating to main component" }
         currentComponent.update {
             it.clear()
             Main(

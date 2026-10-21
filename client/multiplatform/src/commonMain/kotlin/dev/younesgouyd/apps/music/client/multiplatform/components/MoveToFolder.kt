@@ -22,10 +22,10 @@ import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.FolderRepo
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.PlaylistRepo
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.TrackRepo
-import dev.younesgouyd.apps.music.common.models.Folder
 import dev.younesgouyd.apps.music.common.models.FolderId
 import dev.younesgouyd.apps.music.common.models.PlaylistId
 import dev.younesgouyd.apps.music.common.models.TrackId
+import dev.younesgouyd.apps.music.common.models.datamodels.Folder
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
 import kotlinx.coroutines.ExperimentalCoroutinesApi

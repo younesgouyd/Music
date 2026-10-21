@@ -23,11 +23,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.MediaController
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.*
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.*
 import dev.younesgouyd.apps.music.common.Platform
-import dev.younesgouyd.apps.music.common.models.PlaylistId
-import dev.younesgouyd.apps.music.common.models.PlaylistTrackCrossRefId
-import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
-import dev.younesgouyd.apps.music.common.models.TrackId
-import dev.younesgouyd.apps.music.common.models.playback.QueueItemParameter
+import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.platform
 import dev.younesgouyd.apps.music.common.ui.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -99,14 +95,14 @@ class PlaylistDetails(
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     searchQuery = searchQuery.asStateFlow(),
-                    onPlayClick = { mediaController.playQueue(listOf(QueueItemParameter.Playlist(id))) },
+                    onPlayClick = { mediaController.playQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Playlist(id))) },
                     onSearchQueryChange = { searchQuery.value = it },
                     changeItemPosition = { from, to ->
                         coroutineScope.launch {
                             playlistTrackCrossRefRepo.changeItemPosition(id, from, to)
                         }
                     },
-                    onAddToQueueClick = { mediaController.addToQueue(listOf(QueueItemParameter.Playlist(id))) },
+                    onAddToQueueClick = { mediaController.addToQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Playlist(id))) },
                     onAddToPlaylistClick = {
                         addToPlaylist.update {
                             AddToPlaylist(
@@ -128,7 +124,7 @@ class PlaylistDetails(
                             val tracks = trackRepo.getPlaylistTracks(id).first()
                             val index = tracks.indexOfFirst { it.track.id == trackId }
                             mediaController.playQueue(
-                                queue = listOf(QueueItemParameter.Playlist(id)),
+                                queue = listOf(Rpc.ToServer.MediaController.QueueItemParameter.Playlist(id)),
                                 queueItemIndex = index
                             )
                         }
@@ -157,7 +153,7 @@ class PlaylistDetails(
                     },
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
                     onAddTrackToQueueClick = { id: TrackId ->
-                        mediaController.addToQueue(listOf(QueueItemParameter.Track(id)))
+                        mediaController.addToQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Track(id)))
                     },
                     onShowTrackDetailsClick = showTrack
                 )

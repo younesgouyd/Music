@@ -13,5 +13,4 @@ data class Client(
     val deviceType: DeviceType?,
     val creationDatetime: Long,
     val updateDatetime: Long
-) {
-}
+)

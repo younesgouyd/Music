@@ -21,8 +21,8 @@ import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.InspectionRep
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.PrepareImportUseCase
 import dev.younesgouyd.apps.music.common.models.FolderId
 import dev.younesgouyd.apps.music.common.models.ImportSessionId
-import dev.younesgouyd.apps.music.common.models.ImportSessionItem
-import dev.younesgouyd.apps.music.common.models.Inspection
+import dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem
+import dev.younesgouyd.apps.music.common.models.datamodels.Inspection
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
 import io.github.oshai.kotlinlogging.KotlinLogging

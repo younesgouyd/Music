@@ -2,7 +2,7 @@
     <property name="LOG_DIR" value="${user.home}/younesmusicserverdata/logs" />
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} | %thread | %-5level | %logger | %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} | %thread | %-5level | %logger:%L | %msg%n</pattern>
         </encoder>
     </appender>
     <appender name="MAIN" class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -14,7 +14,7 @@
             <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} | %thread | %-5level | %logger | %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} | %thread | %-5level | %logger:%L | %msg%n</pattern>
         </encoder>
     </appender>
     <appender name="KTOR" class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -38,7 +38,7 @@
             <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} | %thread | %-5level | %logger | %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} | %thread | %-5level | %logger:%L | %msg%n</pattern>
         </encoder>
     </appender>
     <root level="TRACE" >

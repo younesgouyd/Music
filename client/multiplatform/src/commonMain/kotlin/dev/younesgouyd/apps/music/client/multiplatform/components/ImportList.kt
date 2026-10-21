@@ -13,9 +13,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.ImportSessionRepo
 import dev.younesgouyd.apps.music.client.multiplatform.util.LazilyLoadedItems
-import dev.younesgouyd.apps.music.common.models.ImportSession
 import dev.younesgouyd.apps.music.common.models.ImportSessionId
 import dev.younesgouyd.apps.music.common.models.Offset
+import dev.younesgouyd.apps.music.common.models.datamodels.ImportSession
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
 import kotlinx.coroutines.cancel

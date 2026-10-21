@@ -21,27 +21,28 @@ class ClientSessionRepo(
         val id = dao.add(
             clientId = clientId,
             connectionDatetime = connectionDatetime,
+            disconnectionFlag = false,
             creationDatetime = currentTime,
             updateDatetime = currentTime
         )
         return ClientSessionId(id)
     }
 
-    suspend fun webSocketDisconnectionUpdate(
+    suspend fun update(
         id: ClientSessionId,
         disconnectionDatetime: Long
     ) {
         dao.update(
             disconnectionDatetime = disconnectionDatetime,
-            disconnectionReason = ClientSession.DisconnectionReason.WebSocketDisconnection,
+            disconnectionFlag = true,
             updateDatetime = System.currentTimeMillis(),
             id = id
         )
     }
 
-    suspend fun serverCrashUpdate() {
-        dao.updateAll(
-            disconnectionReason = ClientSession.DisconnectionReason.ServerCrash,
+    suspend fun updateDisconnectionFlag() {
+        dao.update(
+            disconnectionFlag = true,
             updateDatetime = System.currentTimeMillis()
         )
     }

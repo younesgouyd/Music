@@ -1,6 +1,6 @@
 package dev.younesgouyd.apps.music.server.multiplatform.spotify
 
-import dev.younesgouyd.apps.music.common.models.SpotifyAuthState
+import dev.younesgouyd.apps.music.common.models.datamodels.SpotifyAuthState
 import dev.younesgouyd.apps.music.common.models.spotify.Album
 import dev.younesgouyd.apps.music.common.models.spotify.Artist
 import dev.younesgouyd.apps.music.common.models.spotify.SearchResult

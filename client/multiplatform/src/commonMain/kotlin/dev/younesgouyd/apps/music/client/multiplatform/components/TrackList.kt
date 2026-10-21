@@ -30,7 +30,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.TrackRepo
 import dev.younesgouyd.apps.music.client.multiplatform.util.LazilyLoadedItems
 import dev.younesgouyd.apps.music.client.multiplatform.util.PageSize
 import dev.younesgouyd.apps.music.common.models.*
-import dev.younesgouyd.apps.music.common.models.playback.QueueItemParameter
+import dev.younesgouyd.apps.music.common.models.datamodels.TrackRelation
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -176,12 +176,12 @@ class TrackList(
                 onPlayClick = {
                     coroutineScope.launch {
                         mediaController.playQueue(
-                            tracks.value?.items?.value.orEmpty().map { QueueItemParameter.Track(it.id) }
+                            tracks.value?.items?.value.orEmpty().map { Rpc.ToServer.MediaController.QueueItemParameter.Track(it.id) }
                         )
                     }
                 },
                 onSearchQueryChange = { searchQuery.value = it },
-                onTrackClick = { mediaController.playQueue(listOf(QueueItemParameter.Track(it))) },
+                onTrackClick = { mediaController.playQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Track(it))) },
                 onArtistClick = showArtist,
                 onTrackDetailsClick = showTrack
             )

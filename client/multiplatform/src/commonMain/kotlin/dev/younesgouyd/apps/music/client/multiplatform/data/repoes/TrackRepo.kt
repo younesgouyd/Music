@@ -2,14 +2,16 @@ package dev.younesgouyd.apps.music.client.multiplatform.data.repoes
 
 import dev.younesgouyd.apps.music.client.multiplatform.data.Server
 import dev.younesgouyd.apps.music.common.models.*
-import dev.younesgouyd.apps.music.common.models.rpc.TrackRpc
+import dev.younesgouyd.apps.music.common.models.datamodels.PlaylistTrack
+import dev.younesgouyd.apps.music.common.models.datamodels.Track
+import dev.younesgouyd.apps.music.common.models.datamodels.TrackRelation
 import kotlinx.coroutines.flow.Flow
 
 class TrackRepo(
     private val server: Server
 ) {
     fun get(id: TrackId): Flow<TrackRelation?> {
-        return server.observe(TrackRpc.Get(id))
+        return server.observe(Rpc.ToServer.Track.Get(id))
     }
 
     suspend fun search(
@@ -17,8 +19,8 @@ class TrackRepo(
         limit: Int,
         offset: Offset.Id<TrackId>
     ): List<TrackRelation> {
-        return server.call(
-            TrackRpc.Search(
+        return server.get(
+            Rpc.ToServer.Track.Search(
                 nameQuery = nameQuery,
                 limit = limit,
                 offset = offset
@@ -33,8 +35,8 @@ class TrackRepo(
         limit: Int,
         offset: Offset.Id<TrackId>
     ): List<TrackRelation> {
-        return server.call(
-            TrackRpc.SearchWithTags(
+        return server.get(
+            Rpc.ToServer.Track.SearchWithTags(
                 nameQuery = nameQuery,
                 tags = tags,
                 includeUntagged = includeUntagged,
@@ -49,7 +51,7 @@ class TrackRepo(
         nameQuery: String
     ): Flow<List<TrackRelation>> {
         return server.observe(
-            TrackRpc.SearchFolder(
+            Rpc.ToServer.Track.SearchFolder(
                 folderId = folderId,
                 nameQuery = nameQuery
             )
@@ -63,7 +65,7 @@ class TrackRepo(
         includeUntagged: Boolean
     ): Flow<List<TrackRelation>> {
         return server.observe(
-            TrackRpc.SearchFolderWithTags(
+            Rpc.ToServer.Track.SearchFolderWithTags(
                 folderId = folderId,
                 nameQuery = nameQuery,
                 tags = tags,
@@ -78,8 +80,8 @@ class TrackRepo(
         limit: Int,
         offset: Offset.Id<TrackId>
     ): List<TrackRelation> {
-        return server.call(
-            TrackRpc.SearchArtistContributions(
+        return server.get(
+            Rpc.ToServer.Track.SearchArtistContributions(
                 id = id,
                 nameQuery = nameQuery,
                 limit = limit,
@@ -90,7 +92,7 @@ class TrackRepo(
 
     fun searchPlaylist(id: PlaylistId, nameQuery: String): Flow<List<PlaylistTrack>> {
         return server.observe(
-            TrackRpc.SearchPlaylist(
+            Rpc.ToServer.Track.SearchPlaylist(
                 id = id,
                 nameQuery = nameQuery
             )
@@ -99,7 +101,7 @@ class TrackRepo(
 
     fun searchWithTag(nameQuery: String, tag: TagId): Flow<List<TrackRelation>> {
         return server.observe(
-            TrackRpc.SearchWithTag(
+            Rpc.ToServer.Track.SearchWithTag(
                 nameQuery = nameQuery,
                 tag = tag
             )
@@ -107,29 +109,29 @@ class TrackRepo(
     }
 
     fun getFolderTracks(id: FolderId): Flow<List<Track>> {
-        return server.observe(TrackRpc.GetFolderTracks(id))
+        return server.observe(Rpc.ToServer.Track.GetFolderTracks(id))
     }
 
     fun getArtistTracks(id: SpotifyArtistId): Flow<List<TrackRelation>> {
-        return server.observe(TrackRpc.GetArtistTracks(id))
+        return server.observe(Rpc.ToServer.Track.GetArtistTracks(id))
     }
 
     fun getAlbumTracks(id: SpotifyAlbumId): Flow<List<TrackRelation>> {
-        return server.observe(TrackRpc.GetAlbumTracks(id))
+        return server.observe(Rpc.ToServer.Track.GetAlbumTracks(id))
     }
 
     fun getPlaylistTracks(id: PlaylistId): Flow<List<TrackRelation>> {
-        return server.observe(TrackRpc.GetPlaylistTracks(id))
+        return server.observe(Rpc.ToServer.Track.GetPlaylistTracks(id))
     }
 
     suspend fun getId(spotifyId: String): TrackId? {
-        return server.call(
-            TrackRpc.GetId(spotifyId)
+        return server.get(
+            Rpc.ToServer.Track.GetId(spotifyId)
         )
     }
 
     fun getImportSessionTrack(id: ImportSessionItemId): Flow<TrackRelation?> {
-        return server.observe(TrackRpc.GetImportSessionTrack(id))
+        return server.observe(Rpc.ToServer.Track.GetImportSessionTrack(id))
     }
 
     suspend fun add(
@@ -137,8 +139,8 @@ class TrackRepo(
         spotifyTrackId: SpotifyTrackId?,
         folderId: FolderId
     ): TrackId {
-        return server.call(
-            TrackRpc.Add(
+        return server.get(
+            Rpc.ToServer.Track.Add(
                 importSessionItemId = importSessionItemId,
                 spotifyTrackId = spotifyTrackId,
                 folderId = folderId
@@ -147,8 +149,8 @@ class TrackRepo(
     }
 
     suspend fun updateFolderId(id: TrackId, folderId: FolderId) {
-        server.call<Unit>(
-            TrackRpc.UpdateFolderId(
+        server.call(
+            Rpc.ToServer.Track.UpdateFolderId(
                 id = id,
                 folderId = folderId
             )

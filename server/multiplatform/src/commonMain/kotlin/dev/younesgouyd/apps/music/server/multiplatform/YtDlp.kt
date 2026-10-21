@@ -1,8 +1,8 @@
 package dev.younesgouyd.apps.music.server.multiplatform
 
 import dev.younesgouyd.apps.music.common.json
-import dev.younesgouyd.apps.music.common.models.Inspection
-import dev.younesgouyd.apps.music.common.models.YtDlpServerInfo
+import dev.younesgouyd.apps.music.common.models.datamodels.Inspection
+import dev.younesgouyd.apps.music.common.models.datamodels.YtDlpServerInfo
 import dev.younesgouyd.apps.music.common.sha256Hash
 import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.SettingRepo
 import io.ktor.client.*

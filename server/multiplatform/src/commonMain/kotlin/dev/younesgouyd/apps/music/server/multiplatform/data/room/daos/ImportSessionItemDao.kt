@@ -23,11 +23,11 @@ abstract class ImportSessionItemDao {
         limit 1
     """
     )
-    abstract fun getOldest(state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State): Flow<ImportSessionItem?>
+    abstract fun getOldest(state: dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State): Flow<ImportSessionItem?>
 
     fun search(
         importSessionId: ImportSessionId,
-        state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State,
+        state: dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State,
         titleQuery: String,
         order: DbOrder
     ): Flow<List<ImportSessionItem>> {
@@ -49,7 +49,7 @@ abstract class ImportSessionItemDao {
     )
     abstract fun searchAsc(
         importSessionId: ImportSessionId,
-        state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State,
+        state: dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State,
         titleQuery: String
     ): Flow<List<ImportSessionItem>>
 
@@ -65,7 +65,7 @@ abstract class ImportSessionItemDao {
     )
     abstract fun searchDesc(
         importSessionId: ImportSessionId,
-        state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State,
+        state: dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State,
         titleQuery: String
     ): Flow<List<ImportSessionItem>>
 
@@ -77,7 +77,7 @@ abstract class ImportSessionItemDao {
         where id = :id
     """)
     abstract suspend fun update(
-        state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State,
+        state: dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State,
         audioFileId: MediaFileId?,
         updateDatetime: Long,
         id: ImportSessionItemId
@@ -90,7 +90,7 @@ abstract class ImportSessionItemDao {
         where id = :id
     """)
     abstract suspend fun update(
-        state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State,
+        state: dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State,
         updateDatetime: Long,
         id: ImportSessionItemId
     )

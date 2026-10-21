@@ -2,8 +2,12 @@ package dev.younesgouyd.apps.music.client.multiplatform
 
 import dev.younesgouyd.apps.music.client.multiplatform.data.Server
 import dev.younesgouyd.apps.music.common.models.ClientId
-import dev.younesgouyd.apps.music.common.models.playback.*
-import dev.younesgouyd.apps.music.common.models.rpc.MediaControllerRpc
+import dev.younesgouyd.apps.music.common.models.MediaControllerGeneralState
+import dev.younesgouyd.apps.music.common.models.RepeatState
+import dev.younesgouyd.apps.music.common.models.Rpc
+import dev.younesgouyd.apps.music.common.models.datamodels.Client
+import dev.younesgouyd.apps.music.common.models.datamodels.MediaPlayerState
+import dev.younesgouyd.apps.music.common.models.datamodels.QueueItem
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -32,19 +36,19 @@ class MediaController(
     val state: StateFlow<MediaControllerState> get() = _state.asStateFlow()
 
     init {
-        clients = server.observe<List<Client>>(MediaControllerRpc.ObserveAvailableState.Clients)
+        clients = server.observe(Rpc.ToServer.MediaController.ObserveAvailableState.Clients)
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
-        selectedClient = server.observe<ClientId?>(MediaControllerRpc.ObserveAvailableState.SelectedClient)
+        selectedClient = server.observe(Rpc.ToServer.MediaController.ObserveAvailableState.SelectedClient)
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
-        enabled = server.observe<Boolean>(MediaControllerRpc.ObserveAvailableState.Enabled)
+        enabled = server.observe(Rpc.ToServer.MediaController.ObserveAvailableState.Enabled)
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), false)
-        queue = server.observe<List<QueueItem>>(MediaControllerRpc.ObserveAvailableState.Queue)
+        queue = server.observe(Rpc.ToServer.MediaController.ObserveAvailableState.Queue)
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
-        currentItemIndex = server.observe<Int>(MediaControllerRpc.ObserveAvailableState.QueueItemIndex)
+        currentItemIndex = server.observe(Rpc.ToServer.MediaController.ObserveAvailableState.QueueItemIndex)
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), 0)
-        repeatState = server.observe<RepeatState>(MediaControllerRpc.ObserveAvailableState.RepeatState)
+        repeatState = server.observe(Rpc.ToServer.MediaController.ObserveAvailableState.RepeatState)
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), RepeatState.Off)
-        mediaPlayerState = server.observe<MediaPlayerState>(MediaControllerRpc.ObserveAvailableState.MediaPlayerState)
+        mediaPlayerState = server.observe(Rpc.ToServer.MediaController.ObserveAvailableState.MediaPlayerState)
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
 
         val currentItem = combine(queue, currentItemIndex, ::Pair)
@@ -67,7 +71,7 @@ class MediaController(
                         emit(state.positionMs.coerceAtMost(durationMs))
                     }
                 }.stateIn(coroutineScope, SharingStarted.Eagerly, null)
-            server.observe<MediaControllerGeneralState>(MediaControllerRpc.ObserveState).collect { state ->
+            server.observe(Rpc.ToServer.MediaController.ObserveState).collect { state ->
                 _state.value = when (state) {
                     MediaControllerGeneralState.Loading -> MediaControllerState.Loading
                     MediaControllerGeneralState.Unavailable -> MediaControllerState.Unavailable
@@ -90,19 +94,19 @@ class MediaController(
     fun selectClient(id: ClientId) {
         coroutineScope.launch {
             mutex.withLock {
-                server.call<Unit>(MediaControllerRpc.SelectClient(id))
+                server.call(Rpc.ToServer.MediaController.SelectClient(id))
             }
         }
     }
 
-    fun playQueue(queue: List<QueueItemParameter>, queueItemIndex: Int = 0) {
+    fun playQueue(queue: List<Rpc.ToServer.MediaController.QueueItemParameter>, queueItemIndex: Int = 0) {
         if (queue.isEmpty()) {
             logger.warn { "::playQueue | queue is empty" }
             return
         }
         coroutineScope.launch {
             mutex.withLock {
-                server.call<Unit>(MediaControllerRpc.PlayQueue(queue, queueItemIndex))
+                server.call(Rpc.ToServer.MediaController.PlayQueue(queue, queueItemIndex))
             }
         }
     }
@@ -110,7 +114,7 @@ class MediaController(
     fun play() {
         coroutineScope.launch {
             mutex.withLock {
-                server.call<Unit>(MediaControllerRpc.Play)
+                server.call(Rpc.ToServer.MediaController.Play)
             }
         }
     }
@@ -118,7 +122,7 @@ class MediaController(
     fun pause() {
         coroutineScope.launch {
             mutex.withLock {
-                server.call<Unit>(MediaControllerRpc.Pause)
+                server.call(Rpc.ToServer.MediaController.Pause)
             }
         }
     }
@@ -126,7 +130,7 @@ class MediaController(
     fun seek(positionMs: Long) {
         coroutineScope.launch {
             mutex.withLock {
-                server.call<Unit>(MediaControllerRpc.Seek(positionMs))
+                server.call(Rpc.ToServer.MediaController.Seek(positionMs))
             }
         }
     }
@@ -134,7 +138,7 @@ class MediaController(
     fun next() {
         coroutineScope.launch {
             mutex.withLock {
-                server.call<Unit>(MediaControllerRpc.Next)
+                server.call(Rpc.ToServer.MediaController.Next)
             }
         }
     }
@@ -142,7 +146,7 @@ class MediaController(
     fun previous() {
         coroutineScope.launch {
             mutex.withLock {
-                server.call<Unit>(MediaControllerRpc.Previous)
+                server.call(Rpc.ToServer.MediaController.Previous)
             }
         }
     }
@@ -150,15 +154,15 @@ class MediaController(
     fun repeat() {
         coroutineScope.launch {
             mutex.withLock {
-                server.call<Unit>(MediaControllerRpc.Repeat)
+                server.call(Rpc.ToServer.MediaController.Repeat)
             }
         }
     }
 
-    fun addToQueue(items: List<QueueItemParameter>) {
+    fun addToQueue(items: List<Rpc.ToServer.MediaController.QueueItemParameter>) {
         coroutineScope.launch {
             mutex.withLock {
-                server.call<Unit>(MediaControllerRpc.AddToQueue(items))
+                server.call(Rpc.ToServer.MediaController.AddToQueue(items))
             }
         }
     }
@@ -166,7 +170,7 @@ class MediaController(
     fun playItem(index: Int) {
         coroutineScope.launch {
             mutex.withLock {
-                server.call<Unit>(MediaControllerRpc.PlayItem(index))
+                server.call(Rpc.ToServer.MediaController.PlayItem(index))
             }
         }
     }
@@ -174,7 +178,7 @@ class MediaController(
     fun changeItemIndex(oldIndex: Int, newIndex: Int) {
         coroutineScope.launch {
             mutex.withLock {
-                server.call<Unit>(MediaControllerRpc.ChangeItemIndex(oldIndex, newIndex))
+                server.call(Rpc.ToServer.MediaController.ChangeItemIndex(oldIndex, newIndex))
             }
         }
     }
@@ -182,7 +186,7 @@ class MediaController(
     fun removeItem(key: Int) {
         coroutineScope.launch {
             mutex.withLock {
-                server.call<Unit>(MediaControllerRpc.RemoveItem(key))
+                server.call(Rpc.ToServer.MediaController.RemoveItem(key))
             }
         }
     }

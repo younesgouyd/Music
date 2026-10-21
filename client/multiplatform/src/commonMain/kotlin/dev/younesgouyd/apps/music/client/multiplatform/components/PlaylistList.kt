@@ -24,7 +24,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.MediaController
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.*
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.*
 import dev.younesgouyd.apps.music.common.models.PlaylistId
-import dev.younesgouyd.apps.music.common.models.playback.QueueItemParameter
+import dev.younesgouyd.apps.music.common.models.Rpc
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -71,8 +71,7 @@ class PlaylistList(
                 scrollState = LazyGridState(),
                 onSearchQueryChange = { searchQuery.value = it },
                 onPlaylistClick = showPlaylistDetails,
-                onPlayPlaylist = { id: PlaylistId -> mediaController.playQueue(listOf(
-                    QueueItemParameter.Playlist(id))) },
+                onPlayPlaylist = { id: PlaylistId -> mediaController.playQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Playlist(id))) },
                 onAddToPlaylist = { playlistId: PlaylistId ->
                     addToPlaylist.update {
                         AddToPlaylist(
@@ -99,7 +98,7 @@ class PlaylistList(
                     }
                 },
                 onAddPlaylistToQueue = { id: PlaylistId -> mediaController.addToQueue(listOf(
-                    QueueItemParameter.Playlist(id))) }
+                    Rpc.ToServer.MediaController.QueueItemParameter.Playlist(id))) }
             )
         }
     }

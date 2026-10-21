@@ -19,7 +19,7 @@ abstract class ClientDao {
             select 1
             from clientsession cs
             where cs.clientId = c.id
-            and cs.disconnectionReason is null
+            and cs.disconnectionFlag = false
         )
     """)
     abstract fun getConnected(): Flow<List<Client>>

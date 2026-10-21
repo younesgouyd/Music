@@ -1,7 +1,7 @@
 package dev.younesgouyd.apps.music.ytdlp
 
 import dev.younesgouyd.apps.music.common.models.Base64Image
-import dev.younesgouyd.apps.music.common.models.Inspection
+import dev.younesgouyd.apps.music.common.models.datamodels.Inspection
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible

@@ -20,7 +20,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.components.util.Artists
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.Image
 import dev.younesgouyd.apps.music.common.Platform
 import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
-import dev.younesgouyd.apps.music.common.models.playback.QueueItem
+import dev.younesgouyd.apps.music.common.models.datamodels.QueueItem
 import dev.younesgouyd.apps.music.common.platform
 import dev.younesgouyd.apps.music.common.ui.Component
 import kotlinx.coroutines.cancel

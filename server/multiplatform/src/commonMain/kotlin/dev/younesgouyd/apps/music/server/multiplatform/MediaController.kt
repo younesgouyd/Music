@@ -1,10 +1,10 @@
 package dev.younesgouyd.apps.music.server.multiplatform
 
 import dev.younesgouyd.apps.music.common.MediaPlayer
-import dev.younesgouyd.apps.music.common.models.ClientId
-import dev.younesgouyd.apps.music.common.models.MediaFileId
-import dev.younesgouyd.apps.music.common.models.playback.*
-import dev.younesgouyd.apps.music.common.models.rpc.MediaPlayerRpc
+import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.models.Rpc.ToServer.MediaController.QueueItemParameter
+import dev.younesgouyd.apps.music.common.models.datamodels.MediaPlayerState
+import dev.younesgouyd.apps.music.common.models.datamodels.QueueItem
 import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.*
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.TrackRelation
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -15,7 +15,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.time.Duration
-import dev.younesgouyd.apps.music.common.models.playback.Client as ClientModel
+import dev.younesgouyd.apps.music.common.models.datamodels.Client as ClientModel
 
 class MediaController(
     clientRepo: ClientRepo,
@@ -100,13 +100,13 @@ class MediaController(
         }
     }
 
-    fun selectClient(id: ClientId?) {
+    suspend fun selectClient(id: ClientId?) {
         launchCommand {
             selectClientImpl(id)
         }
     }
 
-    fun playQueue(clientId: ClientId, queue: List<QueueItemParameter>, queueItemIndex: Int = 0) {
+    suspend fun playQueue(clientId: ClientId, queue: List<QueueItemParameter>, queueItemIndex: Int = 0) {
         if (queue.isEmpty()) {
             logger.warn { "::playQueue | queue is empty" }
             return
@@ -136,7 +136,7 @@ class MediaController(
         }
     }
 
-    fun play(clientId: ClientId) {
+    suspend fun play(clientId: ClientId) {
         launchCommand {
             if (!mediaPlayerState.value.isPlaying) {
                 if (_selectedClient.value == null) {
@@ -147,7 +147,7 @@ class MediaController(
         }
     }
 
-    fun pause() {
+    suspend fun pause() {
         launchCommand {
             if (mediaPlayerState.value.isPlaying) {
                 mediaPlayer.pause()
@@ -155,19 +155,19 @@ class MediaController(
         }
     }
 
-    fun seek(position: Duration) {
+    suspend fun seek(position: Duration) {
         launchCommand {
             mediaPlayer.setTime(position)
         }
     }
 
-    fun next(clientId: ClientId) {
+    suspend fun next(clientId: ClientId) {
         launchCommand {
             _next(clientId)
         }
     }
 
-    fun previous(clientId: ClientId) {
+    suspend fun previous(clientId: ClientId) {
         launchCommand {
             var wasPlaying: Boolean? = null
             if (mediaPlayerState.value.isPlaying) {
@@ -193,7 +193,7 @@ class MediaController(
         }
     }
 
-    fun repeat() {
+    suspend fun repeat() {
         launchCommand {
             _repeatState.update {
                 when (it) {
@@ -205,7 +205,7 @@ class MediaController(
         }
     }
 
-    fun addToQueue(clientId: ClientId, items: List<QueueItemParameter>) {
+    suspend fun addToQueue(clientId: ClientId, items: List<QueueItemParameter>) {
         launchCommand {
             if (_state.value == MediaControllerGeneralState.Unavailable) {
                 _state.value = MediaControllerGeneralState.Loading
@@ -229,7 +229,7 @@ class MediaController(
         }
     }
 
-    fun playItem(clientId: ClientId, index: Int) {
+    suspend fun playItem(clientId: ClientId, index: Int) {
         launchCommand {
             if (mediaPlayerState.value.isPlaying) {
                 mediaPlayer.stop()
@@ -247,7 +247,7 @@ class MediaController(
         }
     }
 
-    fun changeItemIndex(oldIndex: Int, newIndex: Int) {
+    suspend fun changeItemIndex(oldIndex: Int, newIndex: Int) {
         launchCommand {
             _queue.update {
                 it.toMutableList().apply {
@@ -270,7 +270,7 @@ class MediaController(
         }
     }
 
-    fun removeItem(clientId: ClientId, key: Int) {
+    suspend fun removeItem(clientId: ClientId, key: Int) {
         launchCommand {
             val toBeRemoved = _queue.value.indexOfFirst { it.key == key }
             _queue.update { queue ->
@@ -408,8 +408,8 @@ class MediaController(
         }
     }
 
-    private inline fun launchCommand(crossinline block: suspend () -> Unit) {
-        coroutineScope.launch {
+    private suspend inline fun launchCommand(crossinline block: suspend () -> Unit) {
+        withContext(Dispatchers.Default) {
             mutex.withLock {
                 _enabled.value = false
                 block()
@@ -422,7 +422,7 @@ class MediaController(
         }
     }
 
-    suspend fun release() {
+    suspend fun release() { // TODO
         coroutineScope.cancel()
         mediaPlayer.release()
     }
@@ -445,7 +445,7 @@ class MediaController(
             val previousState = _state.value
             val newStartPosition = previousState.positionMs
             try {
-                this.client?.call<Unit>(MediaPlayerRpc.Stop)
+                this.client?.call(Rpc.ToClient.MediaPlayer.Stop)
             } catch (e: Exception) {
                 logger.error(e) { "could not stop playback in previous client" }
             }
@@ -456,7 +456,7 @@ class MediaController(
             observeJob = coroutineScope.launch {
                 client.let { client ->
                     try {
-                        client?.observe<MediaPlayerState>(MediaPlayerRpc.ObserveState)?.collect(_state)
+                        client?.observe(Rpc.ToClient.MediaPlayer.ObserveState)?.collect(_state)
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -472,9 +472,10 @@ class MediaController(
         override suspend fun setTrack(id: MediaFileId) {
             client.let { client ->
                 if (client != null) {
-                    client.call<Unit>(MediaPlayerRpc.SetTrack(id))
+                    client.call(Rpc.ToClient.MediaPlayer.SetTrack(id))
                 } else {
-                    _state.value = MediaPlayerState(track = id, isPlaying = false, startPositionMs = 0L, isFinished = false)
+                    _state.value =
+                        MediaPlayerState(track = id, isPlaying = false, startPositionMs = 0L, isFinished = false)
                 }
             }
         }
@@ -482,7 +483,7 @@ class MediaController(
         override suspend fun play() {
             client.let { client ->
                 if (client != null) {
-                    client.call<Unit>(MediaPlayerRpc.Play)
+                    client.call(Rpc.ToClient.MediaPlayer.Play)
                 } else {
                     _state.update { it.copy(isPlaying = false, startPositionMs = it.positionMs) }
                 }
@@ -492,7 +493,7 @@ class MediaController(
         override suspend fun pause() {
             client.let { client ->
                 if (client != null) {
-                    client.call<Unit>(MediaPlayerRpc.Pause)
+                    client.call(Rpc.ToClient.MediaPlayer.Pause)
                 } else {
                     _state.update { it.copy(isPlaying = false, startPositionMs = it.positionMs) }
                 }
@@ -502,7 +503,7 @@ class MediaController(
         override suspend fun stop() {
             client.let { client ->
                 if (client != null) {
-                    client.call<Unit>(MediaPlayerRpc.Stop)
+                    client.call(Rpc.ToClient.MediaPlayer.Stop)
                 } else {
                     _state.update { it.copy(isPlaying = false, startPositionMs = 0L, isFinished = false) }
                 }
@@ -512,7 +513,7 @@ class MediaController(
         override suspend fun setTime(time: Duration) {
             client.let { client ->
                 if (client != null) {
-                    client.call<Unit>(MediaPlayerRpc.SetTime(time.inWholeMilliseconds))
+                    client.call(Rpc.ToClient.MediaPlayer.SetTime(time.inWholeMilliseconds))
                 } else {
                     _state.update { it.copy(isPlaying = false, startPositionMs = time.inWholeMilliseconds, isFinished = false) }
                 }
@@ -522,7 +523,7 @@ class MediaController(
         override suspend fun setState(value: MediaPlayerState) {
             client.let { client ->
                 if (client != null) {
-                    client.call<Unit>(MediaPlayerRpc.SetState(value))
+                    client.call(Rpc.ToClient.MediaPlayer.SetState(value))
                 } else {
                     _state.update { value.copy(isPlaying = false) }
                 }

@@ -3,9 +3,9 @@ package dev.younesgouyd.apps.music.server.multiplatform.data.room.transactions
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
-import dev.younesgouyd.apps.music.common.models.ImportSessionItem
 import dev.younesgouyd.apps.music.common.models.ImportSessionItemId
 import dev.younesgouyd.apps.music.common.models.MediaFileId
+import dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 @Dao

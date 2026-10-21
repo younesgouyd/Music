@@ -19,11 +19,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.SpotifyAlbumRepo
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.SpotifyArtistRepo
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.SpotifyTrackRepo
-import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
-import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
-import dev.younesgouyd.apps.music.common.models.SpotifyTrackId
-import dev.younesgouyd.apps.music.common.models.TrackId
-import dev.younesgouyd.apps.music.common.models.playback.QueueItemParameter
+import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.ui.Component
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -73,12 +69,12 @@ class AlbumDetails(
                     scrollState = LazyListState(),
                     album = album.filterNotNull().stateIn(coroutineScope),
                     tracks = spotifyTracks,
-                    onPlayClick = { mediaController.playQueue(listOf(QueueItemParameter.Album(id))) },
+                    onPlayClick = { mediaController.playQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Album(id))) },
                     onAddToQueueClick = {
                         mediaController.addToQueue(
                             items = spotifyTracks.value.mapNotNull {
                                 it.trackId?.let {
-                                    QueueItemParameter.Track(it)
+                                    Rpc.ToServer.MediaController.QueueItemParameter.Track(it)
                                 }
                             }
                         )
@@ -86,14 +82,14 @@ class AlbumDetails(
                     onTrackClick = { trackId ->
                         val tracks = spotifyTracks.value.mapNotNull { it.trackId }
                         mediaController.playQueue(
-                            queue = tracks.map { QueueItemParameter.Track(it) },
+                            queue = tracks.map { Rpc.ToServer.MediaController.QueueItemParameter.Track(it) },
                             queueItemIndex = tracks.indexOfFirst { it == trackId }
                         )
                     },
                     onArtistClick = showArtist,
                     onAddTrackToQueueClick = {
                         mediaController.addToQueue(
-                            listOf(QueueItemParameter.Track(it))
+                            listOf(Rpc.ToServer.MediaController.QueueItemParameter.Track(it))
                         )
                     },
                     onShowTrackDetailsClick = showTrack

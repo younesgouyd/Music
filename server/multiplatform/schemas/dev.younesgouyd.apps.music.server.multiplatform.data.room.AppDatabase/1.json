@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "e9dae23867e68bb0d9aaa71bfd3b8922",
+    "identityHash": "17e5c24222556a320634ada359c42b45",
     "entities": [
       {
         "tableName": "Client",
@@ -47,7 +47,7 @@
       },
       {
         "tableName": "ClientSession",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `clientId` INTEGER NOT NULL, `connectionDatetime` INTEGER NOT NULL, `disconnectionDatetime` INTEGER, `disconnectionReason` TEXT, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`clientId`) REFERENCES `Client`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `clientId` INTEGER NOT NULL, `connectionDatetime` INTEGER NOT NULL, `disconnectionDatetime` INTEGER, `disconnectionFlag` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`clientId`) REFERENCES `Client`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -73,9 +73,10 @@
             "affinity": "INTEGER"
           },
           {
-            "fieldPath": "disconnectionReason",
-            "columnName": "disconnectionReason",
-            "affinity": "TEXT"
+            "fieldPath": "disconnectionFlag",
+            "columnName": "disconnectionFlag",
+            "affinity": "INTEGER",
+            "notNull": true
           },
           {
             "fieldPath": "creationDatetime",
@@ -1547,7 +1548,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e9dae23867e68bb0d9aaa71bfd3b8922')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '17e5c24222556a320634ada359c42b45')"
     ]
   }
 }

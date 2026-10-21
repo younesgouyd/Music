@@ -1,10 +1,10 @@
 package dev.younesgouyd.apps.music.client.multiplatform
 
 import dev.younesgouyd.apps.music.common.models.ClientId
-import dev.younesgouyd.apps.music.common.models.playback.Client
-import dev.younesgouyd.apps.music.common.models.playback.MediaPlayerState
-import dev.younesgouyd.apps.music.common.models.playback.QueueItem
-import dev.younesgouyd.apps.music.common.models.playback.RepeatState
+import dev.younesgouyd.apps.music.common.models.RepeatState
+import dev.younesgouyd.apps.music.common.models.datamodels.Client
+import dev.younesgouyd.apps.music.common.models.datamodels.MediaPlayerState
+import dev.younesgouyd.apps.music.common.models.datamodels.QueueItem
 import kotlinx.coroutines.flow.StateFlow
 
 sealed class MediaControllerState {

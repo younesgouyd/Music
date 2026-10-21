@@ -15,7 +15,7 @@ import dev.younesgouyd.apps.music.common.generatePassword
 import dev.younesgouyd.apps.music.common.json
 import dev.younesgouyd.apps.music.common.models.ClientId
 import dev.younesgouyd.apps.music.common.models.MediaFileId
-import dev.younesgouyd.apps.music.common.models.rpc.WSMessage
+import dev.younesgouyd.apps.music.common.models.WSMessage
 import dev.younesgouyd.apps.music.common.sha256Hash
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.verifyPassword
@@ -107,7 +107,7 @@ abstract class Application(appDir: File) {
             val database = createDatabaseInstance(dbFile)
             val fileManager = FileManager(mediaDir)
             val repoStore = RepoStore(database)
-            repoStore.clientSessionRepo.serverCrashUpdate()
+            repoStore.clientSessionRepo.updateDisconnectionFlag()
             val webSocketSessionHandlersMap = ConcurrentHashMap<ClientId, WebSocketSessionHandler>()
             val websocketSessionHandlers = WebSocketSessionHandlers(webSocketSessionHandlersMap)
             val mediaController = MediaController(
@@ -358,14 +358,12 @@ abstract class Application(appDir: File) {
                                 sessionId to handler
                             }
                             try {
-                                handler.start()
+                                handler.run()
                             } finally {
                                 val disconnectionDatetime = System.currentTimeMillis()
-                                logger.debug { "handling session closure" }
                                 webSocketSessionHandlersMap.remove(clientId, handler)
                                 handler.close()
-                                logger.debug { "recording session closure time" }
-                                sessionRepo.webSocketDisconnectionUpdate(
+                                sessionRepo.update(
                                     id = sessionId,
                                     disconnectionDatetime = disconnectionDatetime
                                 )

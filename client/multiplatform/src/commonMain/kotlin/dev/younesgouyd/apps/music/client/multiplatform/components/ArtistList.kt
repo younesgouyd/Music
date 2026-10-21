@@ -19,8 +19,8 @@ import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.SpotifyArtist
 import dev.younesgouyd.apps.music.client.multiplatform.util.LazilyLoadedItems
 import dev.younesgouyd.apps.music.client.multiplatform.util.PageSize
 import dev.younesgouyd.apps.music.common.models.Offset
+import dev.younesgouyd.apps.music.common.models.Rpc
 import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
-import dev.younesgouyd.apps.music.common.models.playback.QueueItemParameter
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -66,8 +66,8 @@ class ArtistList(
                 scrollState = LazyGridState(),
                 onSearchQueryChange = { searchQuery.value = it },
                 onArtistClick = showArtistDetails,
-                onPlayArtistClick = { id: SpotifyArtistId -> mediaController.playQueue(listOf(QueueItemParameter.Artist(id))) },
-                onAddArtistToQueueClick = { id: SpotifyArtistId -> mediaController.addToQueue(listOf(QueueItemParameter.Artist(id))) }
+                onPlayArtistClick = { id: SpotifyArtistId -> mediaController.playQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Artist(id))) },
+                onAddArtistToQueueClick = { id: SpotifyArtistId -> mediaController.addToQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Artist(id))) }
             )
         }
     }

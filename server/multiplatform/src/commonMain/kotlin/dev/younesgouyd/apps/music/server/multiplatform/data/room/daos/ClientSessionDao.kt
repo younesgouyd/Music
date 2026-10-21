@@ -19,12 +19,13 @@ abstract class ClientSessionDao {
     abstract fun getLast50(id: ClientId): Flow<List<ClientSession>>
 
     @Query("""
-        insert into clientsession (clientId, connectionDatetime, creationDatetime, updateDatetime)
-        values (:clientId, :connectionDatetime, :creationDatetime, :updateDatetime)
+        insert into clientsession (clientId, connectionDatetime, disconnectionFlag, creationDatetime, updateDatetime)
+        values (:clientId, :connectionDatetime, :disconnectionFlag, :creationDatetime, :updateDatetime)
     """)
     abstract suspend fun add(
         clientId: ClientId,
         connectionDatetime: Long,
+        disconnectionFlag: Boolean,
         creationDatetime: Long,
         updateDatetime: Long
     ): Long
@@ -32,25 +33,25 @@ abstract class ClientSessionDao {
     @Query("""
         update clientsession
         set disconnectionDatetime = :disconnectionDatetime,
-            disconnectionReason = :disconnectionReason,
+            disconnectionFlag = :disconnectionFlag,
             updateDatetime = :updateDatetime
         where id = :id
     """)
     abstract suspend fun update(
         disconnectionDatetime: Long,
-        disconnectionReason: ClientSession.DisconnectionReason,
+        disconnectionFlag: Boolean,
         updateDatetime: Long,
         id: ClientSessionId
     )
 
     @Query("""
         update clientsession
-        set disconnectionReason = :disconnectionReason,
+        set disconnectionFlag = :disconnectionFlag,
             updateDatetime = :updateDatetime
-        where disconnectionReason is null
+        where disconnectionDatetime is null
     """)
-    abstract suspend fun updateAll(
-        disconnectionReason: ClientSession.DisconnectionReason,
+    abstract suspend fun update(
+        disconnectionFlag: Boolean,
         updateDatetime: Long
     )
 }

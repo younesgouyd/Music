@@ -18,7 +18,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.common.ServerState
 import dev.younesgouyd.apps.music.common.getLocalInetAddress
-import dev.younesgouyd.apps.music.common.models.YtDlpServerInfo
+import dev.younesgouyd.apps.music.common.models.datamodels.YtDlpServerInfo
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.Json
 import kotlin.io.encoding.Base64

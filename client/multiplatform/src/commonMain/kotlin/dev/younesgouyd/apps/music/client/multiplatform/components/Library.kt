@@ -29,7 +29,9 @@ import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.*
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.ClearImportItemUseCase
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.DeleteFolderUseCase
 import dev.younesgouyd.apps.music.common.models.*
-import dev.younesgouyd.apps.music.common.models.playback.QueueItemParameter
+import dev.younesgouyd.apps.music.common.models.datamodels.Folder
+import dev.younesgouyd.apps.music.common.models.datamodels.Playlist
+import dev.younesgouyd.apps.music.common.models.datamodels.TrackRelation
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -204,11 +206,11 @@ class Library(
                 addToPlaylistDialogVisible.value = true
             },
             onAddFolderToQueueClick = { id: FolderId ->
-                suspend fun getFolderItems(_id: FolderId): List<QueueItemParameter> {
+                suspend fun getFolderItems(_id: FolderId): List<Rpc.ToServer.MediaController.QueueItemParameter> {
                     val tracks = trackRepo.getFolderTracks(_id).first()
-                        .map { dbTrack -> QueueItemParameter.Track(dbTrack.id) }
+                        .map { dbTrack -> Rpc.ToServer.MediaController.QueueItemParameter.Track(dbTrack.id) }
                     val playlists = playlistRepo.getFolderPlaylists(_id).first()
-                        .map { dbPlaylist -> QueueItemParameter.Playlist(dbPlaylist.id) }
+                        .map { dbPlaylist -> Rpc.ToServer.MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
                     return tracks + playlists + folderRepo.getSubfolders(_id).first().flatMap { getFolderItems(it.id) }
                 }
                 coroutineScope.launch {
@@ -217,11 +219,11 @@ class Library(
                 }
             },
             onPlayFolder = { folderId: FolderId ->
-                suspend fun getFolderItems(_folderId: FolderId): List<QueueItemParameter> {
+                suspend fun getFolderItems(_folderId: FolderId): List<Rpc.ToServer.MediaController.QueueItemParameter> {
                     val tracks = trackRepo.getFolderTracks(_folderId).first()
-                        .map { dbTrack -> QueueItemParameter.Track(dbTrack.id) }
+                        .map { dbTrack -> Rpc.ToServer.MediaController.QueueItemParameter.Track(dbTrack.id) }
                     val playlists = playlistRepo.getFolderPlaylists(_folderId).first()
-                        .map { dbPlaylist -> QueueItemParameter.Playlist(dbPlaylist.id) }
+                        .map { dbPlaylist -> Rpc.ToServer.MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
                     return tracks + playlists + folderRepo.getSubfolders(_folderId).first().flatMap { getFolderItems(it.id) }
                 }
                 coroutineScope.launch {
@@ -232,7 +234,7 @@ class Library(
             onPlaylistClick = showPlaylist,
             onPlayPlaylistClick = { id: PlaylistId ->
                 mediaController.playQueue(
-                    listOf(QueueItemParameter.Playlist(id))
+                    listOf(Rpc.ToServer.MediaController.QueueItemParameter.Playlist(id))
                 )
             },
             onAddPlaylistToPlaylistClick = { playlistId: PlaylistId ->
@@ -292,7 +294,7 @@ class Library(
             },
             onAddPlaylistToQueueClick = { id: PlaylistId ->
                 mediaController.addToQueue(
-                    listOf(QueueItemParameter.Playlist(id))
+                    listOf(Rpc.ToServer.MediaController.QueueItemParameter.Playlist(id))
                 )
             },
             onTrackClick = showTrack,
@@ -338,7 +340,7 @@ class Library(
             },
             onDeletePlaylist = { coroutineScope.launch { playlistRepo.delete(it) } },
             onDeleteTrack = { coroutineScope.launch { clearImportItemUseCase.execute(it) } },
-            onAddTrackToQueue = { mediaController.addToQueue(listOf(QueueItemParameter.Track(it))) },
+            onAddTrackToQueue = { mediaController.addToQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Track(it))) },
             onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
         )
     }
@@ -481,7 +483,7 @@ class Library(
             val playlists: StateFlow<List<Playlist>>,
             val tracks: StateFlow<List<Track>>,
             val onNewFolder: (name: String) -> Unit,
-            val onFolderClick: (dev.younesgouyd.apps.music.common.models.Folder?) -> Unit,
+            val onFolderClick: (dev.younesgouyd.apps.music.common.models.datamodels.Folder?) -> Unit,
             val onAddFolderToPlaylistClick: (FolderId) -> Unit,
             val onAddFolderToQueueClick: (FolderId) -> Unit,
             val onPlayFolder: (FolderId) -> Unit,
@@ -504,7 +506,7 @@ class Library(
             val onDismissAddToPlaylistDialog: () -> Unit
         ) {
             data class NodeState(
-                val folder: dev.younesgouyd.apps.music.common.models.Folder?,
+                val folder: dev.younesgouyd.apps.music.common.models.datamodels.Folder?,
                 val scrollState: LazyGridState,
             )
 
@@ -578,12 +580,12 @@ class Library(
                 searchQuery: StateFlow<String>,
                 tagsFilterState: TagsFilterState,
                 onSearchQueryChange: (String) -> Unit,
-                folders: StateFlow<List<dev.younesgouyd.apps.music.common.models.Folder>>,
+                folders: StateFlow<List<dev.younesgouyd.apps.music.common.models.datamodels.Folder>>,
                 playlists: StateFlow<List<State.Playlist>>,
                 tracks: StateFlow<List<State.Track>>,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
-                onFolderClick: (dev.younesgouyd.apps.music.common.models.Folder?) -> Unit,
+                onFolderClick: (dev.younesgouyd.apps.music.common.models.datamodels.Folder?) -> Unit,
                 onAddFolderToPlaylistClick: (FolderId) -> Unit,
                 onAddFolderToQueueClick: (FolderId) -> Unit,
                 onPlayFolder: (FolderId) -> Unit,
@@ -698,10 +700,10 @@ class Library(
             @Composable
             private fun ToolBar(
                 modifier: Modifier,
-                path: List<dev.younesgouyd.apps.music.common.models.Folder>,
+                path: List<dev.younesgouyd.apps.music.common.models.datamodels.Folder>,
                 searchQuery: StateFlow<String>,
                 tagsFilterState: TagsFilterState,
-                onFolderClick: (dev.younesgouyd.apps.music.common.models.Folder?) -> Unit,
+                onFolderClick: (dev.younesgouyd.apps.music.common.models.datamodels.Folder?) -> Unit,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
                 onSearchQueryChange: (String) -> Unit
@@ -844,7 +846,7 @@ class Library(
 
             @Composable
             private fun FolderItem(
-                folder: dev.younesgouyd.apps.music.common.models.Folder,
+                folder: dev.younesgouyd.apps.music.common.models.datamodels.Folder,
                 onClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -1341,12 +1343,12 @@ class Library(
                 searchQuery: StateFlow<String>,
                 tagsFilterState: TagsFilterState,
                 onSearchQueryChange: (String) -> Unit,
-                folders: StateFlow<List<dev.younesgouyd.apps.music.common.models.Folder>>,
+                folders: StateFlow<List<dev.younesgouyd.apps.music.common.models.datamodels.Folder>>,
                 playlists: StateFlow<List<State.Playlist>>,
                 tracks: StateFlow<List<State.Track>>,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
-                onFolderClick: (dev.younesgouyd.apps.music.common.models.Folder?) -> Unit,
+                onFolderClick: (dev.younesgouyd.apps.music.common.models.datamodels.Folder?) -> Unit,
                 onAddFolderToPlaylistClick: (FolderId) -> Unit,
                 onAddFolderToQueueClick: (FolderId) -> Unit,
                 onPlayFolder: (FolderId) -> Unit,
@@ -1462,10 +1464,10 @@ class Library(
             @Composable
             private fun ToolBar(
                 modifier: Modifier,
-                path: List<dev.younesgouyd.apps.music.common.models.Folder>,
+                path: List<dev.younesgouyd.apps.music.common.models.datamodels.Folder>,
                 searchQuery: StateFlow<String>,
                 tagsFilterState: TagsFilterState,
-                onFolderClick: (dev.younesgouyd.apps.music.common.models.Folder?) -> Unit,
+                onFolderClick: (dev.younesgouyd.apps.music.common.models.datamodels.Folder?) -> Unit,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
                 onSearchQueryChange: (String) -> Unit
@@ -1608,7 +1610,7 @@ class Library(
 
             @Composable
             private fun FolderItem(
-                folder: dev.younesgouyd.apps.music.common.models.Folder,
+                folder: dev.younesgouyd.apps.music.common.models.datamodels.Folder,
                 onClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,

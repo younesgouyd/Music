@@ -2,7 +2,7 @@ package dev.younesgouyd.apps.music.server.multiplatform.data.room
 
 import androidx.room.TypeConverter
 import dev.younesgouyd.apps.music.common.json
-import dev.younesgouyd.apps.music.common.models.Inspection
+import dev.younesgouyd.apps.music.common.models.datamodels.Inspection
 
 object Converters {
     @TypeConverter

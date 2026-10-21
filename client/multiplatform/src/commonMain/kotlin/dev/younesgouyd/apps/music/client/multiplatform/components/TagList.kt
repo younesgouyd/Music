@@ -15,8 +15,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.ScrollToTopFloatingActionButton
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.TagRepo
-import dev.younesgouyd.apps.music.common.models.Tag
 import dev.younesgouyd.apps.music.common.models.TagId
+import dev.younesgouyd.apps.music.common.models.datamodels.Tag
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
 import kotlinx.coroutines.ExperimentalCoroutinesApi

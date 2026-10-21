@@ -17,13 +17,9 @@ import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
 import dev.younesgouyd.apps.music.client.multiplatform.MediaControllerState
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.*
-import dev.younesgouyd.apps.music.common.models.ClientId
-import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
-import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
-import dev.younesgouyd.apps.music.common.models.TrackId
-import dev.younesgouyd.apps.music.common.models.playback.Client
-import dev.younesgouyd.apps.music.common.models.playback.QueueItem
-import dev.younesgouyd.apps.music.common.models.playback.RepeatState
+import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.models.datamodels.Client
+import dev.younesgouyd.apps.music.common.models.datamodels.QueueItem
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.DeviceIcon
 import kotlinx.coroutines.ExperimentalCoroutinesApi

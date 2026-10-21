@@ -2,7 +2,7 @@ package dev.younesgouyd.apps.music.server.multiplatform.usecases
 
 import dev.younesgouyd.apps.music.common.models.FolderId
 import dev.younesgouyd.apps.music.common.models.ImportSessionId
-import dev.younesgouyd.apps.music.common.models.Inspection
+import dev.younesgouyd.apps.music.common.models.datamodels.Inspection
 import dev.younesgouyd.apps.music.server.multiplatform.data.FileManager
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.transactions.PrepareImport
 

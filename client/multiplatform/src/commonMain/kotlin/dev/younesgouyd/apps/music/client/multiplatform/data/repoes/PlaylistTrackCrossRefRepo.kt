@@ -2,9 +2,9 @@ package dev.younesgouyd.apps.music.client.multiplatform.data.repoes
 
 import dev.younesgouyd.apps.music.client.multiplatform.data.Server
 import dev.younesgouyd.apps.music.common.models.PlaylistId
-import dev.younesgouyd.apps.music.common.models.PlaylistTrackCrossRef
+import dev.younesgouyd.apps.music.common.models.Rpc
 import dev.younesgouyd.apps.music.common.models.TrackId
-import dev.younesgouyd.apps.music.common.models.rpc.PlaylistTrackCrossRefRpc
+import dev.younesgouyd.apps.music.common.models.datamodels.PlaylistTrackCrossRef
 import kotlinx.coroutines.flow.Flow
 
 class PlaylistTrackCrossRefRepo(
@@ -12,7 +12,7 @@ class PlaylistTrackCrossRefRepo(
 ) {
     fun get(playlistId: PlaylistId, trackId: TrackId): Flow<PlaylistTrackCrossRef?> {
         return server.observe(
-            PlaylistTrackCrossRefRpc.Get(
+            Rpc.ToServer.PlaylistTrackCrossRef.Get(
                 playlistId = playlistId,
                 trackId = trackId
             )
@@ -20,8 +20,8 @@ class PlaylistTrackCrossRefRepo(
     }
 
     suspend fun add(playlistId: PlaylistId, trackId: TrackId) {
-        server.call<Unit>(
-            PlaylistTrackCrossRefRpc.Add(
+        server.call(
+            Rpc.ToServer.PlaylistTrackCrossRef.Add(
                 playlistId = playlistId,
                 trackId = trackId
             )
@@ -29,8 +29,8 @@ class PlaylistTrackCrossRefRepo(
     }
 
     suspend fun changeItemPosition(playlistId: PlaylistId, from: Int, to: Int) {
-        server.call<Unit>(
-            PlaylistTrackCrossRefRpc.ChangeItemPosition(
+        server.call(
+            Rpc.ToServer.PlaylistTrackCrossRef.ChangeItemPosition(
                 playlistId = playlistId,
                 from = from,
                 to = to
@@ -39,8 +39,8 @@ class PlaylistTrackCrossRefRepo(
     }
 
     suspend fun delete(playlistId: PlaylistId, trackId: TrackId) {
-        server.call<Unit>(
-            PlaylistTrackCrossRefRpc.Delete(
+        server.call(
+            Rpc.ToServer.PlaylistTrackCrossRef.Delete(
                 playlistId = playlistId,
                 trackId = trackId
             )

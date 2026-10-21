@@ -27,11 +27,7 @@ data class ClientSession(
     val clientId: ClientId,
     val connectionDatetime: Long,
     val disconnectionDatetime: Long?,
-    val disconnectionReason: DisconnectionReason?,
+    val disconnectionFlag: Boolean,
     val creationDatetime: Long,
     val updateDatetime: Long
-) {
-    enum class DisconnectionReason {
-        WebSocketDisconnection, ServerCrash
-    }
-}
+)

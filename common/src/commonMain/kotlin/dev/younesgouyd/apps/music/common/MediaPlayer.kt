@@ -1,7 +1,7 @@
 package dev.younesgouyd.apps.music.common
 
 import dev.younesgouyd.apps.music.common.models.MediaFileId
-import dev.younesgouyd.apps.music.common.models.playback.MediaPlayerState
+import dev.younesgouyd.apps.music.common.models.datamodels.MediaPlayerState
 import kotlinx.coroutines.flow.StateFlow
 import java.io.File
 import java.net.URI

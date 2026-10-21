@@ -30,7 +30,7 @@ abstract class Import {
                 fileManager = fileManager
             )
             updateState(
-                state = if (result != null) dev.younesgouyd.apps.music.common.models.ImportSessionItem.State.Completed else dev.younesgouyd.apps.music.common.models.ImportSessionItem.State.Failed,
+                state = if (result != null) dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State.Completed else dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State.Failed,
                 audioFileId = result?.audioFileId,
                 updateDatetime = System.currentTimeMillis(),
                 id = item.id
@@ -88,7 +88,7 @@ abstract class Import {
         where id = :id
     """)
     protected abstract suspend fun updateState(
-        state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State,
+        state: dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State,
         audioFileId: MediaFileId?,
         updateDatetime: Long,
         id: ImportSessionItemId

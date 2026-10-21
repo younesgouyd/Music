@@ -17,12 +17,12 @@ class ImportSessionItemRepo(
     }
 
     fun getOldestPending(): Flow<ImportSessionItem?> {
-        return dao.getOldest(dev.younesgouyd.apps.music.common.models.ImportSessionItem.State.Pending)
+        return dao.getOldest(dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State.Pending)
     }
 
     fun search(
         importSessionId: ImportSessionId,
-        state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State,
+        state: dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State,
         titleQuery: String,
         order: DbOrder
     ): Flow<List<ImportSessionItem>> {
@@ -31,7 +31,7 @@ class ImportSessionItemRepo(
 
     suspend fun updateState(
         id: ImportSessionItemId,
-        state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State,
+        state: dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State,
         audioFileId: MediaFileId?
     ) {
         dao.update(
@@ -44,7 +44,7 @@ class ImportSessionItemRepo(
 
     suspend fun updateState(
         id: ImportSessionItemId,
-        state: dev.younesgouyd.apps.music.common.models.ImportSessionItem.State
+        state: dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State
     ) {
         dao.update(
             state = state,

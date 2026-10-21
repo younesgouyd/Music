@@ -2,7 +2,7 @@ package dev.younesgouyd.apps.music.client.multiplatform
 
 import dev.younesgouyd.apps.music.common.MediaPlayer
 import dev.younesgouyd.apps.music.common.models.MediaFileId
-import dev.younesgouyd.apps.music.common.models.playback.MediaPlayerState
+import dev.younesgouyd.apps.music.common.models.datamodels.MediaPlayerState
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -33,6 +33,7 @@ abstract class LocalMediaPlayer(
         const val CHANNELS: Int = 2
     }
 
+    private val logger = KotlinLogging.logger {}
     private val dispatcher = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "JavaCV-Playback-Worker").apply {
             isDaemon = true // TODO
@@ -40,7 +41,6 @@ abstract class LocalMediaPlayer(
     }.asCoroutineDispatcher()
     private val coroutineScope = CoroutineScope(dispatcher + SupervisorJob())
     private val mutex = Mutex()
-    private val logger = KotlinLogging.logger {}
     protected val _state: MutableStateFlow<MediaPlayerState> = MutableStateFlow(MediaPlayerState.initial())
     protected val commands = Channel<PlayerCommand>(
         capacity = Channel.RENDEZVOUS,
@@ -131,6 +131,7 @@ abstract class LocalMediaPlayer(
             trackId = id
             isPlaying = false
             isFinished = false
+            emitState()
             val uri = uri.await()
             if (uri != null) {
                 val g = FFmpegFrameGrabber(uri).apply {

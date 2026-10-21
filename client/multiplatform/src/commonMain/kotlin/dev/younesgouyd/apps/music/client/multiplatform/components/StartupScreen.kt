@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.common.models.ServerInfo
+import dev.younesgouyd.apps.music.common.models.datamodels.ServerInfo
 import dev.younesgouyd.apps.music.common.ui.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.SharingStarted

@@ -26,7 +26,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.*
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.SetTrackMetadataFromSpotifyUseCase
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.UnsetSpotifyTrackUseCase
 import dev.younesgouyd.apps.music.common.models.*
-import dev.younesgouyd.apps.music.common.models.playback.QueueItemParameter
+import dev.younesgouyd.apps.music.common.models.datamodels.Tag
 import dev.younesgouyd.apps.music.common.models.spotify.Track
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
@@ -184,7 +184,7 @@ class TrackDetails(
                             }
                         }.stateIn(coroutineScope),
                     onTabClick = { selectedTab.value = it },
-                    onPlayClick = { mediaController.playQueue(listOf(QueueItemParameter.Track(id))) },
+                    onPlayClick = { mediaController.playQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Track(id))) },
                     onSetTag = { coroutineScope.launch { tagTrackCrossRefRepo.add(it, id) } },
                     onUnsetTag = { coroutineScope.launch { tagTrackCrossRefRepo.delete(it, id) } },
                     onTagDetailsClick = showTag,
