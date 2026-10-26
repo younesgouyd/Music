@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class PlaybackInterval(
     val audioFileId: MediaFileId,
-    val context: PlaybackContext,
+    val context: PlaybackContext.ClientSent,
     val from: Long,
     val to: Long,
     val startDatetime: Long,

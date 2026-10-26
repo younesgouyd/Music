@@ -6,6 +6,7 @@ import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.datamodels.MediaPlayerState
 import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackContext
 import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackInterval
+import dev.younesgouyd.apps.music.common.models.datamodels.toClientSent
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -56,7 +57,7 @@ abstract class LocalMediaPlayer(
         dispatchCommand { ack -> PlayerCommand.SetTrack(id, file, ack) }
     }
 
-    override suspend fun play(context: PlaybackContext) {
+    override suspend fun play(context: PlaybackContext.ServerSent) {
         dispatchCommand { ack -> PlayerCommand.Play(ack, context) }
     }
 
@@ -68,11 +69,11 @@ abstract class LocalMediaPlayer(
         dispatchCommand { ack -> PlayerCommand.Stop(ack) }
     }
 
-    override suspend fun setPositionMs(positionMs: Long, context: PlaybackContext) {
+    override suspend fun setPositionMs(positionMs: Long, context: PlaybackContext.ServerSent) {
         dispatchCommand { ack -> PlayerCommand.Seek(positionMs, context, ack) }
     }
 
-    override suspend fun setState(value: MediaPlayerState, context: PlaybackContext?) {
+    override suspend fun setState(value: MediaPlayerState, context: PlaybackContext.ServerSent?) {
         val file = coroutineScope.async(Dispatchers.IO) { value.track?.let { getFile(it).resolved() } }
         dispatchCommand { ack -> PlayerCommand.SetState(value, file, context, ack) }
     }
@@ -299,7 +300,7 @@ abstract class LocalMediaPlayer(
             emitState()
         }
 
-        private fun play(context: PlaybackContext) {
+        private fun play(context: PlaybackContext.ServerSent) {
             if (audio == null) TODO()
             audio!!.apply {
                 if (isFinished) {
@@ -312,7 +313,7 @@ abstract class LocalMediaPlayer(
             }
         }
 
-        private fun seek(positionMs: Long, context: PlaybackContext?) {
+        private fun seek(positionMs: Long, context: PlaybackContext.ServerSent?) {
             if (audio == null) TODO()
             audio!!.apply {
                 recorder.end(line.positionMs, System.currentTimeMillis())
@@ -339,9 +340,9 @@ abstract class LocalMediaPlayer(
                 track: MediaFileId,
                 from: Long,
                 startDatetime: Long,
-                context: PlaybackContext
+                context: PlaybackContext.ServerSent
             ) {
-                if (this.clientId != context.clientId || start != null) {
+                if (start != null) {
                     TODO()
                 }
                 start = Start(
@@ -349,7 +350,7 @@ abstract class LocalMediaPlayer(
                     track = track,
                     from = from,
                     datetime = startDatetime,
-                    context = context
+                    context = context.toClientSent(clientId)
                 )
             }
 
@@ -376,7 +377,7 @@ abstract class LocalMediaPlayer(
                 val track: MediaFileId,
                 val from: Long,
                 val datetime: Long,
-                val context: PlaybackContext
+                val context: PlaybackContext.ClientSent
             )
         }
     }
@@ -386,11 +387,11 @@ abstract class LocalMediaPlayer(
     private sealed class PlayerCommand {
         abstract val ack: CompletableDeferred<Unit>
         data class SetTrack(val id: MediaFileId, val uri: Deferred<String>, override val ack: CompletableDeferred<Unit>) : PlayerCommand()
-        data class Play(override val ack: CompletableDeferred<Unit>, val context: PlaybackContext) : PlayerCommand()
+        data class Play(override val ack: CompletableDeferred<Unit>, val context: PlaybackContext.ServerSent) : PlayerCommand()
         data class Pause(override val ack: CompletableDeferred<Unit>) : PlayerCommand()
         data class Stop(override val ack: CompletableDeferred<Unit>) : PlayerCommand()
-        data class Seek(val positionMs: Long, val context: PlaybackContext, override val ack: CompletableDeferred<Unit>) : PlayerCommand()
-        data class SetState(val value: MediaPlayerState, val uri: Deferred<String?>, val context: PlaybackContext?, override val ack: CompletableDeferred<Unit>) : PlayerCommand()
+        data class Seek(val positionMs: Long, val context: PlaybackContext.ServerSent, override val ack: CompletableDeferred<Unit>) : PlayerCommand()
+        data class SetState(val value: MediaPlayerState, val uri: Deferred<String?>, val context: PlaybackContext.ServerSent?, override val ack: CompletableDeferred<Unit>) : PlayerCommand()
     }
 
     protected abstract class AudioOutput {

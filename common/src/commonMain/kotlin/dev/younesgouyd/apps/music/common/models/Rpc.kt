@@ -45,7 +45,7 @@ sealed class Rpc {
             data class SetTrack(val id: MediaFileId) : MediaPlayer(), ResultType.Action
 
             @Serializable
-            data class Play(val context: PlaybackContext) : MediaPlayer(), ResultType.Action
+            data class Play(val context: PlaybackContext.ServerSent) : MediaPlayer(), ResultType.Action
 
             @Serializable
             data object Pause : MediaPlayer(), ResultType.Action
@@ -54,10 +54,10 @@ sealed class Rpc {
             data object Stop : MediaPlayer(), ResultType.Action
 
             @Serializable
-            data class SetTime(val positionMs: Long, val context: PlaybackContext) : MediaPlayer(), ResultType.Action
+            data class SetTime(val positionMs: Long, val context: PlaybackContext.ServerSent) : MediaPlayer(), ResultType.Action
 
             @Serializable
-            data class SetState(val value: MediaPlayerState, val context: PlaybackContext?) : MediaPlayer(), ResultType.Action
+            data class SetState(val value: MediaPlayerState, val context: PlaybackContext.ServerSent?) : MediaPlayer(), ResultType.Action
 
             @Serializable
             data object CollectPlaybackIntervals : MediaPlayer(), ResultType.Data.Stream<PlaybackInterval> {

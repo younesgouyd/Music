@@ -13,11 +13,11 @@ abstract class MediaPlayer {
     abstract val state: StateFlow<MediaPlayerState>
     abstract val playbackIntervals: Flow<PlaybackInterval>
     abstract suspend fun setTrack(id: MediaFileId)
-    abstract suspend fun play(context: PlaybackContext)
+    abstract suspend fun play(context: PlaybackContext.ServerSent)
     abstract suspend fun pause()
     abstract suspend fun stop()
-    abstract suspend fun setPositionMs(positionMs: Long, context: PlaybackContext)
-    abstract suspend fun setState(value: MediaPlayerState, context: PlaybackContext?)
+    abstract suspend fun setPositionMs(positionMs: Long, context: PlaybackContext.ServerSent)
+    abstract suspend fun setState(value: MediaPlayerState, context: PlaybackContext.ServerSent?)
     abstract suspend fun release()
 
     protected fun File.resolved(): String {

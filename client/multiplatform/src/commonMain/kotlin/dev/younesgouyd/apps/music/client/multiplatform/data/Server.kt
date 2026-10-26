@@ -25,7 +25,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.flow.*
-import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.KSerializer
 import java.io.File
 import java.security.SecureRandom
 import java.security.cert.CertificateException
@@ -137,21 +137,17 @@ class Server(
             val job = launch {
                 try {
                     while (isActive) {
-                        when (val message = receiveDeserialized<WSMessage>()) {
+                        val message = receiveDeserialized<WSMessage>()
+                        logMessage(message, "<==")
+                        when (message) {
                             is WSMessage.Registration -> {
                                 launch(Dispatchers.IO) {
                                     clientIdFile.writeText(message.value.value.toString())
                                     clientId = message.value
                                 }
                             }
-                            is WSMessage.Request -> {
-                                logger.debug { "received request: ${json.encodeToString(message)}" }
-                                serverRequestsHandler.handle(message)
-                            }
-                            is WSMessage.Response -> {
-                                logger.debug { "received response: ${json.encodeToString(message)}" }
-                                clientRequestsHandler.handle(message)
-                            }
+                            is WSMessage.Request -> { serverRequestsHandler.handle(message) }
+                            is WSMessage.Response -> { clientRequestsHandler.handle(message) }
                         }
                     }
                 } catch (e: Throwable) {
@@ -170,15 +166,15 @@ class Server(
                 return
             }
             launch {
-                serverRequestsHandler.responses.consumeEach {
-                    logger.debug { "sending response: ${json.encodeToString(it)}" }
-                    session.sendSerialized<WSMessage>(it)
+                serverRequestsHandler.responses.consumeEach { message ->
+                    logMessage(message, "==>")
+                    session.sendSerialized<WSMessage>(message)
                 }
             }
             launch {
-                clientRequestsHandler.requests.consumeEach {
-                    logger.debug { "sending request: ${json.encodeToString(it)}" }
-                    session.sendSerialized<WSMessage>(it)
+                clientRequestsHandler.requests.consumeEach { message ->
+                    logMessage(message, "==>")
+                    session.sendSerialized<WSMessage>(message)
                 }
             }
         }
@@ -204,6 +200,27 @@ class Server(
         try { session.close() } catch (_: Throwable) {}
         httpClient.close()
         httpClient.coroutineContext.job.join()
+    }
+
+    private fun logMessage(message: WSMessage, direction: String) {
+        val logMessage: String = when (message) {
+            is WSMessage.Registration -> {
+                "Registration ClientId: ${message.value}"
+            }
+            is WSMessage.Request -> {
+                when (message) {
+                    is WSMessage.Request.Execute -> "Request.Execute ${message.correlationId}: ${json.encodeToString(message.rpc)}"
+                    is WSMessage.Request.Cancel -> "Request.Cancel ${message.correlationId}"
+                }
+            }
+            is WSMessage.Response -> {
+                when (message) {
+                    is WSMessage.Response.Data -> "Response.Data ${message.correlationId}: ${json.encodeToString(message.value)}"
+                    is WSMessage.Response.Done -> "Response.Data ${message.correlationId}"
+                }
+            }
+        }
+        logger.debug { "$direction $logMessage" }
     }
 
     private class ClientRequestsHandler(
@@ -391,7 +408,7 @@ class Server(
                     when (rpc) {
                         is Rpc.ToClient.MediaPlayer.ObserveState -> {
                             mediaPlayer.state.collect {
-                                sendData(correlationId, it)
+                                sendData(correlationId, it, rpc.serializer)
                             }
                         }
                         is Rpc.ToClient.MediaPlayer.SetTrack -> {
@@ -420,7 +437,7 @@ class Server(
                         }
                         is Rpc.ToClient.MediaPlayer.CollectPlaybackIntervals -> {
                             mediaPlayer.playbackIntervals.collect {
-                                sendData(correlationId, it)
+                                sendData(correlationId, it, rpc.serializer)
                             }
                         }
                     }
@@ -428,11 +445,11 @@ class Server(
             }
         }
 
-        private suspend inline fun <reified T> sendData(correlationId: Uuid, data: T) {
+        private suspend fun <T> sendData(correlationId: Uuid, data: T, serializer: KSerializer<T>) {
             responses.send(
                 WSMessage.Response.Data(
                     correlationId = correlationId,
-                    value = json.encodeToJsonElement<T>(data)
+                    value = json.encodeToJsonElement(serializer, data)
                 )
             )
         }

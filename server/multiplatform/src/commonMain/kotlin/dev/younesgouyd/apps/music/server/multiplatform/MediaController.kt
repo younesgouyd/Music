@@ -91,7 +91,7 @@ class MediaController(
                                 newTrack.audioId?.let {
                                     mediaPlayer.setTrack(it)
                                     _selectedClient.value?.let { clientId ->
-                                        mediaPlayer.play(PlaybackContext(newTrack, clientId))
+                                        mediaPlayer.play(PlaybackContext.ServerSent(newTrack))
                                     }
                                 }
                             }
@@ -106,9 +106,7 @@ class MediaController(
                             val track = queue[_currentItemIndex.value]
                             track.audioId?.let {
                                 mediaPlayer.setTrack(it)
-                                _selectedClient.value?.let { clientId ->
-                                    mediaPlayer.play(PlaybackContext(track, clientId))
-                                }
+                                mediaPlayer.play(PlaybackContext.ServerSent(track))
                             }
                         }
                     }
@@ -179,7 +177,7 @@ class MediaController(
                     selectClientImpl(clientId)
                 }
                 currentItem?.let { track ->
-                    mediaPlayer.play(PlaybackContext(track, clientId))
+                    mediaPlayer.play(PlaybackContext.ServerSent(track))
                 }
             }
         }
@@ -196,12 +194,10 @@ class MediaController(
     suspend fun seek(positionMs: Long) {
         launchCommand {
             currentItem?.let { track ->
-                _selectedClient.value?.let { clientId ->
-                    mediaPlayer.setPositionMs(
-                        positionMs = positionMs,
-                        context = PlaybackContext(track, clientId)
-                    )
-                }
+                mediaPlayer.setPositionMs(
+                    positionMs = positionMs,
+                    context = PlaybackContext.ServerSent(track)
+                )
             }
         }
         logger.debug { "<-- ::seek" }
@@ -232,7 +228,7 @@ class MediaController(
                 }
                 mediaPlayer.setTrack(it)
                 if (wasPlaying) {
-                    mediaPlayer.play(PlaybackContext(newTrack, clientId))
+                    mediaPlayer.play(PlaybackContext.ServerSent(newTrack))
                 }
             }
             _currentItemIndex.value = newIndex
@@ -286,7 +282,7 @@ class MediaController(
                         selectClientImpl(clientId)
                     }
                     mediaPlayer.setTrack(it)
-                    mediaPlayer.play(PlaybackContext(queueItem, clientId))
+                    mediaPlayer.play(PlaybackContext.ServerSent(queueItem))
                 }
             }
             _currentItemIndex.value = index
@@ -342,7 +338,7 @@ class MediaController(
                             }
                             mediaPlayer.setTrack(audioId)
                             if (wasPlaying) {
-                                mediaPlayer.play(PlaybackContext(queueItem, clientId))
+                                mediaPlayer.play(PlaybackContext.ServerSent(queueItem))
                             }
                             break
                         }
@@ -357,9 +353,7 @@ class MediaController(
         mediaPlayer.setClient(
             id = id,
             context = currentItem?.let { queueItem ->
-                id?.let { clientId ->
-                    PlaybackContext(queueItem, clientId)
-                }
+                PlaybackContext.ServerSent(queueItem)
             }
         )
         _selectedClient.value = id
@@ -373,7 +367,7 @@ class MediaController(
         mapped[queueItemIndex].let { queueItem ->
             queueItem.audioId?.let {
                 mediaPlayer.setTrack(it)
-                mediaPlayer.play(PlaybackContext(queueItem, clientId))
+                mediaPlayer.play(PlaybackContext.ServerSent(queueItem))
             } ?: TODO()
         }
         _queue.value = mapped.apply { setKeys() }
@@ -393,9 +387,7 @@ class MediaController(
         val newTrack = queue[newIndex]
         newTrack.audioId?.let {
             mediaPlayer.setTrack(it)
-            clientId?.let {
-                mediaPlayer.play(PlaybackContext(newTrack, clientId))
-            }
+            mediaPlayer.play(PlaybackContext.ServerSent(newTrack))
         }
     }
 
@@ -517,7 +509,7 @@ class MediaController(
             }
         }
 
-        suspend fun setClient(id: ClientId?, context: PlaybackContext?) {
+        suspend fun setClient(id: ClientId?, context: PlaybackContext.ServerSent?) {
             val client: WebSocketSessionHandler? = id?.let { websocketSessionHandlers.get(it) }
             collectJob?.cancelAndJoin()
             collectJob = null
@@ -531,6 +523,7 @@ class MediaController(
                 logger.error(e) { "could not stop playback in previous client" }
             }
             this.client = client
+            logger.debug { "MediaPlayerImpl::setClient | client: $client, context: $context" }
             if (context == null) {
                 setState(
                     value = MediaPlayerState.initial(),
@@ -542,12 +535,10 @@ class MediaController(
                     context = context
                 )
             }
-            collectJob = coroutineScope.launch {
-                client.let { client ->
-                    client?.stream(Rpc.ToClient.MediaPlayer.CollectPlaybackIntervals)
-                        ?.collect {
-                            playbackIntervalsChannel.send(it)
-                        }
+            client?.let { client ->
+                collectJob = coroutineScope.launch {
+                    client.stream(Rpc.ToClient.MediaPlayer.CollectPlaybackIntervals)
+                        .collect { playbackIntervalsChannel.send(it) }
                 }
             }
             observeJob = coroutineScope.launch {
@@ -576,7 +567,7 @@ class MediaController(
             }
         }
 
-        override suspend fun play(context: PlaybackContext) {
+        override suspend fun play(context: PlaybackContext.ServerSent) {
             client.let { client ->
                 if (client != null) {
                     client.call(Rpc.ToClient.MediaPlayer.Play(context))
@@ -606,7 +597,7 @@ class MediaController(
             }
         }
 
-        override suspend fun setPositionMs(positionMs: Long, context: PlaybackContext) {
+        override suspend fun setPositionMs(positionMs: Long, context: PlaybackContext.ServerSent) {
             client.let { client ->
                 if (client != null) {
                     client.call(Rpc.ToClient.MediaPlayer.SetTime(positionMs, context))
@@ -616,7 +607,7 @@ class MediaController(
             }
         }
 
-        override suspend fun setState(value: MediaPlayerState, context: PlaybackContext?) {
+        override suspend fun setState(value: MediaPlayerState, context: PlaybackContext.ServerSent?) {
             client.let { client ->
                 if (client != null) {
                     client.call(Rpc.ToClient.MediaPlayer.SetState(value, context))
