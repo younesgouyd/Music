@@ -14,6 +14,7 @@ import dev.younesgouyd.apps.music.server.multiplatform.data.room.transactions.*
         ImportSession::class,
         ImportSessionItem::class,
         MediaFile::class,
+        PlaybackInterval::class,
         Playlist::class,
         PlaylistTrackCrossRef::class,
         Setting::class,
@@ -38,6 +39,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun importSessionDao(): ImportSessionDao
     abstract fun importSessionItemDao(): ImportSessionItemDao
     abstract fun mediaFileDao(): MediaFileDao
+    abstract fun playbackIntervalDao(): PlaybackIntervalDao
     abstract fun playlistDao(): PlaylistDao
     abstract fun playlistTrackCrossRefDao(): PlaylistTrackCrossRefDao
     abstract fun settingDao(): SettingDao

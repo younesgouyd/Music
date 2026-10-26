@@ -4,17 +4,19 @@ import dev.younesgouyd.apps.music.common.MediaPlayer
 import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.models.Rpc.ToServer.MediaController.QueueItemParameter
 import dev.younesgouyd.apps.music.common.models.datamodels.MediaPlayerState
+import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackContext
+import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackInterval
 import dev.younesgouyd.apps.music.common.models.datamodels.QueueItem
 import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.*
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.TrackRelation
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.time.Duration
 import dev.younesgouyd.apps.music.common.models.datamodels.Client as ClientModel
 
 class MediaController(
@@ -23,7 +25,10 @@ class MediaController(
     private val mediaFileRepo: MediaFileRepo,
     private val trackRepo: TrackRepo,
     private val artistRepo: SpotifyArtistRepo,
-    private val albumRepo: SpotifyAlbumRepo
+    private val albumRepo: SpotifyAlbumRepo,
+    private val playlistRepo: PlaylistRepo,
+    private val folderRepo: FolderRepo,
+    private val playbackIntervalRepo: PlaybackIntervalRepo
 ) {
     private val coroutineScope = CoroutineScope(Dispatchers.Default)
     private val mutex = Mutex()
@@ -33,6 +38,15 @@ class MediaController(
     private val _enabled: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val _queue: MutableStateFlow<List<QueueItem>> = MutableStateFlow(emptyList())
     private val _currentItemIndex: MutableStateFlow<Int> = MutableStateFlow(0)
+    private val currentItem: QueueItem?
+        get() {
+            val queue = _queue.value
+            return if (queue.isNotEmpty()) {
+                queue[_currentItemIndex.value]
+            } else {
+                null
+            }
+        }
     private val _repeatState: MutableStateFlow<RepeatState> = MutableStateFlow(RepeatState.Off)
 
     private val _state: MutableStateFlow<MediaControllerGeneralState> = MutableStateFlow(MediaControllerGeneralState.Unavailable)
@@ -76,7 +90,9 @@ class MediaController(
                                 val newTrack = queue[newIndex]
                                 newTrack.audioId?.let {
                                     mediaPlayer.setTrack(it)
-                                    mediaPlayer.play()
+                                    _selectedClient.value?.let { clientId ->
+                                        mediaPlayer.play(PlaybackContext(newTrack, clientId))
+                                    }
                                 }
                             }
                         }
@@ -90,12 +106,32 @@ class MediaController(
                             val track = queue[_currentItemIndex.value]
                             track.audioId?.let {
                                 mediaPlayer.setTrack(it)
-                                mediaPlayer.play()
+                                _selectedClient.value?.let { clientId ->
+                                    mediaPlayer.play(PlaybackContext(track, clientId))
+                                }
                             }
                         }
                     }
                     _enabled.value = true
                 }
+            }
+        }
+        coroutineScope.launch {
+            mediaPlayer.playbackIntervals.collect { item ->
+                playbackIntervalRepo.add(
+                    audioFileId = item.audioFileId,
+                    clientId = item.context.clientId,
+                    importId = item.context.importId,
+                    trackId = item.context.trackId,
+                    playlistId = item.context.playlistId,
+                    folderId = item.context.folderId,
+                    albumId = item.context.albumId,
+                    artistId = item.context.artistId,
+                    from = item.from,
+                    to = item.to,
+                    startDatetime = item.startDatetime,
+                    endDatetime = item.endDatetime
+                )
             }
         }
     }
@@ -142,7 +178,9 @@ class MediaController(
                 if (_selectedClient.value == null) {
                     selectClientImpl(clientId)
                 }
-                mediaPlayer.play()
+                currentItem?.let { track ->
+                    mediaPlayer.play(PlaybackContext(track, clientId))
+                }
             }
         }
     }
@@ -155,10 +193,18 @@ class MediaController(
         }
     }
 
-    suspend fun seek(position: Duration) {
+    suspend fun seek(positionMs: Long) {
         launchCommand {
-            mediaPlayer.setTime(position)
+            currentItem?.let { track ->
+                _selectedClient.value?.let { clientId ->
+                    mediaPlayer.setPositionMs(
+                        positionMs = positionMs,
+                        context = PlaybackContext(track, clientId)
+                    )
+                }
+            }
         }
+        logger.debug { "<-- ::seek" }
     }
 
     suspend fun next(clientId: ClientId) {
@@ -186,7 +232,7 @@ class MediaController(
                 }
                 mediaPlayer.setTrack(it)
                 if (wasPlaying) {
-                    mediaPlayer.play()
+                    mediaPlayer.play(PlaybackContext(newTrack, clientId))
                 }
             }
             _currentItemIndex.value = newIndex
@@ -240,7 +286,7 @@ class MediaController(
                         selectClientImpl(clientId)
                     }
                     mediaPlayer.setTrack(it)
-                    mediaPlayer.play()
+                    mediaPlayer.play(PlaybackContext(queueItem, clientId))
                 }
             }
             _currentItemIndex.value = index
@@ -288,14 +334,15 @@ class MediaController(
                     }
                     val queue = _queue.value
                     for (i in toBeRemoved ..< queue.size) {
-                        val audioId = queue[i].audioId
+                        val queueItem = queue[i]
+                        val audioId = queueItem.audioId
                         if (audioId != null) {
                             if (_selectedClient.value == null) {
                                 selectClientImpl(clientId)
                             }
                             mediaPlayer.setTrack(audioId)
                             if (wasPlaying) {
-                                mediaPlayer.play()
+                                mediaPlayer.play(PlaybackContext(queueItem, clientId))
                             }
                             break
                         }
@@ -307,7 +354,14 @@ class MediaController(
     }
 
     private suspend fun selectClientImpl(id: ClientId?) {
-        mediaPlayer.setClient(id)
+        mediaPlayer.setClient(
+            id = id,
+            context = currentItem?.let { queueItem ->
+                id?.let { clientId ->
+                    PlaybackContext(queueItem, clientId)
+                }
+            }
+        )
         _selectedClient.value = id
     }
 
@@ -319,7 +373,7 @@ class MediaController(
         mapped[queueItemIndex].let { queueItem ->
             queueItem.audioId?.let {
                 mediaPlayer.setTrack(it)
-                mediaPlayer.play()
+                mediaPlayer.play(PlaybackContext(queueItem, clientId))
             } ?: TODO()
         }
         _queue.value = mapped.apply { setKeys() }
@@ -339,32 +393,49 @@ class MediaController(
         val newTrack = queue[newIndex]
         newTrack.audioId?.let {
             mediaPlayer.setTrack(it)
-            mediaPlayer.play()
+            clientId?.let {
+                mediaPlayer.play(PlaybackContext(newTrack, clientId))
+            }
         }
     }
 
     private suspend fun QueueItemParameter.toModel(): List<QueueItem> {
         return when (this) {
             is QueueItemParameter.Track -> trackRepo.get(this.id).first().let { dbTrack ->
-                dbTrack?.let { listOf(dbTrack.toQueueItem()) } ?: emptyList() // TODO
+                dbTrack?.let { listOf(dbTrack.toQueueItem(QueueItem.AddedFrom.None)) } ?: emptyList() // TODO
             }
             is QueueItemParameter.Playlist -> trackRepo.getPlaylistTracks(this.id).first().map { dbTrack ->
-                dbTrack.toQueueItem()
+                dbTrack.toQueueItem(QueueItem.AddedFrom.Playlist(this.id))
+            }
+            is QueueItemParameter.Folder -> {
+                suspend fun getFolderItems(_id: FolderId): List<QueueItem> {
+                    val tracks = trackRepo.getFolderTracks(_id).first()
+                        .map { dbTrack -> dbTrack.toQueueItem(QueueItem.AddedFrom.Folder(this.id)) }
+                    val playlists = playlistRepo.getFolderPlaylists(_id).first()
+                        .flatMap { dbPlaylist ->
+                            trackRepo.getPlaylistTracks(dbPlaylist.id).first().map { dbTrack ->
+                                dbTrack.toQueueItem(QueueItem.AddedFrom.Folder(this.id))
+                            }
+                        }
+                    return tracks + playlists + folderRepo.getSubfolders(_id).first().flatMap { getFolderItems(it.id) }
+                }
+                getFolderItems(this.id)
             }
             is QueueItemParameter.Artist -> trackRepo.getArtistTracks(this.id).first().map { dbTrack ->
                 if (dbTrack.spotifyTrack == null) TODO()
-                dbTrack.toQueueItem()
+                dbTrack.toQueueItem(QueueItem.AddedFrom.Artist(this.id))
             }
             is QueueItemParameter.Album -> trackRepo.getAlbumTracks(this.id).first().map { dbTrack ->
                 if (dbTrack.spotifyTrack == null) TODO()
-                dbTrack.toQueueItem()
+                dbTrack.toQueueItem(QueueItem.AddedFrom.Album(this.id))
             }
         }
     }
 
-    private suspend fun TrackRelation.toQueueItem(): QueueItem {
+    private suspend fun TrackRelation.toQueueItem(addedFrom: QueueItem.AddedFrom): QueueItem {
         return QueueItem(
             id = track.id,
+            importId = this.originalImport.id,
             name = spotifyTrack?.name ?: this.originalImport.title,
             album = run {
                 spotifyTrack?.let { sp ->
@@ -382,7 +453,8 @@ class MediaController(
             },
             artists = getArtists(this),
             audioId = mediaFileRepo.getImportSessionItemAudio(this.track.importSessionItemId),
-            durationMs = this.originalImport.durationMilliseconds
+            durationMs = this.originalImport.durationMilliseconds,
+            addedFrom = addedFrom
         )
     }
 
@@ -434,12 +506,21 @@ class MediaController(
         private val logger = KotlinLogging.logger {}
         private val _state: MutableStateFlow<MediaPlayerState> = MutableStateFlow(MediaPlayerState.initial())
         @Volatile private var observeJob: Job? = null
+        @Volatile private var collectJob: Job? = null
         @Volatile private var client: WebSocketSessionHandler? = null
+        private val playbackIntervalsChannel = Channel<PlaybackInterval>(Channel.UNLIMITED)
 
         override val state: StateFlow<MediaPlayerState> = _state.asStateFlow()
+        override val playbackIntervals: Flow<PlaybackInterval> = flow {
+            for (item in playbackIntervalsChannel) {
+                emit(item)
+            }
+        }
 
-        suspend fun setClient(id: ClientId?) {
+        suspend fun setClient(id: ClientId?, context: PlaybackContext?) {
             val client: WebSocketSessionHandler? = id?.let { websocketSessionHandlers.get(it) }
+            collectJob?.cancelAndJoin()
+            collectJob = null
             observeJob?.cancelAndJoin()
             observeJob = null
             val previousState = _state.value
@@ -450,9 +531,25 @@ class MediaController(
                 logger.error(e) { "could not stop playback in previous client" }
             }
             this.client = client
-            setState(
-                previousState.copy(startPositionMs = newStartPosition)
-            )
+            if (context == null) {
+                setState(
+                    value = MediaPlayerState.initial(),
+                    context = null
+                )
+            } else {
+                setState(
+                    value = previousState.copy(startPositionMs = newStartPosition),
+                    context = context
+                )
+            }
+            collectJob = coroutineScope.launch {
+                client.let { client ->
+                    client?.stream(Rpc.ToClient.MediaPlayer.CollectPlaybackIntervals)
+                        ?.collect {
+                            playbackIntervalsChannel.send(it)
+                        }
+                }
+            }
             observeJob = coroutineScope.launch {
                 client.let { client ->
                     try {
@@ -474,16 +571,15 @@ class MediaController(
                 if (client != null) {
                     client.call(Rpc.ToClient.MediaPlayer.SetTrack(id))
                 } else {
-                    _state.value =
-                        MediaPlayerState(track = id, isPlaying = false, startPositionMs = 0L, isFinished = false)
+                    _state.value = MediaPlayerState(track = id, isPlaying = false, startPositionMs = 0L, isFinished = false)
                 }
             }
         }
 
-        override suspend fun play() {
+        override suspend fun play(context: PlaybackContext) {
             client.let { client ->
                 if (client != null) {
-                    client.call(Rpc.ToClient.MediaPlayer.Play)
+                    client.call(Rpc.ToClient.MediaPlayer.Play(context))
                 } else {
                     _state.update { it.copy(isPlaying = false, startPositionMs = it.positionMs) }
                 }
@@ -510,20 +606,20 @@ class MediaController(
             }
         }
 
-        override suspend fun setTime(time: Duration) {
+        override suspend fun setPositionMs(positionMs: Long, context: PlaybackContext) {
             client.let { client ->
                 if (client != null) {
-                    client.call(Rpc.ToClient.MediaPlayer.SetTime(time.inWholeMilliseconds))
+                    client.call(Rpc.ToClient.MediaPlayer.SetTime(positionMs, context))
                 } else {
-                    _state.update { it.copy(isPlaying = false, startPositionMs = time.inWholeMilliseconds, isFinished = false) }
+                    _state.update { it.copy(isPlaying = false, startPositionMs = positionMs, isFinished = false) }
                 }
             }
         }
 
-        override suspend fun setState(value: MediaPlayerState) {
+        override suspend fun setState(value: MediaPlayerState, context: PlaybackContext?) {
             client.let { client ->
                 if (client != null) {
-                    client.call(Rpc.ToClient.MediaPlayer.SetState(value))
+                    client.call(Rpc.ToClient.MediaPlayer.SetState(value, context))
                 } else {
                     _state.update { value.copy(isPlaying = false) }
                 }

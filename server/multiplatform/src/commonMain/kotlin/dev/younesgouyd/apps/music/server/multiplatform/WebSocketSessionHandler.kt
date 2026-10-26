@@ -25,7 +25,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.encodeToJsonElement
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
@@ -97,12 +96,12 @@ class WebSocketSessionHandler(
         serverRequestsHandler.call(rpc)
     }
 
-    suspend fun <TRpc, TResult> get(rpc: TRpc): TResult where TRpc: Rpc.ToClient, TRpc: ResultType.Data.Static<TResult> {
-        return serverRequestsHandler.get(rpc)
-    }
-
     fun <TRpc, TResult> observe(rpc: TRpc): Flow<TResult> where TRpc: Rpc.ToClient, TRpc: ResultType.Data.Dynamic<TResult> {
         return serverRequestsHandler.observe(rpc)
+    }
+
+    fun <TRpc, TResult> stream(rpc: TRpc): Flow<TResult> where TRpc: Rpc.ToClient, TRpc: ResultType.Data.Stream<TResult> {
+        return serverRequestsHandler.stream(rpc)
     }
 
     suspend fun close() {
@@ -132,26 +131,6 @@ class WebSocketSessionHandler(
                 when (channel.receive()) {
                     is WSMessage.Response.Done -> return
                     is WSMessage.Response.Data -> { TODO() }
-                }
-            } catch (e: CancellationException) {
-                requests.send(WSMessage.Request.Cancel(correlationId))
-                throw e
-            } finally {
-                responseChannels.remove(correlationId)
-                channel.close()
-            }
-        }
-
-        suspend fun <TRpc, TResult> get(rpc: TRpc): TResult where TRpc: Rpc.ToClient, TRpc: ResultType.Data.Static<TResult> {
-            val correlationId = Uuid.random()
-            val channel = Channel<WSMessage.Response>(Channel.CONFLATED)
-            responseChannels[correlationId] = channel
-            try {
-                val request: WSMessage.Request = WSMessage.Request.Execute(correlationId, rpc)
-                requests.send(request)
-                return when (val response = channel.receive()) {
-                    is WSMessage.Response.Done -> TODO()
-                    is WSMessage.Response.Data -> { json.decodeFromJsonElement(rpc.serializer, response.value) }
                 }
             } catch (e: CancellationException) {
                 requests.send(WSMessage.Request.Cancel(correlationId))
@@ -195,6 +174,29 @@ class WebSocketSessionHandler(
                     sharedFlow
                 } as SharedFlow<TResult>
                 emitAll(activeStream)
+            }
+        }
+
+        fun <TRpc, TResult> stream(rpc: TRpc): Flow<TResult> where TRpc: Rpc.ToClient, TRpc: ResultType.Data.Stream<TResult> {
+            return flow {
+                val correlationId = Uuid.random()
+                val channel = Channel<WSMessage.Response>(Channel.UNLIMITED)
+                responseChannels[correlationId] = channel
+                try {
+                    val request: WSMessage.Request = WSMessage.Request.Execute(correlationId, rpc)
+                    requests.send(request)
+                    channel.consumeEach { item ->
+                        val parsed = when (item) {
+                            is WSMessage.Response.Done -> TODO()
+                            is WSMessage.Response.Data -> json.decodeFromJsonElement(rpc.serializer, item.value)
+                        }
+                        emit(parsed)
+                    }
+                } finally {
+                    responseChannels.remove(correlationId)
+                    channel.close()
+                    requests.send(WSMessage.Request.Cancel(correlationId))
+                }
             }
         }
 
@@ -655,9 +657,9 @@ class WebSocketSessionHandler(
                             .collect { sendData(correlationId, it) }
                     }
                     is Rpc.ToServer.Track.GetFolderTracks -> {
-                        trackRepo.getFolderTracks(rpc.id)
-                            .map { it.map { it.toModel() } }
-                            .collect { sendData(correlationId, it) }
+                        val flow = trackRepo.getFolderTracks(rpc.id)
+                            .map { it.map { it.track.toModel() } }
+                        flow.collect { sendData(correlationId, it) }
                     }
                     is Rpc.ToServer.Track.GetArtistTracks -> {
                         trackRepo.getArtistTracks(rpc.id)
@@ -779,7 +781,7 @@ class WebSocketSessionHandler(
                         sendDone(correlationId)
                     }
                     is Rpc.ToServer.MediaController.Seek -> {
-                        mediaController.seek(rpc.positionMs.milliseconds)
+                        mediaController.seek(rpc.positionMs)
                         sendDone(correlationId)
                     }
                     is Rpc.ToServer.MediaController.Next -> {

@@ -34,7 +34,6 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.net.ssl.SSLContext
 import javax.net.ssl.X509TrustManager
 import kotlin.io.encoding.Base64
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
@@ -122,7 +121,7 @@ class Server(
                 clientId?.let { header("Client-ID", it.value.toString()) }
             }
         }
-        val serverRequestsHandler = ServerRequestsHandler(session, ::getFile)
+        val serverRequestsHandler = ServerRequestsHandler(session, { clientId!! }, ::getFile)
         clientRequestsHandler = ClientRequestsHandler(
             coroutineScope = session,
             tempDir = tempDir,
@@ -351,10 +350,11 @@ class Server(
 
     private class ServerRequestsHandler(
         private val coroutineScope: CoroutineScope,
+        clientId: () -> ClientId,
         getFile: suspend (MediaFileId) -> File
     ) {
         private val jobs = ConcurrentHashMap<Uuid, Job>()
-        private val mediaPlayer: MediaPlayer = createMediaPlayer(getFile)
+        private val mediaPlayer: MediaPlayer by lazy { createMediaPlayer(clientId(), getFile) }
 
         val responses: ReceiveChannel<WSMessage.Response>
             field = Channel<WSMessage.Response>(Channel.UNLIMITED)
@@ -399,7 +399,7 @@ class Server(
                             sendDone(correlationId)
                         }
                         is Rpc.ToClient.MediaPlayer.Play -> {
-                            mediaPlayer.play()
+                            mediaPlayer.play(rpc.context)
                             sendDone(correlationId)
                         }
                         is Rpc.ToClient.MediaPlayer.Pause -> {
@@ -411,12 +411,17 @@ class Server(
                             sendDone(correlationId)
                         }
                         is Rpc.ToClient.MediaPlayer.SetTime -> {
-                            mediaPlayer.setTime(rpc.timeMillis.milliseconds)
+                            mediaPlayer.setPositionMs(rpc.positionMs, rpc.context)
                             sendDone(correlationId)
                         }
                         is Rpc.ToClient.MediaPlayer.SetState -> {
-                            mediaPlayer.setState(rpc.value)
+                            mediaPlayer.setState(rpc.value, rpc.context)
                             sendDone(correlationId)
+                        }
+                        is Rpc.ToClient.MediaPlayer.CollectPlaybackIntervals -> {
+                            mediaPlayer.playbackIntervals.collect {
+                                sendData(correlationId, it)
+                            }
                         }
                     }
                 }

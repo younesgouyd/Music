@@ -206,30 +206,14 @@ class Library(
                 addToPlaylistDialogVisible.value = true
             },
             onAddFolderToQueueClick = { id: FolderId ->
-                suspend fun getFolderItems(_id: FolderId): List<Rpc.ToServer.MediaController.QueueItemParameter> {
-                    val tracks = trackRepo.getFolderTracks(_id).first()
-                        .map { dbTrack -> Rpc.ToServer.MediaController.QueueItemParameter.Track(dbTrack.id) }
-                    val playlists = playlistRepo.getFolderPlaylists(_id).first()
-                        .map { dbPlaylist -> Rpc.ToServer.MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
-                    return tracks + playlists + folderRepo.getSubfolders(_id).first().flatMap { getFolderItems(it.id) }
-                }
-                coroutineScope.launch {
-                    val queue = getFolderItems(id)
-                    mediaController.addToQueue(queue)
-                }
+                mediaController.addToQueue(
+                    listOf(Rpc.ToServer.MediaController.QueueItemParameter.Folder(id))
+                )
             },
-            onPlayFolder = { folderId: FolderId ->
-                suspend fun getFolderItems(_folderId: FolderId): List<Rpc.ToServer.MediaController.QueueItemParameter> {
-                    val tracks = trackRepo.getFolderTracks(_folderId).first()
-                        .map { dbTrack -> Rpc.ToServer.MediaController.QueueItemParameter.Track(dbTrack.id) }
-                    val playlists = playlistRepo.getFolderPlaylists(_folderId).first()
-                        .map { dbPlaylist -> Rpc.ToServer.MediaController.QueueItemParameter.Playlist(dbPlaylist.id) }
-                    return tracks + playlists + folderRepo.getSubfolders(_folderId).first().flatMap { getFolderItems(it.id) }
-                }
-                coroutineScope.launch {
-                    val queue = getFolderItems(folderId)
-                    mediaController.playQueue(queue)
-                }
+            onPlayFolder = { id: FolderId ->
+                mediaController.playQueue(
+                    listOf(Rpc.ToServer.MediaController.QueueItemParameter.Folder(id))
+                )
             },
             onPlaylistClick = showPlaylist,
             onPlayPlaylistClick = { id: PlaylistId ->

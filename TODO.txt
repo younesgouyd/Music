@@ -1,4 +1,14 @@
 
+- revisit ImportWorker and consider running it on a single thread.
+- use the serializer in Rpcs to send data for type safety. something like this:
+    private suspend fun <T> sendData(correlationId: Uuid, data: T, serializer: KSerializer<T>) {
+        responses.send(
+            WSMessage.Response.Data(
+                correlationId = correlationId,
+                value = json.encodeToJsonElement(serializer, data)
+            )
+        )
+    }
 - create a standard dialog composable.
 - remember clients:
     - save device & system info.

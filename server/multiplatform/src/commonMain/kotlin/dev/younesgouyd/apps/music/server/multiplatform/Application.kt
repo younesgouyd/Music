@@ -116,7 +116,10 @@ abstract class Application(appDir: File) {
                 mediaFileRepo = repoStore.mediaFileRepo,
                 trackRepo = repoStore.trackRepo,
                 artistRepo = repoStore.spotifyArtistRepo,
-                albumRepo = repoStore.spotifyAlbumRepo
+                albumRepo = repoStore.spotifyAlbumRepo,
+                playlistRepo = repoStore.playlistRepo,
+                folderRepo = repoStore.folderRepo,
+                playbackIntervalRepo = repoStore.playbackIntervalRepo
             )
             val ytDlp = YtDlp(repoStore.settingRepo)
             val spotify = Spotify(

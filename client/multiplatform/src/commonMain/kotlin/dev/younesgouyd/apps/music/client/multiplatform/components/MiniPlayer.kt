@@ -60,7 +60,7 @@ class MiniPlayer(
                     onRepeatClick = mediaController::repeat
                 )
             }
-        }.stateIn(coroutineScope, SharingStarted.Lazily, Ui.State.Unavailable)
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Unavailable)
     }
 
     @Composable

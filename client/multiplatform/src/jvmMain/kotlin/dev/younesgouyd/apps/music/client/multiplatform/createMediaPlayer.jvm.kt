@@ -1,8 +1,8 @@
 package dev.younesgouyd.apps.music.client.multiplatform
 
 import dev.younesgouyd.apps.music.common.MediaPlayer
+import dev.younesgouyd.apps.music.common.models.ClientId
 import dev.younesgouyd.apps.music.common.models.MediaFileId
-import org.bytedeco.javacv.Frame
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -13,15 +13,17 @@ import javax.sound.sampled.DataLine
 import javax.sound.sampled.SourceDataLine
 
 actual fun createMediaPlayer(
+    clientId: ClientId,
     getFile: suspend (MediaFileId) -> File
 ): MediaPlayer {
-    return MediaPlayerImpl(getFile)
+    return MediaPlayerImpl(clientId, getFile)
 }
 
 private class MediaPlayerImpl(
+    clientId: ClientId,
     getFile: suspend (MediaFileId) -> File
-) : LocalMediaPlayer(getFile) {
-    override fun createAudioOutput(frame: Frame): AudioOutput {
+) : LocalMediaPlayer(clientId, getFile) {
+    override fun createAudioOutput(): AudioOutput {
         val audioFormat = AudioFormat(
             /* encoding = */ AudioFormat.Encoding.PCM_SIGNED,
             /* sampleRate = */ SAMPLE_RATE.toFloat(),
@@ -49,6 +51,7 @@ private class MediaPlayerImpl(
         }
 
         override fun write(samples: ShortBuffer) {
+            val count = samples.remaining()
             val byteCount = samples.remaining() * 2
             if (byteArray.size < byteCount) {
                 byteArray = ByteArray(byteCount)
@@ -58,14 +61,16 @@ private class MediaPlayerImpl(
             bufferView.clear()
             bufferView.put(samples)
             out.write(byteArray, 0, byteCount)
+            totalShortsWritten += count
         }
 
         override fun stop() {
+            out.drain()
             out.stop()
         }
 
-        override fun flush() {
-            out.flush()
+        override fun drain() {
+            out.drain()
         }
 
         override fun release() {

@@ -76,6 +76,14 @@ value class MediaFileId(val value: Long) {
 
 @Serializable
 @JvmInline
+value class PlaybackIntervalId(val value: Long) {
+    override fun toString(): String {
+        return value.toString()
+    }
+}
+
+@Serializable
+@JvmInline
 value class PlaylistTrackCrossRefId(val value: Long) {
     override fun toString(): String {
         return value.toString()

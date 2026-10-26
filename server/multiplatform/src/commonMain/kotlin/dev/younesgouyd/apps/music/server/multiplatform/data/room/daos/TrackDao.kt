@@ -4,7 +4,6 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
 import dev.younesgouyd.apps.music.common.models.*
-import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.Track
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.PlaylistTrack
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.TrackRelation
 import kotlinx.coroutines.flow.Flow
@@ -135,7 +134,7 @@ abstract class TrackDao {
     abstract fun searchWithTag(nameQuery: String, tag: TagId): Flow<List<TrackRelation>>
 
     @Query("select * from track where folderId = :id")
-    abstract fun getFolderTracks(id: FolderId): Flow<List<Track>>
+    abstract fun getFolderTracks(id: FolderId): Flow<List<TrackRelation>>
 
     @Transaction
     @Query("""

@@ -2,7 +2,6 @@ package dev.younesgouyd.apps.music.server.multiplatform.data.repoes
 
 import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.daos.TrackDao
-import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.Track
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.PlaylistTrack
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.TrackRelation
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.toSearchQuery
@@ -83,7 +82,7 @@ class TrackRepo(
         return dao.searchWithTag(nameQuery.toSearchQuery(), tag)
     }
 
-    fun getFolderTracks(id: FolderId): Flow<List<Track>> {
+    fun getFolderTracks(id: FolderId): Flow<List<TrackRelation>> {
         return dao.getFolderTracks(id)
     }
 

@@ -12,6 +12,7 @@ class RepoStore(database: AppDatabase) {
     val playlistTrackCrossRefRepo = PlaylistTrackCrossRefRepo(database.playlistTrackCrossRefDao())
     val trackRepo = TrackRepo(database.trackDao())
     val mediaFileRepo = MediaFileRepo(database.mediaFileDao())
+    val playbackIntervalRepo = PlaybackIntervalRepo(database.playbackIntervalDao())
     val importSessionRepo = ImportSessionRepo(database.importSessionDao())
     val importSessionItemRepo = ImportSessionItemRepo(database.importSessionItemDao())
     val tagRepo = TagRepo(database.tagDao())

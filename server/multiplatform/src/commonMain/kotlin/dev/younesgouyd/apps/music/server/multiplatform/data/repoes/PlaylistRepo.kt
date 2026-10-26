@@ -13,10 +13,7 @@ class PlaylistRepo(
     private val dao: PlaylistDao
 ) {
     suspend fun getAll(limit: Int, offset: Offset.Id<PlaylistId>): List<Playlist> {
-        return dao.getAll(limit, offset.value ?: PlaylistId(
-            0
-        )
-        )
+        return dao.getAll(limit, offset.value ?: PlaylistId(0))
     }
 
     fun get(id: PlaylistId): Flow<Playlist?> {

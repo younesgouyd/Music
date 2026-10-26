@@ -19,7 +19,7 @@ class DeleteFolderUseCase(
         }
         val tracks = trackRepo.getFolderTracks(id).first()
         for (track in tracks) {
-            clearImportItemUseCase.execute(track.importSessionItemId)
+            clearImportItemUseCase.execute(track.track.importSessionItemId)
         }
         folderRepo.delete(id)
     }
