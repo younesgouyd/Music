@@ -31,8 +31,8 @@ android {
         versionName = "0.1"
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_26
+        targetCompatibility = JavaVersion.VERSION_26
     }
     packaging.resources {
         excludes += "/META-INF/AL2.0"

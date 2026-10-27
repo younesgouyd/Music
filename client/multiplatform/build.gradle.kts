@@ -8,7 +8,7 @@ plugins {
 
 kotlin {
     jvmToolchain(libs.versions.java.get().toInt())
-    androidLibrary {
+    android {
         namespace = "dev.younesgouyd.apps.music.client.multiplatform"
         compileSdk = libs.versions.androidCompileSdk.get().toInt()
         minSdk = libs.versions.androidMinSdk.get().toInt()

@@ -10,7 +10,7 @@ plugins {
 
 kotlin {
     jvmToolchain(libs.versions.java.get().toInt())
-    androidLibrary {
+    android {
         namespace = "dev.younesgouyd.apps.music.server.multiplatform"
         compileSdk = libs.versions.androidCompileSdk.get().toInt()
         minSdk = 36

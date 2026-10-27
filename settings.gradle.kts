@@ -28,36 +28,36 @@ dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
             val versions = object {
-                val java = version("java", "21")
-                val kotlin = "2.4.0"
+                val java = version("java", "26")
+                val kotlin = "2.4.21"
                 val datetime = "0.8.0"
-                val serialization = "1.11.0"
-                val jsonJava = "20260522"
+                val serialization = "1.12.0"
+                val jsonJava = "20260814"
                 val coroutines = "1.11.0"
-                val room = "2.8.4"
-                val sqlite = "2.7.0"
-                val ksp = "2.3.10"
+                val room = "2.8.5"
+                val sqlite = "2.7.1"
+                val ksp = "2.3.12"
                 val logging = "8.0.4"
                 val logback = object {
-                    val jvm = "1.5.38"
+                    val jvm = "1.6.6"
                     val android = "3.0.0"
                 }
-                val ktor = "3.5.1"
+                val ktor = "3.5.2"
                 val compose = object {
-                    val plugin = "1.11.1"
+                    val plugin = "1.12.2"
                     val material3 = "1.9.0"
                     val materialIconsExtended = "1.7.3"
                 }
                 val android = object {
-                    val agp = "9.0.0"
+                    val agp = "9.1.0"
                     val androidCompileSdk = version("androidCompileSdk", "36")
                     val androidMinSdk = version("androidMinSdk", "29")
                     val androidTargetSdk = version("androidTargetSdk", "36")
-                    val coreKtx = "1.17.0"
+                    val coreKtx = "1.18.0"
                     val activity = "1.13.0"
                 }
-                val javacv = "1.5.13"
-                val ffmpeg = "8.0.1-1.5.13"
+                val javacv = "1.5.14"
+                val ffmpeg = "8.1.2-1.5.14"
             }
 
             plugin("kotlin.multiplatform", "org.jetbrains.kotlin.multiplatform").version(versions.kotlin)

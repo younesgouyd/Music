@@ -19,8 +19,7 @@ sealed class WSMessage {
         data class Execute(
             override val correlationId: Uuid,
             val rpc: Rpc
-        ) : Request() {
-        }
+        ) : Request()
 
         @Serializable
         data class Cancel(
