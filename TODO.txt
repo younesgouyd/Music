@@ -1,5 +1,4 @@
 
-- revisit ImportWorker and consider running it on a single thread.
 - create a standard dialog composable.
 - remember clients:
     - save device & system info.
@@ -20,6 +19,7 @@
 - implement sorting playlists/albums/folders.
 
 done:
+- revisit ImportWorker and consider running it on a single thread.
 - use the serializer in Rpcs to send data for type safety.
 - remember clients: set name and icon.
 - remember clients: save session history.
