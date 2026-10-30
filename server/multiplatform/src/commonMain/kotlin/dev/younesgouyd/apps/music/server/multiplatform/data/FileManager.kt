@@ -2,20 +2,21 @@ package dev.younesgouyd.apps.music.server.multiplatform.data
 
 import dev.younesgouyd.apps.music.common.models.MediaFileId
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.util.cio.*
+import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.InputStream
 
 class FileManager(
     private val mediaDir: File,
 ) {
     private val logger = KotlinLogging.logger {}
 
-    suspend fun saveMediaFile(data: InputStream, id: MediaFileId) {
-        withContext(Dispatchers.IO) {
-            data.copyTo(File(mediaDir, id.toString()).outputStream())
-        }
+    suspend fun saveMediaFile(channel: ByteReadChannel, id: MediaFileId) {
+        channel.copyAndClose(
+            File(mediaDir, id.toString()).writeChannel()
+        )
     }
 
     suspend fun saveMediaFile(data: ByteArray, id: MediaFileId) {

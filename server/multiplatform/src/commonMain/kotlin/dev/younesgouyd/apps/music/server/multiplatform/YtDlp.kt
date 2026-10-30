@@ -16,12 +16,11 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
-import io.ktor.utils.io.jvm.javaio.*
+import io.ktor.utils.io.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.Json
 import okhttp3.internal.closeQuietly
-import java.io.InputStream
 import java.security.SecureRandom
 import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
@@ -101,13 +100,15 @@ class YtDlp(
         }
     }
 
-    suspend fun getResult(): Pair<String, InputStream> {
-        val response = client.value!!.get("getResult")
-        val stream = response.bodyAsChannel().toInputStream()
-        val filename = response.headers[HttpHeaders.ContentDisposition]!!
-            .substringAfter("filename=\"")
-            .substringBeforeLast("\"")
-        return filename to stream
+    suspend fun <T> getResult(handleChannel: suspend (filename: String, channel: ByteReadChannel) -> T): T {
+        return client.value!!.prepareGet("getResult").execute { response ->
+            handleChannel(
+                response.headers[HttpHeaders.ContentDisposition]!!
+                    .substringAfter("filename=\"")
+                    .substringBeforeLast("\""),
+                response.bodyAsChannel()
+            )
+        }
     }
 
     suspend fun close() {

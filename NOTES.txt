@@ -1,2 +1,3 @@
 
+- Imports are non-atomic; a download or file save failure may leave the database and local files in an inconsistent state.
 - deleting an import session or it's items should not be possible. at least at this stage of development.

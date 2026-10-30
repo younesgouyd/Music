@@ -133,6 +133,7 @@ abstract class TrackDao {
     """)
     abstract fun searchWithTag(nameQuery: String, tag: TagId): Flow<List<TrackRelation>>
 
+    @Transaction
     @Query("select * from track where folderId = :id")
     abstract fun getFolderTracks(id: FolderId): Flow<List<TrackRelation>>
 

@@ -523,7 +523,6 @@ class MediaController(
                 logger.error(e) { "could not stop playback in previous client" }
             }
             this.client = client
-            logger.debug { "MediaPlayerImpl::setClient | client: $client, context: $context" }
             if (context == null) {
                 setState(
                     value = MediaPlayerState.initial(),

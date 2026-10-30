@@ -2,8 +2,8 @@ package dev.younesgouyd.apps.music.server.multiplatform.data.room.transactions
 
 import androidx.room.Dao
 import androidx.room.Query
-import androidx.room.Transaction
 import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State
 import dev.younesgouyd.apps.music.server.multiplatform.YtDlp
 import dev.younesgouyd.apps.music.server.multiplatform.data.FileManager
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.ImportSession
@@ -14,7 +14,7 @@ import kotlinx.coroutines.withContext
 
 @Dao
 abstract class Import {
-    @Transaction
+//    @Transaction // TODO
     open suspend fun execute(
         session: ImportSession,
         item: ImportSessionItem,
@@ -30,7 +30,7 @@ abstract class Import {
                 fileManager = fileManager
             )
             updateState(
-                state = if (result != null) dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State.Completed else dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State.Failed,
+                state = if (result != null) State.Completed else State.Failed,
                 audioFileId = result?.audioFileId,
                 updateDatetime = System.currentTimeMillis(),
                 id = item.id
@@ -53,10 +53,9 @@ abstract class Import {
         return when (result) {
             "error" -> null
             "completed" -> {
-                val (filename, stream) = ytDlp.getResult()
-                stream.use {
+                val trackId = run {
                     val currentTime = System.currentTimeMillis()
-                    val trackId = TrackId(
+                    TrackId(
                         addTrack(
                             importSessionItemId = importSessionItemId,
                             spotifyTrackId = null,
@@ -65,14 +64,15 @@ abstract class Import {
                             updateDatetime = currentTime
                         )
                     )
-                    val audioMediaFileId =
-                        MediaFileId(
-                            addMediaFile(
-                                fileName = filename,
-                                creationDatetime = System.currentTimeMillis()
-                            )
+                }
+                ytDlp.getResult { filename, channel ->
+                    val audioMediaFileId = MediaFileId(
+                        addMediaFile(
+                            fileName = filename,
+                            creationDatetime = System.currentTimeMillis()
                         )
-                    fileManager.saveMediaFile(it, audioMediaFileId)
+                    )
+                    fileManager.saveMediaFile(channel, audioMediaFileId)
                     ImportResult(trackId, audioMediaFileId)
                 }
             }
@@ -88,7 +88,7 @@ abstract class Import {
         where id = :id
     """)
     protected abstract suspend fun updateState(
-        state: dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State,
+        state: State,
         audioFileId: MediaFileId?,
         updateDatetime: Long,
         id: ImportSessionItemId
