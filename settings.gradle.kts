@@ -28,7 +28,7 @@ dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
             val versions = object {
-                val java = version("java", "26")
+                val java = version("java", "25")
                 val kotlin = "2.4.21"
                 val datetime = "0.8.0"
                 val serialization = "1.12.0"
@@ -49,7 +49,7 @@ dependencyResolutionManagement {
                     val materialIconsExtended = "1.7.3"
                 }
                 val android = object {
-                    val agp = "9.1.0"
+                    val agp = "9.1.1"
                     val androidCompileSdk = version("androidCompileSdk", "36")
                     val androidMinSdk = version("androidMinSdk", "29")
                     val androidTargetSdk = version("androidTargetSdk", "36")

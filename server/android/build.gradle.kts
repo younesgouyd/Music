@@ -30,10 +30,13 @@ android {
         versionCode = 1
         versionName = "0.1"
     }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_26
-        targetCompatibility = JavaVersion.VERSION_26
-    }
+
+    // defaults to jvmToolchain(libs.versions.java.get().toInt()) set above
+//    compileOptions {
+//        sourceCompatibility = JavaVersion.VERSION_26
+//        targetCompatibility = JavaVersion.VERSION_26
+//    }
+
     packaging.resources {
         excludes += "/META-INF/AL2.0"
         excludes += "/META-INF/LGPL2.1"
