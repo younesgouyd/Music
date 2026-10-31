@@ -6,7 +6,6 @@ import dev.younesgouyd.apps.music.common.models.datamodels.YtDlpServerInfo
 import dev.younesgouyd.apps.music.common.sha256Hash
 import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.SettingRepo
 import io.ktor.client.*
-import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -20,6 +19,7 @@ import io.ktor.utils.io.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.serializer
 import okhttp3.internal.closeQuietly
 import java.security.SecureRandom
 import java.security.cert.CertificateException
@@ -81,10 +81,21 @@ class YtDlp(
                 }
             }.stateIn(coroutineScope, SharingStarted.Eagerly, null)
 
-    suspend fun inspect(url: String): Inspection {
-        return client.value!!.get("inspect") {
-            parameter("url", url)
-        }.body<Inspection>()
+    fun inspect(url: String): Flow<Inspection> {
+        return flow {
+            client.value!!.sse(
+                urlString = "inspect",
+                request =  { parameter("url", url) },
+                deserialize = { typeInfo, it ->
+                    val serializer = json.serializersModule.serializer(typeInfo.kotlinType!!)
+                    json.decodeFromString(serializer, it)!!
+                }
+            ) {
+                incoming.collect { event ->
+                    this@flow.emit(deserialize<Inspection>(event.data)!!)
+                }
+            }
+        }
     }
 
     fun download(url: String): Flow<String> {

@@ -362,7 +362,7 @@ class WebSocketSessionHandler(
                     }
                 }
                 is Rpc.ToServer.Inspection.Inspect -> {
-                    val result = ytDlp.inspect(rpc.url)
+                    val result = ytDlp.inspect(rpc.url).first()
                     sendData(correlationId, result, rpc.serializer)
                 }
                 is Rpc.ToServer.MediaFile -> when (rpc) {

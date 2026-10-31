@@ -22,6 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.serializer
 import org.slf4j.event.Level
 import java.io.File
 import java.security.cert.X509Certificate
@@ -109,19 +110,24 @@ class Application {
     private fun Application.configureRouting() {
         routing {
             route("/Magic") {
-                get("/inspect") {
+                sse(
+                    path = "/inspect",
+                    serialize = { typeInfo, it ->
+                        val serializer = json.serializersModule.serializer(typeInfo.kotlinType!!)
+                        json.encodeToString(serializer, it)
+                    }
+                ) {
+                    heartbeat {}
                     if (!call.verifyPassword(_password.value)) {
-                        call.respond(HttpStatusCode.Unauthorized, "Invalid or missing credentials")
-                        return@get
+                        throw Exception()
                     }
                     val url = call.request.queryParameters["url"]
                     if (url.isNullOrBlank()) {
-                        call.respond(HttpStatusCode.BadRequest)
-                        return@get
+                        throw Exception()
                     }
                     try {
                         val result: Inspection = Api.inspect(url)
-                        call.respond<Inspection>(result)
+                        send(result)
                     } catch (t: Throwable) {
                         logger.error(t) {}
                         call.respond(HttpStatusCode.InternalServerError)
