@@ -3,7 +3,10 @@ package dev.younesgouyd.apps.music.client.multiplatform.components
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.AddToQueue
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -265,11 +268,11 @@ class ArtistList(
                             icon = Icons.Default.AddToQueue,
                             onClick = onAddToQueueClick,
                         )
-                        Option(
-                            label = "Play next",
-                            icon = Icons.Default.QueuePlayNext,
-                            onClick = { TODO() },
-                        )
+//                        Option(
+//                            label = "Play next",
+//                            icon = Icons.Default.QueuePlayNext,
+//                            onClick = { TODO() },
+//                        )
                     }
                 }
             }
@@ -424,11 +427,11 @@ class ArtistList(
                             icon = Icons.Default.AddToQueue,
                             onClick = onAddToQueueClick,
                         )
-                        Option(
-                            label = "Play next",
-                            icon = Icons.Default.QueuePlayNext,
-                            onClick = { TODO() },
-                        )
+//                        Option(
+//                            label = "Play next",
+//                            icon = Icons.Default.QueuePlayNext,
+//                            onClick = { TODO() },
+//                        )
                     }
                 }
             }

@@ -1,9 +1,7 @@
 package dev.younesgouyd.apps.music.client.multiplatform.components
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
@@ -36,7 +34,7 @@ class TagList(
         val searchQuery = MutableStateFlow("")
         coroutineScope.launch {
             state.value = TagListState.Loaded(
-                scrollState = LazyListState(),
+                scrollState = LazyStaggeredGridState(),
                 searchQuery = searchQuery.asStateFlow(),
                 tags = searchQuery.flatMapLatest { tagRepo.search(it) }.stateIn(coroutineScope),
                 onSearchQueryChange = { searchQuery.value = it },
@@ -70,7 +68,7 @@ class TagList(
         data object Loading : TagListState()
 
         data class Loaded(
-            val scrollState: LazyListState,
+            val scrollState: LazyStaggeredGridState,
             val searchQuery: StateFlow<String>,
             val tags: StateFlow<List<Tag>>,
             val onSearchQueryChange: (String) -> Unit,
@@ -112,7 +110,7 @@ class TagList(
         @Composable
         private fun Main(
             modifier: Modifier,
-            scrollState: LazyListState,
+            scrollState: LazyStaggeredGridState,
             searchQuery: StateFlow<String>,
             tags: StateFlow<List<Tag>>,
             onSearchQueryChange: (String) -> Unit,
@@ -128,41 +126,41 @@ class TagList(
                 modifier = modifier.fillMaxSize(),
                 content = { paddingValues ->
                     Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-                        LazyColumn(
+                        Column(
                             modifier = Modifier.fillMaxSize().padding(end = 16.dp),
-                            state = scrollState,
-                            contentPadding = PaddingValues(18.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            stickyHeader {
-                                Surface {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(9.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        OutlinedTextField(
-                                            modifier = Modifier.weight(1f),
-                                            leadingIcon = { Icon(Icons.Default.Search, null) },
-                                            label = { Text("Search") },
-                                            value = searchQuery,
-                                            onValueChange = onSearchQueryChange
-                                        )
-                                        Button(
-                                            content = { Text("Add new tag") },
-                                            onClick = { if (!isNewTagDialogVisible) isNewTagDialogVisible = true }
-                                        )
-                                    }
-                                }
-                            }
-                            items(items = tags, key = { it.id.value }) { tag ->
-                                TagItem(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    tag = tag,
-                                    onClick = { onTagClick(tag.id) },
-                                    onDeleteClick = { onDeleteTagClick(tag.id) },
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(9.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    modifier = Modifier.weight(1f),
+                                    leadingIcon = { Icon(Icons.Default.Search, null) },
+                                    label = { Text("Search") },
+                                    value = searchQuery,
+                                    onValueChange = onSearchQueryChange
                                 )
+                                Button(
+                                    content = { Text("Add new tag") },
+                                    onClick = { if (!isNewTagDialogVisible) isNewTagDialogVisible = true }
+                                )
+                            }
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                itemVerticalAlignment = Alignment.CenterVertically
+                            ) {
+                                for (tag in tags) {
+                                    TagItem(
+                                        tag = tag,
+                                        onClick = { onTagClick(tag.id) },
+                                        onDeleteClick = { onDeleteTagClick(tag.id) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -232,17 +230,15 @@ class TagList(
 
         @Composable
         private fun TagItem(
-            modifier: Modifier,
             tag: Tag,
             onClick: () -> Unit,
             onDeleteClick: () -> Unit
         ) {
             Item(
-                modifier = modifier,
+                contentPadding = PaddingValues(8.dp),
                 onClick = onClick
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {

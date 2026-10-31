@@ -98,13 +98,17 @@ class ImportDetails(
                             importSessionItemRepo.updateState(id = it, state = ImportSessionItem.State.Pending)
                         }
                     },
-                    onCancelItemClick = { TODO() },
+                    onCancelItemClick = {
+                        // TODO
+                    },
                     onClearItemClick = { id ->
                         coroutineScope.launch {
                             clearImportItemUseCase.execute(id)
                         }
                     },
-                    onRetryItemClick = { TODO() }
+                    onRetryItemClick = {
+                        // TODO
+                    }
                 )
             }
         }.map {

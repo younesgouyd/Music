@@ -332,11 +332,11 @@ class PlaylistList(
                             icon = Icons.Default.AddToQueue,
                             onClick = onAddToQueueClick,
                         )
-                        Option(
-                            label = "Play next",
-                            icon = Icons.Default.QueuePlayNext,
-                            onClick = { TODO() },
-                        )
+//                        Option(
+//                            label = "Play next",
+//                            icon = Icons.Default.QueuePlayNext,
+//                            onClick = { TODO() },
+//                        )
                     }
                 }
 
@@ -577,11 +577,11 @@ class PlaylistList(
                             icon = Icons.Default.AddToQueue,
                             onClick = onAddToQueueClick,
                         )
-                        Option(
-                            label = "Play next",
-                            icon = Icons.Default.QueuePlayNext,
-                            onClick = { TODO() },
-                        )
+//                        Option(
+//                            label = "Play next",
+//                            icon = Icons.Default.QueuePlayNext,
+//                            onClick = { TODO() },
+//                        )
                     }
                 }
 

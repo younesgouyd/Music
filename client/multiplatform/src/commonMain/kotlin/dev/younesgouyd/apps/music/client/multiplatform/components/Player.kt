@@ -42,6 +42,18 @@ class Player(
     init {
         val isTrackVisible = MutableStateFlow(true)
         val isQueueVisible = MutableStateFlow(false)
+
+        val isPlaying = mediaController.state.flatMapLatest { state ->
+            when (state) {
+                is MediaControllerState.Available -> state.mediaPlayerState.map { it?.isPlaying ?: false }
+                is MediaControllerState.Loading,
+                is MediaControllerState.Unavailable -> flowOf(false)
+            }
+        }.stateIn(
+            scope = coroutineScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
         state = mediaController.state.mapLatest { mediaControllerState ->
             when (mediaControllerState) {
                 is MediaControllerState.Unavailable -> Ui.State.Unavailable
@@ -50,8 +62,7 @@ class Player(
                     clients = mediaControllerState.clients,
                     selectedClient = mediaControllerState.selectedClient,
                     enabled = mediaControllerState.enabled,
-                    isPlaying = mediaControllerState.mediaPlayerState.map { it?.isPlaying ?: false }
-                        .stateIn(coroutineScope), // TODO (leak)
+                    isPlaying = isPlaying,
                     onSelectClient = mediaController::selectClient,
                     track = mediaControllerState.currentItem,
                     isTrackVisible = isTrackVisible.asStateFlow(),

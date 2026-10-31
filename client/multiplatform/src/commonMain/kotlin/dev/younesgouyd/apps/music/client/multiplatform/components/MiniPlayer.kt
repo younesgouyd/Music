@@ -2,7 +2,6 @@ package dev.younesgouyd.apps.music.client.multiplatform.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -218,24 +217,6 @@ class MiniPlayer(
                                 horizontalArrangement = Arrangement.spacedBy(space = 8.dp, alignment = Alignment.Start),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Surface(
-                                    shape = MaterialTheme.shapes.small,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh
-                                ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.Center,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        IconButton(
-                                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, null) },
-                                            onClick = { TODO() }
-                                        )
-                                        IconButton(
-                                            content = { Icon(Icons.Default.Folder, null) },
-                                            onClick = { TODO() }
-                                        )
-                                    }
-                                }
                                 Surface(
                                     shape = MaterialTheme.shapes.small,
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh

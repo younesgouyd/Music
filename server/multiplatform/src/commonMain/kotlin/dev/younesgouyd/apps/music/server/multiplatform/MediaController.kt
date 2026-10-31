@@ -163,7 +163,11 @@ class MediaController(
                     MediaControllerGeneralState.Unavailable -> TODO()
                     MediaControllerGeneralState.Loading, MediaControllerGeneralState.Available -> {
                         playQueueImpl(clientId, queue, queueItemIndex)
-                        MediaControllerGeneralState.Available
+                        if (_queue.value.isNotEmpty()) {
+                            MediaControllerGeneralState.Available
+                        } else {
+                            MediaControllerGeneralState.Unavailable
+                        }
                     }
                 }
             }
@@ -257,14 +261,22 @@ class MediaController(
                     MediaControllerGeneralState.Unavailable -> TODO()
                     MediaControllerGeneralState.Loading -> {
                         playQueueImpl(clientId, items, 0)
-                        MediaControllerGeneralState.Available
+                        if (_queue.value.isNotEmpty()) {
+                            MediaControllerGeneralState.Available
+                        } else {
+                            MediaControllerGeneralState.Unavailable
+                        }
                     }
                     MediaControllerGeneralState.Available -> {
                         val mapped: List<QueueItem> = items.flatMap { it.toModel() }
-                        _queue.update {
-                            (it + mapped).apply { setKeys() }
+                        if (mapped.isEmpty()) {
+                            currentState
+                        } else {
+                            _queue.update {
+                                (it + mapped).apply { setKeys() }
+                            }
+                            MediaControllerGeneralState.Available
                         }
-                        MediaControllerGeneralState.Available
                     }
                 }
             }
@@ -364,6 +376,7 @@ class MediaController(
             selectClientImpl(clientId)
         }
         val mapped: List<QueueItem> = queue.flatMap { it.toModel() }
+        if (mapped.isEmpty()) return
         mapped[queueItemIndex].let { queueItem ->
             queueItem.audioId?.let {
                 mediaPlayer.setTrack(it)

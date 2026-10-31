@@ -923,11 +923,11 @@ class Library(
                             icon = Icons.Default.AddToQueue,
                             onClick = { onAddToQueueClick(); showContextMenu = false }
                         )
-                        Option(
-                            label = "Play next",
-                            icon = Icons.Default.QueuePlayNext,
-                            onClick = { TODO() },
-                        )
+//                        Option(
+//                            label = "Play next",
+//                            icon = Icons.Default.QueuePlayNext,
+//                            onClick = { TODO() },
+//                        )
                     }
                 }
 
@@ -1051,11 +1051,11 @@ class Library(
                             icon = Icons.Default.AddToQueue,
                             onClick = { onAddToQueueClick(); showContextMenu = false }
                         )
-                        Option(
-                            label = "Play next",
-                            icon = Icons.Default.QueuePlayNext,
-                            onClick = { TODO() },
-                        )
+//                        Option(
+//                            label = "Play next",
+//                            icon = Icons.Default.QueuePlayNext,
+//                            onClick = { TODO() },
+//                        )
                     }
                 }
 
@@ -1207,11 +1207,11 @@ class Library(
                                 icon = Icons.Default.AddToQueue,
                                 onClick = { onAddToQueueClick(); showContextMenu = false }
                             )
-                            Option(
-                                label = "Play next",
-                                icon = Icons.Default.QueuePlayNext,
-                                onClick = { TODO() },
-                            )
+//                            Option(
+//                                label = "Play next",
+//                                icon = Icons.Default.QueuePlayNext,
+//                                onClick = { TODO() },
+//                            )
                         },
                         onDismiss = { showContextMenu = false }
                     )
@@ -1680,11 +1680,11 @@ class Library(
                             icon = Icons.Default.AddToQueue,
                             onClick = { onAddToQueueClick(); showContextMenu = false }
                         )
-                        Option(
-                            label = "Play next",
-                            icon = Icons.Default.QueuePlayNext,
-                            onClick = { TODO() },
-                        )
+//                        Option(
+//                            label = "Play next",
+//                            icon = Icons.Default.QueuePlayNext,
+//                            onClick = { TODO() },
+//                        )
                     }
                 }
 
@@ -1801,11 +1801,11 @@ class Library(
                             icon = Icons.Default.AddToQueue,
                             onClick = { onAddToQueueClick(); showContextMenu = false }
                         )
-                        Option(
-                            label = "Play next",
-                            icon = Icons.Default.QueuePlayNext,
-                            onClick = { TODO() },
-                        )
+//                        Option(
+//                            label = "Play next",
+//                            icon = Icons.Default.QueuePlayNext,
+//                            onClick = { TODO() },
+//                        )
                     }
                 }
 
@@ -1944,11 +1944,11 @@ class Library(
                                 icon = Icons.Default.AddToQueue,
                                 onClick = { onAddToQueueClick(); showContextMenu = false }
                             )
-                            Option(
-                                label = "Play next",
-                                icon = Icons.Default.QueuePlayNext,
-                                onClick = { TODO() },
-                            )
+//                            Option(
+//                                label = "Play next",
+//                                icon = Icons.Default.QueuePlayNext,
+//                                onClick = { TODO() },
+//                            )
                         },
                         onDismiss = { showContextMenu = false }
                     )
