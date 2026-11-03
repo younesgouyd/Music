@@ -27,8 +27,7 @@ class MediaController(
     private val artistRepo: SpotifyArtistRepo,
     private val albumRepo: SpotifyAlbumRepo,
     private val playlistRepo: PlaylistRepo,
-    private val folderRepo: FolderRepo,
-    private val playbackIntervalRepo: PlaybackIntervalRepo
+    private val folderRepo: FolderRepo
 ) {
     private val coroutineScope = CoroutineScope(Dispatchers.Default)
     private val mutex = Mutex()
@@ -112,24 +111,6 @@ class MediaController(
                     }
                     _enabled.value = true
                 }
-            }
-        }
-        coroutineScope.launch {
-            mediaPlayer.playbackIntervals.collect { item ->
-                playbackIntervalRepo.add(
-                    audioFileId = item.audioFileId,
-                    clientId = item.context.clientId,
-                    importId = item.context.importId,
-                    trackId = item.context.trackId,
-                    playlistId = item.context.playlistId,
-                    folderId = item.context.folderId,
-                    albumId = item.context.albumId,
-                    artistId = item.context.artistId,
-                    from = item.from,
-                    to = item.to,
-                    startDatetime = item.startDatetime,
-                    endDatetime = item.endDatetime
-                )
             }
         }
     }
@@ -511,21 +492,13 @@ class MediaController(
         private val logger = KotlinLogging.logger {}
         private val _state: MutableStateFlow<MediaPlayerState> = MutableStateFlow(MediaPlayerState.initial())
         @Volatile private var observeJob: Job? = null
-        @Volatile private var collectJob: Job? = null
         @Volatile private var client: WebSocketSessionHandler? = null
         private val playbackIntervalsChannel = Channel<PlaybackInterval>(Channel.UNLIMITED)
 
         override val state: StateFlow<MediaPlayerState> = _state.asStateFlow()
-        override val playbackIntervals: Flow<PlaybackInterval> = flow {
-            for (item in playbackIntervalsChannel) {
-                emit(item)
-            }
-        }
 
         suspend fun setClient(id: ClientId?, context: PlaybackContext.ServerSent?) {
             val client: WebSocketSessionHandler? = id?.let { websocketSessionHandlers.get(it) }
-            collectJob?.cancelAndJoin()
-            collectJob = null
             observeJob?.cancelAndJoin()
             observeJob = null
             val previousState = _state.value
@@ -546,12 +519,6 @@ class MediaController(
                     value = previousState.copy(startPositionMs = newStartPosition),
                     context = context
                 )
-            }
-            client?.let { client ->
-                collectJob = coroutineScope.launch {
-                    client.stream(Rpc.ToClient.MediaPlayer.CollectPlaybackIntervals)
-                        .collect { playbackIntervalsChannel.send(it) }
-                }
             }
             observeJob = coroutineScope.launch {
                 client.let { client ->

@@ -6,20 +6,37 @@ import android.media.AudioTrack
 import dev.younesgouyd.apps.music.common.MediaPlayer
 import dev.younesgouyd.apps.music.common.models.ClientId
 import dev.younesgouyd.apps.music.common.models.MediaFileId
+import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackInterval
+import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackIntervalStart
+import kotlinx.coroutines.channels.SendChannel
 import java.io.File
 import java.nio.ShortBuffer
 
 actual fun createMediaPlayer(
     clientId: ClientId,
+    playbackIntervals: SendChannel<PlaybackInterval>,
+    playbackIntervalsStarts: SendChannel<PlaybackIntervalStart>,
     getFile: suspend (MediaFileId) -> File
 ): MediaPlayer {
-    return MediaPlayerImpl(clientId, getFile)
+    return MediaPlayerImpl(
+        clientId = clientId,
+        playbackIntervals = playbackIntervals,
+        playbackIntervalsStarts = playbackIntervalsStarts,
+        getFile = getFile
+    )
 }
 
 private class MediaPlayerImpl(
     clientId: ClientId,
+    playbackIntervals: SendChannel<PlaybackInterval>,
+    playbackIntervalsStarts: SendChannel<PlaybackIntervalStart>,
     getFile: suspend (MediaFileId) -> File
-) : LocalMediaPlayer(clientId, getFile) {
+) : LocalMediaPlayer(
+    clientId = clientId,
+    playbackIntervals = playbackIntervals,
+    playbackIntervalsStarts = playbackIntervalsStarts,
+    getFile = getFile
+) {
     override fun createAudioOutput(): AudioOutput {
         return AudioOutputImpl(
             AudioTrack.Builder()

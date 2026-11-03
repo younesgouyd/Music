@@ -1,8 +1,8 @@
 package dev.younesgouyd.apps.music.server.multiplatform.data.room.daos
 
-import androidx.room.Dao
-import androidx.room.Query
-import androidx.room.Transaction
+import androidx.room3.Dao
+import androidx.room3.Query
+import androidx.room3.Transaction
 import dev.younesgouyd.apps.music.common.models.ClientId
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.ClientSetting
 import io.github.oshai.kotlinlogging.KotlinLogging

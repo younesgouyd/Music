@@ -39,7 +39,8 @@ class WebSocketSessionHandler(
     setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase,
     clearImportItemUseCase: ClearImportItemUseCase,
     deleteFolderUseCase: DeleteFolderUseCase,
-    prepareImportUseCase: PrepareImportUseCase
+    prepareImportUseCase: PrepareImportUseCase,
+    playbackIntervalManager: PlaybackIntervalManager
 ) {
     private val logger = KotlinLogging.logger {}
     private val serverRequestsHandler: ServerRequestsHandler = ServerRequestsHandler(session)
@@ -54,7 +55,8 @@ class WebSocketSessionHandler(
         setTrackMetadataFromSpotifyUseCase = setTrackMetadataFromSpotifyUseCase,
         clearImportItemUseCase = clearImportItemUseCase,
         deleteFolderUseCase = deleteFolderUseCase,
-        prepareImportUseCase = prepareImportUseCase
+        prepareImportUseCase = prepareImportUseCase,
+        playbackIntervalManager = playbackIntervalManager
     )
 
     suspend fun run() {
@@ -234,7 +236,8 @@ class WebSocketSessionHandler(
         private val setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase,
         private val clearImportItemUseCase: ClearImportItemUseCase,
         private val deleteFolderUseCase: DeleteFolderUseCase,
-        private val prepareImportUseCase: PrepareImportUseCase
+        private val prepareImportUseCase: PrepareImportUseCase,
+        private val playbackIntervalManager: PlaybackIntervalManager
     ) {
         private val jobs = ConcurrentHashMap<Uuid, Job>()
 
@@ -832,6 +835,14 @@ class WebSocketSessionHandler(
                         mediaController.removeItem(clientId, rpc.key)
                         sendDone(correlationId)
                     }
+                }
+                is Rpc.ToServer.PlaybackInterval.Add -> {
+                    playbackIntervalManager.add(rpc.item)
+                    sendDone(correlationId)
+                }
+                is Rpc.ToServer.SetPlaybackIntervalStart -> {
+                    playbackIntervalManager.setStart(rpc.start)
+                    sendDone(correlationId)
                 }
             }
         }

@@ -2,7 +2,7 @@ package dev.younesgouyd.apps.music.common.models
 
 import dev.younesgouyd.apps.music.common.models.datamodels.MediaPlayerState
 import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackContext
-import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackInterval
+import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackIntervalStart
 import dev.younesgouyd.apps.music.common.models.spotify.SearchResult
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -17,6 +17,7 @@ import dev.younesgouyd.apps.music.common.models.datamodels.ImportSession as Impo
 import dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem as ImportSessionItemModel
 import dev.younesgouyd.apps.music.common.models.datamodels.Inspection as InspectionModel
 import dev.younesgouyd.apps.music.common.models.datamodels.MediaPlayerState as MediaPlayerStateModel
+import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackInterval as PlaybackIntervalModel
 import dev.younesgouyd.apps.music.common.models.datamodels.Playlist as PlaylistModel
 import dev.younesgouyd.apps.music.common.models.datamodels.PlaylistTrack as PlaylistTrackModel
 import dev.younesgouyd.apps.music.common.models.datamodels.PlaylistTrackCrossRef as PlaylistTrackCrossRefModel
@@ -58,11 +59,6 @@ sealed class Rpc {
 
             @Serializable
             data class SetState(val value: MediaPlayerState, val context: PlaybackContext.ServerSent?) : MediaPlayer(), ResultType.Action
-
-            @Serializable
-            data object CollectPlaybackIntervals : MediaPlayer(), ResultType.Data.Stream<PlaybackInterval> {
-                @Transient override val serializer: KSerializer<PlaybackInterval> = PlaybackInterval.serializer()
-            }
         }
     }
 
@@ -73,56 +69,6 @@ sealed class Rpc {
 
         @Serializable
         data class DeleteFolder(val id: FolderId) : ToServer(), ResultType.Action
-
-        @Serializable
-        sealed class Folder : ToServer() {
-            @Serializable
-            data class Get(
-                val id: FolderId
-            ) : Folder(), ResultType.Data.Dynamic<FolderModel?> {
-                @Transient override val serializer: KSerializer<FolderModel?> = FolderModel.serializer().nullable
-            }
-
-            @Serializable
-            data class SearchFolder(
-                val folderId: FolderId?,
-                val nameQuery: String
-            ) : Folder(), ResultType.Data.Dynamic<List<FolderModel>> {
-                @Transient override val serializer: KSerializer<List<FolderModel>> = ListSerializer(FolderModel.serializer())
-            }
-
-            @Serializable
-            data class GetSubfolders(
-                val id: FolderId?
-            ) : Folder(), ResultType.Data.Dynamic<List<FolderModel>> {
-                @Transient override val serializer: KSerializer<List<FolderModel>> = ListSerializer(FolderModel.serializer())
-            }
-
-            @Serializable
-            data class Add(
-                val name: String,
-                val parentFolderId: FolderId?
-            ) : Folder(), ResultType.Data.Static<FolderId> {
-                @Transient override val serializer: KSerializer<FolderId> = FolderId.serializer()
-            }
-
-            @Serializable
-            data class UpdateName(
-                val id: FolderId,
-                val name: String
-            ) : Folder(), ResultType.Action
-
-            @Serializable
-            data class UpdateParentFolderId(
-                val id: FolderId,
-                val parentFolderId: FolderId?
-            ) : Folder(), ResultType.Action
-
-            @Serializable
-            data class Delete(
-                val id: FolderId
-            ) : Folder(), ResultType.Action
-        }
 
         @Serializable
         sealed class ImportSessionItem : ToServer() {
@@ -260,6 +206,69 @@ sealed class Rpc {
                 @Serializable data class Artist(val id: SpotifyArtistId) : QueueItemParameter()
                 @Serializable data class Album(val id: SpotifyAlbumId) : QueueItemParameter()
             }
+        }
+
+        @Serializable
+        sealed class PlaybackInterval : ToServer() {
+            @Serializable
+            data class Add(
+                val item: PlaybackIntervalModel
+            ) : PlaybackInterval(), ResultType.Action
+        }
+
+        @Serializable
+        data class SetPlaybackIntervalStart(
+            val start: PlaybackIntervalStart
+        ) : ToServer(), ResultType.Action
+
+        @Serializable
+        sealed class Folder : ToServer() {
+            @Serializable
+            data class Get(
+                val id: FolderId
+            ) : Folder(), ResultType.Data.Dynamic<FolderModel?> {
+                @Transient override val serializer: KSerializer<FolderModel?> = FolderModel.serializer().nullable
+            }
+
+            @Serializable
+            data class SearchFolder(
+                val folderId: FolderId?,
+                val nameQuery: String
+            ) : Folder(), ResultType.Data.Dynamic<List<FolderModel>> {
+                @Transient override val serializer: KSerializer<List<FolderModel>> = ListSerializer(FolderModel.serializer())
+            }
+
+            @Serializable
+            data class GetSubfolders(
+                val id: FolderId?
+            ) : Folder(), ResultType.Data.Dynamic<List<FolderModel>> {
+                @Transient override val serializer: KSerializer<List<FolderModel>> = ListSerializer(FolderModel.serializer())
+            }
+
+            @Serializable
+            data class Add(
+                val name: String,
+                val parentFolderId: FolderId?
+            ) : Folder(), ResultType.Data.Static<FolderId> {
+                @Transient override val serializer: KSerializer<FolderId> = FolderId.serializer()
+            }
+
+            @Serializable
+            data class UpdateName(
+                val id: FolderId,
+                val name: String
+            ) : Folder(), ResultType.Action
+
+            @Serializable
+            data class UpdateParentFolderId(
+                val id: FolderId,
+                val parentFolderId: FolderId?
+            ) : Folder(), ResultType.Action
+
+            @Serializable
+            data class Delete(
+                val id: FolderId
+            ) : Folder(), ResultType.Action
         }
 
         @Serializable

@@ -3,35 +3,42 @@ package dev.younesgouyd.apps.music.client.multiplatform
 import dev.younesgouyd.apps.music.common.MediaPlayer
 import dev.younesgouyd.apps.music.common.models.ClientId
 import dev.younesgouyd.apps.music.common.models.MediaFileId
-import dev.younesgouyd.apps.music.common.models.datamodels.MediaPlayerState
-import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackContext
-import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackInterval
-import dev.younesgouyd.apps.music.common.models.datamodels.toClientSent
+import dev.younesgouyd.apps.music.common.models.datamodels.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.channels.trySendBlocking
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import okhttp3.internal.closeQuietly
 import org.bytedeco.ffmpeg.global.avutil
 import org.bytedeco.javacv.FFmpegFrameGrabber
 import org.bytedeco.javacv.Frame
 import java.io.File
 import java.nio.ShortBuffer
 import java.util.concurrent.Executors
+import kotlin.concurrent.Volatile
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.uuid.Uuid
 
 expect fun createMediaPlayer(
     clientId: ClientId,
+    playbackIntervals: SendChannel<PlaybackInterval>,
+    playbackIntervalsStarts: SendChannel<PlaybackIntervalStart>,
     getFile: suspend (MediaFileId) -> File
 ): MediaPlayer
 
+@OptIn(ExperimentalAtomicApi::class)
 abstract class LocalMediaPlayer(
     clientId: ClientId,
+    playbackIntervals: SendChannel<PlaybackInterval>,
+    playbackIntervalsStarts: SendChannel<PlaybackIntervalStart>,
     private val getFile: suspend (MediaFileId) -> File
 ) : MediaPlayer() {
     protected companion object {
@@ -42,15 +49,21 @@ abstract class LocalMediaPlayer(
     private val logger = KotlinLogging.logger {}
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val mutex = Mutex()
+    private val released = AtomicBoolean(false)
     private val commands = Channel<PlayerCommand>(
         capacity = Channel.RENDEZVOUS,
         onUndeliveredElement = { cmd ->
             cmd.ack.completeExceptionally(CancellationException())
         }
     )
-    private val loop: EventLoop = EventLoop(clientId, commands, ::createAudioOutput)
+    private val loop: EventLoop = EventLoop(
+        clientId = clientId,
+        commands = commands,
+        playbackIntervals = playbackIntervals,
+        playbackIntervalsStarts = playbackIntervalsStarts,
+        createAudioOutput = ::createAudioOutput
+    )
     override val state: StateFlow<MediaPlayerState> get() = loop.state
-    override val playbackIntervals: Flow<PlaybackInterval> get() = loop.playbackIntervals
 
     override suspend fun setTrack(id: MediaFileId) {
         val file = coroutineScope.async(Dispatchers.IO) { getFile(id).resolved() }
@@ -79,8 +92,13 @@ abstract class LocalMediaPlayer(
     }
 
     override suspend fun release() {
-        commands.close()
-        coroutineScope.cancel()
+        if (released.compareAndSet(expectedValue = false, newValue = true)) {
+            mutex.withLock {
+                commands.cancel()
+                loop.release()
+                coroutineScope.cancel()
+            }
+        }
     }
 
     private suspend fun dispatchCommand(
@@ -100,34 +118,35 @@ abstract class LocalMediaPlayer(
         }
     }
 
+    @OptIn(ExperimentalAtomicApi::class)
     private class EventLoop(
         clientId: ClientId,
         private val commands: ReceiveChannel<PlayerCommand>,
+        playbackIntervals: SendChannel<PlaybackInterval>,
+        playbackIntervalsStarts: SendChannel<PlaybackIntervalStart>,
         private val createAudioOutput: () -> AudioOutput
     ) {
         private val logger = KotlinLogging.logger {}
-        private val coroutineScope = run {
-            val dispatcher = Executors.newSingleThreadExecutor { runnable ->
-                Thread(runnable, "JavaCV-Playback-Worker").apply {
-                    isDaemon = true // TODO
-                }
-            }.asCoroutineDispatcher()
-            CoroutineScope(dispatcher + SupervisorJob())
-        }
-
-        class Audio(
-            val grabber: FFmpegFrameGrabber,
-            val line: AudioOutput,
-            val trackId: MediaFileId
-        )
+        private val dispatcher = Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "Media-Player-Worker").apply {
+                isDaemon = true // TODO
+            }
+        }.asCoroutineDispatcher()
+        private val coroutineScope = CoroutineScope(dispatcher + SupervisorJob())
 
         private var audio: Audio? = null
         private var isPlaying = false
         private var isFinished = false
-        private val recorder = PlaybackIntervalRecorder(clientId)
+        private val recorder = PlaybackIntervalRecorder(
+            clientId = clientId,
+            channel = playbackIntervals,
+            starts = playbackIntervalsStarts
+        )
+        private val released = AtomicBoolean(false)
+        @Volatile private var stopFlag = false
+        private val stopped = CompletableDeferred<Unit>()
 
         val state: StateFlow<MediaPlayerState> field = MutableStateFlow(MediaPlayerState.initial())
-        val playbackIntervals: Flow<PlaybackInterval> get() = recorder.playbackIntervals
 
         private var FFmpegFrameGrabber?.positionMs: Long
             get() = (this?.timestamp ?: 0L) / 1000L
@@ -140,7 +159,7 @@ abstract class LocalMediaPlayer(
             coroutineScope.launch {
                 try {
                     var lastProcessedCommand: PlayerCommand? = null
-                    while (isActive) {
+                    while (isActive && !stopFlag) {
                         val cmd = if (isPlaying) commands.tryReceive().getOrNull() else commands.receive()
                         if (cmd != null) {
                             try {
@@ -160,72 +179,58 @@ abstract class LocalMediaPlayer(
                                         cmd.ack.complete(Unit)
                                     }
                                     is PlayerCommand.Pause -> {
-                                        if (lastProcessedCommand !is PlayerCommand.Pause) {
-                                            if (audio == null) TODO()
-                                            isPlaying = false
-                                            audio!!.apply {
-                                                line.stop()
-                                                recorder.end(line.positionMs, System.currentTimeMillis())
-                                            }
-                                            emitState()
-                                            lastProcessedCommand = cmd
+                                        isPlaying = false
+                                        audio?.apply {
+                                            line.stop()
+                                            recorder.end(line.positionMs, System.currentTimeMillis())
                                         }
+                                        emitState()
+                                        lastProcessedCommand = cmd
                                         cmd.ack.complete(Unit)
                                     }
                                     is PlayerCommand.Stop -> {
-                                        if (lastProcessedCommand !is PlayerCommand.Stop) {
-                                            if (audio == null) TODO()
-                                            isPlaying = false
-                                            isFinished = false
-                                            audio!!.apply {
-                                                line.stop()
-                                                recorder.end(line.positionMs, System.currentTimeMillis())
-                                                grabber.positionMs = 0L
-                                            }
-                                            emitState()
-                                            lastProcessedCommand = cmd
+                                        isPlaying = false
+                                        isFinished = false
+                                        audio?.apply {
+                                            line.stop()
+                                            recorder.end(line.positionMs, System.currentTimeMillis())
+                                            grabber.positionMs = 0L
                                         }
+                                        emitState()
+                                        lastProcessedCommand = cmd
                                         cmd.ack.complete(Unit)
                                     }
                                     is PlayerCommand.Seek -> {
-                                        if (
-                                            lastProcessedCommand !is PlayerCommand.Seek
-                                            || lastProcessedCommand.positionMs != cmd.positionMs
-                                        ) {
-                                            if (audio == null) TODO()
-                                            seek(cmd.positionMs, cmd.context)
-                                            isFinished = false
-                                            emitState()
-                                            lastProcessedCommand = cmd
-                                        }
+                                        seek(cmd.positionMs, cmd.context)
+                                        emitState()
+                                        lastProcessedCommand = cmd
                                         cmd.ack.complete(Unit)
                                     }
                                     is PlayerCommand.SetState -> {
+                                        val state = cmd.value
+                                        setTrack(state.track, cmd.uri)
+                                        seek(state.startPositionMs, cmd.context)
                                         if (
-                                            lastProcessedCommand !is PlayerCommand.SetState
-                                            || lastProcessedCommand.value != cmd.value
+                                            state.isPlaying
+                                            && cmd.value.track != null
+                                            && state.track != null
+                                            && state.track == cmd.value.track
+                                            && cmd.context != null
                                         ) {
-                                            val state = cmd.value
-                                            setTrack(state.track, cmd.uri)
-                                            if (audio != null) {
-                                                seek(state.startPositionMs, cmd.context)
-                                            }
-                                            if (state.isPlaying && state.track != null) {
-                                                play(cmd.context!!)
-                                            }
-                                            emitState()
-                                            lastProcessedCommand = cmd
+                                            play(cmd.context)
                                         }
+                                        emitState()
+                                        lastProcessedCommand = cmd
                                         cmd.ack.complete(Unit)
                                     }
                                 }
                             } catch (e: Exception) {
                                 logger.error(e) { "Error executing command" }
                                 cmd.ack.completeExceptionally(e)
+                                throw e
                             }
                         }
                         if (isPlaying) {
-                            if (audio == null) TODO()
                             audio!!.apply {
                                 try {
                                     val frame: Frame? = grabber.grabSamples()
@@ -252,14 +257,26 @@ abstract class LocalMediaPlayer(
                         }
                     }
                 } finally {
-                    try {
-                        audio?.apply {
-                            line.apply { stop(); release() }
-                            recorder.end(line.positionMs, System.currentTimeMillis())
-                        }
-                    } catch (_: Throwable) {}
-                    try { audio?.grabber?.close() } catch (_: Throwable) {}
+                    audio?.apply {
+                        isPlaying = false
+                        isFinished = false
+                        runCatching { line.stop(); line.release() }
+                        runCatching { recorder.end(line.positionMs, System.currentTimeMillis()) }
+                        runCatching { grabber.close() }
+                    }
+                    audio = null
+                    stopped.complete(Unit)
                 }
+            }
+        }
+
+        suspend fun release() {
+            if (released.compareAndSet(expectedValue = false, newValue = true)) {
+                stopFlag = true
+                stopped.await()
+                coroutineScope.coroutineContext.job.cancelAndJoin()
+                dispatcher.closeQuietly()
+                recorder.release()
             }
         }
 
@@ -314,44 +331,48 @@ abstract class LocalMediaPlayer(
         }
 
         private fun seek(positionMs: Long, context: PlaybackContext.ServerSent?) {
-            if (audio == null) TODO()
-            audio!!.apply {
+            audio?.apply {
                 recorder.end(line.positionMs, System.currentTimeMillis())
                 grabber.positionMs = positionMs
                 if (isPlaying) {
                     recorder.start(trackId, line.positionMs, System.currentTimeMillis(), context!!)
                 }
             }
+            isFinished = false
         }
 
-        private class PlaybackIntervalRecorder(
-            private val clientId: ClientId
-        ) {
-            private var start: Start? = null
-            private val history = Channel<PlaybackInterval>(Channel.UNLIMITED)
+        class Audio(
+            val grabber: FFmpegFrameGrabber,
+            val line: AudioOutput,
+            val trackId: MediaFileId
+        )
 
-            val playbackIntervals: Flow<PlaybackInterval> get() = flow {
-                for (item in history) {
-                    emit(item)
-                }
-            }
+        private class PlaybackIntervalRecorder(
+            private val clientId: ClientId,
+            private val channel: SendChannel<PlaybackInterval>,
+            private val starts: SendChannel<PlaybackIntervalStart>
+        ) {
+            private var start: PlaybackIntervalStart? = null
 
             fun start(
                 track: MediaFileId,
                 from: Long,
-                startDatetime: Long,
+                datetime: Long,
                 context: PlaybackContext.ServerSent
             ) {
                 if (start != null) {
                     TODO()
                 }
-                start = Start(
+                val s = PlaybackIntervalStart(
+                    uuid = Uuid.random(),
                     clientId = clientId,
-                    track = track,
+                    audioFileId = track,
                     from = from,
-                    datetime = startDatetime,
+                    datetime = datetime,
                     context = context.toClientSent(clientId)
                 )
+                start = s
+                starts.trySendBlocking(s)
             }
 
             fun end(to: Long, datetime: Long) {
@@ -359,26 +380,24 @@ abstract class LocalMediaPlayer(
                 if (active.from > to) {
                     TODO()
                 }
-                history.trySendBlocking(
+                channel.trySendBlocking(
                     PlaybackInterval(
-                        audioFileId = active.track,
+                        uuid = active.uuid,
+                        audioFileId = active.audioFileId,
                         context = active.context,
                         from = active.from,
                         to = to,
                         startDatetime = active.datetime,
                         endDatetime = datetime
                     )
-                )
+                ).getOrThrow()
                 start = null
             }
 
-            private data class Start(
-                val clientId: ClientId,
-                val track: MediaFileId,
-                val from: Long,
-                val datetime: Long,
-                val context: PlaybackContext.ClientSent
-            )
+            fun release() {
+                if (start != null) TODO()
+                channel.close()
+            }
         }
     }
 

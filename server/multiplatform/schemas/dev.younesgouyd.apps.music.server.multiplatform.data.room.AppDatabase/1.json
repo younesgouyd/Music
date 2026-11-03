@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "2859fa3c6c791f59600aac5e406b4f61",
+    "identityHash": "b0affd08c276f895a2044ec3a1bb40c5",
     "entities": [
       {
         "tableName": "Client",
@@ -526,7 +526,7 @@
       },
       {
         "tableName": "PlaybackInterval",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `audioFileId` INTEGER NOT NULL, `clientId` INTEGER NOT NULL, `importId` INTEGER NOT NULL, `trackId` INTEGER NOT NULL, `playlistId` INTEGER, `folderId` INTEGER, `albumId` INTEGER, `artistId` INTEGER, `from` INTEGER NOT NULL, `to` INTEGER NOT NULL, `startDatetime` INTEGER NOT NULL, `endDatetime` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, FOREIGN KEY(`audioFileId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`clientId`) REFERENCES `Client`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`importId`) REFERENCES `ImportSessionItem`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`trackId`) REFERENCES `Track`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`playlistId`) REFERENCES `Playlist`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`albumId`) REFERENCES `SpotifyAlbum`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`artistId`) REFERENCES `SpotifyArtist`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uuid` BLOB NOT NULL, `audioFileId` INTEGER NOT NULL, `possibleDuplicateOf` INTEGER, `clientId` INTEGER NOT NULL, `importId` INTEGER NOT NULL, `trackId` INTEGER NOT NULL, `playlistId` INTEGER, `folderId` INTEGER, `albumId` INTEGER, `artistId` INTEGER, `from` INTEGER NOT NULL, `to` INTEGER, `estimatedTo` INTEGER, `websocketPingPeriodMs` INTEGER NOT NULL, `websocketPingTimeoutMs` INTEGER NOT NULL, `startDatetime` INTEGER NOT NULL, `endDatetime` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`audioFileId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`possibleDuplicateOf`) REFERENCES `PlaybackInterval`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`clientId`) REFERENCES `Client`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`importId`) REFERENCES `ImportSessionItem`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`trackId`) REFERENCES `Track`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`playlistId`) REFERENCES `Playlist`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`albumId`) REFERENCES `SpotifyAlbum`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`artistId`) REFERENCES `SpotifyArtist`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION )",
         "fields": [
           {
             "fieldPath": "id",
@@ -535,10 +535,21 @@
             "notNull": true
           },
           {
+            "fieldPath": "uuid",
+            "columnName": "uuid",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
             "fieldPath": "audioFileId",
             "columnName": "audioFileId",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "possibleDuplicateOf",
+            "columnName": "possibleDuplicateOf",
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "clientId",
@@ -587,6 +598,22 @@
           {
             "fieldPath": "to",
             "columnName": "to",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "estimatedTo",
+            "columnName": "estimatedTo",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "websocketPingPeriodMs",
+            "columnName": "websocketPingPeriodMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "websocketPingTimeoutMs",
+            "columnName": "websocketPingTimeoutMs",
             "affinity": "INTEGER",
             "notNull": true
           },
@@ -607,6 +634,12 @@
             "columnName": "creationDatetime",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "updateDatetime",
+            "columnName": "updateDatetime",
+            "affinity": "INTEGER",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -615,6 +648,17 @@
             "id"
           ]
         },
+        "indices": [
+          {
+            "name": "index_PlaybackInterval_uuid",
+            "unique": true,
+            "columnNames": [
+              "uuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_PlaybackInterval_uuid` ON `${TABLE_NAME}` (`uuid`)"
+          }
+        ],
         "foreignKeys": [
           {
             "table": "MediaFile",
@@ -622,6 +666,17 @@
             "onUpdate": "CASCADE",
             "columns": [
               "audioFileId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "PlaybackInterval",
+            "onDelete": "NO ACTION",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "possibleDuplicateOf"
             ],
             "referencedColumns": [
               "id"
@@ -1730,7 +1785,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2859fa3c6c791f59600aac5e406b4f61')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b0affd08c276f895a2044ec3a1bb40c5')"
     ]
   }
 }

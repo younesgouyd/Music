@@ -18,6 +18,7 @@ import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.WSMessage
 import dev.younesgouyd.apps.music.common.sha256Hash
 import dev.younesgouyd.apps.music.common.ui.Component
+import dev.younesgouyd.apps.music.common.ui.YounesMusicTheme
 import dev.younesgouyd.apps.music.common.verifyPassword
 import dev.younesgouyd.apps.music.server.multiplatform.data.FileManager
 import dev.younesgouyd.apps.music.server.multiplatform.data.RepoStore
@@ -62,6 +63,8 @@ import kotlin.time.Duration.Companion.seconds
 abstract class Application(appDir: File) {
     companion object {
         protected const val APP_DIR_NAME = "younesmusicserverdata"
+        val PING_PERIOD = 5.seconds
+        val PING_TIMEOUT = 5.seconds
     }
 
     private val logger = KotlinLogging.logger {}
@@ -73,7 +76,7 @@ abstract class Application(appDir: File) {
 
             @Composable
             override fun show(modifier: Modifier) {
-                AppThemeContainer {
+                YounesMusicTheme {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -97,12 +100,14 @@ abstract class Application(appDir: File) {
             val dbDir = File(appDir, "database")
             val dbFile = File(dbDir, "younesmusic.db")
             val keystoreFile = File(appDir, "keystore.p12")
+            val failedPlaybackIntervalsDir = File(appDir, "failedPlaybackIntervals")
             withContext(Dispatchers.IO) {
                 mediaDir.mkdir()
                 // logs dir is set in logback.xml
                 dbDir.mkdir()
                 if (!dbFile.exists()) dbFile.createNewFile()
                 if (!keystoreFile.exists()) keystoreFile.createNewFile()
+                failedPlaybackIntervalsDir.mkdir()
             }
             val database = createDatabaseInstance(dbFile)
             val fileManager = FileManager(mediaDir)
@@ -118,8 +123,7 @@ abstract class Application(appDir: File) {
                 artistRepo = repoStore.spotifyArtistRepo,
                 albumRepo = repoStore.spotifyAlbumRepo,
                 playlistRepo = repoStore.playlistRepo,
-                folderRepo = repoStore.folderRepo,
-                playbackIntervalRepo = repoStore.playbackIntervalRepo
+                folderRepo = repoStore.folderRepo
             )
             val ytDlp = YtDlp(repoStore.settingRepo)
             val spotify = Spotify(
@@ -186,6 +190,7 @@ abstract class Application(appDir: File) {
                 fileManager = fileManager,
                 transaction = database.prepareImportFromInternet()
             )
+            val playbackIntervalManager = PlaybackIntervalManager(database.playbackIntervalDao(), failedPlaybackIntervalsDir)
 
             // keystore, certificate fingerprint, password
             val alias = "blabla"
@@ -301,8 +306,8 @@ abstract class Application(appDir: File) {
                 }
                 install(WebSockets) {
                     contentConverter = KotlinxWebsocketSerializationConverter(json)
-                    pingPeriod = 10.seconds
-                    timeout = 10.seconds
+                    pingPeriod = PING_PERIOD
+                    timeout = PING_TIMEOUT
                 }
                 install(Authentication) {
                     provider("custom-auth") {
@@ -356,6 +361,7 @@ abstract class Application(appDir: File) {
                                     clearImportItemUseCase = clearImportItemUseCase,
                                     deleteFolderUseCase = deleteFolderUseCase,
                                     prepareImportUseCase = prepareImportUseCase,
+                                    playbackIntervalManager = playbackIntervalManager
                                 )
                                 webSocketSessionHandlersMap[clientId] = handler
                                 sessionId to handler
@@ -364,12 +370,21 @@ abstract class Application(appDir: File) {
                                 handler.run()
                             } finally {
                                 val disconnectionDatetime = System.currentTimeMillis()
-                                webSocketSessionHandlersMap.remove(clientId, handler)
+                                coroutineScope.launch {
+                                    webSocketSessionHandlersMap.remove(clientId, handler)
+                                    runCatching {
+                                        playbackIntervalManager.setEnd(clientId, disconnectionDatetime)
+                                    }
+                                    try {
+                                        sessionRepo.update(
+                                            id = sessionId,
+                                            disconnectionDatetime = disconnectionDatetime
+                                        )
+                                    } catch (e: Exception) {
+                                        logger.error(e) {}
+                                    }
+                                }
                                 handler.close()
-                                sessionRepo.update(
-                                    id = sessionId,
-                                    disconnectionDatetime = disconnectionDatetime
-                                )
                             }
                         }
                         route("files/{id}") {

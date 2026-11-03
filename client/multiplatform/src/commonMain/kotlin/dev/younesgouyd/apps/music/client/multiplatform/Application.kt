@@ -7,13 +7,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import dev.younesgouyd.apps.music.client.multiplatform.components.Main
 import dev.younesgouyd.apps.music.client.multiplatform.components.StartupScreen
-import dev.younesgouyd.apps.music.client.multiplatform.data.RepoStore
-import dev.younesgouyd.apps.music.client.multiplatform.data.Server
-import dev.younesgouyd.apps.music.client.multiplatform.usecases.*
 import dev.younesgouyd.apps.music.common.ServerDiscoveryConstants
+import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackInterval
+import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackIntervalStart
 import dev.younesgouyd.apps.music.common.ui.Component
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -70,6 +71,7 @@ abstract class Application(appDir: File) {
     private val fingerprintFile = File(serverInfoDir, "fingerprint.txt")
     private val passwordFile = File(serverInfoDir, "password.txt")
     private val clientIdFile = File(serverInfoDir, "client_id.txt")
+    private val playbackIntervalsDir = File(appDir, "playback_intervals")
 
     init {
         coroutineScope.launch {
@@ -85,6 +87,7 @@ abstract class Application(appDir: File) {
                 if (!fingerprintFile.exists()) fingerprintFile.createNewFile()
                 if (!passwordFile.exists()) passwordFile.createNewFile()
                 if (!clientIdFile.exists()) clientIdFile.createNewFile()
+                playbackIntervalsDir.mkdir()
                 fng = fingerprintFile.readText()
                 pass = passwordFile.readText()
             }
@@ -106,46 +109,78 @@ abstract class Application(appDir: File) {
             error.value = true
             return
         }
-        val disconnection = CompletableDeferred<Unit>()
-        val server = Server(
+        val connection = ServerConnection(
             serverHost = serverIpAddress,
             serverFingerprint = serverFingerprint,
             password = password,
-            clientIdFile = clientIdFile,
-            tempDir = tempMediaFilesDir,
-            disconnection = disconnection
+            clientIdFile = clientIdFile
         )
-        val disconnectionJob = coroutineScope.launch {
-            disconnection.await()
-            logger.debug { "disconnected!" }
-            exitProcess(1) // TODO
-        }
         try {
-            server.connect()
+            logger.debug { "connecting..." }
+            connection.connect()
         } catch (e: Throwable) {
             logger.error(e) {}
-            server.close()
-            disconnectionJob.cancel()
+            connection.close()
             error.value = true
             return
         }
         error.value = false
+        logger.debug { "init ClientRequestsHandler..." }
+        val clientRequestsHandler = ClientRequestsHandler(
+            tempDir = tempDir,
+            responses = connection.responses,
+            downloadTo = connection::downloadTo
+        )
+        val playbackIntervals = Channel<PlaybackInterval>(Channel.UNLIMITED)
+        val playbackIntervalsStarts = Channel<PlaybackIntervalStart>(Channel.UNLIMITED)
+        logger.debug { "init LocalMediaPlayer..." }
+        val mediaPlayer = createMediaPlayer(
+            clientId = connection.clientId.await(),
+            playbackIntervals = playbackIntervals,
+            playbackIntervalsStarts = playbackIntervalsStarts,
+            getFile = clientRequestsHandler::getFile
+        )
+        logger.debug { "init ServerRequestsHandler..." }
+        val serverRequestsHandler = ServerRequestsHandler(
+            requests = connection.requests,
+            mediaPlayer = mediaPlayer
+        )
+        logger.debug { "init PlaybackIntervalDispatcher..." }
+        val playbackIntervalDispatcher = PlaybackIntervalDispatcher(
+            server = clientRequestsHandler,
+            source = playbackIntervals,
+            starts = playbackIntervalsStarts,
+            playbackIntervalsDir = playbackIntervalsDir
+        )
+        coroutineScope.launch {
+            connection.disconnection.await()
+            logger.debug { "disconnected!" }
+            clientRequestsHandler.release()
+            serverRequestsHandler.release()
+            mediaPlayer.release()
+            playbackIntervalDispatcher.stopSending()
+            playbackIntervalDispatcher.waitRemaining()
+            exitProcess(1) // TODO
+        }
+        coroutineScope.launch {
+            serverRequestsHandler.responses.consumeEach {
+                connection.send(it)
+            }
+        }
+        coroutineScope.launch {
+            clientRequestsHandler.requests.consumeEach {
+                connection.send(it)
+            }
+        }
+        playbackIntervalDispatcher.start()
         withContext(Dispatchers.IO) {
             fingerprintFile.writeText(serverFingerprint)
             passwordFile.writeText(password)
         }
-        dev.younesgouyd.apps.music.client.multiplatform.components.util.server = server // TODO
+        dev.younesgouyd.apps.music.client.multiplatform.components.util.server = clientRequestsHandler // TODO
         currentComponent.update {
             it.clear()
-            Main(
-                repoStore = RepoStore(server),
-                deleteFolderUseCase = DeleteFolderUseCase(server),
-                clearImportItemUseCase = ClearImportItemUseCase(server),
-                setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(server),
-                unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(server),
-                prepareImportUseCase = PrepareImportUseCase(server),
-                mediaController = MediaController(server),
-            )
+            Main(clientRequestsHandler)
         }
     }
 

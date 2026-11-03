@@ -3,15 +3,12 @@ package dev.younesgouyd.apps.music.common
 import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.datamodels.MediaPlayerState
 import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackContext
-import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackInterval
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import java.io.File
 import java.net.URI
 
 abstract class MediaPlayer {
     abstract val state: StateFlow<MediaPlayerState>
-    abstract val playbackIntervals: Flow<PlaybackInterval>
     abstract suspend fun setTrack(id: MediaFileId)
     abstract suspend fun play(context: PlaybackContext.ServerSent)
     abstract suspend fun pause()

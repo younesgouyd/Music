@@ -63,7 +63,7 @@ class YtDlp(
                             url {
                                 protocol = URLProtocol.HTTPS
                                 host = info.ipAddress
-                                port = 8443
+                                port = 8444
                                 path("Magic/")
                             }
                             header(HttpHeaders.Authorization, Base64.encode(info.password.encodeToByteArray()))

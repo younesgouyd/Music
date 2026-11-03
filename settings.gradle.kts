@@ -34,7 +34,7 @@ dependencyResolutionManagement {
                 val serialization = "1.12.0"
                 val jsonJava = "20260814"
                 val coroutines = "1.11.0"
-                val room = "2.8.5"
+                val room = "3.1.0-alpha03"
                 val sqlite = "2.7.1"
                 val ksp = "2.3.12"
                 val logging = "8.0.4"
@@ -66,7 +66,7 @@ dependencyResolutionManagement {
             plugin("composeMultiplatform", "org.jetbrains.compose").version(versions.compose.plugin)
             plugin("composeCompiler", "org.jetbrains.kotlin.plugin.compose").version(versions.kotlin)
             plugin("ksp", "com.google.devtools.ksp").version(versions.ksp)
-            plugin("room", "androidx.room").version(versions.room)
+            plugin("room", "androidx.room3").version(versions.room)
             plugin("android.application", "com.android.application").version(versions.android.agp)
             plugin("android.multiplatform", "com.android.kotlin.multiplatform.library").version(versions.android.agp)
 
@@ -84,8 +84,8 @@ dependencyResolutionManagement {
             library("coroutines.android", "org.jetbrains.kotlinx", "kotlinx-coroutines-android").version(versions.coroutines)
             library("datetime", "org.jetbrains.kotlinx", "kotlinx-datetime").version(versions.datetime)
 
-            library("room.runtime", "androidx.room", "room-runtime").version(versions.room)
-            library("room.compiler", "androidx.room", "room-compiler").version(versions.room)
+            library("room.runtime", "androidx.room3", "room3-runtime").version(versions.room)
+            library("room.compiler", "androidx.room3", "room3-compiler").version(versions.room)
             library("sqlite.jvm", "androidx.sqlite", "sqlite-bundled-jvm").version(versions.sqlite)
             library("sqlite.android", "androidx.sqlite", "sqlite-bundled").version(versions.sqlite)
 

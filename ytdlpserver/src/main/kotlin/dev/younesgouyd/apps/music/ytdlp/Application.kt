@@ -71,7 +71,7 @@ class Application {
                     keyStorePassword = { keyStorePassword.toCharArray() },
                     privateKeyPassword = { keyStorePassword.toCharArray() }
                 ) {
-                    port = 8443
+                    port = 8444
                     enabledProtocols = listOf("TLSv1.3")
                 }
             }

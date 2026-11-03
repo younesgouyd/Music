@@ -71,6 +71,6 @@ dependencies {
     add("kspJvm", libs.room.compiler)
 }
 
-room {
+room3 {
     schemaDirectory("$projectDir/schemas")
 }

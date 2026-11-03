@@ -13,6 +13,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.common.models.datamodels.ServerInfo
 import dev.younesgouyd.apps.music.common.ui.Component
+import dev.younesgouyd.apps.music.common.ui.YounesMusicTheme
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -58,9 +59,7 @@ class StartupScreen(
 
         @Composable
         fun Main(state: State) {
-            MaterialTheme(
-                colorScheme = darkColorScheme()
-            ) {
+            YounesMusicTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

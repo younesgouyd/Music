@@ -1,6 +1,5 @@
 package dev.younesgouyd.apps.music.client.multiplatform.components
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -14,22 +13,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
 import dev.younesgouyd.apps.music.client.multiplatform.data.RepoStore
+import dev.younesgouyd.apps.music.client.multiplatform.data.Server
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.*
 import dev.younesgouyd.apps.music.common.models.DarkThemeOptions
 import dev.younesgouyd.apps.music.common.ui.Component
+import dev.younesgouyd.apps.music.common.ui.YounesMusicTheme
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 
 class Main(
-    private val repoStore: RepoStore,
-    private val deleteFolderUseCase: DeleteFolderUseCase,
-    private val clearImportItemUseCase: ClearImportItemUseCase,
-    private val setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase,
-    private val unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase,
-    private val prepareImportUseCase: PrepareImportUseCase,
-    private val mediaController: MediaController
+    server: Server
 ) : Component() {
     override val title: String = ""
+
+    private val repoStore: RepoStore = RepoStore(server)
+    private val deleteFolderUseCase = DeleteFolderUseCase(server)
+    private val clearImportItemUseCase = ClearImportItemUseCase(server)
+    private val setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(server)
+    private val unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(server)
+    private val prepareImportUseCase = PrepareImportUseCase(server)
+    private val mediaController = MediaController(server)
+
     private val darkTheme: StateFlow<DarkThemeOptions> = run {
         repoStore.settingRepo.getDarkTheme()
             .map { it?.value?.let { DarkThemeOptions.valueOf(it) } ?: DarkThemeOptions.SystemDefault }
@@ -185,21 +189,6 @@ class Main(
     }
 
     private object Ui {
-        @Composable
-        fun YounesMusicTheme(
-            darkTheme: DarkThemeOptions = DarkThemeOptions.SystemDefault,
-            content: @Composable () -> Unit
-        ) {
-            MaterialTheme(
-                colorScheme = when (darkTheme) {
-                    DarkThemeOptions.SystemDefault -> if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()
-                    DarkThemeOptions.Disabled -> lightColorScheme()
-                    DarkThemeOptions.Enabled -> darkColorScheme()
-                },
-                content = content
-            )
-        }
-
         @Composable
         fun Main(
             modifier: Modifier,

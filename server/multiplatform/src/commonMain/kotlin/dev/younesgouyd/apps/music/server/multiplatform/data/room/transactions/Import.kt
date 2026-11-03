@@ -1,7 +1,7 @@
 package dev.younesgouyd.apps.music.server.multiplatform.data.room.transactions
 
-import androidx.room.Dao
-import androidx.room.Query
+import androidx.room3.Dao
+import androidx.room3.Query
 import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem.State
 import dev.younesgouyd.apps.music.server.multiplatform.YtDlp

@@ -28,6 +28,7 @@ import dev.younesgouyd.apps.music.common.models.datamodels.YtDlpServerInfo
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.DeviceIcon
 import dev.younesgouyd.apps.music.common.ui.Item
+import dev.younesgouyd.apps.music.common.ui.YounesMusicTheme
 import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.ClientRepo
 import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.ClientSessionRepo
 import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.SettingRepo
@@ -140,7 +141,7 @@ class MainUi(
 
         @Composable
         fun Main(state: State) {
-            AppThemeContainer {
+            YounesMusicTheme {
                 when (state) {
                     is State.Loaded -> Main(state)
                     is State.Loading -> Text("Loading...")

@@ -1,7 +1,7 @@
 package dev.younesgouyd.apps.music.server.multiplatform.data.room.models
 
-import androidx.room.Embedded
-import androidx.room.Relation
+import androidx.room3.Embedded
+import androidx.room3.Relation
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.ImportSessionItem
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.SpotifyTrack
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.Track
@@ -9,13 +9,13 @@ import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.Track
 data class TrackRelation(
     @Embedded val track: Track,
     @Relation(
-        parentColumn = "importSessionItemId",
-        entityColumn = "id"
+        parentColumns = ["importSessionItemId"],
+        entityColumns = ["id"]
     )
     val originalImport: ImportSessionItem,
     @Relation(
-        parentColumn = "spotifyTrackId",
-        entityColumn = "id"
+        parentColumns = ["spotifyTrackId"],
+        entityColumns = ["id"]
     )
     val spotifyTrack: SpotifyTrack?
 )
