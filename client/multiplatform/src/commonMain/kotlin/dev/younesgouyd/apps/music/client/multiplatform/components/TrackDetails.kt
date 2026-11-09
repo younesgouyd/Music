@@ -35,7 +35,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.io.File
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -43,15 +42,12 @@ import kotlin.time.Duration.Companion.milliseconds
 class TrackDetails(
     id: TrackId,
     trackRepo: TrackRepo,
-    albumRepo: SpotifyAlbumRepo,
     tagRepo: TagRepo,
     spotifyTrackRepo: SpotifyTrackRepo,
     spotifySearchRepo: SpotifySearchRepo,
-    artistRepo: SpotifyArtistRepo,
     playlistRepo: PlaylistRepo,
     tagTrackCrossRefRepo: TagTrackCrossRefRepo,
     playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
-    mediaFileRepo: MediaFileRepo,
     setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase,
     unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase,
     mediaController: MediaController,
@@ -65,11 +61,9 @@ class TrackDetails(
     override val title: String = "Track"
     private val logger = KotlinLogging.logger {}
     private val selectedTab = MutableStateFlow(Ui.State.Loaded.Tab.Import)
-    private val state: StateFlow<Ui.State>
+    private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
 
     init {
-        val track = trackRepo.get(id).filterNotNull().stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
-
         // spotify track state
         val apiError = MutableStateFlow(false)
         val searching = MutableStateFlow(false)
@@ -79,60 +73,60 @@ class TrackDetails(
         val album = MutableStateFlow("")
         val searchResult = MutableStateFlow(emptyList<Ui.State.Loaded.SpotifyTrackState.SearchResultItem>())
         // ------------------------------------------------------------------------
-
-        var loaded: Ui.State.Loaded? = null
-        state = track.onEach {
-            if (it != null && loaded == null) {
-                loaded = Ui.State.Loaded(
+        coroutineScope.launch {
+            val appliedTags = tagRepo.getTrackTags(id).stateIn(coroutineScope)
+            val unappliedTags = tagRepo.getTrackUnsetTags(id).stateIn(coroutineScope)
+            val playlists = playlistRepo.getTrackPlaylists(id)
+                .mapLatest { it.map { Ui.State.Loaded.Playlist(it.id, it.name, null) } }
+                .stateIn(coroutineScope)
+            trackRepo.get(id).onEach { dbTrack -> // TODO (this overrides user input)
+                if (dbTrack == null) return@onEach
+                name.value = dbTrack.originalImport.title
+                artist.value = dbTrack.originalImport.inspection.artists.firstOrNull() ?: ""
+                album.value = dbTrack.originalImport.album ?: ""
+            }.mapLatest { dbTrack ->
+                if (dbTrack == null) return@mapLatest Ui.State.ItemDoesNotExist
+                Ui.State.Loaded(
                     selectedTab = selectedTab.asStateFlow(),
-                    import = track.map { it?.originalImport }.mapLatest { dbImport ->
-                        dbImport?.let {
-                            Ui.State.Loaded.Import(
-                                id = dbImport.id,
-                                title = dbImport.title,
-                                uri = dbImport.uri,
-                                duration = dbImport.durationMilliseconds.milliseconds,
-                                artists = dbImport.inspection.artists,
-                                album = dbImport.album,
-                                image = mediaFileRepo.getImportSessionItemImage(dbImport.id)
-                            )
-                        }
-                    }.stateIn(coroutineScope),
-                    appliedTags = tagRepo.getTrackTags(id).stateIn(coroutineScope),
-                    unappliedTags = tagRepo.getTrackUnsetTags(id).stateIn(coroutineScope),
+                    import = dbTrack.originalImport.let { dbImport ->
+                        Ui.State.Loaded.Import(
+                            id = dbImport.id,
+                            title = dbImport.title,
+                            uri = dbImport.uri,
+                            duration = dbImport.durationMilliseconds.milliseconds,
+                            artists = dbImport.inspection.artists,
+                            album = dbImport.album,
+                            image = dbImport.imgId
+                        )
+                    },
+                    appliedTags = appliedTags,
+                    unappliedTags = unappliedTags,
                     spotifyTrackState = Ui.State.Loaded.SpotifyTrackState(
                         apiError = apiError.asStateFlow(),
-                        spotifyTrack = track.filterNotNull().onEach { dbTrack -> // TODO (this overrides user input)
-                            name.value = dbTrack.originalImport.title
-                            artist.value = dbTrack.originalImport.inspection.artists.firstOrNull() ?: ""
-                            album.value = dbTrack.originalImport.album ?: ""
-                        }.mapLatest { dbTrack ->
-                            dbTrack.spotifyTrack?.let { spotifyTrack ->
-                                Ui.State.Loaded.SpotifyTrackState.SpotifyTrack(
-                                    id = spotifyTrack.id,
-                                    name = spotifyTrack.name,
-                                    duration = spotifyTrack.durationMs?.milliseconds,
-                                    album = albumRepo.get(spotifyTrack.spotifyAlbumId).first()?.let {
-                                        Ui.State.Loaded.SpotifyTrackState.SpotifyTrack.Album(it.id, it.name)
-                                    },
-                                    artists = artistRepo.getSpotifyTrackSpotifyArtists(spotifyTrack.id).first().map { dbArtist ->
-                                        Pair(dbArtist.id, dbArtist.name)
-                                    },
-                                    image = mediaFileRepo.getSpotifyAlbumImage(spotifyTrack.spotifyAlbumId),
-                                    onAlbumClick = { showAlbum(spotifyTrack.spotifyAlbumId) },
-                                    onArtistClick = showArtist,
-                                    onRemoveClick = {
-                                        coroutineScope.launch {
-                                            unsetSpotifyTrackUseCase.execute(
-                                                trackId = id,
-                                                spotifyTrackId = spotifyTrack.id,
-                                                spotifyAlbumId = spotifyTrack.spotifyAlbumId
-                                            )
-                                        }
+                        spotifyTrack = dbTrack.spotifyTrackRelation?.let { spotifyTrackRelation ->
+                            val track = spotifyTrackRelation.spotifyTrack
+                            val album = spotifyTrackRelation.spotifyAlbum
+                            val artists = spotifyTrackRelation.spotifyArtists
+                            Ui.State.Loaded.SpotifyTrackState.SpotifyTrack(
+                                id = track.id,
+                                name = track.name,
+                                duration = track.durationMs?.milliseconds,
+                                album = Ui.State.Loaded.SpotifyTrackState.SpotifyTrack.Album(album.id, album.name),
+                                artists = artists.map { Pair(it.id, it.name) },
+                                image = album.mediumImgId,
+                                onAlbumClick = { showAlbum(album.id) },
+                                onArtistClick = showArtist,
+                                onRemoveClick = {
+                                    coroutineScope.launch {
+                                        unsetSpotifyTrackUseCase.execute(
+                                            trackId = id,
+                                            spotifyTrackId = track.id,
+                                            spotifyAlbumId = album.id
+                                        )
                                     }
-                                )
-                            }
-                        }.stateIn(coroutineScope),
+                                }
+                            )
+                        },
                         searching = searching.asStateFlow(),
                         settingTrack = settingTrack.asStateFlow(),
                         name = name.asStateFlow(),
@@ -174,17 +168,9 @@ class TrackDetails(
                         },
                         onLinkedTrackClick = showTrack
                     ),
-                    playlists = playlistRepo.getTrackPlaylists(id).mapLatest { dbList ->
-                            dbList.map {
-                                Ui.State.Loaded.Playlist(
-                                    id = it.id,
-                                    name = it.name,
-                                    image = null
-                                )
-                            }
-                        }.stateIn(coroutineScope),
+                    playlists = playlists,
                     onTabClick = { selectedTab.value = it },
-                    onPlayClick = { mediaController.playQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Track(id))) },
+                    onPlayClick = { mediaController.playQueue(listOf(QueueItemParameter.Track(id))) },
                     onSetTag = { coroutineScope.launch { tagTrackCrossRefRepo.add(it, id) } },
                     onUnsetTag = { coroutineScope.launch { tagTrackCrossRefRepo.delete(it, id) } },
                     onTagDetailsClick = showTag,
@@ -199,14 +185,8 @@ class TrackDetails(
                         }
                     }
                 )
-            }
-        }.map {
-            if (it == null) {
-                Ui.State.ItemDoesNotExist
-            } else {
-                loaded!!
-            }
-        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Loading)
+            }.collect(state)
+        }
     }
 
     @Composable
@@ -225,9 +205,9 @@ class TrackDetails(
         sealed class State {
             data object Loading : State()
 
-            data class Loaded(
+            class Loaded(
                 val selectedTab: StateFlow<Tab>,
-                val import: StateFlow<Import?>,
+                val import: Import?,
                 val spotifyTrackState: SpotifyTrackState,
                 val appliedTags: StateFlow<List<Tag>>,
                 val unappliedTags: StateFlow<List<Tag>>,
@@ -252,12 +232,12 @@ class TrackDetails(
                     val duration: Duration?,
                     val artists: List<String>,
                     val album: String?,
-                    val image: File?
+                    val image: MediaFileId?
                 )
 
                 data class SpotifyTrackState(
                     val apiError: StateFlow<Boolean>,
-                    val spotifyTrack: StateFlow<SpotifyTrack?>,
+                    val spotifyTrack: SpotifyTrack?,
                     val searching: StateFlow<Boolean>,
                     val settingTrack: StateFlow<Boolean>,
                     val name: StateFlow<String>,
@@ -277,7 +257,7 @@ class TrackDetails(
                         val duration: Duration?,
                         val album: Album?,
                         val artists: List<Pair<SpotifyArtistId, String>>,
-                        val image: File?,
+                        val image: MediaFileId?,
                         val onAlbumClick: () -> Unit,
                         val onArtistClick: (SpotifyArtistId) -> Unit,
                         val onRemoveClick: () -> Unit
@@ -298,7 +278,7 @@ class TrackDetails(
                 data class Playlist(
                     val id: PlaylistId,
                     val name: String,
-                    val image: File?
+                    val image: MediaFileId?
                 )
             }
 
@@ -341,12 +321,11 @@ class TrackDetails(
             )
         }
 
-        @OptIn(ExperimentalMaterial3Api::class)
         @Composable
         private fun Main(
             modifier: Modifier,
             selectedTab: StateFlow<State.Loaded.Tab>,
-            import: StateFlow<State.Loaded.Import?>,
+            import: State.Loaded.Import?,
             spotifyTrackState: State.Loaded.SpotifyTrackState,
             appliedTags: StateFlow<List<Tag>>,
             unappliedTags: StateFlow<List<Tag>>,
@@ -361,7 +340,6 @@ class TrackDetails(
             onRemoveFromPlaylistClick: (PlaylistId) -> Unit
         ) {
             val selectedTab by selectedTab.collectAsState()
-            val import by import.collectAsState()
             val appliedTags by appliedTags.collectAsState()
             val unappliedTags by unappliedTags.collectAsState()
             val playlists by playlists.collectAsState()
@@ -493,7 +471,7 @@ class TrackDetails(
             @Composable
             fun Main(modifier: Modifier, state: State.Loaded.SpotifyTrackState) {
                 val apiError by state.apiError.collectAsState()
-                val spotifyTrack by state.spotifyTrack.collectAsState()
+                val spotifyTrack = state.spotifyTrack
                 val searching by state.searching.collectAsState()
                 val settingTrack by state.settingTrack.collectAsState()
                 val name by state.name.collectAsState()
@@ -781,7 +759,7 @@ class TrackDetails(
                         ) {
                             Image(
                                 modifier = Modifier.fillMaxHeight().aspectRatio(1f),
-                                file = playlist.image
+                                id = playlist.image
                             )
                             Text(
                                 modifier = Modifier.padding(horizontal = 8.dp).weight(1f),

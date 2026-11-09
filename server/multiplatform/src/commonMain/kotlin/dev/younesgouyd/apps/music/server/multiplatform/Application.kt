@@ -118,10 +118,7 @@ abstract class Application(appDir: File) {
             val mediaController = MediaController(
                 clientRepo = repoStore.clientRepo,
                 websocketSessionHandlers = websocketSessionHandlers,
-                mediaFileRepo = repoStore.mediaFileRepo,
                 trackRepo = repoStore.trackRepo,
-                artistRepo = repoStore.spotifyArtistRepo,
-                albumRepo = repoStore.spotifyAlbumRepo,
                 playlistRepo = repoStore.playlistRepo,
                 folderRepo = repoStore.folderRepo
             )
@@ -169,7 +166,6 @@ abstract class Application(appDir: File) {
             val setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(
                 unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
                 trackRepo = repoStore.trackRepo,
-                spotifyAlbumRepo = repoStore.spotifyAlbumRepo,
                 transaction = database.setTrackMetadataFromSpotify(),
                 spotify = spotify,
                 fileManager = fileManager

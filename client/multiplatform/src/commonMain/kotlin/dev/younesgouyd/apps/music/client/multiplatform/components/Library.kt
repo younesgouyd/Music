@@ -38,7 +38,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class Library(
@@ -49,7 +48,6 @@ class Library(
     private val trackRepo: TrackRepo,
     private val artistRepo: SpotifyArtistRepo,
     private val playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
-    private val mediaFileRepo: MediaFileRepo,
     deleteFolderUseCase: DeleteFolderUseCase,
     clearImportItemUseCase: ClearImportItemUseCase,
     private val mediaController: MediaController,
@@ -64,7 +62,6 @@ class Library(
     private val loadingFolders = MutableStateFlow(true)
     private val loadingPlaylists = MutableStateFlow(true)
     private val loadingTracks = MutableStateFlow(true)
-    private val importingFolder = MutableStateFlow(false)
     private val deletingFolder = MutableStateFlow(false)
     private val addToPlaylistDialogVisible = MutableStateFlow(false)
     private val moveToFolderDialogVisible = MutableStateFlow(false)
@@ -77,7 +74,7 @@ class Library(
     private val path: StateFlow<List<Ui.State.NodeState>>
     private val uiState: Ui.State
 
-    private data class Filter(
+    private data class TracksFilter(
         val currentFolder: Folder?,
         val search: String,
         val tags: List<TagId>,
@@ -86,51 +83,45 @@ class Library(
     )
     init {
         val root = Ui.State.NodeState(null, LazyGridState())
-        var list: List<Ui.State.NodeState> = listOf(root)
-        path = flow {
-            fun <T> List<T>.takeUntil(predicate: (T) -> Boolean): List<T> {
-                val list = mutableListOf<T>()
-                for (item in this) {
-                    list.add(item)
-                    if (predicate(item)) {
-                        break
+        path = run {
+            var list: List<Ui.State.NodeState> = listOf(root)
+            flow {
+                fun <T> List<T>.takeUntil(predicate: (T) -> Boolean): List<T> {
+                    val list = mutableListOf<T>()
+                    for (item in this) {
+                        list.add(item)
+                        if (predicate(item)) {
+                            break
+                        }
+                    }
+                    return list
+                }
+                currentFolder.collect { folder ->
+                    if (folder == null) {
+                        list = listOf(root)
+                        emit(list)
+                    } else {
+                        val temp = list.takeUntil { it.folder?.id == folder.id }.toMutableList()
+                        if (!temp.any { it.folder?.id == folder.id }) {
+                            temp.add(Ui.State.NodeState(folder, LazyGridState()))
+                        }
+                        list = temp
+                        emit(list)
                     }
                 }
-                return list
-            }
-            currentFolder.collect { folder ->
-                if (folder == null) {
-                    list = listOf(root)
-                    emit(list)
-                } else {
-                    val temp = list.takeUntil { it.folder?.id == folder.id }.toMutableList()
-                    if (!temp.any { it.folder?.id == folder.id }) {
-                        temp.add(Ui.State.NodeState(folder, LazyGridState()))
-                    }
-                    list = temp
-                    emit(list)
-                }
-            }
-        }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = list)
+            }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = list)
+        }
         uiState = Ui.State(
             path = path,
-            loadingItems = combine(
-                loadingFolders, loadingPlaylists,
-                loadingTracks, importingFolder
-            ) { l1, l2, l3, l4 -> l1 || l2 || l3 || l4 }
+            loadingItems = combine(loadingFolders, loadingPlaylists, loadingTracks) { l1, l2, l3 -> l1 || l2 || l3 }
                 .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), true),
             searchQuery = searchQuery.asStateFlow(),
             tagsFilterState = TagsFilterState(
-                tags = combine(tagSearchQuery, selectedTags) { search, selected -> Pair(search, selected) }
+                tags = combine(tagSearchQuery, selectedTags, ::Pair)
                     .flatMapLatest { (search, selected) ->
                         tagRepo.search(search).map {
-                            it.sortedWith { first, second ->
-                                val b1 = selected.contains(first.id)
-                                val b2 = selected.contains(second.id)
-                                if (b1 && b2) 0
-                                else if (b1) -1
-                                else 1
-                            }.map { dbTag ->
+                            it.sortedByDescending { selected.contains(it.id) }
+                                .map { dbTag ->
                                 TagsFilterState.Tag(
                                     id = dbTag.id,
                                     name = dbTag.name,
@@ -158,12 +149,12 @@ class Library(
                     }
                 }
             ),
-            folders = combine(currentFolder, searchQuery) { folder, search -> Pair(folder, search) }
+            folders = combine(currentFolder, searchQuery, ::Pair)
                 .onEach { loadingFolders.value = true }
                 .flatMapLatest { (folder, search) -> folderRepo.searchFolder(folder?.id, search) }
                 .onEach { loadingFolders.value = false }
                 .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
-            playlists = combine(currentFolder, searchQuery) { folder, search -> Pair(folder, search) }
+            playlists = combine(currentFolder, searchQuery, ::Pair)
                 .onEach { loadingPlaylists.value = true }
                 .flatMapLatest { (folder, search) -> playlistRepo.searchFolder(folder?.id, search) }
                 .map { dbPlaylists -> dbPlaylists.toPlaylistModels() }
@@ -174,7 +165,7 @@ class Library(
                 selectedTags, enableFiltering,
                 includeUntagged
             ) { currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged ->
-                Filter(currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged)
+                TracksFilter(currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged)
             }.onEach { loadingTracks.value = true }
                 .flatMapLatest { (currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged) ->
                     when {
@@ -197,7 +188,6 @@ class Library(
                         trackRepo = trackRepo,
                         folderRepo = folderRepo,
                         artistRepo = artistRepo,
-                        mediaFileRepo = mediaFileRepo,
                         dismiss = ::dismissAddToPlaylistDialog,
                         playlistRepo = playlistRepo,
                         albumRepo = albumRepo
@@ -207,18 +197,18 @@ class Library(
             },
             onAddFolderToQueueClick = { id: FolderId ->
                 mediaController.addToQueue(
-                    listOf(Rpc.ToServer.MediaController.QueueItemParameter.Folder(id))
+                    listOf(QueueItemParameter.Folder(id))
                 )
             },
             onPlayFolder = { id: FolderId ->
                 mediaController.playQueue(
-                    listOf(Rpc.ToServer.MediaController.QueueItemParameter.Folder(id))
+                    listOf(QueueItemParameter.Folder(id))
                 )
             },
             onPlaylistClick = showPlaylist,
             onPlayPlaylistClick = { id: PlaylistId ->
                 mediaController.playQueue(
-                    listOf(Rpc.ToServer.MediaController.QueueItemParameter.Playlist(id))
+                    listOf(QueueItemParameter.Playlist(id))
                 )
             },
             onAddPlaylistToPlaylistClick = { playlistId: PlaylistId ->
@@ -229,7 +219,6 @@ class Library(
                         trackRepo = trackRepo,
                         folderRepo = folderRepo,
                         artistRepo = artistRepo,
-                        mediaFileRepo = mediaFileRepo,
                         dismiss = ::dismissAddToPlaylistDialog,
                         playlistRepo = playlistRepo,
                         albumRepo = albumRepo
@@ -243,7 +232,6 @@ class Library(
                         itemToMove = MoveToFolder.ItemToMove.Folder(id),
                         folderRepo = folderRepo,
                         trackRepo = trackRepo,
-                        mediaFileRepo = mediaFileRepo,
                         playlistRepo = playlistRepo,
                         dismiss = ::dismissMoveToFolderDialog
                     )
@@ -256,7 +244,6 @@ class Library(
                         itemToMove = MoveToFolder.ItemToMove.Track(id),
                         folderRepo = folderRepo,
                         trackRepo = trackRepo,
-                        mediaFileRepo = mediaFileRepo,
                         playlistRepo = playlistRepo,
                         dismiss = ::dismissMoveToFolderDialog
                     )
@@ -269,7 +256,6 @@ class Library(
                         itemToMove = MoveToFolder.ItemToMove.Playlist(id),
                         folderRepo = folderRepo,
                         trackRepo = trackRepo,
-                        mediaFileRepo = mediaFileRepo,
                         playlistRepo = playlistRepo,
                         dismiss = ::dismissMoveToFolderDialog
                     )
@@ -278,7 +264,7 @@ class Library(
             },
             onAddPlaylistToQueueClick = { id: PlaylistId ->
                 mediaController.addToQueue(
-                    listOf(Rpc.ToServer.MediaController.QueueItemParameter.Playlist(id))
+                    listOf(QueueItemParameter.Playlist(id))
                 )
             },
             onTrackClick = showTrack,
@@ -290,7 +276,6 @@ class Library(
                         trackRepo = trackRepo,
                         folderRepo = folderRepo,
                         artistRepo = artistRepo,
-                        mediaFileRepo = mediaFileRepo,
                         dismiss = ::dismissAddToPlaylistDialog,
                         playlistRepo = playlistRepo,
                         albumRepo = albumRepo
@@ -324,7 +309,7 @@ class Library(
             },
             onDeletePlaylist = { coroutineScope.launch { playlistRepo.delete(it) } },
             onDeleteTrack = { coroutineScope.launch { clearImportItemUseCase.execute(it) } },
-            onAddTrackToQueue = { mediaController.addToQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Track(it))) },
+            onAddTrackToQueue = { mediaController.addToQueue(listOf(QueueItemParameter.Track(it))) },
             onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
         )
     }
@@ -398,23 +383,17 @@ class Library(
         coroutineScope.cancel()
     }
 
-    private suspend fun List<TrackRelation>.toTrackModels(): List<Ui.State.Track> {
+    private fun List<TrackRelation>.toTrackModels(): List<Ui.State.Track> {
         return this.map { dbTrack ->
             Ui.State.Track(
                 id = dbTrack.track.id,
                 importSessionItemId = dbTrack.track.importSessionItemId,
-                name = dbTrack.spotifyTrack?.name ?: dbTrack.originalImport.title,
-                image = if (dbTrack.spotifyTrack != null) {
-                    mediaFileRepo.getSpotifyAlbumImage(dbTrack.spotifyTrack!!.spotifyAlbumId)
-                } else {
-                    mediaFileRepo.getImportSessionItemImage(dbTrack.track.importSessionItemId)
-                },
-                artists = if (dbTrack.spotifyTrack != null) {
-                    artistRepo.getSpotifyTrackSpotifyArtists(dbTrack.spotifyTrack!!.id).first().map { dbArtist ->
-                        Ui.State.Track.Artist(dbArtist.id, dbArtist.name)
-                    }
-                } else {
-                    dbTrack.originalImport.inspection.artists.map {
+                name = dbTrack.spotifyTrackRelation?.spotifyTrack?.name ?: dbTrack.originalImport.title,
+                image = dbTrack.spotifyTrackRelation?.spotifyAlbum?.mediumImgId ?: dbTrack.originalImport.imgId,
+                artists = run {
+                    dbTrack.spotifyTrackRelation?.spotifyArtists?.map {
+                        Ui.State.Track.Artist(it.id, it.name)
+                    } ?: dbTrack.originalImport.inspection.artists.map {
                         Ui.State.Track.Artist(null, it)
                     }
                 }
@@ -457,7 +436,7 @@ class Library(
     }
 
     private object Ui {
-        data class State(
+        class State(
             val path: StateFlow<List<NodeState>>,
             val loadingItems: StateFlow<Boolean>,
             val searchQuery: StateFlow<String>,
@@ -498,7 +477,7 @@ class Library(
                 val id: TrackId,
                 val importSessionItemId: ImportSessionItemId,
                 val name: String,
-                val image: File?,
+                val image: MediaFileId?,
                 val artists: List<Artist>
             ) {
                 data class Artist(
@@ -551,8 +530,7 @@ class Library(
                     onDeleteFolder = state.onDeleteFolder,
                     onDeletePlaylist = state.onDeletePlaylist,
                     onDeleteTrack = state.onDeleteTrack,
-                    onAddTrackToQueue = state.onAddTrackToQueue,
-                    onDismissAddToPlaylistDialog = state.onDismissAddToPlaylistDialog
+                    onAddTrackToQueue = state.onAddTrackToQueue
                 )
             }
 
@@ -588,8 +566,7 @@ class Library(
                 onDeleteFolder: (FolderId) -> Unit,
                 onDeletePlaylist: (PlaylistId) -> Unit,
                 onDeleteTrack: (ImportSessionItemId) -> Unit,
-                onAddTrackToQueue: (TrackId) -> Unit,
-                onDismissAddToPlaylistDialog: () -> Unit
+                onAddTrackToQueue: (TrackId) -> Unit
             ) {
                 val path by path.collectAsState()
                 val loadingItems by loadingItems.collectAsState()
@@ -979,7 +956,7 @@ class Library(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            file = null,
+                            id = null,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -1105,7 +1082,7 @@ class Library(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            file = track.image,
+                            id = track.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -1176,7 +1153,7 @@ class Library(
                             ) {
                                 Image(
                                     modifier = Modifier.size(64.dp),
-                                    file = track.image
+                                    id = track.image
                                 )
                                 Text(
                                     text = track.name,
@@ -1739,7 +1716,7 @@ class Library(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            file = null,
+                            id = null,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -1858,7 +1835,7 @@ class Library(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            file = track.image,
+                            id = track.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -1913,7 +1890,7 @@ class Library(
                             ) {
                                 Image(
                                     modifier = Modifier.size(64.dp),
-                                    file = track.image
+                                    id = track.image
                                 )
                                 Text(
                                     text = track.name,

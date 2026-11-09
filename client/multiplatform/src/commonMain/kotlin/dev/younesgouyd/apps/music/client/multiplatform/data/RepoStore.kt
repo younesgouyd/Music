@@ -7,7 +7,6 @@ class RepoStore(server: Server) {
     val importSessionItemRepo = ImportSessionItemRepo(server)
     val importSessionRepo = ImportSessionRepo(server)
     val inspectionRepo = InspectionRepo(server)
-    val mediaFileRepo = MediaFileRepo(server)
     val playlistRepo = PlaylistRepo(server)
     val playlistTrackCrossRefRepo = PlaylistTrackCrossRefRepo(server)
     val settingRepo = SettingRepo(server)

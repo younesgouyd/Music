@@ -23,15 +23,15 @@ import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.*
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.*
+import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.PlaylistId
-import dev.younesgouyd.apps.music.common.models.Rpc
+import dev.younesgouyd.apps.music.common.models.QueueItemParameter
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistList(
@@ -42,7 +42,6 @@ class PlaylistList(
     artistRepo: SpotifyArtistRepo,
     albumRepo: SpotifyAlbumRepo,
     mediaController: MediaController,
-    mediaFileRepo: MediaFileRepo,
     showPlaylistDetails: (PlaylistId) -> Unit
 ) : Component() {
     override val title: String = "Playlists"
@@ -71,7 +70,7 @@ class PlaylistList(
                 scrollState = LazyGridState(),
                 onSearchQueryChange = { searchQuery.value = it },
                 onPlaylistClick = showPlaylistDetails,
-                onPlayPlaylist = { id: PlaylistId -> mediaController.playQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Playlist(id))) },
+                onPlayPlaylist = { id: PlaylistId -> mediaController.playQueue(listOf(QueueItemParameter.Playlist(id))) },
                 onAddToPlaylist = { playlistId: PlaylistId ->
                     addToPlaylist.update {
                         AddToPlaylist(
@@ -80,7 +79,6 @@ class PlaylistList(
                             trackRepo = trackRepo,
                             folderRepo = folderRepo,
                             artistRepo = artistRepo,
-                            mediaFileRepo = mediaFileRepo,
                             dismiss = ::dismissAddToPlaylistDialog,
                             playlistRepo = playlistRepo,
                             albumRepo = albumRepo
@@ -98,7 +96,7 @@ class PlaylistList(
                     }
                 },
                 onAddPlaylistToQueue = { id: PlaylistId -> mediaController.addToQueue(listOf(
-                    Rpc.ToServer.MediaController.QueueItemParameter.Playlist(id))) }
+                    QueueItemParameter.Playlist(id))) }
             )
         }
     }
@@ -129,7 +127,7 @@ class PlaylistList(
         sealed class State {
             data object Loading : State()
 
-            data class Loaded(
+            class Loaded(
                 val playlists: StateFlow<List<PlaylistListItem>>,
                 val addToPlaylistDialogVisible: StateFlow<Boolean>,
                 val addToPlaylist: StateFlow<Component?>,
@@ -147,7 +145,7 @@ class PlaylistList(
                 data class PlaylistListItem(
                     val id: PlaylistId,
                     val name: String,
-                    val image: File?,
+                    val image: MediaFileId?,
                 )
             }
         }
@@ -274,7 +272,7 @@ class PlaylistList(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            file = playlist.image,
+                            id = playlist.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -529,7 +527,7 @@ class PlaylistList(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            file = playlist.image,
+                            id = playlist.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )

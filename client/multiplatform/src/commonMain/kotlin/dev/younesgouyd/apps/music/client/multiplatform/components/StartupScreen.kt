@@ -48,7 +48,7 @@ class StartupScreen(
     private object Ui {
         sealed class State {
             data object Loading : State()
-            data class Loaded(
+            class Loaded(
                 val error: StateFlow<Boolean>,
                 val onConnectClick: (
                     serverFingerprint: String,

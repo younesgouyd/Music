@@ -32,7 +32,7 @@ abstract class Application(appDir: File) {
 
         private val logger = KotlinLogging.logger {}
 
-        private var backHandlers: Stack<() -> Unit> = Stack()
+        private val backHandlers: Stack<() -> Unit> = Stack()
 
         fun registerBackHandler(onBack: () -> Unit) {
             backHandlers.push(onBack)
@@ -177,7 +177,6 @@ abstract class Application(appDir: File) {
             fingerprintFile.writeText(serverFingerprint)
             passwordFile.writeText(password)
         }
-        dev.younesgouyd.apps.music.client.multiplatform.components.util.server = clientRequestsHandler // TODO
         currentComponent.update {
             it.clear()
             Main(clientRequestsHandler)

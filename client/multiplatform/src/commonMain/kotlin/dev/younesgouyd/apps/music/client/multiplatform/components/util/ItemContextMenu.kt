@@ -9,11 +9,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import java.io.File
+import dev.younesgouyd.apps.music.common.models.MediaFileId
 
 data class Item(
     val name: String,
-    val image: File?
+    val image: MediaFileId?
 )
 
 @Composable
@@ -40,7 +40,7 @@ fun ItemContextMenu(
                 ) {
                     Image(
                         modifier = Modifier.size(64.dp),
-                        file = item.image
+                        id = item.image
                     )
                     Text(
                         text = item.name,

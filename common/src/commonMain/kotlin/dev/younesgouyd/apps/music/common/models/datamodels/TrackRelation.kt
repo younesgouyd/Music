@@ -6,5 +6,5 @@ import kotlinx.serialization.Serializable
 data class TrackRelation(
     val track: Track,
     val originalImport: ImportSessionItem,
-    val spotifyTrack: SpotifyTrack?
+    val spotifyTrackRelation: SpotifyTrackRelation?
 )

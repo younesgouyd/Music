@@ -5,6 +5,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.util.cio.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -43,6 +44,21 @@ class FileManager(
                     logger.info { "::delete | deleted: ${file.path}" } // TODO
                 } else {
                     logger.info { "::delete | Failed to delete: ${file.path}" } // TODO
+                }
+            }
+        }
+    }
+
+    suspend fun rollback(id: MediaFileId) {
+        withContext(NonCancellable) {
+            withContext(Dispatchers.IO) {
+                try {
+                    val file = File(mediaDir, id.toString())
+                    if (file.exists()) {
+                        file.deleteRecursively()
+                    }
+                } catch (e: Exception) {
+                    logger.error(e) { "could not rollback file with id: $id" }
                 }
             }
         }

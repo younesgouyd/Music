@@ -14,11 +14,11 @@ class ClearImportItemUseCase(
 ) {
     suspend fun execute(id: ImportSessionItemId) {
         val track = trackRepo.getImportSessionTrack(id).first()!!
-        if (track.spotifyTrack != null) {
+        if (track.spotifyTrackRelation != null) {
             unsetSpotifyTrackUseCase.execute(
                 trackId = track.track.id,
-                spotifyTrackId = track.spotifyTrack.id,
-                spotifyAlbumId = track.spotifyTrack.spotifyAlbumId
+                spotifyTrackId = track.spotifyTrackRelation.spotifyTrack.id,
+                spotifyAlbumId = track.spotifyTrackRelation.spotifyTrack.spotifyAlbumId
             )
         }
         val file = transaction.execute(id)

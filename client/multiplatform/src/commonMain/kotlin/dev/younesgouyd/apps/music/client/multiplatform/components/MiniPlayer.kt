@@ -20,13 +20,12 @@ import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
 import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
 import dev.younesgouyd.apps.music.common.models.datamodels.QueueItem
 import dev.younesgouyd.apps.music.common.ui.Component
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlin.time.Duration.Companion.milliseconds
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class MiniPlayer(
     mediaController: MediaController,
     showAlbum: (SpotifyAlbumId) -> Unit,
@@ -37,7 +36,12 @@ class MiniPlayer(
     private val state: StateFlow<Ui.State>
 
     init {
-        state = mediaController.state.map { mediaControllerState ->
+        val isPlaying = mediaController.state.flatMapLatest {
+            if (it is MediaControllerState.Available) {
+                it.mediaPlayerState.map { it?.isPlaying ?: false }
+            } else flowOf(false)
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), false)
+        state = mediaController.state.mapLatest { mediaControllerState ->
             when (mediaControllerState) {
                 is MediaControllerState.Unavailable -> Ui.State.Unavailable
                 is MediaControllerState.Loading -> Ui.State.Loading
@@ -46,8 +50,7 @@ class MiniPlayer(
                     repeatState = mediaControllerState.repeatState,
                     track = mediaControllerState.currentItem,
                     positionMs = mediaControllerState.positionMs,
-                    isPlaying = mediaControllerState.mediaPlayerState.map { it?.isPlaying ?: false }
-                        .stateIn(coroutineScope),
+                    isPlaying = isPlaying,
                     onClick = expand,
                     onAlbumClick = showAlbum,
                     onArtistClick = showArtist,
@@ -82,7 +85,7 @@ class MiniPlayer(
 
             data object Unavailable : State()
 
-            data class Available(
+            class Available(
                 val enabled: StateFlow<Boolean>,
                 val repeatState: StateFlow<RepeatState>,
                 val track: StateFlow<QueueItem?>,

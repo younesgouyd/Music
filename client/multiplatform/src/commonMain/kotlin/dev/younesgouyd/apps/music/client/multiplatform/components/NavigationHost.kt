@@ -52,7 +52,6 @@ class NavigationHost(
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun show(modifier: Modifier) {
-        val navController by rememberUpdatedState(navController) // TODO
         val currentDestination by navController.currentDestination.collectAsState()
         val inHome by navController.inHome.collectAsState()
         val coroutineScope = rememberCoroutineScope()
@@ -166,6 +165,7 @@ class NavigationHost(
         }
 
         fun replaceCurrentWith(destination: Destination) {
+            backStack.top().clear()
             backStack.replace(destinationFactory.get(destination))
         }
 
@@ -195,14 +195,14 @@ class NavigationHost(
             fun push(component: Component) {
                 stack.push(component)
                 currentDestination.update { stack.peek() }
-                inHome.update { false }
+                inHome.update { stack.size == 1 }
             }
 
             fun replace(component: Component) {
                 stack.pop()
                 stack.push(component)
                 currentDestination.update { stack.peek() }
-                inHome.update { false }
+                inHome.update { stack.size == 1 }
             }
 
             fun pop() {
@@ -232,7 +232,6 @@ class NavigationHost(
                         trackRepo = repoStore.trackRepo,
                         artistRepo = repoStore.spotifyArtistRepo,
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
-                        mediaFileRepo = repoStore.mediaFileRepo,
                         deleteFolderUseCase = deleteFolderUseCase,
                         clearImportItemUseCase = clearImportItemUseCase,
                         mediaController = mediaController,
@@ -249,7 +248,6 @@ class NavigationHost(
                         trackRepo = repoStore.trackRepo,
                         folderRepo = repoStore.folderRepo,
                         playlistRepo = repoStore.playlistRepo,
-                        mediaFileRepo = repoStore.mediaFileRepo,
                         mediaController = mediaController,
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
                         albumRepo = repoStore.spotifyAlbumRepo,
@@ -259,7 +257,6 @@ class NavigationHost(
                     is Destination.AlbumDetails -> AlbumDetails(
                         id = destination.id,
                         albumRepo = repoStore.spotifyAlbumRepo,
-                        mediaFileRepo = repoStore.mediaFileRepo,
                         artistRepo = repoStore.spotifyArtistRepo,
                         spotifyTrackRepo = repoStore.spotifyTrackRepo,
                         mediaController = mediaController,
@@ -268,7 +265,6 @@ class NavigationHost(
                     )
                     is Destination.ArtistList -> ArtistList(
                         artistRepo = repoStore.spotifyArtistRepo,
-                        mediaFileRepo = repoStore.mediaFileRepo,
                         mediaController = mediaController,
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
                     )
@@ -280,7 +276,6 @@ class NavigationHost(
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
                         folderRepo = repoStore.folderRepo,
                         mediaController = mediaController,
-                        mediaFileRepo = repoStore.mediaFileRepo,
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
                         albumRepo = repoStore.spotifyAlbumRepo,
                         showTrack = { navigateTo(Destination.TrackDetails(it)) }
@@ -292,7 +287,6 @@ class NavigationHost(
                         folderRepo = repoStore.folderRepo,
                         artistRepo = repoStore.spotifyArtistRepo,
                         mediaController = mediaController,
-                        mediaFileRepo = repoStore.mediaFileRepo,
                         showPlaylistDetails = { navigateTo(Destination.PlaylistDetails(it)) },
                         albumRepo = repoStore.spotifyAlbumRepo
                     )
@@ -305,7 +299,6 @@ class NavigationHost(
                         defaultTab = destination.defaultTab,
                         importSessionRepo = repoStore.importSessionRepo,
                         importSessionItemRepo = repoStore.importSessionItemRepo,
-                        mediaFileRepo = repoStore.mediaFileRepo,
                         clearImportItemUseCase = clearImportItemUseCase,
                         showImportItem = { navigateTo(Destination.ImportItemDetails(it)) }
                     )
@@ -317,8 +310,6 @@ class NavigationHost(
                         id = destination.id,
                         tagRepo = repoStore.tagRepo,
                         trackRepo = repoStore.trackRepo,
-                        mediaFileRepo = repoStore.mediaFileRepo,
-                        artistRepo = repoStore.spotifyArtistRepo,
                         tagTrackCrossRefRepo = repoStore.tagTrackCrossRefRepo,
                         showTrack = { navigateTo(Destination.TrackDetails(it)) },
                         showArtist = { navigateTo(Destination.ArtistDetails(it)) }
@@ -326,8 +317,6 @@ class NavigationHost(
                     is Destination.TrackList -> TrackList(
                         trackRepo = repoStore.trackRepo,
                         tagRepo = repoStore.tagRepo,
-                        artistRepo = repoStore.spotifyArtistRepo,
-                        mediaFileRepo = repoStore.mediaFileRepo,
                         mediaController = mediaController,
                         showTrack = { navigateTo(Destination.TrackDetails(it)) },
                         showArtist = { navigateTo(Destination.ArtistDetails(it)) }
@@ -335,15 +324,12 @@ class NavigationHost(
                     is Destination.TrackDetails -> TrackDetails(
                         id = destination.id,
                         trackRepo = repoStore.trackRepo,
-                        albumRepo = repoStore.spotifyAlbumRepo,
                         tagRepo = repoStore.tagRepo,
                         spotifyTrackRepo = repoStore.spotifyTrackRepo,
                         spotifySearchRepo = repoStore.spotifySearchRepo,
-                        artistRepo = repoStore.spotifyArtistRepo,
                         playlistRepo = repoStore.playlistRepo,
                         tagTrackCrossRefRepo = repoStore.tagTrackCrossRefRepo,
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
-                        mediaFileRepo = repoStore.mediaFileRepo,
                         setTrackMetadataFromSpotifyUseCase = setTrackMetadataFromSpotifyUseCase,
                         unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
                         mediaController = mediaController,
@@ -359,7 +345,6 @@ class NavigationHost(
                         importSessionItemRepo = repoStore.importSessionItemRepo,
                         importSessionRepo = repoStore.importSessionRepo,
                         trackRepo = repoStore.trackRepo,
-                        mediaFileRepo = repoStore.mediaFileRepo,
                         showImportSession = { navigateTo(Destination.ImportDetails(it)) },
                         showTrack = { navigateTo(Destination.TrackDetails(it)) }
                     )

@@ -197,15 +197,6 @@ sealed class Rpc {
 
             @Serializable
             data class RemoveItem(val key: Int) : MediaController(), ResultType.Action
-
-            @Serializable
-            sealed class QueueItemParameter {
-                @Serializable data class Track(val id: TrackId) : QueueItemParameter()
-                @Serializable data class Playlist(val id: PlaylistId) : QueueItemParameter()
-                @Serializable data class Folder(val id: FolderId) : QueueItemParameter()
-                @Serializable data class Artist(val id: SpotifyArtistId) : QueueItemParameter()
-                @Serializable data class Album(val id: SpotifyAlbumId) : QueueItemParameter()
-            }
         }
 
         @Serializable
@@ -269,44 +260,6 @@ sealed class Rpc {
             data class Delete(
                 val id: FolderId
             ) : Folder(), ResultType.Action
-        }
-
-        @Serializable
-        sealed class MediaFile : ToServer() {
-            @Serializable
-            data class GetImportSessionImage(
-                val id: ImportSessionId
-            ) : MediaFile(), ResultType.Data.Static<MediaFileId?> {
-                @Transient override val serializer: KSerializer<MediaFileId?> = MediaFileId.serializer().nullable
-            }
-
-            @Serializable
-            data class GetImportSessionItemImage(
-                val id: ImportSessionItemId
-            ) : MediaFile(), ResultType.Data.Static<MediaFileId?> {
-                @Transient override val serializer: KSerializer<MediaFileId?> = MediaFileId.serializer().nullable
-            }
-
-            @Serializable
-            data class GetSpotifyAlbumImage(
-                val id: SpotifyAlbumId
-            ) : MediaFile(), ResultType.Data.Static<MediaFileId?> {
-                @Transient override val serializer: KSerializer<MediaFileId?> = MediaFileId.serializer().nullable
-            }
-
-            @Serializable
-            data class GetSpotifyArtistImage(
-                val id: SpotifyArtistId
-            ) : MediaFile(), ResultType.Data.Static<MediaFileId?> {
-                @Transient override val serializer: KSerializer<MediaFileId?> = MediaFileId.serializer().nullable
-            }
-
-            @Serializable
-            data class GetImportSessionItemAudio(
-                val id: ImportSessionItemId
-            ) : MediaFile(), ResultType.Data.Static<MediaFileId?> {
-                @Transient override val serializer: KSerializer<MediaFileId?> = MediaFileId.serializer().nullable
-            }
         }
 
         @Serializable

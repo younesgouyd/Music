@@ -246,7 +246,6 @@ class WebSocketSessionHandler(
         private val playlistRepo get() = repoStore.playlistRepo
         private val playlistTrackCrossRefRepo get() = repoStore.playlistTrackCrossRefRepo
         private val trackRepo get() = repoStore.trackRepo
-        private val mediaFileRepo get() = repoStore.mediaFileRepo
         private val importSessionRepo get() = repoStore.importSessionRepo
         private val importSessionItemRepo get() = repoStore.importSessionItemRepo
         private val tagRepo get() = repoStore.tagRepo
@@ -367,28 +366,6 @@ class WebSocketSessionHandler(
                 is Rpc.ToServer.Inspection.Inspect -> {
                     val result = ytDlp.inspect(rpc.url).first()
                     sendData(correlationId, result, rpc.serializer)
-                }
-                is Rpc.ToServer.MediaFile -> when (rpc) {
-                    is Rpc.ToServer.MediaFile.GetImportSessionImage -> {
-                        val result = mediaFileRepo.getImportSessionImage(rpc.id)
-                        sendData(correlationId, result, rpc.serializer)
-                    }
-                    is Rpc.ToServer.MediaFile.GetImportSessionItemImage -> {
-                        val result = mediaFileRepo.getImportSessionItemImage(rpc.id)
-                        sendData(correlationId, result, rpc.serializer)
-                    }
-                    is Rpc.ToServer.MediaFile.GetSpotifyAlbumImage -> {
-                        val result = mediaFileRepo.getSpotifyAlbumImage(rpc.id)
-                        sendData(correlationId, result, rpc.serializer)
-                    }
-                    is Rpc.ToServer.MediaFile.GetSpotifyArtistImage -> {
-                        val result = mediaFileRepo.getSpotifyArtistImage(rpc.id)
-                        sendData(correlationId, result, rpc.serializer)
-                    }
-                    is Rpc.ToServer.MediaFile.GetImportSessionItemAudio -> {
-                        val result = mediaFileRepo.getImportSessionItemAudio(rpc.id)
-                        sendData(correlationId, result, rpc.serializer)
-                    }
                 }
                 is Rpc.ToServer.Playlist -> when (rpc) {
                     is Rpc.ToServer.Playlist.GetAll -> {

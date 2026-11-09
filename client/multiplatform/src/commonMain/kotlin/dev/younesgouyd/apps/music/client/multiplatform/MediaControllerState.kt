@@ -14,7 +14,7 @@ sealed class MediaControllerState {
 
     data class Available(
         val clients: StateFlow<List<Client>>,
-        val selectedClient: StateFlow<ClientId>,
+        val selectedClient: StateFlow<ClientId?>,
         val enabled: StateFlow<Boolean>,
         val queue: StateFlow<List<QueueItem>>,
         val queueItemIndex: StateFlow<Int>,

@@ -17,8 +17,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
-import java.io.File
 import kotlin.time.Duration
 
 typealias Uri = String
@@ -254,7 +254,7 @@ data class HeaderAction(
 fun ItemDetailsHeaderWide(
     modifier: Modifier = Modifier,
     title: String,
-    image: File?,
+    image: MediaFileId?,
     itemAttributes: (@Composable ColumnScope.() -> Unit)? = null,
     mainAction: HeaderAction? = null,
     actions: List<HeaderAction> = emptyList()
@@ -266,7 +266,7 @@ fun ItemDetailsHeaderWide(
         ) {
             Image(
                 modifier = Modifier.weight(1f).aspectRatio(1f, true),
-                file = image
+                id = image
             )
             Column(
                 modifier = Modifier.weight(1f),
@@ -325,7 +325,7 @@ fun ItemDetailsHeaderWide(
 fun ItemDetailsHeaderCompact(
     modifier: Modifier = Modifier,
     title: String,
-    image: File?,
+    image: MediaFileId?,
     itemAttributes: (@Composable ColumnScope.() -> Unit)? = null,
     mainAction: HeaderAction? = null,
     actions: List<HeaderAction> = emptyList()
@@ -338,7 +338,7 @@ fun ItemDetailsHeaderCompact(
             Image(
                 modifier = Modifier.fillMaxWidth(),
                 contentScale = ContentScale.FillWidth,
-                file = image
+                id = image
             )
             Text(
                 modifier = Modifier.fillMaxWidth(),

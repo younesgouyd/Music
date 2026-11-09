@@ -14,17 +14,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.Image
+import dev.younesgouyd.apps.music.client.multiplatform.components.util.LazilyLoadedItems
+import dev.younesgouyd.apps.music.client.multiplatform.components.util.PageSize
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.*
-import dev.younesgouyd.apps.music.client.multiplatform.util.LazilyLoadedItems
-import dev.younesgouyd.apps.music.client.multiplatform.util.PageSize
 import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.models.datamodels.Track
 import dev.younesgouyd.apps.music.common.ui.Component
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.io.File
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class AddToPlaylist(
     itemToAdd: Item,
     playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
@@ -33,7 +34,6 @@ class AddToPlaylist(
     artistRepo: SpotifyArtistRepo,
     albumRepo: SpotifyAlbumRepo,
     playlistRepo: PlaylistRepo,
-    mediaFileRepo: MediaFileRepo,
     dismiss: () -> Unit
 ) : Component() {
     override val title: String = "Add to Playlist"
@@ -43,141 +43,125 @@ class AddToPlaylist(
 
     init {
         val item = when (itemToAdd) {
-            is Item.Track -> trackRepo.get(itemToAdd.id).filterNotNull().map { dbTrack ->
+            is Item.Track -> trackRepo.get(itemToAdd.id).mapLatest { dbTrack ->
+                if (dbTrack == null) return@mapLatest null
                 Ui.State.Loaded.ItemToAdd(
-                    name = dbTrack.spotifyTrack?.name ?: dbTrack.originalImport.title,
-                    image = if (dbTrack.spotifyTrack != null) {
-                        mediaFileRepo.getSpotifyAlbumImage(dbTrack.spotifyTrack!!.spotifyAlbumId)
-                    } else {
-                        mediaFileRepo.getImportSessionItemImage(dbTrack.track.importSessionItemId)
-                    }
+                    name = dbTrack.spotifyTrackRelation?.spotifyTrack?.name ?: dbTrack.originalImport.title,
+                    image = dbTrack.spotifyTrackRelation?.spotifyAlbum?.mediumImgId ?: dbTrack.originalImport.imgId
                 )
             }
-            is Item.Playlist -> playlistRepo.get(itemToAdd.id).filterNotNull().map { dbPlaylist ->
+            is Item.Playlist -> playlistRepo.get(itemToAdd.id).mapLatest { dbPlaylist ->
+                if (dbPlaylist == null) return@mapLatest null
                 Ui.State.Loaded.ItemToAdd(
                     name = dbPlaylist.name,
                     image = null
                 )
             }
-            is Item.Folder -> folderRepo.get(itemToAdd.id).filterNotNull().map { dbFolder ->
+            is Item.Folder -> folderRepo.get(itemToAdd.id).mapLatest { dbFolder ->
+                if (dbFolder == null) return@mapLatest null
                 Ui.State.Loaded.ItemToAdd(
                     name = dbFolder.name,
                     image = null
                 )
             }
-            is Item.Artist -> artistRepo.get(itemToAdd.id).filterNotNull().map { dbArtist ->
+            is Item.Artist -> artistRepo.get(itemToAdd.id).mapLatest { dbArtist ->
+                if (dbArtist == null) return@mapLatest null
                 Ui.State.Loaded.ItemToAdd(
                     name = dbArtist.name,
-                    image = mediaFileRepo.getSpotifyArtistImage(itemToAdd.id)
+                    image = dbArtist.mediumImgId
                 )
             }
-            is Item.Album -> albumRepo.get(itemToAdd.id).filterNotNull().map { dbAlbum ->
+            is Item.Album -> albumRepo.get(itemToAdd.id).mapLatest { dbAlbum ->
+                if (dbAlbum == null) return@mapLatest null
                 Ui.State.Loaded.ItemToAdd(
                     name = dbAlbum.name,
-                    image = mediaFileRepo.getSpotifyAlbumImage(itemToAdd.id)
+                    image = dbAlbum.mediumImgId
                 )
             }
-        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
-        var loaded: Ui.State.Loaded? = null
-        state = item.onEach {
-            if (it != null && loaded == null) {
-                loaded = Ui.State.Loaded(
-                    adding = _adding.asStateFlow(),
-                    itemToAdd = item.filterNotNull().stateIn(coroutineScope),
-                    playlists = LazilyLoadedItems(
-                        coroutineScope = coroutineScope,
-                        load = { offset: Offset.Id<PlaylistId>, pageSize: PageSize ->
-                            val rows = playlistRepo.getAll(pageSize, offset)
-                            LazilyLoadedItems.Page(
-                                nextOffset = rows.lastOrNull()?.id?.let {
-                                    Offset.Id(
-                                        it
-                                    )
-                                },
-                                items = rows.map { dbPlaylist ->
-                                    Ui.State.Loaded.PlaylistOption(
-                                        id = dbPlaylist.id,
-                                        name = dbPlaylist.name,
-                                        image = null
-                                    )
-                                }
+        }
+        val playlists: LazilyLoadedItems<Ui.State.Loaded.PlaylistOption, Offset.Id<PlaylistId>> = LazilyLoadedItems(
+            scope = coroutineScope,
+            loader = { offset: Offset.Id<PlaylistId>, pageSize: PageSize ->
+                val rows = playlistRepo.getAll(pageSize, offset)
+                LazilyLoadedItems.Page(
+                    nextOffset = rows.lastOrNull()?.id?.let { Offset.Id(it) },
+                    items = rows.map { Ui.State.Loaded.PlaylistOption(it.id, it.name, null) }
+                )
+            },
+            initialOffset = Offset.Id.initial<PlaylistId>()
+        )
+        state = item.mapLatest { item ->
+            if (item == null) return@mapLatest Ui.State.ItemDoesNotExist
+            Ui.State.Loaded(
+                adding = _adding.asStateFlow(),
+                itemToAdd = item,
+                playlists = playlists,
+                onDoneClick = { playlistToAddTo: Ui.State.Loaded.PlaylistToAddTo ->
+                    coroutineScope.launch {
+                        _adding.update { true }
+                        val playlistId = when (playlistToAddTo) {
+                            is Ui.State.Loaded.PlaylistToAddTo.Id -> playlistToAddTo.value
+                            is Ui.State.Loaded.PlaylistToAddTo.New -> playlistRepo.add(
+                                name = playlistToAddTo.name,
+                                folderId = null
                             )
-                        },
-                        initialOffset = Offset.Id.initial<PlaylistId>()
-                    ),
-                    onDoneClick =  { playlistToAddTo: Ui.State.Loaded.PlaylistToAddTo ->
-                        coroutineScope.launch {
-                            _adding.update { true }
-                            val playlistId = when (playlistToAddTo) {
-                                is Ui.State.Loaded.PlaylistToAddTo.Id -> playlistToAddTo.value
-                                is Ui.State.Loaded.PlaylistToAddTo.New -> playlistRepo.add(
-                                    name = playlistToAddTo.name,
-                                    folderId = null
-                                )
-                            }
-                            when (itemToAdd) {
-                                is Item.Track -> {
-                                    val exists = playlistTrackCrossRefRepo.get(playlistId, itemToAdd.id).first() != null
-                                    if (!exists) {
-                                        playlistTrackCrossRefRepo.add(playlistId, itemToAdd.id)
-                                    }
-                                }
-                                is Item.Playlist -> {
-                                    val tracks: List<Track> = trackRepo.getPlaylistTracks(itemToAdd.id).first().map { it.track }
-                                    for (track in tracks) {
-                                        val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
-                                        if (!exists) {
-                                            playlistTrackCrossRefRepo.add(playlistId, track.id)
-                                        }
-                                    }
-                                }
-                                is Item.Folder -> {
-                                    suspend fun addFolderToPlaylist(folderId: FolderId) {
-                                        val tracks: List<Track> = trackRepo.getFolderTracks(folderId).first()
-                                        for (track in tracks) {
-                                            val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
-                                            if (!exists) {
-                                                playlistTrackCrossRefRepo.add(playlistId, track.id)
-                                            }
-                                        }
-                                        val subfolders = folderRepo.getSubfolders(folderId).first()
-                                        for (subfolder in subfolders) {
-                                            addFolderToPlaylist(subfolder.id)
-                                        }
-                                    }
-                                    addFolderToPlaylist(itemToAdd.id)
-                                }
-                                is Item.Artist -> {
-                                    val tracks: List<Track> = trackRepo.getArtistTracks(itemToAdd.id).first().map { it.track }
-                                    for (track in tracks) {
-                                        val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
-                                        if (!exists) {
-                                            playlistTrackCrossRefRepo.add(playlistId, track.id)
-                                        }
-                                    }
-                                }
-                                is Item.Album -> {
-                                    val tracks: List<Track> = trackRepo.getAlbumTracks(itemToAdd.id).first().map { it.track }
-                                    for (track in tracks) {
-                                        val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
-                                        if (!exists) {
-                                            playlistTrackCrossRefRepo.add(playlistId, track.id)
-                                        }
-                                    }
-                                }
-                            }
-                            _adding.update { false }
-                            dismiss()
                         }
+                        when (itemToAdd) {
+                            is Item.Track -> {
+                                val exists = playlistTrackCrossRefRepo.get(playlistId, itemToAdd.id).first() != null
+                                if (!exists) {
+                                    playlistTrackCrossRefRepo.add(playlistId, itemToAdd.id)
+                                }
+                            }
+                            is Item.Playlist -> {
+                                val tracks: List<Track> = trackRepo.getPlaylistTracks(itemToAdd.id).first().map { it.track }
+                                for (track in tracks) {
+                                    val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
+                                    if (!exists) {
+                                        playlistTrackCrossRefRepo.add(playlistId, track.id)
+                                    }
+                                }
+                            }
+                            is Item.Folder -> {
+                                suspend fun addFolderToPlaylist(folderId: FolderId) {
+                                    val tracks: List<Track> = trackRepo.getFolderTracks(folderId).first()
+                                    for (track in tracks) {
+                                        val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
+                                        if (!exists) {
+                                            playlistTrackCrossRefRepo.add(playlistId, track.id)
+                                        }
+                                    }
+                                    val subfolders = folderRepo.getSubfolders(folderId).first()
+                                    for (subfolder in subfolders) {
+                                        addFolderToPlaylist(subfolder.id)
+                                    }
+                                }
+                                addFolderToPlaylist(itemToAdd.id)
+                            }
+                            is Item.Artist -> {
+                                val tracks: List<Track> = trackRepo.getArtistTracks(itemToAdd.id).first().map { it.track }
+                                for (track in tracks) {
+                                    val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
+                                    if (!exists) {
+                                        playlistTrackCrossRefRepo.add(playlistId, track.id)
+                                    }
+                                }
+                            }
+                            is Item.Album -> {
+                                val tracks: List<Track> = trackRepo.getAlbumTracks(itemToAdd.id).first().map { it.track }
+                                for (track in tracks) {
+                                    val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
+                                    if (!exists) {
+                                        playlistTrackCrossRefRepo.add(playlistId, track.id)
+                                    }
+                                }
+                            }
+                        }
+                        _adding.update { false }
+                        dismiss()
                     }
-                )
-            }
-        }.map {
-            if (it == null) {
-                Ui.State.ItemDoesNotExist
-            } else {
-                loaded!!
-            }
+                }
+            )
         }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Loading)
     }
 
@@ -211,21 +195,21 @@ class AddToPlaylist(
         sealed class State {
             data object Loading : State()
 
-            data class Loaded(
+            class Loaded(
                 val adding: StateFlow<Boolean>,
-                val itemToAdd: StateFlow<ItemToAdd>,
+                val itemToAdd: ItemToAdd,
                 val playlists: LazilyLoadedItems<PlaylistOption, Offset.Id<PlaylistId>>,
                 val onDoneClick: (playlistId: PlaylistToAddTo) -> Unit
             ) : State() {
                 data class ItemToAdd(
                     val name: String,
-                    val image: File?
+                    val image: MediaFileId?
                 )
 
                 data class PlaylistOption(
                     val id: PlaylistId,
                     val name: String,
-                    val image: File?
+                    val image: MediaFileId?
                 )
 
                 sealed class PlaylistToAddTo {
@@ -256,12 +240,14 @@ class AddToPlaylist(
             loaded: State.Loaded
         ) {
             val adding by loaded.adding.collectAsState()
-            val itemToAdd by loaded.itemToAdd.collectAsState()
-            val playlists by loaded.playlists.items.collectAsState()
-            val loadingItems by loaded.playlists.loading.collectAsState()
-            val lazyColumnState = rememberLazyListState()
 
             if (!adding) {
+                val itemToAdd = loaded.itemToAdd
+                val playlists = loaded.playlists
+                val items by playlists.items.collectAsState()
+                val loadingItems by playlists.loading.collectAsState()
+                val lazyColumnState = rememberLazyListState()
+
                 Surface(
                     modifier = modifier,
                     shape = MaterialTheme.shapes.medium,
@@ -286,7 +272,7 @@ class AddToPlaylist(
                         ) {
                             Image(
                                 modifier = Modifier.size(64.dp),
-                                file = itemToAdd.image
+                                id = itemToAdd.image
                             )
                             Text(
                                 text = itemToAdd.name,
@@ -337,7 +323,7 @@ class AddToPlaylist(
                                     }
                                 }
                                 items(
-                                    items = playlists,
+                                    items = items,
                                     key = { it.id.value }
                                 ) { playlistOption ->
                                     dev.younesgouyd.apps.music.common.ui.Item(
@@ -355,7 +341,7 @@ class AddToPlaylist(
                                         ) {
                                             Image(
                                                 modifier = Modifier.size(64.dp),
-                                                file = playlistOption.image
+                                                id = playlistOption.image
                                             )
                                             Text(
                                                 text = playlistOption.name,
@@ -378,12 +364,13 @@ class AddToPlaylist(
                     }
                 }
 
-                LaunchedEffect(lazyColumnState) {
+                LaunchedEffect(lazyColumnState, playlists) {
                     snapshotFlow {
                         lazyColumnState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
-                    }.map { it == null ||  it >= (playlists.size + 1) - 5  }
+                    }.map { it == null ||  it >= (items.size + 1) - 5  }
+                        .distinctUntilChanged()
                         .filter { it }
-                        .collect { loaded.playlists.loadMore() }
+                        .collect { playlists.loadMore() }
                 }
             } else {
                 Text(modifier = modifier, text = "Adding...")

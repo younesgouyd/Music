@@ -1,10 +1,7 @@
 package dev.younesgouyd.apps.music.client.multiplatform
 
 import dev.younesgouyd.apps.music.client.multiplatform.data.Server
-import dev.younesgouyd.apps.music.common.models.ClientId
-import dev.younesgouyd.apps.music.common.models.MediaControllerGeneralState
-import dev.younesgouyd.apps.music.common.models.RepeatState
-import dev.younesgouyd.apps.music.common.models.Rpc
+import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.models.datamodels.Client
 import dev.younesgouyd.apps.music.common.models.datamodels.MediaPlayerState
 import dev.younesgouyd.apps.music.common.models.datamodels.QueueItem
@@ -55,8 +52,8 @@ class MediaController(
             .mapLatest { (queue, index) -> if (queue.isNotEmpty()) queue[index] else null }
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
         coroutineScope.launch {
-            val selectedClient = selectedClient.filterNotNull().stateIn(coroutineScope)
-            val positionMs = mediaPlayerState.combine(currentItem.map { it?.durationMs }, ::Pair)
+            val selectedClient = selectedClient.stateIn(coroutineScope)
+            val positionMs = combine(mediaPlayerState, currentItem.map { it?.durationMs }, ::Pair)
                 .transformLatest { (state: MediaPlayerState?, durationMs: Long?) ->
                     if (state == null || durationMs == null) {
                         emit(null)
@@ -99,7 +96,7 @@ class MediaController(
         }
     }
 
-    fun playQueue(queue: List<Rpc.ToServer.MediaController.QueueItemParameter>, queueItemIndex: Int = 0) {
+    fun playQueue(queue: List<QueueItemParameter>, queueItemIndex: Int = 0) {
         if (queue.isEmpty()) {
             logger.warn { "::playQueue | queue is empty" }
             return
@@ -159,7 +156,7 @@ class MediaController(
         }
     }
 
-    fun addToQueue(items: List<Rpc.ToServer.MediaController.QueueItemParameter>) {
+    fun addToQueue(items: List<QueueItemParameter>) {
         coroutineScope.launch {
             mutex.withLock {
                 server.call(Rpc.ToServer.MediaController.AddToQueue(items))

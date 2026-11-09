@@ -126,7 +126,7 @@ class Settings(
         sealed class State {
             data object Loading : State()
 
-            data class Loaded(
+            class Loaded(
                 val darkTheme: StateFlow<DarkThemeOptions?>,
                 val spotifyState: StateFlow<SpotifyState>,
                 val onDarkThemeChange: (DarkThemeOptions) -> Unit

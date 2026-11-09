@@ -1,7 +1,8 @@
 package dev.younesgouyd.apps.music.client.multiplatform.components
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
@@ -34,13 +35,16 @@ class TagList(
         val searchQuery = MutableStateFlow("")
         coroutineScope.launch {
             state.value = TagListState.Loaded(
-                scrollState = LazyStaggeredGridState(),
+                scrollState = ScrollState(0),
                 searchQuery = searchQuery.asStateFlow(),
                 tags = searchQuery.flatMapLatest { tagRepo.search(it) }.stateIn(coroutineScope),
                 onSearchQueryChange = { searchQuery.value = it },
                 onAddTag = { name: String ->
                     coroutineScope.launch {
-                        tagRepo.add(name = name)
+                        tagRepo.add(
+                            name = name
+                                .trim() // TODO
+                        )
                     }
                 },
                 onTagClick = showTag,
@@ -67,8 +71,8 @@ class TagList(
     private sealed class TagListState {
         data object Loading : TagListState()
 
-        data class Loaded(
-            val scrollState: LazyStaggeredGridState,
+        class Loaded(
+            val scrollState: ScrollState,
             val searchQuery: StateFlow<String>,
             val tags: StateFlow<List<Tag>>,
             val onSearchQueryChange: (String) -> Unit,
@@ -110,7 +114,7 @@ class TagList(
         @Composable
         private fun Main(
             modifier: Modifier,
-            scrollState: LazyStaggeredGridState,
+            scrollState: ScrollState,
             searchQuery: StateFlow<String>,
             tags: StateFlow<List<Tag>>,
             onSearchQueryChange: (String) -> Unit,
@@ -149,7 +153,7 @@ class TagList(
                                 )
                             }
                             FlowRow(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth().verticalScroll(scrollState),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 itemVerticalAlignment = Alignment.CenterVertically

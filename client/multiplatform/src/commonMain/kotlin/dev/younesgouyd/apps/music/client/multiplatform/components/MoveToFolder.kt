@@ -19,10 +19,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.Image
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.FolderRepo
-import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.PlaylistRepo
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.TrackRepo
 import dev.younesgouyd.apps.music.common.models.FolderId
+import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.PlaylistId
 import dev.younesgouyd.apps.music.common.models.TrackId
 import dev.younesgouyd.apps.music.common.models.datamodels.Folder
@@ -32,14 +32,12 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MoveToFolder(
     itemToMove: ItemToMove,
     folderRepo: FolderRepo,
     trackRepo: TrackRepo,
-    mediaFileRepo: MediaFileRepo,
     playlistRepo: PlaylistRepo,
     dismiss: () -> Unit
 ) : Component() {
@@ -51,85 +49,81 @@ class MoveToFolder(
 
     init {
         val currentFolder: MutableStateFlow<Folder?> = MutableStateFlow(null)
-        var list: List<Folder?> = listOf(null)
         val item = when (itemToMove) {
-            is ItemToMove.Track -> trackRepo.get(itemToMove.id).filterNotNull().map { dbTrack ->
+            is ItemToMove.Track -> trackRepo.get(itemToMove.id).mapLatest { dbTrack ->
+                if (dbTrack == null) return@mapLatest null
                 Ui.State.Loaded.ItemToAdd(
-                    name = dbTrack.spotifyTrack?.name ?: dbTrack.originalImport.title,
-                    image = if (dbTrack.spotifyTrack != null) {
-                        mediaFileRepo.getSpotifyAlbumImage(dbTrack.spotifyTrack!!.spotifyAlbumId)
-                    } else {
-                        mediaFileRepo.getImportSessionItemImage(dbTrack.track.importSessionItemId)
-                    }
+                    name = dbTrack.spotifyTrackRelation?.spotifyTrack?.name ?: dbTrack.originalImport.title,
+                    image = dbTrack.spotifyTrackRelation?.spotifyAlbum?.mediumImgId ?: dbTrack.originalImport.imgId
                 )
             }
-            is ItemToMove.Playlist -> playlistRepo.get(itemToMove.id).filterNotNull().map { dbPlaylist ->
+            is ItemToMove.Playlist -> playlistRepo.get(itemToMove.id).mapLatest { dbPlaylist ->
+                if (dbPlaylist == null) return@mapLatest null
                 Ui.State.Loaded.ItemToAdd(
                     name = dbPlaylist.name,
                     image = null
                 )
             }
-            is ItemToMove.Folder -> folderRepo.get(itemToMove.id).filterNotNull().map { dbFolder ->
+            is ItemToMove.Folder -> folderRepo.get(itemToMove.id).mapLatest { dbFolder ->
+                if (dbFolder == null) return@mapLatest null
                 Ui.State.Loaded.ItemToAdd(
                     name = dbFolder.name,
                     image = null
                 )
             }
         }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
-        var loaded: Ui.State.Loaded? = null
-        state = item.onEach {
-            if (it != null && loaded == null) {
-                loaded = Ui.State.Loaded(
-                    loading = this@MoveToFolder._moving.asStateFlow(),
-                    itemToAdd = item.filterNotNull().stateIn(coroutineScope),
-                    currentFolder = currentFolder.asStateFlow(),
-                    path = flow {
-                        fun <T> List<T>.takeUntil(predicate: (T) -> Boolean): List<T> {
-                            val list = mutableListOf<T>()
-                            for (item in this) {
-                                list.add(item)
-                                if (predicate(item)) {
-                                    break
-                                }
-                            }
-                            return list
-                        }
-                        currentFolder.collect { folder ->
-                            if (folder == null) {
-                                list = listOf(null)
-                                emit(list)
-                            } else {
-                                val temp = list.takeUntil { it?.id == folder.id }.toMutableList()
-                                if (!temp.any { it?.id == folder.id }) {
-                                    temp.add(folder)
-                                }
-                                list = temp.toList()
-                                emit(list)
-                            }
-                        }
-                    }.stateIn(coroutineScope),
-                    folders = currentFolder.flatMapLatest { folderRepo.getSubfolders(it?.id) }.stateIn(coroutineScope),
-                    openFolder = { currentFolder.value = it },
-                    move = {
-                        coroutineScope.launch {
-                            this@MoveToFolder._moving.update { true }
-                            when (itemToMove) {
-                                is ItemToMove.Track -> trackRepo.updateFolderId(itemToMove.id, currentFolder.value!!.id)
-                                is ItemToMove.Playlist -> playlistRepo.updateFolderId(itemToMove.id, currentFolder.value!!.id)
-                                is ItemToMove.Folder -> folderRepo.updateParentFolderId(itemToMove.id, currentFolder.value!!.id)
-                            }
-                            this@MoveToFolder._moving.update { false }
-                            dismiss()
+        val path = run {
+            var list: List<Folder?> = listOf(null)
+            flow {
+                fun <T> List<T>.takeUntil(predicate: (T) -> Boolean): List<T> {
+                    val list = mutableListOf<T>()
+                    for (item in this) {
+                        list.add(item)
+                        if (predicate(item)) {
+                            break
                         }
                     }
-                )
-            }
-        }.map {
-            if (it == null) {
-                Ui.State.ItemDoesNotExist
-            } else {
-                loaded!!
-            }
+                    return list
+                }
+                currentFolder.collect { folder ->
+                    if (folder == null) {
+                        list = listOf(null)
+                        emit(list)
+                    } else {
+                        val temp = list.takeUntil { it?.id == folder.id }.toMutableList()
+                        if (!temp.any { it?.id == folder.id }) {
+                            temp.add(folder)
+                        }
+                        list = temp.toList()
+                        emit(list)
+                    }
+                }
+            }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
+        }
+        val folders = currentFolder.flatMapLatest { folderRepo.getSubfolders(it?.id) }
+            .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
+        state = item.mapLatest { item ->
+            if (item == null) return@mapLatest Ui.State.ItemDoesNotExist
+            Ui.State.Loaded(
+                loading = _moving.asStateFlow(),
+                itemToAdd = item,
+                currentFolder = currentFolder.asStateFlow(),
+                path = path,
+                folders = folders,
+                openFolder = { currentFolder.value = it },
+                move = {
+                    coroutineScope.launch {
+                        this@MoveToFolder._moving.update { true }
+                        when (itemToMove) {
+                            is ItemToMove.Track -> trackRepo.updateFolderId(itemToMove.id, currentFolder.value!!.id)
+                            is ItemToMove.Playlist -> playlistRepo.updateFolderId(itemToMove.id, currentFolder.value!!.id)
+                            is ItemToMove.Folder -> folderRepo.updateParentFolderId(itemToMove.id, currentFolder.value!!.id)
+                        }
+                        this@MoveToFolder._moving.update { false }
+                        dismiss()
+                    }
+                }
+            )
         }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Loading)
     }
 
@@ -159,9 +153,9 @@ class MoveToFolder(
         sealed class State {
             data object Loading : State()
 
-            data class Loaded(
+            class Loaded(
                 val loading: StateFlow<Boolean>,
-                val itemToAdd: StateFlow<ItemToAdd>,
+                val itemToAdd: ItemToAdd,
                 val currentFolder: StateFlow<Folder?>,
                 val path: StateFlow<List<Folder?>>,
                 val folders: StateFlow<List<Folder>>,
@@ -170,7 +164,7 @@ class MoveToFolder(
             ) : State() {
                 data class ItemToAdd(
                     val name: String,
-                    val image: File?
+                    val image: MediaFileId?
                 )
             }
 
@@ -195,7 +189,7 @@ class MoveToFolder(
             loaded: State.Loaded
         ) {
             val loading by loaded.loading.collectAsState()
-            val itemToAdd by loaded.itemToAdd.collectAsState()
+            val itemToAdd = loaded.itemToAdd
             val currentFolder by loaded.currentFolder.collectAsState()
             val path by loaded.path.collectAsState()
             val folders by loaded.folders.collectAsState()
@@ -231,7 +225,7 @@ class MoveToFolder(
                             ) {
                                 Image(
                                     modifier = Modifier.size(64.dp),
-                                    file = itemToAdd.image
+                                    id = itemToAdd.image
                                 )
                                 Text(
                                     text = itemToAdd.name,

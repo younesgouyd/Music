@@ -116,7 +116,7 @@ class ImportFlow(
     }
 
     private object Ui {
-        data class State(
+        class State(
             val inspecting: StateFlow<Boolean>,
             val savingImport: StateFlow<Boolean>,
             val inspectionError: StateFlow<Boolean>,

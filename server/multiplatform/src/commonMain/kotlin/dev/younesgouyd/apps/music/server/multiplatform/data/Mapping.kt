@@ -53,11 +53,8 @@ fun Playlist.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.Pla
 )
 
 fun PlaylistTrack.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.PlaylistTrack(
-    track = track.toModel(),
-    playlistTrackCrossRefId = playlistTrackCrossRefId,
-    originalImport = originalImport.toModel(),
-    spotifyTrack = spotifyTrack?.toModel(),
-    playlistCrossRef = playlistCrossRef?.toModel()
+    trackRelation = trackRelation.toModel(),
+    playlistTrackCrossRefId = playlistTrackCrossRefId
 )
 
 fun PlaylistTrackCrossRef.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.PlaylistTrackCrossRef(
@@ -117,6 +114,8 @@ fun SpotifyTrack.toModel() = dev.younesgouyd.apps.music.common.models.datamodels
 
 fun SpotifyTrackRelation.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.SpotifyTrackRelation(
     spotifyTrack = spotifyTrack.toModel(),
+    spotifyAlbum = spotifyAlbum.toModel(),
+    spotifyArtists = spotifyArtists.map { it.toModel() },
     track = track?.toModel()
 )
 
@@ -138,5 +137,5 @@ fun Track.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.Track(
 fun TrackRelation.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.TrackRelation(
     track = track.toModel(),
     originalImport = originalImport.toModel(),
-    spotifyTrack = spotifyTrack?.toModel()
+    spotifyTrackRelation = spotifyTrackRelation?.toModel()
 )

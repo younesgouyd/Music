@@ -4,13 +4,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.client.multiplatform.ImageLoader
+import dev.younesgouyd.apps.music.client.multiplatform.LocalImageLoader
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
 import dev.younesgouyd.apps.music.client.multiplatform.data.RepoStore
 import dev.younesgouyd.apps.music.client.multiplatform.data.Server
@@ -22,7 +21,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 
 class Main(
-    server: Server
+    private val server: Server
 ) : Component() {
     override val title: String = ""
 
@@ -33,6 +32,7 @@ class Main(
     private val unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(server)
     private val prepareImportUseCase = PrepareImportUseCase(server)
     private val mediaController = MediaController(server)
+    private val imageLoader = ImageLoader(server)
 
     private val darkTheme: StateFlow<DarkThemeOptions> = run {
         repoStore.settingRepo.getDarkTheme()
@@ -47,7 +47,7 @@ class Main(
         spotifyAuthRepo = repoStore.spotifyAuthRepo
     )
     private var navigationHost: NavigationHost = getNewNavHost(NavigationHost.Destination.Library)
-    private val miniPlayer = MiniPlayer(
+    private val miniPlayer: Component = MiniPlayer(
         mediaController = mediaController,
         showAlbum = {
             mainComponent.value = navigationHost
@@ -95,20 +95,21 @@ class Main(
     @Composable
     override fun show(modifier: Modifier) {
         val darkTheme by darkTheme.collectAsState()
-
-        Ui.Main(
-            modifier = modifier,
-            darkTheme = darkTheme,
-            mainComponent = mainComponent.asStateFlow(),
-            player = player,
-            miniPlayer = miniPlayer,
-            playerExpanded = playerExpanded,
-            queue = queue,
-            selectedNavigationDrawerItem = selectedNavigationDrawerItem.asStateFlow(),
-            isDrawerOpen = isDrawerOpen.asStateFlow(),
-            onMinimizePlayerClick = ::minimizePlayer,
-            onNavigationDrawerItemClick = ::handleNavigationDrawerItemClick
-        )
+        CompositionLocalProvider(LocalImageLoader provides imageLoader) {
+            Ui.Main(
+                modifier = modifier,
+                darkTheme = darkTheme,
+                mainComponent = mainComponent.asStateFlow(),
+                player = player,
+                miniPlayer = miniPlayer,
+                playerExpanded = playerExpanded,
+                queue = queue,
+                selectedNavigationDrawerItem = selectedNavigationDrawerItem.asStateFlow(),
+                isDrawerOpen = isDrawerOpen.asStateFlow(),
+                onMinimizePlayerClick = ::minimizePlayer,
+                onNavigationDrawerItemClick = ::handleNavigationDrawerItemClick
+            )
+        }
     }
 
     override fun clear() {

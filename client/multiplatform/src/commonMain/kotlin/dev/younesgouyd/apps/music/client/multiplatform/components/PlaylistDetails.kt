@@ -1,7 +1,6 @@
 package dev.younesgouyd.apps.music.client.multiplatform.components
 
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -31,7 +30,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.burnoutcrew.reorderable.*
-import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistDetails(
@@ -43,66 +41,59 @@ class PlaylistDetails(
     folderRepo: FolderRepo,
     albumRepo: SpotifyAlbumRepo,
     mediaController: MediaController,
-    mediaFileRepo: MediaFileRepo,
     showArtistDetails: (SpotifyArtistId) -> Unit,
     showTrack: (TrackId) -> Unit
 ) : Component() {
     override val title: String = "Playlist"
     private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
-    private val state: StateFlow<Ui.State>
+    private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
 
     init {
-        val searchQuery = MutableStateFlow("")
-        val playlist = playlistRepo.get(id).filterNotNull().map { dbPlaylist ->
-            Ui.State.Loaded.Playlist(
-                name = dbPlaylist.name,
-                image = null
-            )
-        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
-        var loaded: Ui.State.Loaded? = null
-        state = playlist.onEach {
-            if (it != null && loaded == null) {
-                loaded = Ui.State.Loaded(
-                    scrollState = LazyListState(),
-                    playlist = playlist.filterNotNull().stateIn(coroutineScope),
-                    tracks = searchQuery.flatMapLatest { nameQuery ->
-                        trackRepo.searchPlaylist(id, nameQuery).map {
-                            it.map { dbTrack ->
-                                Ui.State.Loaded.Track(
-                                    key = dbTrack.playlistTrackCrossRefId,
-                                    id = dbTrack.track.id,
-                                    name = dbTrack.spotifyTrack?.name ?: dbTrack.originalImport.title,
-                                    album = dbTrack.spotifyTrack?.let { albumRepo.get(it.spotifyAlbumId).first()?.name },
-                                    image = if (dbTrack.spotifyTrack != null) {
-                                        mediaFileRepo.getSpotifyAlbumImage(dbTrack.spotifyTrack!!.spotifyAlbumId)
-                                    } else {
-                                        mediaFileRepo.getImportSessionItemImage(dbTrack.track.importSessionItemId)
-                                    },
-                                    artists = if (dbTrack.spotifyTrack != null) {
-                                        artistRepo.getSpotifyTrackSpotifyArtists(dbTrack.spotifyTrack!!.id).first().map { dbArtist ->
-                                            Ui.State.Loaded.Track.Artist(dbArtist.id, dbArtist.name)
-                                        }
-                                    } else {
-                                        dbTrack.originalImport.inspection.artists.map {
-                                            Ui.State.Loaded.Track.Artist(null, it)
-                                        }
-                                    }
-                                )
+        coroutineScope.launch {
+            val searchQuery = MutableStateFlow("")
+            val tracks = searchQuery.flatMapLatest { nameQuery ->
+                trackRepo.searchPlaylist(id, nameQuery).map {
+                    it.map { dbTrack ->
+                        val trackRelation = dbTrack.trackRelation
+                        val spotifyTrackRelation = trackRelation.spotifyTrackRelation
+                        Ui.State.Loaded.Track(
+                            key = dbTrack.playlistTrackCrossRefId,
+                            id = trackRelation.track.id,
+                            name = spotifyTrackRelation?.spotifyTrack?.name ?: trackRelation.originalImport.title,
+                            album = spotifyTrackRelation?.spotifyAlbum?.name,
+                            image = spotifyTrackRelation?.spotifyAlbum?.mediumImgId ?: trackRelation.originalImport.imgId,
+                            artists = run {
+                                spotifyTrackRelation?.spotifyArtists?.map { dbArtist ->
+                                    Ui.State.Loaded.Track.Artist(dbArtist.id, dbArtist.name)
+                                } ?: trackRelation.originalImport.inspection.artists.map {
+                                    Ui.State.Loaded.Track.Artist(null, it)
+                                }
                             }
-                        }
-                    }.stateIn(coroutineScope),
+                        )
+                    }
+                }
+            }.stateIn(coroutineScope)
+            playlistRepo.get(id).mapLatest { dbPlaylist ->
+                if (dbPlaylist == null) return@mapLatest Ui.State.ItemDoesNotExist
+                Ui.State.Loaded(
+                    scrollState = LazyListState(),
+                    playlist = Ui.State.Loaded.Playlist(
+                        name = dbPlaylist.name,
+                        image = null
+                    ),
+                    tracks = tracks,
                     addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     searchQuery = searchQuery.asStateFlow(),
-                    onPlayClick = { mediaController.playQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Playlist(id))) },
+                    onPlayClick = { mediaController.playQueue(listOf(QueueItemParameter.Playlist(id))) },
                     onSearchQueryChange = { searchQuery.value = it },
                     changeItemPosition = { from, to ->
                         coroutineScope.launch {
                             playlistTrackCrossRefRepo.changeItemPosition(id, from, to)
                         }
                     },
-                    onAddToQueueClick = { mediaController.addToQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Playlist(id))) },
+                    onAddToQueueClick = { mediaController.addToQueue(listOf(QueueItemParameter.Playlist(id))) },
                     onAddToPlaylistClick = {
                         addToPlaylist.update {
                             AddToPlaylist(
@@ -111,7 +102,6 @@ class PlaylistDetails(
                                 trackRepo = trackRepo,
                                 folderRepo = folderRepo,
                                 artistRepo = artistRepo,
-                                mediaFileRepo = mediaFileRepo,
                                 dismiss = ::dismissAddToPlaylistDialog,
                                 playlistRepo = playlistRepo,
                                 albumRepo = albumRepo
@@ -124,7 +114,7 @@ class PlaylistDetails(
                             val tracks = trackRepo.getPlaylistTracks(id).first()
                             val index = tracks.indexOfFirst { it.track.id == trackId }
                             mediaController.playQueue(
-                                queue = listOf(Rpc.ToServer.MediaController.QueueItemParameter.Playlist(id)),
+                                queue = listOf(QueueItemParameter.Playlist(id)),
                                 queueItemIndex = index
                             )
                         }
@@ -138,7 +128,6 @@ class PlaylistDetails(
                                 trackRepo = trackRepo,
                                 folderRepo = folderRepo,
                                 artistRepo = artistRepo,
-                                mediaFileRepo = mediaFileRepo,
                                 dismiss = ::dismissAddToPlaylistDialog,
                                 playlistRepo = playlistRepo,
                                 albumRepo = albumRepo
@@ -153,18 +142,12 @@ class PlaylistDetails(
                     },
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
                     onAddTrackToQueueClick = { id: TrackId ->
-                        mediaController.addToQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Track(id)))
+                        mediaController.addToQueue(listOf(QueueItemParameter.Track(id)))
                     },
                     onShowTrackDetailsClick = showTrack
                 )
-            }
-        }.map {
-            if (it == null) {
-                Ui.State.ItemDoesNotExist
-            } else {
-                loaded!!
-            }
-        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Loading)
+            }.collect(state)
+        }
     }
 
     @Composable
@@ -193,9 +176,9 @@ class PlaylistDetails(
         sealed class State {
             data object Loading : State()
 
-            data class Loaded(
+            class Loaded(
                 val scrollState: LazyListState,
-                val playlist: StateFlow<Playlist>,
+                val playlist: Playlist,
                 val tracks: StateFlow<List<Track>>,
                 val addToPlaylistDialogVisible: StateFlow<Boolean>,
                 val addToPlaylist: StateFlow<Component?>,
@@ -215,7 +198,7 @@ class PlaylistDetails(
             ) : State() {
                 data class Playlist(
                     val name: String,
-                    val image: File?
+                    val image: MediaFileId?
                 )
 
                 data class Track(
@@ -223,7 +206,7 @@ class PlaylistDetails(
                     val id: TrackId,
                     val name: String,
                     val album: String?,
-                    val image: File?,
+                    val image: MediaFileId?,
                     val artists: List<Artist>,
                 ) {
                     data class Artist(
@@ -281,12 +264,11 @@ class PlaylistDetails(
                 }
             }
 
-            @OptIn(ExperimentalFoundationApi::class)
             @Composable
             private fun Main(
                 modifier: Modifier,
                 scrollState: LazyListState,
-                playlist: StateFlow<State.Loaded.Playlist>,
+                playlist: State.Loaded.Playlist,
                 tracks: StateFlow<List<State.Loaded.Track>>,
                 searchQuery: StateFlow<String>,
                 onPlayClick: () -> Unit,
@@ -301,7 +283,6 @@ class PlaylistDetails(
                 onRemoveTrackFromPlaylistClick: (TrackId) -> Unit,
                 onShowTrackDetailsClick: (TrackId) -> Unit
             ) {
-                val playlist by playlist.collectAsState()
                 val items by tracks.collectAsState()
                 var orderedItems by remember { mutableStateOf(items) }
                 val searchQuery by searchQuery.collectAsState()
@@ -537,7 +518,7 @@ class PlaylistDetails(
                                 ) {
                                     Image(
                                         modifier = Modifier.fillMaxHeight().aspectRatio(1f),
-                                        file = track.image
+                                        id = track.image
                                     )
                                     Column(
                                         modifier = Modifier.fillMaxHeight().weight(1f),
@@ -714,12 +695,11 @@ class PlaylistDetails(
                 }
             }
 
-            @OptIn(ExperimentalFoundationApi::class)
             @Composable
             private fun Main(
                 modifier: Modifier,
                 scrollState: LazyListState,
-                playlist: StateFlow<State.Loaded.Playlist>,
+                playlist: State.Loaded.Playlist,
                 tracks: StateFlow<List<State.Loaded.Track>>,
                 searchQuery: StateFlow<String>,
                 onPlayClick: () -> Unit,
@@ -734,7 +714,6 @@ class PlaylistDetails(
                 onRemoveTrackFromPlaylistClick: (TrackId) -> Unit,
                 onShowTrackDetailsClick: (TrackId) -> Unit
             ) {
-                val playlist by playlist.collectAsState()
                 val items by tracks.collectAsState()
                 var orderedItems by remember { mutableStateOf(items) }
                 val searchQuery by searchQuery.collectAsState()
@@ -916,7 +895,7 @@ class PlaylistDetails(
                                 ) {
                                     Image(
                                         modifier = Modifier.fillMaxHeight().aspectRatio(1f),
-                                        file = track.image
+                                        id = track.image
                                     )
                                     Column(
                                         modifier = Modifier.fillMaxHeight().weight(1f),

@@ -49,11 +49,7 @@ class Player(
                 is MediaControllerState.Loading,
                 is MediaControllerState.Unavailable -> flowOf(false)
             }
-        }.stateIn(
-            scope = coroutineScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false
-        )
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), false)
         state = mediaController.state.mapLatest { mediaControllerState ->
             when (mediaControllerState) {
                 is MediaControllerState.Unavailable -> Ui.State.Unavailable
@@ -129,9 +125,9 @@ class Player(
 
             data object Unavailable : State()
 
-            data class Available(
+            class Available(
                 val clients: StateFlow<List<Client>>,
-                val selectedClient: StateFlow<ClientId>,
+                val selectedClient: StateFlow<ClientId?>,
                 val enabled: StateFlow<Boolean>,
                 val isPlaying: StateFlow<Boolean>,
                 val onSelectClient: (ClientId) -> Unit,
@@ -307,7 +303,7 @@ class Player(
                 modifier: Modifier,
                 enabled: StateFlow<Boolean>,
                 clients: StateFlow<List<Client>>,
-                selectedClient: StateFlow<ClientId>,
+                selectedClient: StateFlow<ClientId?>,
                 onSelectClient: (ClientId) -> Unit
             ) {
                 val enabled by enabled.collectAsState()
@@ -407,7 +403,7 @@ class Player(
             private fun Main(
                 modifier: Modifier,
                 clients: StateFlow<List<Client>>,
-                selectedClient: StateFlow<ClientId>,
+                selectedClient: StateFlow<ClientId?>,
                 enabled: StateFlow<Boolean>,
                 track: StateFlow<QueueItem?>,
                 isQueueVisible: StateFlow<Boolean>,
@@ -615,7 +611,7 @@ class Player(
             private fun Main(
                 modifier: Modifier,
                 clients: StateFlow<List<Client>>,
-                selectedClient: StateFlow<ClientId>,
+                selectedClient: StateFlow<ClientId?>,
                 enabled: StateFlow<Boolean>,
                 track: StateFlow<QueueItem?>,
                 isQueueVisible: StateFlow<Boolean>,

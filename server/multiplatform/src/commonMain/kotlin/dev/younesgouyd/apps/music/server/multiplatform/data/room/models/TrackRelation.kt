@@ -15,7 +15,8 @@ data class TrackRelation(
     val originalImport: ImportSessionItem,
     @Relation(
         parentColumns = ["spotifyTrackId"],
-        entityColumns = ["id"]
+        entityColumns = ["id"],
+        entity = SpotifyTrack::class
     )
-    val spotifyTrack: SpotifyTrack?
+    val spotifyTrackRelation: SpotifyTrackRelation?
 )

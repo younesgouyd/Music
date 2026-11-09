@@ -11,18 +11,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.client.multiplatform.components.util.LazilyLoadedItems
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.ImportSessionRepo
-import dev.younesgouyd.apps.music.client.multiplatform.util.LazilyLoadedItems
 import dev.younesgouyd.apps.music.common.models.ImportSessionId
 import dev.younesgouyd.apps.music.common.models.Offset
 import dev.younesgouyd.apps.music.common.models.datamodels.ImportSession
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import kotlin.time.Instant
 
 class ImportList(
@@ -30,38 +29,24 @@ class ImportList(
     showImportDetails: (ImportSessionId) -> Unit
 ) : Component() {
     override val title: String = "Imports"
-    private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
-
-    init {
-        coroutineScope.launch {
-            state.value = Ui.State.Loaded(
-                imports = LazilyLoadedItems(
-                    coroutineScope = coroutineScope,
-                    load = { offset, limit ->
-                        val rows = importSessionRepo.getAll(limit, offset)
-                        LazilyLoadedItems.Page(
-                            nextOffset = if (rows.size < limit) {
-                                null
-                            } else {
-                                Offset.Index(
-                                    offset.value + limit
-                                )
-                            },
-                            items = rows
-                        )
-                    },
-                    initialOffset = Offset.Index.initial()
-                ),
-                scrollState = LazyListState(),
-                onItemClick = showImportDetails
-            )
-        }
-    }
+    private val state = Ui.State(
+        imports = LazilyLoadedItems(
+            scope = coroutineScope,
+            loader = { offset, limit ->
+                val rows = importSessionRepo.getAll(limit, offset)
+                LazilyLoadedItems.Page(
+                    nextOffset = if (rows.size < limit) { null } else { Offset.Index(offset.value + limit) },
+                    items = rows
+                )
+            },
+            initialOffset = Offset.Index.initial()
+        ),
+        scrollState = LazyListState(),
+        onItemClick = showImportDetails
+    )
 
     @Composable
     override fun show(modifier: Modifier) {
-        val state by state.collectAsState()
-
         Ui.Main(modifier, state)
     }
 
@@ -70,26 +55,14 @@ class ImportList(
     }
 
     private object Ui {
-        sealed class State {
-            data object Loading : State()
-
-            data class Loaded(
-                val imports: LazilyLoadedItems<ImportSession, Offset.Index>,
-                val scrollState: LazyListState,
-                val onItemClick: (ImportSessionId) -> Unit
-            ) : State()
-        }
+        class State(
+            val imports: LazilyLoadedItems<ImportSession, Offset.Index>,
+            val scrollState: LazyListState,
+            val onItemClick: (ImportSessionId) -> Unit
+        )
 
         @Composable
         fun Main(modifier: Modifier = Modifier, state: State) {
-            when (state) {
-                is State.Loading -> Text(modifier = modifier, text = "Loading...")
-                is State.Loaded -> Main(modifier = modifier, state = state)
-            }
-        }
-
-        @Composable
-        private fun Main(modifier: Modifier, state: State.Loaded) {
             Main(
                 modifier = modifier,
                 imports = state.imports,
@@ -137,10 +110,11 @@ class ImportList(
                 }
             }
 
-            LaunchedEffect(scrollState) {
+            LaunchedEffect(scrollState, imports) {
                 snapshotFlow {
                     scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
                 }.map { it == null ||  it >= items.size - 5  }
+                    .distinctUntilChanged()
                     .filter { it }
                     .collect { imports.loadMore() }
             }

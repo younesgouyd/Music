@@ -12,113 +12,111 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.client.multiplatform.components.util.DeleteConfirmationDialog
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.Image
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.formatted
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.ImportSessionItemRepo
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.ImportSessionRepo
-import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.ClearImportItemUseCase
 import dev.younesgouyd.apps.music.common.models.DbOrder
 import dev.younesgouyd.apps.music.common.models.ImportSessionId
 import dev.younesgouyd.apps.music.common.models.ImportSessionItemId
+import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.io.File
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class ImportDetails(
     id: ImportSessionId,
     defaultTab: ImportSessionItem.State,
     importSessionRepo: ImportSessionRepo,
     importSessionItemRepo: ImportSessionItemRepo,
-    mediaFileRepo: MediaFileRepo,
     clearImportItemUseCase: ClearImportItemUseCase,
     showImportItem: (ImportSessionItemId) -> Unit
 ) : Component() {
     override val title: String = "Import"
-    private val state: StateFlow<Ui.State>
+    private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
 
     init {
         val searchQuery = MutableStateFlow("")
-        val import = importSessionRepo.get(id).filterNotNull().mapLatest { dbImport ->
-            Ui.State.Loaded.Import(
-                id = dbImport.id,
-                uri = dbImport.uri,
-                title = dbImport.inspection.title,
-                description = dbImport.inspection.description,
-                image = mediaFileRepo.getImportSessionImage(dbImport.id),
-                createdAt = Instant.fromEpochMilliseconds(dbImport.creationDatetime).toString()
+        val items = run {
+            val observedSearchQuery = searchQuery.debounce(2.seconds)
+            Ui.State.Loaded.Items(
+                nonselected = observedSearchQuery.flatMapLatest {
+                    importSessionItemRepo.search(id, ImportSessionItem.State.Nonselected, it, DbOrder.Ascending)
+                        .mapLatest { list -> list.map { it.toModel() } }
+                }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
+                pending = observedSearchQuery.flatMapLatest {
+                    importSessionItemRepo.search(id, ImportSessionItem.State.Pending, it, DbOrder.Ascending)
+                        .mapLatest { list -> list.map { it.toModel() } }
+                }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
+                inProgress = observedSearchQuery.flatMapLatest {
+                    importSessionItemRepo.search(id, ImportSessionItem.State.InProgress, it, DbOrder.Ascending)
+                        .mapLatest { list -> list.map { it.toModel() } }
+                }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
+                completed = observedSearchQuery.flatMapLatest {
+                    importSessionItemRepo.search(id, ImportSessionItem.State.Completed, it, DbOrder.Descending)
+                        .mapLatest { list -> list.map { it.toModel() } }
+                }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
+                cancelled = observedSearchQuery.flatMapLatest {
+                    importSessionItemRepo.search(id, ImportSessionItem.State.Cancelled, it, DbOrder.Ascending)
+                        .mapLatest { list -> list.map { it.toModel() } }
+                }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
+                failed = observedSearchQuery.flatMapLatest {
+                    importSessionItemRepo.search(id, ImportSessionItem.State.Failed, it, DbOrder.Ascending)
+                        .mapLatest { list -> list.map { it.toModel() } }
+                }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
             )
-        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
-        var loaded: Ui.State.Loaded? = null
-        state = import.onEach {
-            if (it != null && loaded == null) {
-                loaded = Ui.State.Loaded(
-                    defaultTab = defaultTab,
-                    import = import.filterNotNull().stateIn(coroutineScope),
-                    items = Ui.State.Loaded.Items(
-                        nonselected = searchQuery.flatMapLatest {
-                            importSessionItemRepo.search(id, ImportSessionItem.State.Nonselected, it, DbOrder.Ascending)
-                                .mapLatest { list -> list.map { it.toModel(mediaFileRepo) } }
-                        }.stateIn(coroutineScope),
-                        pending = searchQuery.flatMapLatest {
-                            importSessionItemRepo.search(id, ImportSessionItem.State.Pending, it, DbOrder.Ascending)
-                                .mapLatest { list -> list.map { it.toModel(mediaFileRepo) } }
-                        }.stateIn(coroutineScope),
-                        inProgress = searchQuery.flatMapLatest {
-                            importSessionItemRepo.search(id, ImportSessionItem.State.InProgress, it, DbOrder.Ascending)
-                                .mapLatest { list -> list.map { it.toModel(mediaFileRepo) } }
-                        }.stateIn(coroutineScope),
-                        completed = searchQuery.flatMapLatest {
-                            importSessionItemRepo.search(id, ImportSessionItem.State.Completed, it, DbOrder.Descending)
-                                .mapLatest { list -> list.map { it.toModel(mediaFileRepo) } }
-                        }.stateIn(coroutineScope),
-                        cancelled = searchQuery.flatMapLatest {
-                            importSessionItemRepo.search(id, ImportSessionItem.State.Cancelled, it, DbOrder.Ascending)
-                                .mapLatest { list -> list.map { it.toModel(mediaFileRepo) } }
-                        }.stateIn(coroutineScope),
-                        failed = searchQuery.flatMapLatest {
-                            importSessionItemRepo.search(id, ImportSessionItem.State.Failed, it, DbOrder.Ascending)
-                                .mapLatest { list -> list.map { it.toModel(mediaFileRepo) } }
-                        }.stateIn(coroutineScope),
-                    ),
-                    searchQuery = searchQuery.asStateFlow(),
-                    onSearchQueryChange = { searchQuery.value = it },
-                    onItemClick = showImportItem,
-                    onImportItemClick = {
-                        coroutineScope.launch {
-                            importSessionItemRepo.updateState(id = it, state = ImportSessionItem.State.Pending)
+        }
+        coroutineScope.launch {
+            importSessionRepo.get(id)
+                .mapLatest { dbImport ->
+                    if (dbImport == null) return@mapLatest Ui.State.ItemDoesNotExist
+                    Ui.State.Loaded(
+                        defaultTab = defaultTab,
+                        import = Ui.State.Loaded.Import(
+                            id = dbImport.id,
+                            uri = dbImport.uri,
+                            title = dbImport.inspection.title,
+                            description = dbImport.inspection.description,
+                            image = dbImport.imgId,
+                            createdAt = Instant.fromEpochMilliseconds(dbImport.creationDatetime).toString()
+                        ),
+                        items = items,
+                        searchQuery = searchQuery.asStateFlow(),
+                        onSearchQueryChange = { searchQuery.value = it },
+                        onItemClick = showImportItem,
+                        onImportItemClick = {
+                            coroutineScope.launch {
+                                importSessionItemRepo.updateState(id = it, state = ImportSessionItem.State.Pending)
+                            }
+                        },
+                        onCancelItemClick = {
+                            // TODO
+                        },
+                        onClearItemClick = { id ->
+                            coroutineScope.launch {
+                                clearImportItemUseCase.execute(id)
+                            }
+                        },
+                        onRetryItemClick = { id ->
+                            coroutineScope.launch {
+                                importSessionItemRepo.updateState(id, ImportSessionItem.State.Pending)
+                            }
                         }
-                    },
-                    onCancelItemClick = {
-                        // TODO
-                    },
-                    onClearItemClick = { id ->
-                        coroutineScope.launch {
-                            clearImportItemUseCase.execute(id)
-                        }
-                    },
-                    onRetryItemClick = {
-                        // TODO
-                    }
-                )
-            }
-        }.map {
-            if (it == null) {
-                Ui.State.ItemDoesNotExist
-            } else {
-                loaded!!
-            }
-        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Loading)
-
+                    )
+                }.collect(state)
+        }
     }
 
     @Composable
@@ -132,7 +130,7 @@ class ImportDetails(
         coroutineScope.cancel()
     }
 
-    private suspend fun ImportSessionItem.toModel(mediaFileRepo: MediaFileRepo): Ui.State.Loaded.Items.Item {
+    private fun ImportSessionItem.toModel(): Ui.State.Loaded.Items.Item {
         return Ui.State.Loaded.Items.Item(
             id = this.id,
             uri = this.uri,
@@ -141,18 +139,17 @@ class ImportDetails(
             duration = this.inspection.durationMilliseconds.milliseconds,
             artists = this.inspection.artists,
             album = this.inspection.album,
-            image = mediaFileRepo.getImportSessionItemImage(this.id)
+            image = this.imgId
         )
     }
-
 
     private object Ui {
         sealed class State {
             data object Loading : State()
 
-            data class Loaded(
+            class Loaded(
                 val defaultTab: ImportSessionItem.State,
-                val import: StateFlow<Import>,
+                val import: Import,
                 val items: Items,
                 val searchQuery: StateFlow<String>,
                 val onSearchQueryChange: (String) -> Unit,
@@ -167,7 +164,7 @@ class ImportDetails(
                     val uri: String,
                     val title: String?,
                     val description: String?,
-                    val image: File?,
+                    val image: MediaFileId?,
                     val createdAt: String
                 )
 
@@ -187,7 +184,7 @@ class ImportDetails(
                         val duration: Duration,
                         val artists: List<String>,
                         val album: String?,
-                        val image: File?
+                        val image: MediaFileId?
                     )
                 }
             }
@@ -221,12 +218,11 @@ class ImportDetails(
             )
         }
 
-        @OptIn(ExperimentalMaterial3Api::class)
         @Composable
         private fun Main(
             modifier: Modifier,
             defaultTab: ImportSessionItem.State,
-            import: StateFlow<State.Loaded.Import>,
+            import: State.Loaded.Import,
             items: State.Loaded.Items,
             searchQuery: StateFlow<String>,
             onSearchQueryChange: (String) -> Unit,
@@ -236,7 +232,6 @@ class ImportDetails(
             onClearItemClick: (ImportSessionItemId) -> Unit,
             onRetryItemClick: (ImportSessionItemId) -> Unit
         ) {
-            val import by import.collectAsState()
             val nonselected by items.nonselected.collectAsState()
             val pending by items.pending.collectAsState()
             val inProgress by items.inProgress.collectAsState()
@@ -327,9 +322,9 @@ class ImportDetails(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                dev.younesgouyd.apps.music.client.multiplatform.components.util.Image(
+                Image(
                     modifier = Modifier.size(64.dp),
-                    file = import.image
+                    id = import.image
                 )
                 Column(
                     modifier = Modifier.weight(1f),
@@ -355,6 +350,8 @@ class ImportDetails(
             onClearClick: () -> Unit,
             onRetryClick: () -> Unit
         ) {
+            var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
+
             Item(
                 modifier = modifier,
                 onClick = onClick,
@@ -367,7 +364,7 @@ class ImportDetails(
                 ) {
                     Image(
                         modifier = Modifier.size(64.dp).aspectRatio(1f),
-                        file = item.image
+                        id = item.image
                     )
                     Column(
                         modifier = Modifier.weight(1f),
@@ -422,7 +419,7 @@ class ImportDetails(
 
                         ImportSessionItem.State.Completed -> {
                             IconButton(
-                                onClick = onClearClick,
+                                onClick = { showDeleteConfirmationDialog = true },
                                 content = { Icon(Icons.Default.Remove, "Clear") }
                             )
                         }
@@ -436,6 +433,17 @@ class ImportDetails(
                         }
                     }
                 }
+            }
+
+            if (showDeleteConfirmationDialog) {
+                DeleteConfirmationDialog(
+                    message = "Delete import ${item.id} related to track \"${item.title}\"?",
+                    onDismissRequest = { showDeleteConfirmationDialog = false },
+                    onYesClick = {
+                        showDeleteConfirmationDialog = false
+                        onClearClick()
+                    }
+                )
             }
         }
     }

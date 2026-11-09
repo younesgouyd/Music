@@ -10,16 +10,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.decodeToImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import dev.younesgouyd.apps.music.client.multiplatform.data.Server
+import dev.younesgouyd.apps.music.client.multiplatform.ImageLoader
+import dev.younesgouyd.apps.music.client.multiplatform.LocalImageLoader
 import dev.younesgouyd.apps.music.common.models.MediaFileId
-import kotlinx.coroutines.*
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import java.io.File
-import java.net.URI
-import java.time.Instant
-
-@Volatile var server: Server? = null // TODO
 
 @Composable
 fun Image(
@@ -28,38 +21,13 @@ fun Image(
     contentScale: ContentScale = ContentScale.Fit,
     alignment: Alignment = Alignment.Center
 ) {
+    if (id == null) {
+        BrokenImage(modifier)
+        return
+    }
+    val loader = LocalImageLoader.current
     val image = produceState<Result<ImageBitmap>>(Result.Loading, id) {
-        val server = server
-        value = if (id == null || server == null) {
-            Result.Error
-        } else {
-            val file = server.getFile(id)
-            Result.Success(Cache.get(Key.File(file.path)))
-        }
-    }
-
-    when (val img = image.value) {
-        is Result.Error -> BrokenImage(modifier)
-        is Result.Loading -> BrokenImage(modifier)
-        is Result.Success<ImageBitmap> -> Image(
-            modifier = modifier,
-            bitmap = img.value,
-            contentDescription = null,
-            contentScale = contentScale,
-            alignment = alignment
-        )
-    }
-}
-
-@Composable
-fun Image(
-    modifier: Modifier = Modifier,
-    file: File?,
-    contentScale: ContentScale = ContentScale.Fit,
-    alignment: Alignment = Alignment.Center
-) {
-    val image = produceState<Result<ImageBitmap>>(Result.Loading, file?.path) {
-        value = if (file?.path == null) Result.Error else Result.Success(Cache.get(Key.File(file.path)))
+        value = Result.Success(loader.get(ImageLoader.Key.Mfid(id)))
     }
 
     when (val img = image.value) {
@@ -82,8 +50,13 @@ fun Image(
     contentScale: ContentScale = ContentScale.Fit,
     alignment: Alignment = Alignment.Center
 ) {
+    if (url == null) {
+        BrokenImage(modifier)
+        return
+    }
+    val loader = LocalImageLoader.current
     val image = produceState<Result<ImageBitmap>>(Result.Loading, url) {
-        value = if (url == null) Result.Error else Result.Success(Cache.get(Key.Url(url)))
+        value = Result.Success(loader.get(ImageLoader.Key.Url(url)))
     }
 
     when (val img = image.value) {
@@ -154,71 +127,4 @@ sealed class Result<out T> {
     object Loading : Result<Nothing>()
     object Error : Result<Nothing>()
     class Success<T>(val value: T) : Result<T>()
-}
-
-sealed class Key {
-    data class File(val path: String) : Key()
-    data class Url(val url: String) : Key()
-}
-
-private object Cache {
-    private const val MAX_CACHE_SIZE = 100 * 1024 * 1024
-
-    private val cache = mutableMapOf<Key, Image>()
-    private val mutex = Mutex()
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private var cacheSize = 0
-
-    suspend fun get(key: Key): ImageBitmap {
-        return withContext(Dispatchers.IO) {
-            val fromCache = cache[key]
-            if (fromCache == null) {
-                mutex.withLock {
-                    val fromCache2 = cache[key]
-                    if (fromCache2 == null) {
-                        val imageBitmap = when (key) {
-                            is Key.File -> File(key.path).readBytes().decodeToImageBitmap()
-                            is Key.Url -> URI(key.url).toURL().readBytes().decodeToImageBitmap()
-                        }
-                        val image = Image(imageBitmap)
-                        add(key to image)
-                        while (cacheSize > MAX_CACHE_SIZE) {
-                            val leastImportant = cache.minByOrNull { it.value.lastUsed }
-                            if (leastImportant != null) {
-                                remove(leastImportant.toPair())
-                            }
-                        }
-                        image.bitmap
-                    } else {
-                        fromCache2.updateLastUsed()
-                        fromCache2.bitmap
-                    }
-                }
-            } else {
-                fromCache.updateLastUsed()
-                fromCache.bitmap
-            }
-        }
-    }
-
-    private suspend fun add(entry: Pair<Key, Image>) {
-        scope.launch {
-            cache += entry
-            cacheSize += entry.second.byteSize
-        }.join()
-    }
-
-    private suspend fun remove(entry: Pair<Key, Image>) {
-        scope.launch {
-            cache.remove(entry.first)
-            cacheSize -= entry.second.byteSize
-        }.join()
-    }
-
-    private data class Image(val bitmap: ImageBitmap) {
-        var lastUsed = Instant.now().toEpochMilli()
-        val byteSize = bitmap.width * bitmap.height * 4
-
-        fun updateLastUsed() { lastUsed = Instant.now().toEpochMilli() }
-    }
 }

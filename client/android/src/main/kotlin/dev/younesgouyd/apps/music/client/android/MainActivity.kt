@@ -1,5 +1,6 @@
 package dev.younesgouyd.apps.music.client.android
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
@@ -14,6 +15,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app: Application = (applicationContext as App).app
+        startForegroundService(Intent(this, MusicService::class.java))
         enableEdgeToEdge()
         setContent {
             app.show(Modifier.fillMaxSize().systemBarsPadding())

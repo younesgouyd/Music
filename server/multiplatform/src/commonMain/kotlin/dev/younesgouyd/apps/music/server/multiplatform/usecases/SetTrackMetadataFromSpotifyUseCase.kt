@@ -4,7 +4,6 @@ import dev.younesgouyd.apps.music.common.models.SpotifyTrackId
 import dev.younesgouyd.apps.music.common.models.TrackId
 import dev.younesgouyd.apps.music.common.models.spotify.Track
 import dev.younesgouyd.apps.music.server.multiplatform.data.FileManager
-import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.SpotifyAlbumRepo
 import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.TrackRepo
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.transactions.SetTrackMetadataFromSpotify
 import dev.younesgouyd.apps.music.server.multiplatform.spotify.Spotify
@@ -15,7 +14,6 @@ import kotlinx.coroutines.withContext
 class SetTrackMetadataFromSpotifyUseCase(
     private val unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase,
     private val trackRepo: TrackRepo,
-    private val spotifyAlbumRepo: SpotifyAlbumRepo,
     private val transaction: SetTrackMetadataFromSpotify,
     private val spotify: Spotify,
     private val fileManager: FileManager
@@ -26,10 +24,13 @@ class SetTrackMetadataFromSpotifyUseCase(
     ) {
         withContext(Dispatchers.IO) {
             val track = trackRepo.get(trackId).first()!! // TODO
-            if (track.spotifyTrack != null) {
-                val album = spotifyAlbumRepo.get(track.spotifyTrack.spotifyAlbumId).first()!! // TODO
-                if (album.spotifyId != spotifyApiTrack.album.id.value) {
-                    unsetSpotifyTrackUseCase.execute(trackId, track.spotifyTrack.id, track.spotifyTrack.spotifyAlbumId)
+            if (track.spotifyTrackRelation != null) {
+                if (track.spotifyTrackRelation.spotifyAlbum.spotifyId != spotifyApiTrack.album.id.value) {
+                    unsetSpotifyTrackUseCase.execute(
+                        trackId = trackId,
+                        spotifyTrackId = track.spotifyTrackRelation.spotifyTrack.id,
+                        spotifyAlbumId = track.spotifyTrackRelation.spotifyTrack.spotifyAlbumId
+                    )
                 }
             }
             val spotifyTrackId = transaction.getSpotifyTrackId(spotifyApiTrack.id.value)?.let {

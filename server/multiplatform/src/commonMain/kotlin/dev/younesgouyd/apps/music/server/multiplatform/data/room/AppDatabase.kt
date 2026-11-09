@@ -41,7 +41,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun folderDao(): FolderDao
     abstract fun importSessionDao(): ImportSessionDao
     abstract fun importSessionItemDao(): ImportSessionItemDao
-    abstract fun mediaFileDao(): MediaFileDao
     abstract fun playbackIntervalDao(): PlaybackIntervalDao
     abstract fun playlistDao(): PlaylistDao
     abstract fun playlistTrackCrossRefDao(): PlaylistTrackCrossRefDao

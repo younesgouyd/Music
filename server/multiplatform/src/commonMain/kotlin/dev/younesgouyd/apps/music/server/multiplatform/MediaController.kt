@@ -2,12 +2,14 @@ package dev.younesgouyd.apps.music.server.multiplatform
 
 import dev.younesgouyd.apps.music.common.MediaPlayer
 import dev.younesgouyd.apps.music.common.models.*
-import dev.younesgouyd.apps.music.common.models.Rpc.ToServer.MediaController.QueueItemParameter
 import dev.younesgouyd.apps.music.common.models.datamodels.MediaPlayerState
 import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackContext
 import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackInterval
 import dev.younesgouyd.apps.music.common.models.datamodels.QueueItem
-import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.*
+import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.ClientRepo
+import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.FolderRepo
+import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.PlaylistRepo
+import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.TrackRepo
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.TrackRelation
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
@@ -22,10 +24,7 @@ import dev.younesgouyd.apps.music.common.models.datamodels.Client as ClientModel
 class MediaController(
     clientRepo: ClientRepo,
     websocketSessionHandlers: WebSocketSessionHandlers,
-    private val mediaFileRepo: MediaFileRepo,
     private val trackRepo: TrackRepo,
-    private val artistRepo: SpotifyArtistRepo,
-    private val albumRepo: SpotifyAlbumRepo,
     private val playlistRepo: PlaylistRepo,
     private val folderRepo: FolderRepo
 ) {
@@ -408,54 +407,36 @@ class MediaController(
                 getFolderItems(this.id)
             }
             is QueueItemParameter.Artist -> trackRepo.getArtistTracks(this.id).first().map { dbTrack ->
-                if (dbTrack.spotifyTrack == null) TODO()
+                if (dbTrack.spotifyTrackRelation == null) TODO()
                 dbTrack.toQueueItem(QueueItem.AddedFrom.Artist(this.id))
             }
             is QueueItemParameter.Album -> trackRepo.getAlbumTracks(this.id).first().map { dbTrack ->
-                if (dbTrack.spotifyTrack == null) TODO()
+                if (dbTrack.spotifyTrackRelation == null) TODO()
                 dbTrack.toQueueItem(QueueItem.AddedFrom.Album(this.id))
             }
         }
     }
 
-    private suspend fun TrackRelation.toQueueItem(addedFrom: QueueItem.AddedFrom): QueueItem {
+    private fun TrackRelation.toQueueItem(addedFrom: QueueItem.AddedFrom): QueueItem {
         return QueueItem(
             id = track.id,
             importId = this.originalImport.id,
-            name = spotifyTrack?.name ?: this.originalImport.title,
-            album = run {
-                spotifyTrack?.let { sp ->
-                    albumRepo.get(sp.spotifyAlbumId).first()?.let {
-                        QueueItem.Album.SpotifyAlbum(it.id, it.name)
-                    }
-                } ?: QueueItem.Album.ImportAlbum(this.originalImport.album)
-            },
-            imageId = run {
-                if (spotifyTrack != null) {
-                    mediaFileRepo.getSpotifyAlbumImage(spotifyTrack.spotifyAlbumId)
+            name = spotifyTrackRelation?.spotifyTrack?.name ?: this.originalImport.title,
+            album = spotifyTrackRelation?.spotifyAlbum?.let { QueueItem.Album.SpotifyAlbum(it.id, it.name) } ?: QueueItem.Album.ImportAlbum(this.originalImport.album),
+            imageId = spotifyTrackRelation?.spotifyAlbum?.mediumImgId ?: originalImport.imgId,
+            artists = run {
+                if (spotifyTrackRelation != null) {
+                    QueueItem.Artists.SpotifyArtists(
+                        spotifyTrackRelation.spotifyArtists.map { Pair(it.id, it.name) }
+                    )
                 } else {
-                    mediaFileRepo.getImportSessionItemImage(track.importSessionItemId)
+                    QueueItem.Artists.ImportArtist(originalImport.inspection.artists)
                 }
             },
-            artists = getArtists(this),
-            audioId = mediaFileRepo.getImportSessionItemAudio(this.track.importSessionItemId),
+            audioId = originalImport.audioFileId,
             durationMs = this.originalImport.durationMilliseconds,
             addedFrom = addedFrom
         )
-    }
-
-    private suspend fun getArtists(dbTrack: TrackRelation): QueueItem.Artists {
-        return if (dbTrack.spotifyTrack != null) {
-            QueueItem.Artists.SpotifyArtists(
-                list = artistRepo.getSpotifyTrackSpotifyArtists(dbTrack.spotifyTrack.id).first().map { dbArtist ->
-                    Pair(dbArtist.id, dbArtist.name)
-                }
-            )
-        } else {
-            QueueItem.Artists.ImportArtist(
-                list = dbTrack.originalImport.inspection.artists
-            )
-        }
     }
 
     private fun List<QueueItem>.setKeys() {

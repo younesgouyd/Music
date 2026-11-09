@@ -15,5 +15,5 @@ data class SpotifyTrack(
     val durationMs: Int?,
     val explicit: Boolean?,
     val apiResponse: String,
-    val creationDatetime: Long
+    val creationDatetime: Long,
 )

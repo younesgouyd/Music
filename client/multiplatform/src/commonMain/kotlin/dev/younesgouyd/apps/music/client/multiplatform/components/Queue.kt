@@ -23,11 +23,13 @@ import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
 import dev.younesgouyd.apps.music.common.models.datamodels.QueueItem
 import dev.younesgouyd.apps.music.common.platform
 import dev.younesgouyd.apps.music.common.ui.Component
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.burnoutcrew.reorderable.*
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class Queue(
     mediaController: MediaController,
     showArtist: (SpotifyArtistId) -> Unit
@@ -38,7 +40,7 @@ class Queue(
     init {
         val listState = LazyListState()
         val enableAutoScrollingToCurrentItem = MutableStateFlow(true)
-        state = mediaController.state.map { mediaControllerState ->
+        state = mediaController.state.mapLatest { mediaControllerState ->
             when (mediaControllerState) {
                 is MediaControllerState.Unavailable -> Ui.State.Unavailable
                 is MediaControllerState.Loading -> Ui.State.Loading
@@ -79,7 +81,7 @@ class Queue(
 
             data object Unavailable : State()
 
-            data class Available(
+            class Available(
                 val enabled: StateFlow<Boolean>,
                 val queue: StateFlow<List<QueueItem>>,
                 val currentItem: StateFlow<QueueItem?>,

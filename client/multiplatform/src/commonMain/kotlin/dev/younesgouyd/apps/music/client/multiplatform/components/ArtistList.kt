@@ -16,26 +16,24 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
+import dev.younesgouyd.apps.music.client.multiplatform.components.ArtistList.Ui.State.Loaded.ArtistItem
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.*
-import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.MediaFileRepo
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.SpotifyArtistRepo
-import dev.younesgouyd.apps.music.client.multiplatform.util.LazilyLoadedItems
-import dev.younesgouyd.apps.music.client.multiplatform.util.PageSize
+import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.Offset
-import dev.younesgouyd.apps.music.common.models.Rpc
+import dev.younesgouyd.apps.music.common.models.QueueItemParameter
 import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.io.File
+import kotlin.time.Duration.Companion.seconds
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(FlowPreview::class)
 class ArtistList(
     artistRepo: SpotifyArtistRepo,
-    mediaFileRepo: MediaFileRepo,
     mediaController: MediaController,
     showArtistDetails: (SpotifyArtistId) -> Unit
 ) : Component() {
@@ -46,31 +44,19 @@ class ArtistList(
         val searchQuery = MutableStateFlow("")
         coroutineScope.launch {
             state.value = Ui.State.Loaded(
-                artists = searchQuery.mapLatest { nameQuery ->
-                    LazilyLoadedItems(
-                        coroutineScope = coroutineScope,
-                        load = { offset: Offset.Id<SpotifyArtistId>, limit: PageSize ->
-                            val rows = artistRepo.search(nameQuery, limit, offset)
-                            LazilyLoadedItems.Page(
-                                nextOffset = rows.lastOrNull()?.id?.let { Offset.Id(it) },
-                                items = rows.map { dbArtist ->
-                                    Ui.State.Loaded.ArtistItem(
-                                        id = dbArtist.id,
-                                        name = dbArtist.name,
-                                        image = mediaFileRepo.getSpotifyArtistImage(dbArtist.id)
-                                    )
-                                }
-                            )
-                        },
-                        initialOffset = Offset.Id.initial<SpotifyArtistId>()
-                    )
-                }.stateIn(coroutineScope),
+                artists = LazilyLoadedItems(
+                    scope = coroutineScope,
+                    loader = searchQuery.debounce(2.seconds)
+                        .map { Loader(artistRepo, it) }
+                        .stateIn(coroutineScope),
+                    initialOffset = Offset.Id.initial<SpotifyArtistId>()
+                ),
                 searchQuery = searchQuery.asStateFlow(),
                 scrollState = LazyGridState(),
                 onSearchQueryChange = { searchQuery.value = it },
                 onArtistClick = showArtistDetails,
-                onPlayArtistClick = { id: SpotifyArtistId -> mediaController.playQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Artist(id))) },
-                onAddArtistToQueueClick = { id: SpotifyArtistId -> mediaController.addToQueue(listOf(Rpc.ToServer.MediaController.QueueItemParameter.Artist(id))) }
+                onPlayArtistClick = { id: SpotifyArtistId -> mediaController.playQueue(listOf(QueueItemParameter.Artist(id))) },
+                onAddArtistToQueueClick = { id: SpotifyArtistId -> mediaController.addToQueue(listOf(QueueItemParameter.Artist(id))) }
             )
         }
     }
@@ -89,12 +75,35 @@ class ArtistList(
         coroutineScope.cancel()
     }
 
+    private class Loader(
+        private val artistRepo: SpotifyArtistRepo,
+        private val query: String
+    ) : LazilyLoadedItems.Loader<ArtistItem, Offset.Id<SpotifyArtistId>> {
+        override suspend fun load(
+            offset: Offset.Id<SpotifyArtistId>,
+            pageSize: PageSize
+        ): LazilyLoadedItems.Page<ArtistItem, Offset.Id<SpotifyArtistId>> {
+            val rows = artistRepo.search(query, pageSize, offset)
+            return LazilyLoadedItems.Page(
+                nextOffset = rows.lastOrNull()?.id?.let { Offset.Id(it) },
+                items = rows.map { dbArtist ->
+                    ArtistItem(
+                        id = dbArtist.id,
+                        name = dbArtist.name,
+                        image = dbArtist.mediumImgId
+                    )
+                }
+
+            )
+        }
+    }
+
     private object Ui {
         sealed class State {
             data object Loading : State()
 
-            data class Loaded(
-                val artists: StateFlow<LazilyLoadedItems<ArtistItem, Offset.Id<SpotifyArtistId>>>,
+            class Loaded(
+                val artists: LazilyLoadedItems<ArtistItem, Offset.Id<SpotifyArtistId>>,
                 val searchQuery: StateFlow<String>,
                 val scrollState: LazyGridState,
                 val onSearchQueryChange: (String) -> Unit,
@@ -105,7 +114,7 @@ class ArtistList(
                 data class ArtistItem(
                     val id: SpotifyArtistId,
                     val name: String,
-                    val image: File?
+                    val image: MediaFileId?
                 )
             }
         }
@@ -136,7 +145,7 @@ class ArtistList(
             @Composable
             private fun Main(
                 modifier: Modifier,
-                artists: StateFlow<LazilyLoadedItems<State.Loaded.ArtistItem, Offset.Id<SpotifyArtistId>>>,
+                artists: LazilyLoadedItems<ArtistItem, Offset.Id<SpotifyArtistId>>,
                 searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
                 onSearchQueryChange: (String) -> Unit,
@@ -144,7 +153,6 @@ class ArtistList(
                 onPlayArtistClick: (SpotifyArtistId) -> Unit,
                 onAddArtistToQueueClick: (SpotifyArtistId) -> Unit
             ) {
-                val artists by artists.collectAsState()
                 val items by artists.items.collectAsState()
                 val loadingItems by artists.loading.collectAsState()
                 val searchQuery by searchQuery.collectAsState()
@@ -200,6 +208,7 @@ class ArtistList(
                     snapshotFlow {
                         scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
                     }.map { it == null ||  it >= (items.size + 1) - 5  }
+                        .distinctUntilChanged()
                         .filter { it }
                         .collect { artists.loadMore() }
                 }
@@ -225,7 +234,7 @@ class ArtistList(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            file = artist.image,
+                            id = artist.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -266,7 +275,7 @@ class ArtistList(
                         Option(
                             label = "Add to queue",
                             icon = Icons.Default.AddToQueue,
-                            onClick = onAddToQueueClick,
+                            onClick = { onAddToQueueClick(); showContextMenu = false },
                         )
 //                        Option(
 //                            label = "Play next",
@@ -304,7 +313,7 @@ class ArtistList(
             @Composable
             private fun Main(
                 modifier: Modifier,
-                artists: StateFlow<LazilyLoadedItems<State.Loaded.ArtistItem, Offset.Id<SpotifyArtistId>>>,
+                artists: LazilyLoadedItems<ArtistItem, Offset.Id<SpotifyArtistId>>,
                 searchQuery: StateFlow<String>,
                 scrollState: LazyGridState,
                 onSearchQueryChange: (String) -> Unit,
@@ -312,7 +321,6 @@ class ArtistList(
                 onPlayArtistClick: (SpotifyArtistId) -> Unit,
                 onAddArtistToQueueClick: (SpotifyArtistId) -> Unit
             ) {
-                val artists by artists.collectAsState()
                 val items by artists.items.collectAsState()
                 val loadingItems by artists.loading.collectAsState()
                 val searchQuery by searchQuery.collectAsState()
@@ -368,6 +376,7 @@ class ArtistList(
                     snapshotFlow {
                         scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
                     }.map { it == null ||  it >= (items.size + 1) - 5  }
+                        .distinctUntilChanged()
                         .filter { it }
                         .collect { artists.loadMore() }
                 }
@@ -394,7 +403,7 @@ class ArtistList(
                     ) {
                         Image(
                             modifier = Modifier.aspectRatio(1f),
-                            file = artist.image,
+                            id = artist.image,
                             contentScale = ContentScale.FillWidth,
                             alignment = Alignment.TopCenter
                         )
@@ -425,7 +434,7 @@ class ArtistList(
                         Option(
                             label = "Add to queue",
                             icon = Icons.Default.AddToQueue,
-                            onClick = onAddToQueueClick,
+                            onClick = { onAddToQueueClick(); showContextMenu = false },
                         )
 //                        Option(
 //                            label = "Play next",

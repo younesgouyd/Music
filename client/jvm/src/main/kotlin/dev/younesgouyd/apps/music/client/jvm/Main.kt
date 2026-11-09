@@ -12,7 +12,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.Application
 import dev.younesgouyd.apps.music.client.multiplatform.ApplicationImpl
 
 fun main() {
-//    System.setProperty("sun.java2d.uiScale", "1.0")
+    System.setProperty("sun.java2d.uiScale", "1.0")
     val app: Application = ApplicationImpl()
     application {
         Window(
