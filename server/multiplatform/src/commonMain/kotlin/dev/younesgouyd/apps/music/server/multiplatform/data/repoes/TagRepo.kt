@@ -18,21 +18,22 @@ class TagRepo(
         return dao.search(nameQuery.toSearchQuery())
     }
 
-    fun getTrackTags(id: TrackId): Flow<List<Tag>> {
-        return dao.getTrackTags(id)
+    fun searchTrackTags(id: TrackId, nameQuery: String): Flow<List<Tag>> {
+        return dao.searchTrackTags(id, nameQuery.toSearchQuery())
     }
 
-    fun getTrackUnsetTags(id: TrackId): Flow<List<Tag>> {
-        return dao.getTrackUnsetTags(id)
+    fun searchTrackUnsetTags(id: TrackId, nameQuery: String): Flow<List<Tag>> {
+        return dao.searchTrackUnsetTags(id, nameQuery.toSearchQuery())
     }
 
-    suspend fun add(name: String) {
+    suspend fun add(name: String): TagId {
         require(name.isNotBlank())
         val currentTime = System.currentTimeMillis()
-        dao.add(
+        val id = dao.add(
             name = name,
             creationDatetime = currentTime
         )
+        return TagId(id)
     }
 
     suspend fun delete(id: TagId) {

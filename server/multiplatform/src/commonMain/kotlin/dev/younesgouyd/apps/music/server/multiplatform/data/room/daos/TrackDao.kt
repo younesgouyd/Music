@@ -22,8 +22,8 @@ abstract class TrackDao {
         left join spotifytrack sp on sp.id = t.spotifyTrackId
         where t.id > :lastId
         and (
-            (sp.name is not null and sp.name like :nameQuery)
-            or (sp.name is null and i.title is not null and i.title like :nameQuery) 
+            (sp.name is not null and sp.name like '%' || :nameQuery || '%')
+            or (sp.name is null and i.title is not null and i.title like '%' || :nameQuery || '%') 
         )
         order by t.id asc
         limit :limit
@@ -43,8 +43,8 @@ abstract class TrackDao {
         left join tagtrackcrossref cr on cr.trackId = t.id
         where t.id > :lastId
         and (
-            (sp.name is not null and sp.name like :nameQuery)
-            or (sp.name is null and i.title is not null and i.title like :nameQuery) 
+            (sp.name is not null and sp.name like '%' || :nameQuery || '%')
+            or (sp.name is null and i.title is not null and i.title like '%' || :nameQuery || '%') 
         )
         and (
             cr.tagId in (:tags)
@@ -73,8 +73,8 @@ abstract class TrackDao {
         left join spotifytrack sp on sp.id = t.spotifyTrackId
         where folderId = :folderId
         and (
-            (sp.name is not null and sp.name like :nameQuery)
-            or (sp.name is null and i.title is not null and i.title like :nameQuery) 
+            (sp.name is not null and sp.name like '%' || :nameQuery || '%')
+            or (sp.name is null and i.title is not null and i.title like '%' || :nameQuery || '%') 
         )
     """)
     abstract fun searchFolder(folderId: FolderId, nameQuery: String): Flow<List<TrackRelation>>
@@ -88,8 +88,8 @@ abstract class TrackDao {
         left join tagtrackcrossref cr on cr.trackId = t.id
         where folderId = :folderId
         and (
-            (sp.name is not null and sp.name like :nameQuery)
-            or (sp.name is null and i.title is not null and i.title like :nameQuery) 
+            (sp.name is not null and sp.name like '%' || :nameQuery || '%')
+            or (sp.name is null and i.title is not null and i.title like '%' || :nameQuery || '%') 
         )
         and (
             cr.tagId in (:tags)
@@ -112,8 +112,8 @@ abstract class TrackDao {
         join playlisttrackcrossref cr on cr.trackId = t.id
         where cr.playlistId = :id
         and (
-            (sp.name is not null and sp.name like :nameQuery)
-            or (sp.name is null and i.title is not null and i.title like :nameQuery) 
+            (sp.name is not null and sp.name like '%' || :nameQuery || '%')
+            or (sp.name is null and i.title is not null and i.title like '%' || :nameQuery || '%') 
         )
     """)
     abstract fun searchPlaylist(id: PlaylistId, nameQuery: String): Flow<List<PlaylistTrack>>
@@ -127,8 +127,8 @@ abstract class TrackDao {
         join tagtrackcrossref cr on cr.trackId = t.id
         where cr.tagId = :tag
         and (
-            (sp.name is not null and sp.name like :nameQuery)
-            or (sp.name is null and i.title is not null and i.title like :nameQuery) 
+            (sp.name is not null and sp.name like '%' || :nameQuery || '%')
+            or (sp.name is null and i.title is not null and i.title like '%' || :nameQuery || '%') 
         )
     """)
     abstract fun searchWithTag(nameQuery: String, tag: TagId): Flow<List<TrackRelation>>
@@ -161,7 +161,7 @@ abstract class TrackDao {
             where album_cr.spotifyAlbumId = sp.spotifyAlbumId 
             and album_cr.spotifyArtistId = :id
         )
-        and sp.name like :nameQuery
+        and sp.name like '%' || :nameQuery || '%'
         order by t.id asc
         limit :limit
     """)

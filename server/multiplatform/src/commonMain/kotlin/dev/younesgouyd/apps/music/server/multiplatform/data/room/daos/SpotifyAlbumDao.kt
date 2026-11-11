@@ -17,7 +17,7 @@ abstract class SpotifyAlbumDao {
         from spotifyalbum a
         join spotifyartistspotifyalbumcrossref cr on cr.spotifyAlbumId = a.id
         where cr.spotifyArtistId = :id
-        and a.name like :nameQuery
+        and a.name like '%' || :nameQuery || '%'
     """)
     abstract fun searchArtist(id: SpotifyArtistId, nameQuery: String): Flow<List<SpotifyAlbum>>
 }

@@ -16,7 +16,7 @@ abstract class PlaylistDao {
     @Query("select * from playlist where id = :id")
     abstract fun get(id: PlaylistId): Flow<Playlist?>
 
-    @Query("select * from playlist where name like :nameQuery")
+    @Query("select * from playlist where name like '%' ||  :nameQuery || '%'")
     abstract fun search(nameQuery: String): Flow<List<Playlist>>
 
     fun searchFolder(folderId: FolderId?, nameQuery: String): Flow<List<Playlist>> {
@@ -27,10 +27,10 @@ abstract class PlaylistDao {
         }
     }
 
-    @Query("select * from playlist where folderId is null and name like :nameQuery")
+    @Query("select * from playlist where folderId is null and name like '%' || :nameQuery || '%'")
     abstract fun searchRootFolder(nameQuery: String): Flow<List<Playlist>>
 
-    @Query("select * from playlist where folderId = :folderId and name like :nameQuery")
+    @Query("select * from playlist where folderId = :folderId and name like '%' || :nameQuery || '%'")
     abstract fun searchFolder(folderId: FolderId, nameQuery: String): Flow<List<Playlist>>
 
     @Query("select * from playlist where folderId = :folderId")

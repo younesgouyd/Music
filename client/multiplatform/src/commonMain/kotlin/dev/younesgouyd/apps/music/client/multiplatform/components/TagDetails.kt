@@ -187,7 +187,7 @@ class TagDetails(
                                 tag = tag
                             )
                             LazyColumn(
-                                modifier = Modifier.fillMaxSize().padding(end = 16.dp),
+                                modifier = Modifier.fillMaxSize(),
                                 state = scrollState,
                                 contentPadding = PaddingValues(18.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -260,7 +260,7 @@ class TagDetails(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Image(
-                        modifier = Modifier.size(250.dp),
+                        modifier = Modifier.size(100.dp).aspectRatio(1f),
                         id = track.image
                     )
                     Row(

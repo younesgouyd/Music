@@ -7,19 +7,25 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.*
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.*
@@ -60,7 +66,7 @@ class TrackDetails(
 ) : Component() {
     override val title: String = "Track"
     private val logger = KotlinLogging.logger {}
-    private val selectedTab = MutableStateFlow(Ui.State.Loaded.Tab.Import)
+    private val selectedTab = MutableStateFlow(Ui.State.Loaded.Tab.Tags)
     private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
 
     init {
@@ -74,8 +80,9 @@ class TrackDetails(
         val searchResult = MutableStateFlow(emptyList<Ui.State.Loaded.SpotifyTrackState.SearchResultItem>())
         // ------------------------------------------------------------------------
         coroutineScope.launch {
-            val appliedTags = tagRepo.getTrackTags(id).stateIn(coroutineScope)
-            val unappliedTags = tagRepo.getTrackUnsetTags(id).stateIn(coroutineScope)
+            val tagSearchQuery = MutableStateFlow("")
+            val appliedTags = tagSearchQuery.flatMapLatest { tagRepo.searchTrackTags(id, it) }.stateIn(coroutineScope)
+            val unappliedTags = tagSearchQuery.flatMapLatest { tagRepo.searchTrackUnsetTags(id, it) }.stateIn(coroutineScope)
             val playlists = playlistRepo.getTrackPlaylists(id)
                 .mapLatest { it.map { Ui.State.Loaded.Playlist(it.id, it.name, null) } }
                 .stateIn(coroutineScope)
@@ -99,6 +106,7 @@ class TrackDetails(
                             image = dbImport.imgId
                         )
                     },
+                    tagSearchQuery = tagSearchQuery.asStateFlow(),
                     appliedTags = appliedTags,
                     unappliedTags = unappliedTags,
                     spotifyTrackState = Ui.State.Loaded.SpotifyTrackState(
@@ -171,6 +179,15 @@ class TrackDetails(
                     playlists = playlists,
                     onTabClick = { selectedTab.value = it },
                     onPlayClick = { mediaController.playQueue(listOf(QueueItemParameter.Track(id))) },
+                    onTagSearchQueryChange = { tagSearchQuery.value = it },
+                    onAddTag = { name: String, setItOnTrack: Boolean ->
+                        coroutineScope.launch {
+                            val tagId = tagRepo.add(name)
+                            if (setItOnTrack) {
+                                tagTrackCrossRefRepo.add(tagId, id)
+                            }
+                        }
+                    },
                     onSetTag = { coroutineScope.launch { tagTrackCrossRefRepo.add(it, id) } },
                     onUnsetTag = { coroutineScope.launch { tagTrackCrossRefRepo.delete(it, id) } },
                     onTagDetailsClick = showTag,
@@ -209,11 +226,14 @@ class TrackDetails(
                 val selectedTab: StateFlow<Tab>,
                 val import: Import?,
                 val spotifyTrackState: SpotifyTrackState,
+                val tagSearchQuery: StateFlow<String>,
                 val appliedTags: StateFlow<List<Tag>>,
                 val unappliedTags: StateFlow<List<Tag>>,
                 val playlists: StateFlow<List<Playlist>>,
                 val onTabClick: (Tab) -> Unit,
                 val onPlayClick: () -> Unit,
+                val onTagSearchQueryChange: (String) -> Unit,
+                val onAddTag: (name: String, setItOnTrack: Boolean) -> Unit,
                 val onSetTag: (TagId) -> Unit,
                 val onUnsetTag: (TagId) -> Unit,
                 val onTagDetailsClick: (TagId) -> Unit,
@@ -307,11 +327,14 @@ class TrackDetails(
                 selectedTab = state.selectedTab,
                 import = state.import,
                 spotifyTrackState = state.spotifyTrackState,
+                tagSearchQuery = state.tagSearchQuery,
                 appliedTags = state.appliedTags,
                 unappliedTags = state.unappliedTags,
                 playlists = state.playlists,
                 onTabClick = state.onTabClick,
                 onPlayClick = state.onPlayClick,
+                onTagSearchQueryChange = state.onTagSearchQueryChange,
+                onAddTag = state.onAddTag,
                 onSetTag = state.onSetTag,
                 onUnsetTag = state.onUnsetTag,
                 onTagDetailsClick = state.onTagDetailsClick,
@@ -327,11 +350,14 @@ class TrackDetails(
             selectedTab: StateFlow<State.Loaded.Tab>,
             import: State.Loaded.Import?,
             spotifyTrackState: State.Loaded.SpotifyTrackState,
+            tagSearchQuery: StateFlow<String>,
             appliedTags: StateFlow<List<Tag>>,
             unappliedTags: StateFlow<List<Tag>>,
             playlists: StateFlow<List<State.Loaded.Playlist>>,
             onTabClick: (State.Loaded.Tab) -> Unit,
             onPlayClick: () -> Unit,
+            onTagSearchQueryChange: (String) -> Unit,
+            onAddTag: (name: String, setItOnTrack: Boolean) -> Unit,
             onSetTag: (TagId) -> Unit,
             onUnsetTag: (TagId) -> Unit,
             onTagDetailsClick: (TagId) -> Unit,
@@ -340,8 +366,6 @@ class TrackDetails(
             onRemoveFromPlaylistClick: (PlaylistId) -> Unit
         ) {
             val selectedTab by selectedTab.collectAsState()
-            val appliedTags by appliedTags.collectAsState()
-            val unappliedTags by unappliedTags.collectAsState()
             val playlists by playlists.collectAsState()
 
             Surface(
@@ -399,8 +423,11 @@ class TrackDetails(
                         }
                         State.Loaded.Tab.Tags -> Tags(
                             modifier = Modifier.fillMaxWidth().weight(1f),
+                            searchQuery = tagSearchQuery,
                             applied = appliedTags,
                             unapplied = unappliedTags,
+                            onSearchQueryChange = onTagSearchQueryChange,
+                            onAdd = onAddTag,
                             onSetTag = onSetTag,
                             onUnsetTag = onUnsetTag,
                             onTagDetailsClick = onTagDetailsClick
@@ -779,17 +806,42 @@ class TrackDetails(
         @Composable
         private fun Tags(
             modifier: Modifier,
-            applied: List<Tag>,
-            unapplied: List<Tag>,
+            searchQuery: StateFlow<String>,
+            applied: StateFlow<List<Tag>>,
+            unapplied: StateFlow<List<Tag>>,
+            onSearchQueryChange: (String) -> Unit,
+            onAdd: (name: String, setItOnTrack: Boolean) -> Unit,
             onSetTag: (TagId) -> Unit,
             onUnsetTag: (TagId) -> Unit,
             onTagDetailsClick: (TagId) -> Unit
         ) {
+            val searchQuery by searchQuery.collectAsState()
+            val applied by applied.collectAsState()
+            val unapplied by unapplied.collectAsState()
+            var isNewTagDialogVisible by remember { mutableStateOf(false) }
+
             Column(
                 modifier = modifier.verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        modifier = Modifier.weight(1f),
+                        leadingIcon = { Icon(Icons.Default.Search, null) },
+                        label = { Text("Search") },
+                        value = searchQuery,
+                        onValueChange = onSearchQueryChange
+                    )
+                    Button(
+                        content = { Text("Add new tag") },
+                        onClick = { isNewTagDialogVisible = true }
+                    )
+                }
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -837,6 +889,82 @@ class TrackDetails(
                                     onClick = { onTagDetailsClick(tag.id) }
                                 )
                             }
+                        }
+                    }
+                }
+            }
+
+            if (isNewTagDialogVisible) {
+                NewTagDialog(
+                    onDismiss = { isNewTagDialogVisible = false },
+                    onAdd = { name: String, setItOnTrack: Boolean ->
+                        onAdd(name, setItOnTrack)
+                        isNewTagDialogVisible = false
+                    }
+                )
+            }
+        }
+
+        @Composable
+        private fun NewTagDialog(
+            onDismiss: () -> Unit,
+            onAdd: (name: String, setItOnTrack: Boolean) -> Unit
+        ) {
+            var name by remember { mutableStateOf("") }
+            var invalidName by remember { mutableStateOf(false) }
+
+            Dialog(onDismissRequest = onDismiss) {
+                Surface(
+                    modifier = Modifier.width(500.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Name") },
+                            value = name,
+                            onValueChange = {
+                                name = it
+                                invalidName = it.isBlank()
+                            },
+                            singleLine = true,
+                            isError = invalidName,
+                            supportingText = if (invalidName) {
+                                { Text("Invalid input") }
+                            } else null
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                modifier = Modifier.weight(1f),
+                                content = { Text("Add") },
+                                onClick = {
+                                    if (name.isBlank()) {
+                                        invalidName = true
+                                    } else {
+                                        onAdd(name, false)
+                                    }
+                                }
+                            )
+                            Button(
+                                modifier = Modifier.weight(1f),
+                                content = { Text("Add & Set") },
+                                onClick = {
+                                    if (name.isBlank()) {
+                                        invalidName = true
+                                    } else {
+                                        onAdd(name, true)
+                                    }
+                                }
+                            )
                         }
                     }
                 }

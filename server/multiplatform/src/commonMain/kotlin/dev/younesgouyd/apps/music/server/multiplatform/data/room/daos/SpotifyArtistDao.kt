@@ -17,7 +17,7 @@ abstract class SpotifyArtistDao {
         select *
         from spotifyartist
         where id > :lastId
-        and name like :nameQuery
+        and name like '%' || :nameQuery || '%'
         order by id asc
         limit :limit
     """)

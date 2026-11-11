@@ -559,19 +559,19 @@ class WebSocketSessionHandler(
                             .map { it.map { it.toModel() } }
                             .collect { sendData(correlationId, it, rpc.serializer) }
                     }
-                    is Rpc.ToServer.Tag.GetTrackTags -> {
-                        tagRepo.getTrackTags(rpc.id)
+                    is Rpc.ToServer.Tag.SearchTrackTags -> {
+                        tagRepo.searchTrackTags(rpc.id, rpc.nameQuery)
                             .map { it.map { it.toModel() } }
                             .collect { sendData(correlationId, it, rpc.serializer) }
                     }
-                    is Rpc.ToServer.Tag.GetTrackUnsetTags -> {
-                        tagRepo.getTrackUnsetTags(rpc.id)
+                    is Rpc.ToServer.Tag.SearchTrackUnsetTags -> {
+                        tagRepo.searchTrackUnsetTags(rpc.id, rpc.nameQuery)
                             .map { it.map { it.toModel() } }
                             .collect { sendData(correlationId, it, rpc.serializer) }
                     }
                     is Rpc.ToServer.Tag.Add -> {
-                        tagRepo.add(rpc.name)
-                        sendDone(correlationId)
+                        val result = tagRepo.add(rpc.name)
+                        sendData(correlationId, result, rpc.serializer)
                     }
 
                     is Rpc.ToServer.Tag.Delete -> {

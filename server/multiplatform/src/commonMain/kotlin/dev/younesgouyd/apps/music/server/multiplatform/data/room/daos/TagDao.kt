@@ -12,7 +12,7 @@ abstract class TagDao {
     @Query("select * from tag where id = :id")
     abstract fun get(id: TagId): Flow<Tag?>
 
-    @Query("select * from tag where name like :nameQuery")
+    @Query("select * from tag where name like '%' || :nameQuery || '%'")
     abstract fun search(nameQuery: String): Flow<List<Tag>>
 
     @Query(
@@ -21,9 +21,10 @@ abstract class TagDao {
         from tag t
         join tagtrackcrossref cr on cr.tagId = t.id
         where cr.trackId = :id
+        and t.name like '%' || :name || '%'
     """
     )
-    abstract fun getTrackTags(id: TrackId): Flow<List<Tag>>
+    abstract fun searchTrackTags(id: TrackId, name: String): Flow<List<Tag>>
 
     @Query(
         """
@@ -34,9 +35,10 @@ abstract class TagDao {
             from tagtrackcrossref cr
             where cr.trackId = :id
         )
+        and t.name like '%' || :name || '%'
     """
     )
-    abstract fun getTrackUnsetTags(id: TrackId): Flow<List<Tag>>
+    abstract fun searchTrackUnsetTags(id: TrackId, name: String): Flow<List<Tag>>
 
     @Query("""
         insert into tag (name, creationDatetime)
@@ -45,7 +47,7 @@ abstract class TagDao {
     abstract suspend fun add(
         name: String,
         creationDatetime: Long
-    )
+    ): Long
 
     @Query("delete from tag where id = :id")
     abstract suspend fun delete(id: TagId)

@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import dev.younesgouyd.apps.music.client.multiplatform.components.util.DeleteConfirmationDialog
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.ScrollToTopFloatingActionButton
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.TagRepo
 import dev.younesgouyd.apps.music.common.models.TagId
@@ -238,20 +239,24 @@ class TagList(
             onClick: () -> Unit,
             onDeleteClick: () -> Unit
         ) {
+            var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
+
             Item(
                 contentPadding = PaddingValues(8.dp),
-                onClick = onClick
+                onClick = onClick,
+                onLongClick = { showDeleteConfirmationDialog = true }
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(tag.name)
-                    IconButton(
-                        content = { Icon(Icons.Default.Delete, null) },
-                        onClick = onDeleteClick
-                    )
-                }
+                Text(tag.name)
+            }
+            if (showDeleteConfirmationDialog) {
+                DeleteConfirmationDialog(
+                    message = "Delete tag \"${tag.name}\"? it will be removed from all tracks.",
+                    onDismissRequest = { showDeleteConfirmationDialog = false },
+                    onYesClick = {
+                        showDeleteConfirmationDialog = false
+                        onDeleteClick()
+                    }
+                )
             }
         }
     }

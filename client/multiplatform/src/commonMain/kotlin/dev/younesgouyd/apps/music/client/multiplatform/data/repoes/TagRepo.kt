@@ -18,17 +18,17 @@ class TagRepo(
         return server.observe(Rpc.ToServer.Tag.Search(nameQuery))
     }
 
-    fun getTrackTags(id: TrackId): Flow<List<Tag>> {
-        return server.observe(Rpc.ToServer.Tag.GetTrackTags(id))
+    fun searchTrackTags(id: TrackId, nameQuery: String): Flow<List<Tag>> {
+        return server.observe(Rpc.ToServer.Tag.SearchTrackTags(id, nameQuery))
     }
 
-    fun getTrackUnsetTags(id: TrackId): Flow<List<Tag>> {
-        return server.observe(Rpc.ToServer.Tag.GetTrackUnsetTags(id))
+    fun searchTrackUnsetTags(id: TrackId, nameQuery: String): Flow<List<Tag>> {
+        return server.observe(Rpc.ToServer.Tag.SearchTrackUnsetTags(id, nameQuery))
     }
 
-    suspend fun add(name: String) {
+    suspend fun add(name: String): TagId {
         require(name.isNotBlank())
-        server.call(Rpc.ToServer.Tag.Add(name))
+        return server.get(Rpc.ToServer.Tag.Add(name))
     }
 
     suspend fun delete(id: TagId) {

@@ -508,15 +508,17 @@ sealed class Rpc {
             }
 
             @Serializable
-            data class GetTrackTags(
-                val id: TrackId
+            data class SearchTrackTags(
+                val id: TrackId,
+                val nameQuery: String
             ) : Tag(), ResultType.Data.Dynamic<List<TagModel>> {
                 @Transient override val serializer: KSerializer<List<TagModel>> = ListSerializer(TagModel.serializer())
             }
 
             @Serializable
-            data class GetTrackUnsetTags(
-                val id: TrackId
+            data class SearchTrackUnsetTags(
+                val id: TrackId,
+                val nameQuery: String
             ) : Tag(), ResultType.Data.Dynamic<List<TagModel>> {
                 @Transient override val serializer: KSerializer<List<TagModel>> = ListSerializer(TagModel.serializer())
             }
@@ -524,7 +526,9 @@ sealed class Rpc {
             @Serializable
             data class Add(
                 val name: String
-            ) : Tag(), ResultType.Action
+            ) : Tag(), ResultType.Data.Static<TagId> {
+                @Transient override val serializer: KSerializer<TagId> = TagId.serializer()
+            }
 
             @Serializable
             data class Delete(
