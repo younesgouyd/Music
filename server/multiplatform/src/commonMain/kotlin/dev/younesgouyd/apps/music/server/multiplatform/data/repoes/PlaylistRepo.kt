@@ -59,7 +59,7 @@ class PlaylistRepo(
         dao.updateName(name, System.currentTimeMillis(), id)
     }
 
-    suspend fun updateFolderId(id: PlaylistId, folderId: FolderId) {
+    suspend fun updateFolderId(id: PlaylistId, folderId: FolderId?) {
         dao.updateFolderId(folderId, System.currentTimeMillis(), id)
     }
 

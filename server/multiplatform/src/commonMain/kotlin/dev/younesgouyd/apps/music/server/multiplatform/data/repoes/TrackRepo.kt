@@ -43,14 +43,14 @@ class TrackRepo(
     }
 
     fun searchFolder(
-        folderId: FolderId,
+        folderId: FolderId?,
         nameQuery: String
     ): Flow<List<TrackRelation>> {
         return dao.searchFolder(folderId, nameQuery.toSearchQuery())
     }
 
     fun searchFolderWithTags(
-        folderId: FolderId,
+        folderId: FolderId?,
         nameQuery: String,
         tags: List<TagId>,
         includeUntagged: Boolean
@@ -126,7 +126,7 @@ class TrackRepo(
         return TrackId(id)
     }
 
-    suspend fun updateFolderId(id: TrackId, folderId: FolderId) {
+    suspend fun updateFolderId(id: TrackId, folderId: FolderId?) {
         dao.updateFolderId(folderId, System.currentTimeMillis(), id)
     }
 }

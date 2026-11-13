@@ -10,67 +10,25 @@ import kotlin.uuid.Uuid
 @Entity(
     foreignKeys = [
         ForeignKey(
-            entity = MediaFile::class,
-            parentColumns = ["id"],
-            childColumns = ["audioFileId"],
-            onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.NO_ACTION
-        ),
-        ForeignKey(
             entity = PlaybackInterval::class,
             parentColumns = ["id"],
             childColumns = ["possibleDuplicateOf"],
             onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.NO_ACTION
+            onDelete = ForeignKey.RESTRICT
         ),
         ForeignKey(
             entity = Client::class,
             parentColumns = ["id"],
             childColumns = ["clientId"],
             onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.NO_ACTION
+            onDelete = ForeignKey.RESTRICT
         ),
         ForeignKey(
             entity = ImportSessionItem::class,
             parentColumns = ["id"],
             childColumns = ["importId"],
             onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.NO_ACTION
-        ),
-        ForeignKey(
-            entity = Track::class,
-            parentColumns = ["id"],
-            childColumns = ["trackId"],
-            onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.NO_ACTION
-        ),
-        ForeignKey(
-            entity = Playlist::class,
-            parentColumns = ["id"],
-            childColumns = ["playlistId"],
-            onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.NO_ACTION
-        ),
-        ForeignKey(
-            entity = Folder::class,
-            parentColumns = ["id"],
-            childColumns = ["folderId"],
-            onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.NO_ACTION
-        ),
-        ForeignKey(
-            entity = SpotifyAlbum::class,
-            parentColumns = ["id"],
-            childColumns = ["albumId"],
-            onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.NO_ACTION
-        ),
-        ForeignKey(
-            entity = SpotifyArtist::class,
-            parentColumns = ["id"],
-            childColumns = ["artistId"],
-            onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.NO_ACTION
+            onDelete = ForeignKey.RESTRICT
         )
     ],
     indices = [

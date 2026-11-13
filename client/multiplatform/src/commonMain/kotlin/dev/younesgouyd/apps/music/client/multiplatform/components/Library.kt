@@ -63,7 +63,7 @@ class Library(
 ) : Component() {
     override val title: String = "Library"
     private val path = MutableStateFlow(listOf(Ui.State.NodeState(null)))
-    private val currentFolder: StateFlow<Folder?> = path.mapLatest { it.last().folder }
+    private val currentFolder: StateFlow<Folder?> = path.map { it.last().folder }
         .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
     private val selectedTags = MutableStateFlow(emptyList<TagId>())
     private val loadingFolders = MutableStateFlow(true)
@@ -143,10 +143,10 @@ class Library(
                     includeUntagged, ::TracksFilter
                 ).onEach { loadingTracks.value = true }
                     .flatMapLatest { (currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged) ->
-                        when {
-                            currentFolder == null -> flow { emit(emptyList()) }
-                            enableFiltering -> trackRepo.searchFolderWithTags(currentFolder.id, searchQuery, selectedTags, includeUntagged)
-                            else -> trackRepo.searchFolder(currentFolder.id, searchQuery)
+                        if (enableFiltering) {
+                            trackRepo.searchFolderWithTags(currentFolder?.id, searchQuery, selectedTags, includeUntagged)
+                        } else {
+                            trackRepo.searchFolder(currentFolder?.id, searchQuery)
                         }
                     }.mapLatest { dbTracks -> dbTracks.toTrackModels() }
                     .onEach { loadingTracks.value = false }

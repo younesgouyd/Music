@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "b0affd08c276f895a2044ec3a1bb40c5",
+    "identityHash": "d546797ed54bc2329b0489cc44029e88",
     "entities": [
       {
         "tableName": "Client",
@@ -526,7 +526,7 @@
       },
       {
         "tableName": "PlaybackInterval",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uuid` BLOB NOT NULL, `audioFileId` INTEGER NOT NULL, `possibleDuplicateOf` INTEGER, `clientId` INTEGER NOT NULL, `importId` INTEGER NOT NULL, `trackId` INTEGER NOT NULL, `playlistId` INTEGER, `folderId` INTEGER, `albumId` INTEGER, `artistId` INTEGER, `from` INTEGER NOT NULL, `to` INTEGER, `estimatedTo` INTEGER, `websocketPingPeriodMs` INTEGER NOT NULL, `websocketPingTimeoutMs` INTEGER NOT NULL, `startDatetime` INTEGER NOT NULL, `endDatetime` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`audioFileId`) REFERENCES `MediaFile`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`possibleDuplicateOf`) REFERENCES `PlaybackInterval`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`clientId`) REFERENCES `Client`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`importId`) REFERENCES `ImportSessionItem`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`trackId`) REFERENCES `Track`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`playlistId`) REFERENCES `Playlist`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`folderId`) REFERENCES `Folder`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`albumId`) REFERENCES `SpotifyAlbum`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION , FOREIGN KEY(`artistId`) REFERENCES `SpotifyArtist`(`id`) ON UPDATE CASCADE ON DELETE NO ACTION )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uuid` BLOB NOT NULL, `audioFileId` INTEGER NOT NULL, `possibleDuplicateOf` INTEGER, `clientId` INTEGER NOT NULL, `importId` INTEGER NOT NULL, `trackId` INTEGER NOT NULL, `playlistId` INTEGER, `folderId` INTEGER, `albumId` INTEGER, `artistId` INTEGER, `from` INTEGER NOT NULL, `to` INTEGER, `estimatedTo` INTEGER, `websocketPingPeriodMs` INTEGER NOT NULL, `websocketPingTimeoutMs` INTEGER NOT NULL, `startDatetime` INTEGER NOT NULL, `endDatetime` INTEGER NOT NULL, `creationDatetime` INTEGER NOT NULL, `updateDatetime` INTEGER NOT NULL, FOREIGN KEY(`possibleDuplicateOf`) REFERENCES `PlaybackInterval`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`clientId`) REFERENCES `Client`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`importId`) REFERENCES `ImportSessionItem`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "id",
@@ -661,19 +661,8 @@
         ],
         "foreignKeys": [
           {
-            "table": "MediaFile",
-            "onDelete": "NO ACTION",
-            "onUpdate": "CASCADE",
-            "columns": [
-              "audioFileId"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          },
-          {
             "table": "PlaybackInterval",
-            "onDelete": "NO ACTION",
+            "onDelete": "RESTRICT",
             "onUpdate": "CASCADE",
             "columns": [
               "possibleDuplicateOf"
@@ -684,7 +673,7 @@
           },
           {
             "table": "Client",
-            "onDelete": "NO ACTION",
+            "onDelete": "RESTRICT",
             "onUpdate": "CASCADE",
             "columns": [
               "clientId"
@@ -695,65 +684,10 @@
           },
           {
             "table": "ImportSessionItem",
-            "onDelete": "NO ACTION",
+            "onDelete": "RESTRICT",
             "onUpdate": "CASCADE",
             "columns": [
               "importId"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          },
-          {
-            "table": "Track",
-            "onDelete": "NO ACTION",
-            "onUpdate": "CASCADE",
-            "columns": [
-              "trackId"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          },
-          {
-            "table": "Playlist",
-            "onDelete": "NO ACTION",
-            "onUpdate": "CASCADE",
-            "columns": [
-              "playlistId"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          },
-          {
-            "table": "Folder",
-            "onDelete": "NO ACTION",
-            "onUpdate": "CASCADE",
-            "columns": [
-              "folderId"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          },
-          {
-            "table": "SpotifyAlbum",
-            "onDelete": "NO ACTION",
-            "onUpdate": "CASCADE",
-            "columns": [
-              "albumId"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          },
-          {
-            "table": "SpotifyArtist",
-            "onDelete": "NO ACTION",
-            "onUpdate": "CASCADE",
-            "columns": [
-              "artistId"
             ],
             "referencedColumns": [
               "id"
@@ -1785,7 +1719,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b0affd08c276f895a2044ec3a1bb40c5')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd546797ed54bc2329b0489cc44029e88')"
     ]
   }
 }

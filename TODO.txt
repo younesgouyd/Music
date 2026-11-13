@@ -1,4 +1,8 @@
 
+- support multi selection.
+- long click on import artist, album... to copy text.
+- thumbnails that are 1:1 in aspect ratio are imported incorrectly.
+- pagination with buffer limit.
 - create a standard dialog composable.
 - remember clients:
     - save device & system info.

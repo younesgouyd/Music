@@ -19,16 +19,16 @@ abstract class FolderDao {
         }
     }
 
-    @Query("select * from folder where parentFolderId is null and name like '%' || :nameQuery || '%'")
+    @Query("select * from folder where parentFolderId is null and name like '%' || :nameQuery || '%' order by name asc")
     abstract fun searchRootFolder(nameQuery: String): Flow<List<Folder>>
 
-    @Query("select * from folder where parentFolderId = :parentFolderId and name like '%' || :nameQuery || '%'")
+    @Query("select * from folder where parentFolderId = :parentFolderId and name like '%' || :nameQuery || '%' order by name asc")
     abstract fun searchFolder(parentFolderId: FolderId, nameQuery: String): Flow<List<Folder>>
 
-    @Query("select * from folder where parentFolderId = :parentFolderId")
+    @Query("select * from folder where parentFolderId = :parentFolderId order by name asc")
     abstract fun getSubfolders(parentFolderId: FolderId): Flow<List<Folder>>
 
-    @Query("select * from folder where parentFolderId is null")
+    @Query("select * from folder where parentFolderId is null order by name asc")
     abstract fun getRoot(): Flow<List<Folder>>
 
     @Query(

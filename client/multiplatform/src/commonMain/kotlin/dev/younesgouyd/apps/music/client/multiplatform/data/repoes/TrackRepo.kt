@@ -47,7 +47,7 @@ class TrackRepo(
     }
 
     fun searchFolder(
-        folderId: FolderId,
+        folderId: FolderId?,
         nameQuery: String
     ): Flow<List<TrackRelation>> {
         return server.observe(
@@ -59,7 +59,7 @@ class TrackRepo(
     }
 
     fun searchFolderWithTags(
-        folderId: FolderId,
+        folderId: FolderId?,
         nameQuery: String,
         tags: List<TagId>,
         includeUntagged: Boolean
@@ -148,7 +148,7 @@ class TrackRepo(
         )
     }
 
-    suspend fun updateFolderId(id: TrackId, folderId: FolderId) {
+    suspend fun updateFolderId(id: TrackId, folderId: FolderId?) {
         server.call(
             Rpc.ToServer.Track.UpdateFolderId(
                 id = id,

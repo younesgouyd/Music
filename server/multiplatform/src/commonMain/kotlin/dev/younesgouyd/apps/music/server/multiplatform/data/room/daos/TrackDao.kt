@@ -65,6 +65,28 @@ abstract class TrackDao {
     @Query("select * from track where importSessionItemId = :id")
     abstract fun getImportSessionTrack(id: ImportSessionItemId): Flow<TrackRelation?>
 
+    fun searchFolder(folderId: FolderId?, nameQuery: String): Flow<List<TrackRelation>> {
+        return if (folderId == null) {
+            searchRootFolder(nameQuery)
+        } else {
+            searchFolder(folderId, nameQuery)
+        }
+    }
+
+    @Transaction
+    @Query("""
+        select distinct t.*
+        from track t
+        join importsessionitem i on i.id = t.importSessionItemId
+        left join spotifytrack sp on sp.id = t.spotifyTrackId
+        where folderId is null
+        and (
+            (sp.name is not null and sp.name like '%' || :nameQuery || '%')
+            or (sp.name is null and i.title is not null and i.title like '%' || :nameQuery || '%') 
+        )
+    """)
+    abstract fun searchRootFolder(nameQuery: String): Flow<List<TrackRelation>>
+
     @Transaction
     @Query("""
         select distinct t.*
@@ -97,7 +119,7 @@ abstract class TrackDao {
         )
     """)
     abstract fun searchFolder(
-        folderId: FolderId,
+        folderId: FolderId?,
         nameQuery: String,
         tags: List<TagId>,
         includeUntagged: Boolean
@@ -216,5 +238,5 @@ abstract class TrackDao {
 
 
     @Query("update track set folderId = :folderId, updateDatetime = :updateDatetime where id = :id")
-    abstract suspend fun updateFolderId(folderId: FolderId, updateDatetime: Long, id: TrackId)
+    abstract suspend fun updateFolderId(folderId: FolderId?, updateDatetime: Long, id: TrackId)
 }

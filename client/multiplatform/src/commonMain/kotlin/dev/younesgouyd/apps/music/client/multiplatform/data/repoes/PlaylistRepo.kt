@@ -68,7 +68,7 @@ class PlaylistRepo(
         )
     }
 
-    suspend fun updateFolderId(id: PlaylistId, folderId: FolderId) {
+    suspend fun updateFolderId(id: PlaylistId, folderId: FolderId?) {
         server.call(
             Rpc.ToServer.Playlist.UpdateFolderId(
                 id = id,

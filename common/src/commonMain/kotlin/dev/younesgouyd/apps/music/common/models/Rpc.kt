@@ -325,7 +325,7 @@ sealed class Rpc {
             @Serializable
             data class UpdateFolderId(
                 val id: PlaylistId,
-                val folderId: FolderId
+                val folderId: FolderId?
             ) : Playlist(), ResultType.Action
 
             @Serializable
@@ -582,7 +582,7 @@ sealed class Rpc {
 
             @Serializable
             data class SearchFolder(
-                val folderId: FolderId,
+                val folderId: FolderId?,
                 val nameQuery: String
             ) : Track(), ResultType.Data.Dynamic<List<TrackRelationModel>> {
                 @Transient override val serializer: KSerializer<List<TrackRelationModel>> = ListSerializer(TrackRelationModel.serializer())
@@ -590,7 +590,7 @@ sealed class Rpc {
 
             @Serializable
             data class SearchFolderWithTags(
-                val folderId: FolderId,
+                val folderId: FolderId?,
                 val nameQuery: String,
                 val tags: List<TagId>,
                 val includeUntagged: Boolean
@@ -678,7 +678,7 @@ sealed class Rpc {
             @Serializable
             data class UpdateFolderId(
                 val id: TrackId,
-                val folderId: FolderId
+                val folderId: FolderId?
             ) : Track(), ResultType.Action
         }
 

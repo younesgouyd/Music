@@ -48,7 +48,9 @@ class MoveToFolder(
     val moving get() = _moving.asStateFlow()
 
     init {
-        val currentFolder: MutableStateFlow<Folder?> = MutableStateFlow(null)
+        val path = MutableStateFlow(listOf<Folder?>(null))
+        val currentFolder: StateFlow<Folder?> =  path.map { it.last() }
+            .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
         val item = when (itemToMove) {
             is ItemToMove.Track -> trackRepo.get(itemToMove.id).mapLatest { dbTrack ->
                 if (dbTrack == null) return@mapLatest null
@@ -72,34 +74,6 @@ class MoveToFolder(
                 )
             }
         }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
-        val path = run {
-            var list: List<Folder?> = listOf(null)
-            flow {
-                fun <T> List<T>.takeUntil(predicate: (T) -> Boolean): List<T> {
-                    val list = mutableListOf<T>()
-                    for (item in this) {
-                        list.add(item)
-                        if (predicate(item)) {
-                            break
-                        }
-                    }
-                    return list
-                }
-                currentFolder.collect { folder ->
-                    if (folder == null) {
-                        list = listOf(null)
-                        emit(list)
-                    } else {
-                        val temp = list.takeUntil { it?.id == folder.id }.toMutableList()
-                        if (!temp.any { it?.id == folder.id }) {
-                            temp.add(folder)
-                        }
-                        list = temp.toList()
-                        emit(list)
-                    }
-                }
-            }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
-        }
         val folders = currentFolder.flatMapLatest { folderRepo.getSubfolders(it?.id) }
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
         state = item.mapLatest { item ->
@@ -107,19 +81,24 @@ class MoveToFolder(
             Ui.State.Loaded(
                 loading = _moving.asStateFlow(),
                 itemToAdd = item,
-                currentFolder = currentFolder.asStateFlow(),
                 path = path,
                 folders = folders,
-                openFolder = { currentFolder.value = it },
+                openFolder = { folder ->
+                    path.update { list ->
+                        if (folder == null) return@update list.take(1)
+                        val i = list.indexOfFirst { it?.id == folder.id }
+                        if (i >= 0) list.take(i + 1) else list + folder
+                    }
+                },
                 move = {
                     coroutineScope.launch {
-                        this@MoveToFolder._moving.update { true }
+                        _moving.update { true }
                         when (itemToMove) {
-                            is ItemToMove.Track -> trackRepo.updateFolderId(itemToMove.id, currentFolder.value!!.id)
-                            is ItemToMove.Playlist -> playlistRepo.updateFolderId(itemToMove.id, currentFolder.value!!.id)
-                            is ItemToMove.Folder -> folderRepo.updateParentFolderId(itemToMove.id, currentFolder.value!!.id)
+                            is ItemToMove.Track -> trackRepo.updateFolderId(itemToMove.id, currentFolder.value?.id)
+                            is ItemToMove.Playlist -> playlistRepo.updateFolderId(itemToMove.id, currentFolder.value?.id)
+                            is ItemToMove.Folder -> folderRepo.updateParentFolderId(itemToMove.id, currentFolder.value?.id)
                         }
-                        this@MoveToFolder._moving.update { false }
+                        _moving.update { false }
                         dismiss()
                     }
                 }
@@ -156,7 +135,6 @@ class MoveToFolder(
             class Loaded(
                 val loading: StateFlow<Boolean>,
                 val itemToAdd: ItemToAdd,
-                val currentFolder: StateFlow<Folder?>,
                 val path: StateFlow<List<Folder?>>,
                 val folders: StateFlow<List<Folder>>,
                 val openFolder: (Folder?) -> Unit,
@@ -190,17 +168,16 @@ class MoveToFolder(
         ) {
             val loading by loaded.loading.collectAsState()
             val itemToAdd = loaded.itemToAdd
-            val currentFolder by loaded.currentFolder.collectAsState()
             val path by loaded.path.collectAsState()
             val folders by loaded.folders.collectAsState()
             val lazyColumnState = rememberLazyListState()
 
-            if (!loading) {
-                Surface(
-                    modifier = modifier,
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.background
-                ) {
+            Surface(
+                modifier = modifier,
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.background
+            ) {
+                if (!loading) {
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -259,13 +236,17 @@ class MoveToFolder(
                         }
                         Button(
                             content = { Text("Move here") },
-                            enabled = currentFolder != null,
                             onClick = loaded.move
                         )
                     }
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "Please wait...")
+                    }
                 }
-            } else {
-                Text(modifier = modifier, text = "Please wait...")
             }
         }
 
