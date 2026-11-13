@@ -2,9 +2,9 @@ package dev.younesgouyd.apps.music.client.multiplatform.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Remove
@@ -69,7 +69,6 @@ class TagDetails(
             tagRepo.get(id).mapLatest { dbTag ->
                 if (dbTag == null) return@mapLatest Ui.State.ItemDoesNotExist
                 Ui.State.Loaded(
-                    scrollState = LazyListState(),
                     tag = dbTag,
                     searchQuery = searchQuery.asStateFlow(),
                     tracks = tracks,
@@ -103,7 +102,6 @@ class TagDetails(
             data object Loading : State()
 
             data class Loaded(
-                val scrollState: LazyListState,
                 val tag: Tag,
                 val searchQuery: StateFlow<String>,
                 val tracks: StateFlow<List<Track>>,
@@ -147,7 +145,6 @@ class TagDetails(
         ) {
             Main(
                 modifier = modifier,
-                scrollState = loaded.scrollState,
                 tag = loaded.tag,
                 searchQuery = loaded.searchQuery,
                 tracks = loaded.tracks,
@@ -161,7 +158,6 @@ class TagDetails(
         @Composable
         private fun Main(
             modifier: Modifier,
-            scrollState: LazyListState,
             tag: Tag,
             searchQuery: StateFlow<String>,
             tracks: StateFlow<List<State.Loaded.Track>>,
@@ -172,6 +168,7 @@ class TagDetails(
         ) {
             val searchQuery by searchQuery.collectAsState()
             val tracks by tracks.collectAsState()
+            val scrollState = rememberLazyListState()
 
             Scaffold(
                 modifier = modifier.fillMaxSize(),

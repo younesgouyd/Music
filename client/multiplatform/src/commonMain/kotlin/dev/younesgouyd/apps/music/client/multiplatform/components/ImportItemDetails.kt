@@ -158,13 +158,15 @@ class ImportItemDetails(
             onImportSessionClick: (ImportSessionId) -> Unit,
             onTrackClick: (TrackId) -> Unit
         ) {
+            val scrollState = rememberScrollState()
+
             Surface(
                 modifier = modifier,
                 color = MaterialTheme.colorScheme.background,
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize()
-                        .verticalScroll(rememberScrollState()),
+                        .verticalScroll(scrollState),
                     horizontalAlignment = Alignment.Start,
                     verticalArrangement = Arrangement.Top
                 ) {

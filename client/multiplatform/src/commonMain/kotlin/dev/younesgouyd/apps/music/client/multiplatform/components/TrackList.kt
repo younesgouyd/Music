@@ -2,13 +2,13 @@ package dev.younesgouyd.apps.music.client.multiplatform.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.*
@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.*
@@ -71,7 +72,6 @@ class TrackList(
                 initialOffset = Offset.Id.initial<TrackId>()
             )
             state.value = Ui.State.Loaded(
-                scrollState = LazyGridState(),
                 tracks = tracks,
                 tagsFilterState = TagsFilterState(
                     tags = combine(tagSearchQuery, selectedTags, ::Pair)
@@ -117,7 +117,8 @@ class TrackList(
                 onSearchQueryChange = { searchQuery.value = it },
                 onTrackClick = { mediaController.playQueue(listOf(QueueItemParameter.Track(it))) },
                 onArtistClick = showArtist,
-                onTrackDetailsClick = showTrack
+                onTrackDetailsClick = showTrack,
+                onAddTrackToQueue = { mediaController.addToQueue(listOf(QueueItemParameter.Track(it))) }
             )
         }
     }
@@ -191,7 +192,6 @@ class TrackList(
             data object Loading : State()
 
             class Loaded(
-                val scrollState: LazyGridState,
                 val tracks: LazilyLoadedItems<Track, Offset.Id<TrackId>>,
                 val tagsFilterState: TagsFilterState,
                 val searchQuery: StateFlow<String>,
@@ -199,7 +199,8 @@ class TrackList(
                 val onSearchQueryChange: (String) -> Unit,
                 val onTrackClick: (TrackId) -> Unit,
                 val onArtistClick: (SpotifyArtistId) -> Unit,
-                val onTrackDetailsClick: (TrackId) -> Unit
+                val onTrackDetailsClick: (TrackId) -> Unit,
+                val onAddTrackToQueue: (TrackId) -> Unit,
             ) : State() {
                 data class Track(
                     val id: TrackId,
@@ -227,7 +228,6 @@ class TrackList(
         private fun Main(modifier: Modifier, state: State.Loaded) {
             Main(
                 modifier = modifier,
-                scrollState = state.scrollState,
                 tracks = state.tracks,
                 tagsFilterState = state.tagsFilterState,
                 searchQuery = state.searchQuery,
@@ -235,14 +235,14 @@ class TrackList(
                 onSearchQueryChange = state.onSearchQueryChange,
                 onTrackClick = state.onTrackClick,
                 onArtistClick = state.onArtistClick,
-                onTrackDetailsClick = state.onTrackDetailsClick
+                onTrackDetailsClick = state.onTrackDetailsClick,
+                onAddTrackToQueue = state.onAddTrackToQueue
             )
         }
 
         @Composable
         private fun Main(
             modifier: Modifier,
-            scrollState: LazyGridState,
             tracks: LazilyLoadedItems<State.Loaded.Track, Offset.Id<TrackId>>,
             tagsFilterState: TagsFilterState,
             searchQuery: StateFlow<String>,
@@ -250,76 +250,75 @@ class TrackList(
             onSearchQueryChange: (String) -> Unit,
             onTrackClick: (TrackId) -> Unit,
             onArtistClick: (SpotifyArtistId) -> Unit,
-            onTrackDetailsClick: (TrackId) -> Unit
+            onTrackDetailsClick: (TrackId) -> Unit,
+            onAddTrackToQueue: (TrackId) -> Unit,
         ) {
             val items by tracks.items.collectAsState()
             val loadingItems by tracks.loading.collectAsState()
-            val searchQuery by searchQuery.collectAsState()
+            val gridState = rememberLazyGridState()
+            val minColumnWidth: Dp = when (getWindowSizeClass()) {
+                WindowWidthSizeClass.Compact -> 100.dp
+                else -> 200.dp
+            }
 
             Scaffold(
                 modifier = modifier,
                 content = { paddingValues ->
                     Column(
                         modifier = Modifier.fillMaxSize().padding(paddingValues),
-                        horizontalAlignment = Alignment.Start,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalAlignment = Alignment.Start
                     ) {
-                        Spacer(Modifier.size(12.dp))
-                        OutlinedTextField(
+                        ToolBar(
                             modifier = Modifier.fillMaxWidth(),
-                            leadingIcon = { Icon(Icons.Default.Search, null) },
-                            label = { Text("Search") },
-                            value = searchQuery,
-                            onValueChange = onSearchQueryChange
+                            searchQuery = searchQuery,
+                            tagsFilterState = tagsFilterState,
+                            onSearchQueryChange = onSearchQueryChange
                         )
-                        TagsFilter(
-                            modifier = Modifier.fillMaxWidth(),
-                            state = tagsFilterState
-                        )
-                        LazyVerticalGrid(
-                            modifier = Modifier.fillMaxSize().padding(16.dp),
-                            state = scrollState,
-                            contentPadding = PaddingValues(vertical = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(18.dp),
-                            columns = GridCells.Adaptive(
-                                minSize = when (getWindowSizeClass()) {
-                                    WindowWidthSizeClass.Compact -> { 100.dp }
-                                    else -> { 200.dp }
-                                }
-                            )
-                        ) {
-                            items(items) { track ->
-                                TrackItem(
-                                    track = track,
-                                    onClick = { onTrackClick(track.id) },
-                                    onArtistClick = onArtistClick,
-                                    onDetailsClick = { onTrackDetailsClick(track.id) }
-                                )
+                        if (loadingItems) {
+                            Box(modifier = Modifier.fillMaxWidth().padding(10.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(modifier = Modifier.size(50.dp), strokeWidth = 2.dp)
                             }
-                            if (loadingItems) {
-                                item(span = { GridItemSpan(maxLineSpan) }) {
-                                    Box(modifier = Modifier.fillMaxWidth().padding(10.dp), contentAlignment = Alignment.Center) {
-                                        CircularProgressIndicator(modifier = Modifier.size(50.dp), strokeWidth = 2.dp)
-                                    }
+                        } else {
+                            LazyVerticalGrid(
+                                modifier = Modifier.fillMaxSize(),
+                                state = gridState,
+                                contentPadding = PaddingValues(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                columns = GridCells.Adaptive(minColumnWidth)
+                            ) {
+                                items(items) { track ->
+                                    TrackItem(
+                                        modifier = Modifier.aspectRatio(0.65f),
+                                        track = track,
+                                        onClick = { onTrackClick(track.id) },
+                                        onArtistClick = onArtistClick,
+                                        onDetailsClick = { onTrackDetailsClick(track.id) },
+                                        onAddToQueueClick = { onAddTrackToQueue(track.id) }
+                                    )
                                 }
                             }
                         }
                     }
                 },
                 floatingActionButton = {
-                    if (items.isNotEmpty()) {
-                        LargeFloatingActionButton(
-                            content = { Icon(Icons.Default.PlayCircle, null) },
-                            onClick = onPlayClick
-                        )
-                    }
+                    ScrollToTopFloatingActionButton(
+                        state = gridState,
+                        placeholder = {
+                            if (items.isNotEmpty()) {
+                                FloatingActionButton(
+                                    content = { Icon(Icons.Default.PlayCircle, null) },
+                                    onClick = onPlayClick
+                                )
+                            }
+                        }
+                    )
                 }
             )
 
-            LaunchedEffect(scrollState, tracks) {
+            LaunchedEffect(gridState, tracks) {
                 snapshotFlow {
-                    scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                    gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
                 }.map { it == null ||  it >= items.size - 5  }
                     .distinctUntilChanged()
                     .filter { it }
@@ -328,69 +327,174 @@ class TrackList(
         }
 
         @Composable
+        private fun ToolBar(
+            modifier: Modifier,
+            searchQuery: StateFlow<String>,
+            tagsFilterState: TagsFilterState,
+            onSearchQueryChange: (String) -> Unit
+        ) {
+            val searchQuery by searchQuery.collectAsState()
+
+            Column(
+                modifier = modifier,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Default.Search, null) },
+                    label = { Text("Search") },
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChange
+                )
+                TagsFilter(
+                    modifier = Modifier.fillMaxWidth(),
+                    state = tagsFilterState
+                )
+            }
+        }
+
+        @Composable
         private fun TrackItem(
+            modifier: Modifier,
             track: State.Loaded.Track,
             onClick: () -> Unit,
             onArtistClick: (SpotifyArtistId) -> Unit,
-            onDetailsClick: () -> Unit
+            onDetailsClick: () -> Unit,
+            onAddToQueueClick: () -> Unit
         ) {
-            Item(onClick = onClick) {
+            var showContextMenu by remember { mutableStateOf(false) }
+
+            Item(
+                modifier = modifier,
+                onClick = onClick,
+                onLongClick = { showContextMenu = true }
+            ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
                     Image(
-                        modifier = Modifier.aspectRatio(1f),
+                        modifier = Modifier.fillMaxWidth().aspectRatio(1f),
                         id = track.image,
-                        contentScale = ContentScale.FillWidth,
-                        alignment = Alignment.TopCenter
+                        contentScale = ContentScale.Fit,
+                        alignment = Alignment.Center
                     )
-                    Text(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
-                        text = track.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        textAlign = TextAlign.Center,
-                        minLines = 2,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Box(
+                        modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 2.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        LazyRow(
-                            modifier = Modifier.weight(1f),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            items(track.artists) { artist ->
-                                TextButton(
-                                    content = {
-                                        Row(
-                                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(Icons.Default.Person, null)
-                                            Text(
-                                                text = artist.name,
-                                                style = MaterialTheme.typography.labelMedium,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    },
-                                    onClick = { onArtistClick(artist.id!!) },
-                                    enabled = artist.id != null
-                                )
-                            }
-                        }
-                        IconButton(
-                            content = { Icon(Icons.Default.Info, null) },
-                            onClick = onDetailsClick
+                        Text(
+                            text = track.name,
+                            style = MaterialTheme.typography.titleSmall,
+                            textAlign = TextAlign.Center,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
+                    AdaptiveUi(
+                        wide = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                LazyRow(
+                                    modifier = Modifier.weight(1f),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    items(track.artists) { artist ->
+                                        TextButton(
+                                            content = {
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(Icons.Default.Person, null)
+                                                    Text(
+                                                        text = artist.name,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            },
+                                            enabled = artist.id != null,
+                                            onClick = { onArtistClick(artist.id!!) }
+                                        )
+                                    }
+                                }
+                                IconButton(
+                                    content = { Icon(Icons.Default.Info, null) },
+                                    onClick = onDetailsClick
+                                )
+                            }
+                        },
+                        compact = {
+                            LazyRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                items(track.artists) { artist ->
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(
+                                            text = artist.name,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    )
                 }
+            }
+
+            if (showContextMenu) {
+                ItemContextMenu(
+                    item = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Image(
+                                modifier = Modifier.size(64.dp),
+                                id = track.image
+                            )
+                            Text(
+                                text = track.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    },
+                    options = {
+                        Option(
+                            label = "Details",
+                            icon = Icons.Default.Info,
+                            onClick = onDetailsClick,
+                        )
+                        Option(
+                            label = "Add to queue",
+                            icon = Icons.Default.AddToQueue,
+                            onClick = { onAddToQueueClick(); showContextMenu = false }
+                        )
+//                            Option(
+//                                label = "Play next",
+//                                icon = Icons.Default.QueuePlayNext,
+//                                onClick = { TODO() },
+//                            )
+                    },
+                    onDismiss = { showContextMenu = false }
+                )
             }
         }
     }

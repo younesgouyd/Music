@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -230,7 +231,7 @@ class Player(
                 val enabled by enabled.collectAsState()
                 val isPlaying by isPlaying.collectAsState()
                 val repeatState by repeatState.collectAsState()
-                val formattedDuration = remember(track?.durationMs) { track?.durationMs?.milliseconds.formatted() }
+                val formattedDuration = rememberSaveable(track?.durationMs) { track?.durationMs?.milliseconds.formatted() }
                 val positionMs by positionMs.collectAsState()
 
                 Column(

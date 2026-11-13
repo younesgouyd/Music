@@ -8,6 +8,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -18,11 +19,9 @@ import dev.younesgouyd.apps.music.client.multiplatform.usecases.*
 import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.models.datamodels.ImportSessionItem
 import dev.younesgouyd.apps.music.common.ui.Component
+import dev.younesgouyd.apps.music.common.ui.ComponentId
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Stack
 
@@ -52,9 +51,17 @@ class NavigationHost(
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun show(modifier: Modifier) {
+        val navController by rememberUpdatedState(navController)
         val currentDestination by navController.currentDestination.collectAsState()
         val inHome by navController.inHome.collectAsState()
         val coroutineScope = rememberCoroutineScope()
+        val stateHolder = rememberSaveableStateHolder()
+
+        LaunchedEffect(Unit) {
+            navController.removed.collect {
+                stateHolder.removeState(it)
+            }
+        }
 
         DisposableEffect(Unit) {
             Application.registerBackHandler {
@@ -94,7 +101,9 @@ class NavigationHost(
                 )
             },
             content = { paddingValues ->
-                currentDestination.show(Modifier.padding(paddingValues))
+                stateHolder.SaveableStateProvider(currentDestination.id) {
+                    currentDestination.show(Modifier.padding(paddingValues))
+                }
             }
         )
     }
@@ -150,6 +159,8 @@ class NavigationHost(
     ) {
         val inHome: StateFlow<Boolean>
         val currentDestination: StateFlow<Component>
+        val removed: SharedFlow<ComponentId>
+            field = MutableSharedFlow<ComponentId>(extraBufferCapacity = 100)
 
         private val destinationFactory: DestinationFactory = DestinationFactory()
         private val backStack: BackStack
@@ -165,13 +176,17 @@ class NavigationHost(
         }
 
         fun replaceCurrentWith(destination: Destination) {
-            backStack.top().clear()
+            val old = backStack.top()
             backStack.replace(destinationFactory.get(destination))
+            old.clear()
+            removed.tryEmit(old.id)
         }
 
         fun navigateBack() {
-            backStack.top().clear()
+            val old = backStack.top()
             backStack.pop()
+            old.clear()
+            removed.tryEmit(old.id)
         }
 
         fun dispose() {

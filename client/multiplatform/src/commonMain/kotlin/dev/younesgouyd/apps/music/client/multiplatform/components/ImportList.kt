@@ -2,8 +2,8 @@ package dev.younesgouyd.apps.music.client.multiplatform.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -41,7 +41,6 @@ class ImportList(
             },
             initialOffset = Offset.Index.initial()
         ),
-        scrollState = LazyListState(),
         onItemClick = showImportDetails
     )
 
@@ -57,7 +56,6 @@ class ImportList(
     private object Ui {
         class State(
             val imports: LazilyLoadedItems<ImportSession, Offset.Index>,
-            val scrollState: LazyListState,
             val onItemClick: (ImportSessionId) -> Unit
         )
 
@@ -66,7 +64,6 @@ class ImportList(
             Main(
                 modifier = modifier,
                 imports = state.imports,
-                scrollState = state.scrollState,
                 onItemClick = state.onItemClick
             )
         }
@@ -75,11 +72,11 @@ class ImportList(
         private fun Main(
             modifier: Modifier,
             imports: LazilyLoadedItems<ImportSession, Offset.Index>,
-            scrollState: LazyListState,
             onItemClick: (ImportSessionId) -> Unit
         ) {
             val items by imports.items.collectAsState()
             val loadingItems by imports.loading.collectAsState()
+            val scrollState = rememberLazyListState()
 
             Surface(
                 modifier = modifier

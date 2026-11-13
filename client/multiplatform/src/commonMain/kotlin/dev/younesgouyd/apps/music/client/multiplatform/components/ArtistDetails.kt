@@ -46,37 +46,17 @@ class ArtistDetails(
     val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
     private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
 
-    private class Loader(
-        private val artistId: SpotifyArtistId,
-        private val query: String,
-        private val trackRepo: TrackRepo
-    ) : LazilyLoadedItems.Loader<Ui.State.Loaded.Track, Offset.Id<TrackId>> {
-        override suspend fun load(
-            offset: Offset.Id<TrackId>,
-            pageSize: PageSize
-        ): LazilyLoadedItems.Page<Ui.State.Loaded.Track, Offset.Id<TrackId>> {
-            val rows = trackRepo.searchArtistContributions(artistId, query, pageSize, offset)
-            return LazilyLoadedItems.Page(
-                nextOffset = rows.lastOrNull()?.track?.id?.let {
-                    Offset.Id(it)
-                },
-                items = rows.map { dbTrack ->
-                    Ui.State.Loaded.Track(
-                        id = dbTrack.track.id,
-                        name = dbTrack.spotifyTrackRelation!!.spotifyAlbum.name,
-                        image = dbTrack.spotifyTrackRelation!!.spotifyAlbum.mediumImgId ?: dbTrack.originalImport.imgId,
-                        artists = dbTrack.spotifyTrackRelation!!.spotifyArtists.map { Pair(it.id, it.name) }
-                    )
-                }
-            )
-        }
-
-    }
-
     init {
         coroutineScope.launch {
             val searchQuery = MutableStateFlow("")
             val selectedTab = MutableStateFlow(Pair(0, Ui.State.Loaded.Tab.entries.first()))
+            val tracks = LazilyLoadedItems<Ui.State.Loaded.Track, Offset.Id<TrackId>>(
+                scope = coroutineScope,
+                loader = searchQuery.debounce(2.seconds)
+                    .mapLatest { Loader(id, it, trackRepo) }
+                    .stateIn(coroutineScope),
+                initialOffset = Offset.Id.initial<TrackId>()
+            )
             val albums = searchQuery.flatMapLatest { search ->
                 albumRepo.searchArtist(id, search).map { dbList ->
                     dbList.map { dbAlbum ->
@@ -91,20 +71,12 @@ class ArtistDetails(
                     }
                 }
             }.stateIn(coroutineScope)
-            val tracks = LazilyLoadedItems<Ui.State.Loaded.Track, Offset.Id<TrackId>>(
-                scope = coroutineScope,
-                loader = searchQuery.debounce(2.seconds)
-                    .mapLatest { Loader(id, it, trackRepo) }
-                    .stateIn(coroutineScope),
-                initialOffset = Offset.Id.initial<TrackId>()
-            )
             artistRepo.get(id).collect { dbArtist ->
                 if (dbArtist == null) {
                     state.value = Ui.State.ItemDoesNotExist
                     return@collect
                 }
                 state.value = Ui.State.Loaded(
-                    scrollState = LazyGridState(),
                     selectedTab = selectedTab.asStateFlow(),
                     artist = Ui.State.Loaded.Artist(
                         id = dbArtist.id,
@@ -201,12 +173,37 @@ class ArtistDetails(
         addToPlaylist.update { it?.clear(); null }
     }
 
+    private class Loader(
+        private val artistId: SpotifyArtistId,
+        private val query: String,
+        private val trackRepo: TrackRepo
+    ) : LazilyLoadedItems.Loader<Ui.State.Loaded.Track, Offset.Id<TrackId>> {
+        override suspend fun load(
+            offset: Offset.Id<TrackId>,
+            pageSize: PageSize
+        ): LazilyLoadedItems.Page<Ui.State.Loaded.Track, Offset.Id<TrackId>> {
+            val rows = trackRepo.searchArtistContributions(artistId, query, pageSize, offset)
+            return LazilyLoadedItems.Page(
+                nextOffset = rows.lastOrNull()?.track?.id?.let {
+                    Offset.Id(it)
+                },
+                items = rows.map { dbTrack ->
+                    Ui.State.Loaded.Track(
+                        id = dbTrack.track.id,
+                        name = dbTrack.spotifyTrackRelation!!.spotifyAlbum.name,
+                        image = dbTrack.spotifyTrackRelation!!.spotifyAlbum.mediumImgId ?: dbTrack.originalImport.imgId,
+                        artists = dbTrack.spotifyTrackRelation!!.spotifyArtists.map { Pair(it.id, it.name) }
+                    )
+                }
+            )
+        }
+    }
+
     private object Ui {
         sealed class State {
             data object Loading : State()
 
             class Loaded(
-                val scrollState: LazyGridState,
                 val selectedTab: StateFlow<Pair<Int, Tab>>,
                 val artist: Artist,
                 val albums: StateFlow<List<Album>>,
@@ -272,7 +269,6 @@ class ArtistDetails(
 
                 Main(
                     modifier = modifier,
-                    scrollState = state.scrollState,
                     selectedTab = state.selectedTab,
                     artist = state.artist,
                     albums = state.albums,
@@ -303,7 +299,6 @@ class ArtistDetails(
             @Composable
             private fun Main(
                 modifier: Modifier,
-                scrollState: LazyGridState,
                 selectedTab: StateFlow<Pair<Int, State.Loaded.Tab>>,
                 artist: State.Loaded.Artist,
                 albums: StateFlow<List<State.Loaded.Album>>,
@@ -328,6 +323,7 @@ class ArtistDetails(
                 val loadingTracks by tracks.loading.collectAsState()
                 val searchQuery by searchQuery.collectAsState()
                 val selectedTab by selectedTab.collectAsState()
+                val scrollState = rememberLazyGridState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -624,7 +620,6 @@ class ArtistDetails(
 
                 Main(
                     modifier = modifier,
-                    scrollState = state.scrollState,
                     selectedTab = state.selectedTab,
                     artist = state.artist,
                     albums = state.albums,
@@ -654,7 +649,6 @@ class ArtistDetails(
             @Composable
             private fun Main(
                 modifier: Modifier,
-                scrollState: LazyGridState,
                 selectedTab: StateFlow<Pair<Int, State.Loaded.Tab>>,
                 artist: State.Loaded.Artist,
                 albums: StateFlow<List<State.Loaded.Album>>,
@@ -678,6 +672,7 @@ class ArtistDetails(
                 val loadingTracks by tracks.loading.collectAsState()
                 val searchQuery by searchQuery.collectAsState()
                 val selectedTab by selectedTab.collectAsState()
+                val scrollState = rememberLazyGridState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),

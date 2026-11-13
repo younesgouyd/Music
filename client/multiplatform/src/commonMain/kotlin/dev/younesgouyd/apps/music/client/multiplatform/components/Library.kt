@@ -3,7 +3,10 @@ package dev.younesgouyd.apps.music.client.multiplatform.components
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
@@ -13,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,6 +24,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.multiplatform.Application
@@ -57,7 +62,9 @@ class Library(
     showTrack: (TrackId) -> Unit
 ) : Component() {
     override val title: String = "Library"
-    private val currentFolder: MutableStateFlow<Folder?> = MutableStateFlow(null)
+    private val path = MutableStateFlow(listOf(Ui.State.NodeState(null)))
+    private val currentFolder: StateFlow<Folder?> = path.mapLatest { it.last().folder }
+        .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
     private val selectedTags = MutableStateFlow(emptyList<TagId>())
     private val loadingFolders = MutableStateFlow(true)
     private val loadingPlaylists = MutableStateFlow(true)
@@ -71,7 +78,6 @@ class Library(
     private val tagSearchQuery = MutableStateFlow("")
     private val enableFiltering = MutableStateFlow(false)
     private val includeUntagged = MutableStateFlow(false)
-    private val path: StateFlow<List<Ui.State.NodeState>>
     private val uiState: Ui.State
 
     private data class TracksFilter(
@@ -81,40 +87,10 @@ class Library(
         val enableFiltering: Boolean,
         val includeUntagged: Boolean
     )
+
     init {
-        val root = Ui.State.NodeState(null, LazyGridState())
-        path = run {
-            var list: List<Ui.State.NodeState> = listOf(root)
-            flow {
-                fun <T> List<T>.takeUntil(predicate: (T) -> Boolean): List<T> {
-                    val list = mutableListOf<T>()
-                    for (item in this) {
-                        list.add(item)
-                        if (predicate(item)) {
-                            break
-                        }
-                    }
-                    return list
-                }
-                currentFolder.collect { folder ->
-                    if (folder == null) {
-                        list = listOf(root)
-                        emit(list)
-                    } else {
-                        val temp = list.takeUntil { it.folder?.id == folder.id }.toMutableList()
-                        if (!temp.any { it.folder?.id == folder.id }) {
-                            temp.add(Ui.State.NodeState(folder, LazyGridState()))
-                        }
-                        list = temp
-                        emit(list)
-                    }
-                }
-            }.stateIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), initialValue = list)
-        }
         uiState = Ui.State(
             path = path,
-            loadingItems = combine(loadingFolders, loadingPlaylists, loadingTracks) { l1, l2, l3 -> l1 || l2 || l3 }
-                .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), true),
             searchQuery = searchQuery.asStateFlow(),
             tagsFilterState = TagsFilterState(
                 tags = combine(tagSearchQuery, selectedTags, ::Pair)
@@ -149,169 +125,199 @@ class Library(
                     }
                 }
             ),
-            folders = combine(currentFolder, searchQuery, ::Pair)
-                .onEach { loadingFolders.value = true }
-                .flatMapLatest { (folder, search) -> folderRepo.searchFolder(folder?.id, search) }
-                .onEach { loadingFolders.value = false }
-                .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
-            playlists = combine(currentFolder, searchQuery, ::Pair)
-                .onEach { loadingPlaylists.value = true }
-                .flatMapLatest { (folder, search) -> playlistRepo.searchFolder(folder?.id, search) }
-                .map { dbPlaylists -> dbPlaylists.toPlaylistModels() }
-                .onEach { loadingPlaylists.value = false }
-                .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
-            tracks = combine(
-                currentFolder, searchQuery,
-                selectedTags, enableFiltering,
-                includeUntagged
-            ) { currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged ->
-                TracksFilter(currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged)
-            }.onEach { loadingTracks.value = true }
-                .flatMapLatest { (currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged) ->
-                    when {
-                        currentFolder == null -> flow { emit(emptyList<TrackRelation>()) }
-                        enableFiltering -> trackRepo.searchFolderWithTags(currentFolder.id, searchQuery, selectedTags, includeUntagged)
-                        else -> trackRepo.searchFolder(currentFolder.id, searchQuery)
+            content = run {
+                val folders = combine(currentFolder, searchQuery, ::Pair)
+                    .onEach { loadingFolders.value = true }
+                    .flatMapLatest { (folder, search) -> folderRepo.searchFolder(folder?.id, search) }
+                    .onEach { loadingFolders.value = false }
+                    .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
+                val playlists: StateFlow<List<Ui.State.Content.Loaded.Playlist>> = combine(currentFolder, searchQuery, ::Pair)
+                    .onEach { loadingPlaylists.value = true }
+                    .flatMapLatest { (folder, search) -> playlistRepo.searchFolder(folder?.id, search) }
+                    .map { dbPlaylists -> dbPlaylists.toPlaylistModels() }
+                    .onEach { loadingPlaylists.value = false }
+                    .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
+                val tracks: StateFlow<List<Ui.State.Content.Loaded.Track>> = combine(
+                    currentFolder, searchQuery,
+                    selectedTags, enableFiltering,
+                    includeUntagged, ::TracksFilter
+                ).onEach { loadingTracks.value = true }
+                    .flatMapLatest { (currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged) ->
+                        when {
+                            currentFolder == null -> flow { emit(emptyList()) }
+                            enableFiltering -> trackRepo.searchFolderWithTags(currentFolder.id, searchQuery, selectedTags, includeUntagged)
+                            else -> trackRepo.searchFolder(currentFolder.id, searchQuery)
+                        }
+                    }.mapLatest { dbTracks -> dbTracks.toTrackModels() }
+                    .onEach { loadingTracks.value = false }
+                    .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
+                val loadingItems = combine(loadingFolders, loadingPlaylists, loadingTracks) { l1, l2, l3 -> l1 || l2 || l3 }
+                combine(
+                    loadingItems, currentFolder.map { it?.id }, folders, playlists, tracks
+                ) { loadingItems, currentFolder, folders, playlists, tracks ->
+                    if (loadingItems) {
+                        Ui.State.Content.Loading
+                    } else {
+                        Ui.State.Content.Loaded(
+                            folderId = currentFolder,
+                            folders = folders,
+                            playlists = playlists,
+                            tracks = tracks
+                        )
                     }
-                }.mapLatest { dbTracks -> dbTracks.toTrackModels() }
-                .onEach { loadingTracks.value = false }
-                .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
-            onNewFolder = ::addFolder,
-            onFolderClick = { currentFolder.value = it },
-            onSearchQueryChange = { value: String -> searchQuery.value = value },
-            onAddFolderToPlaylistClick = { folderId: FolderId ->
-                addToPlaylist.update {
-                    if (it != null) TODO()
-                    AddToPlaylist(
-                        itemToAdd = AddToPlaylist.Item.Folder(folderId),
-                        playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                        trackRepo = trackRepo,
-                        folderRepo = folderRepo,
-                        artistRepo = artistRepo,
-                        dismiss = ::dismissAddToPlaylistDialog,
-                        playlistRepo = playlistRepo,
-                        albumRepo = albumRepo
+                }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Content.Loading)
+            },
+            actions = Ui.State.Actions(
+                onImportClick = { showImportFlow(path.value.last().folder!!.id) },
+                onNewFolder = {
+                    coroutineScope.launch {
+                        folderRepo.add(name = it, parentFolderId = currentFolder.value?.id)
+                    }
+                },
+                onFolderClick = ::openFolder,
+                onSearchQueryChange = { value: String -> searchQuery.value = value },
+                onAddFolderToPlaylistClick = { folderId: FolderId ->
+                    addToPlaylist.update {
+                        if (it != null) TODO()
+                        AddToPlaylist(
+                            itemToAdd = AddToPlaylist.Item.Folder(folderId),
+                            playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                            trackRepo = trackRepo,
+                            folderRepo = folderRepo,
+                            artistRepo = artistRepo,
+                            dismiss = ::dismissAddToPlaylistDialog,
+                            playlistRepo = playlistRepo,
+                            albumRepo = albumRepo
+                        )
+                    }
+                    addToPlaylistDialogVisible.value = true
+                },
+                onAddFolderToQueueClick = { id: FolderId ->
+                    mediaController.addToQueue(
+                        listOf(QueueItemParameter.Folder(id))
                     )
-                }
-                addToPlaylistDialogVisible.value = true
-            },
-            onAddFolderToQueueClick = { id: FolderId ->
-                mediaController.addToQueue(
-                    listOf(QueueItemParameter.Folder(id))
-                )
-            },
-            onPlayFolder = { id: FolderId ->
-                mediaController.playQueue(
-                    listOf(QueueItemParameter.Folder(id))
-                )
-            },
-            onPlaylistClick = showPlaylist,
-            onPlayPlaylistClick = { id: PlaylistId ->
-                mediaController.playQueue(
-                    listOf(QueueItemParameter.Playlist(id))
-                )
-            },
-            onAddPlaylistToPlaylistClick = { playlistId: PlaylistId ->
-                addToPlaylist.update {
-                    AddToPlaylist(
-                        itemToAdd = AddToPlaylist.Item.Playlist(playlistId),
-                        playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                        trackRepo = trackRepo,
-                        folderRepo = folderRepo,
-                        artistRepo = artistRepo,
-                        dismiss = ::dismissAddToPlaylistDialog,
-                        playlistRepo = playlistRepo,
-                        albumRepo = albumRepo
+                },
+                onPlayFolder = { id: FolderId ->
+                    mediaController.playQueue(
+                        listOf(QueueItemParameter.Folder(id))
                     )
-                }
-                addToPlaylistDialogVisible.value = true
-            },
-            onMoveFolderToFolder = { id: FolderId ->
-                moveToFolder.update {
-                    MoveToFolder(
-                        itemToMove = MoveToFolder.ItemToMove.Folder(id),
-                        folderRepo = folderRepo,
-                        trackRepo = trackRepo,
-                        playlistRepo = playlistRepo,
-                        dismiss = ::dismissMoveToFolderDialog
+                },
+                onPlaylistClick = showPlaylist,
+                onPlayPlaylistClick = { id: PlaylistId ->
+                    mediaController.playQueue(
+                        listOf(QueueItemParameter.Playlist(id))
                     )
-                }
-                moveToFolderDialogVisible.value = true
-            },
-            onMoveTrackToFolder = { id: TrackId ->
-                moveToFolder.update {
-                    MoveToFolder(
-                        itemToMove = MoveToFolder.ItemToMove.Track(id),
-                        folderRepo = folderRepo,
-                        trackRepo = trackRepo,
-                        playlistRepo = playlistRepo,
-                        dismiss = ::dismissMoveToFolderDialog
+                },
+                onAddPlaylistToPlaylistClick = { playlistId: PlaylistId ->
+                    addToPlaylist.update {
+                        AddToPlaylist(
+                            itemToAdd = AddToPlaylist.Item.Playlist(playlistId),
+                            playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                            trackRepo = trackRepo,
+                            folderRepo = folderRepo,
+                            artistRepo = artistRepo,
+                            dismiss = ::dismissAddToPlaylistDialog,
+                            playlistRepo = playlistRepo,
+                            albumRepo = albumRepo
+                        )
+                    }
+                    addToPlaylistDialogVisible.value = true
+                },
+                onMoveFolderToFolder = { id: FolderId ->
+                    moveToFolder.update {
+                        MoveToFolder(
+                            itemToMove = MoveToFolder.ItemToMove.Folder(id),
+                            folderRepo = folderRepo,
+                            trackRepo = trackRepo,
+                            playlistRepo = playlistRepo,
+                            dismiss = ::dismissMoveToFolderDialog
+                        )
+                    }
+                    moveToFolderDialogVisible.value = true
+                },
+                onMoveTrackToFolder = { id: TrackId ->
+                    moveToFolder.update {
+                        MoveToFolder(
+                            itemToMove = MoveToFolder.ItemToMove.Track(id),
+                            folderRepo = folderRepo,
+                            trackRepo = trackRepo,
+                            playlistRepo = playlistRepo,
+                            dismiss = ::dismissMoveToFolderDialog
+                        )
+                    }
+                    moveToFolderDialogVisible.value = true
+                },
+                onMovePlaylistToFolder = { id: PlaylistId ->
+                    moveToFolder.update {
+                        MoveToFolder(
+                            itemToMove = MoveToFolder.ItemToMove.Playlist(id),
+                            folderRepo = folderRepo,
+                            trackRepo = trackRepo,
+                            playlistRepo = playlistRepo,
+                            dismiss = ::dismissMoveToFolderDialog
+                        )
+                    }
+                    moveToFolderDialogVisible.value = true
+                },
+                onAddPlaylistToQueueClick = { id: PlaylistId ->
+                    mediaController.addToQueue(
+                        listOf(QueueItemParameter.Playlist(id))
                     )
-                }
-                moveToFolderDialogVisible.value = true
-            },
-            onMovePlaylistToFolder = { id: PlaylistId ->
-                moveToFolder.update {
-                    MoveToFolder(
-                        itemToMove = MoveToFolder.ItemToMove.Playlist(id),
-                        folderRepo = folderRepo,
-                        trackRepo = trackRepo,
-                        playlistRepo = playlistRepo,
-                        dismiss = ::dismissMoveToFolderDialog
-                    )
-                }
-                moveToFolderDialogVisible.value = true
-            },
-            onAddPlaylistToQueueClick = { id: PlaylistId ->
-                mediaController.addToQueue(
-                    listOf(QueueItemParameter.Playlist(id))
-                )
-            },
-            onTrackClick = showTrack,
-            onAddTrackToPlaylistClick = { trackId: TrackId ->
-                addToPlaylist.update {
-                    AddToPlaylist(
-                        itemToAdd = AddToPlaylist.Item.Track(trackId),
-                        playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                        trackRepo = trackRepo,
-                        folderRepo = folderRepo,
-                        artistRepo = artistRepo,
-                        dismiss = ::dismissAddToPlaylistDialog,
-                        playlistRepo = playlistRepo,
-                        albumRepo = albumRepo
-                    )
-                }
-                addToPlaylistDialogVisible.value = true
-            },
-            onArtistClick = showArtistDetails,
-            onRenameFolder = { id: FolderId, name: String ->
-                coroutineScope.launch {
-                    folderRepo.updateName(
-                        id = id,
-                        name = name
-                    )
-                }
-            },
-            onRenamePlaylist = { id: PlaylistId, name: String ->
-                coroutineScope.launch {
-                    playlistRepo.updateName(
-                        id = id,
-                        name = name
-                    )
-                }
-            },
-            onDeleteFolder = { folderId ->
-                coroutineScope.launch {
-                    deletingFolder.value = true
-                    deleteFolderUseCase.execute(folderId)
-                    deletingFolder.value = false
-                }
-            },
-            onDeletePlaylist = { coroutineScope.launch { playlistRepo.delete(it) } },
-            onDeleteTrack = { coroutineScope.launch { clearImportItemUseCase.execute(it) } },
-            onAddTrackToQueue = { mediaController.addToQueue(listOf(QueueItemParameter.Track(it))) },
-            onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
+                },
+                onTrackClick = showTrack,
+                onAddTrackToPlaylistClick = { trackId: TrackId ->
+                    addToPlaylist.update {
+                        AddToPlaylist(
+                            itemToAdd = AddToPlaylist.Item.Track(trackId),
+                            playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
+                            trackRepo = trackRepo,
+                            folderRepo = folderRepo,
+                            artistRepo = artistRepo,
+                            dismiss = ::dismissAddToPlaylistDialog,
+                            playlistRepo = playlistRepo,
+                            albumRepo = albumRepo
+                        )
+                    }
+                    addToPlaylistDialogVisible.value = true
+                },
+                onArtistClick = showArtistDetails,
+                onRenameFolder = { id: FolderId, name: String ->
+                    coroutineScope.launch {
+                        folderRepo.updateName(
+                            id = id,
+                            name = name
+                        )
+                    }
+                },
+                onRenamePlaylist = { id: PlaylistId, name: String ->
+                    coroutineScope.launch {
+                        playlistRepo.updateName(
+                            id = id,
+                            name = name
+                        )
+                    }
+                },
+                onDeleteFolder = { folderId ->
+                    coroutineScope.launch {
+                        deletingFolder.value = true
+                        deleteFolderUseCase.execute(folderId)
+                        deletingFolder.value = false
+                    }
+                },
+                onDeletePlaylist = { coroutineScope.launch { playlistRepo.delete(it) } },
+                onDeleteTrack = { coroutineScope.launch { clearImportItemUseCase.execute(it) } },
+                onAddTrackToQueue = { mediaController.addToQueue(listOf(QueueItemParameter.Track(it))) },
+                onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog
+            )
         )
+    }
+
+    private fun openFolder(folder: Folder?) {
+        path.update { list ->
+            if (folder == null) return@update list.take(1)
+            val i = list.indexOfFirst { it.folder?.id == folder.id }
+            if (i >= 0) list.take(i + 1) else list + Ui.State.NodeState(folder)
+        }
     }
 
     @Composable
@@ -319,14 +325,14 @@ class Library(
         val addToPlaylistDialogVisible by addToPlaylistDialogVisible.collectAsState()
         val moveToFolderDialogVisible by moveToFolderDialogVisible.collectAsState()
         val deletingFolder by deletingFolder.collectAsState()
-        val addToPlaylist by addToPlaylist.collectAsState()
-        val moveToFolder by moveToFolder.collectAsState()
-        val path by path.collectAsState()
+        val addToPlaylist: Component? by addToPlaylist.collectAsState()
+        val moveToFolder : Component? by moveToFolder.collectAsState()
 
         DisposableEffect(Unit) {
             Application.registerBackHandler {
+                val path = path.value
                 if (path.size > 1) {
-                    currentFolder.value = path.getOrNull(path.size - 2)?.folder
+                    openFolder(path[path.size - 2].folder)
                 }
             }
             onDispose {
@@ -338,15 +344,13 @@ class Library(
             wide = {
                 Ui.Wide.Main(
                     modifier = modifier,
-                    state = uiState,
-                    onImportClick = { showImportFlow(currentFolder.value!!.id) }
+                    state = uiState
                 )
             },
             compact = {
                 Ui.Compact.Main(
                     modifier = modifier,
-                    state = uiState,
-                    onImportClick = { showImportFlow(currentFolder.value!!.id) }
+                    state = uiState
                 )
             }
         )
@@ -383,27 +387,27 @@ class Library(
         coroutineScope.cancel()
     }
 
-    private fun List<TrackRelation>.toTrackModels(): List<Ui.State.Track> {
+    private fun List<TrackRelation>.toTrackModels(): List<Ui.State.Content.Loaded.Track> {
         return this.map { dbTrack ->
-            Ui.State.Track(
+            Ui.State.Content.Loaded.Track(
                 id = dbTrack.track.id,
                 importSessionItemId = dbTrack.track.importSessionItemId,
                 name = dbTrack.spotifyTrackRelation?.spotifyTrack?.name ?: dbTrack.originalImport.title,
                 image = dbTrack.spotifyTrackRelation?.spotifyAlbum?.mediumImgId ?: dbTrack.originalImport.imgId,
                 artists = run {
                     dbTrack.spotifyTrackRelation?.spotifyArtists?.map {
-                        Ui.State.Track.Artist(it.id, it.name)
+                        Ui.State.Content.Loaded.Track.Artist(it.id, it.name)
                     } ?: dbTrack.originalImport.inspection.artists.map {
-                        Ui.State.Track.Artist(null, it)
+                        Ui.State.Content.Loaded.Track.Artist(null, it)
                     }
                 }
             )
         }
     }
 
-    private fun List<Playlist>.toPlaylistModels(): List<Ui.State.Playlist> {
+    private fun List<Playlist>.toPlaylistModels(): List<Ui.State.Content.Loaded.Playlist> {
         return this.map { dbPlaylist ->
-            Ui.State.Playlist(
+            Ui.State.Content.Loaded.Playlist(
                 id = dbPlaylist.id,
                 name = dbPlaylist.name
             )
@@ -426,111 +430,177 @@ class Library(
         moveToFolder.update { it!!.clear(); null }
     }
 
-    private fun addFolder(name: String) {
-        coroutineScope.launch {
-            folderRepo.add(
-                name = name,
-                parentFolderId = currentFolder.value?.id
-            )
-        }
-    }
-
     private object Ui {
         class State(
             val path: StateFlow<List<NodeState>>,
-            val loadingItems: StateFlow<Boolean>,
             val searchQuery: StateFlow<String>,
             val tagsFilterState: TagsFilterState,
-            val onSearchQueryChange: (String) -> Unit,
-            val folders: StateFlow<List<Folder>>,
-            val playlists: StateFlow<List<Playlist>>,
-            val tracks: StateFlow<List<Track>>,
-            val onNewFolder: (name: String) -> Unit,
-            val onFolderClick: (dev.younesgouyd.apps.music.common.models.datamodels.Folder?) -> Unit,
-            val onAddFolderToPlaylistClick: (FolderId) -> Unit,
-            val onAddFolderToQueueClick: (FolderId) -> Unit,
-            val onPlayFolder: (FolderId) -> Unit,
-            val onPlaylistClick: (PlaylistId) -> Unit,
-            val onPlayPlaylistClick: (PlaylistId) -> Unit,
-            val onAddPlaylistToPlaylistClick: (PlaylistId) -> Unit,
-            val onAddPlaylistToQueueClick: (PlaylistId) -> Unit,
-            val onMoveTrackToFolder: (id: TrackId) -> Unit,
-            val onMoveFolderToFolder: (id: FolderId) -> Unit,
-            val onMovePlaylistToFolder: (id: PlaylistId) -> Unit,
-            val onTrackClick: (TrackId) -> Unit,
-            val onAddTrackToPlaylistClick: (TrackId) -> Unit,
-            val onArtistClick: (SpotifyArtistId) -> Unit,
-            val onRenameFolder: (id: FolderId, name: String) -> Unit,
-            val onRenamePlaylist: (id: PlaylistId, name: String) -> Unit,
-            val onDeleteFolder: (FolderId) -> Unit,
-            val onDeletePlaylist: (PlaylistId) -> Unit,
-            val onDeleteTrack: (ImportSessionItemId) -> Unit,
-            val onAddTrackToQueue: (TrackId) -> Unit,
-            val onDismissAddToPlaylistDialog: () -> Unit
+            val content: StateFlow<Content>,
+            val actions: Actions
         ) {
-            data class NodeState(
-                val folder: dev.younesgouyd.apps.music.common.models.datamodels.Folder?,
-                val scrollState: LazyGridState,
-            )
-
-            data class Track(
-                val id: TrackId,
-                val importSessionItemId: ImportSessionItemId,
-                val name: String,
-                val image: MediaFileId?,
-                val artists: List<Artist>
+            class NodeState(
+                val folder: Folder?
             ) {
-                data class Artist(
-                    val id: SpotifyArtistId?,
-                    val name: String
-                )
+                var firstVisibleItemIndex: Int = 0
+                var firstVisibleItemScrollOffset: Int = 0
             }
 
-            data class Playlist(
-                val id: PlaylistId,
-                val name: String
+            sealed class Content {
+                data object Loading : Content()
+
+                data class Loaded(
+                    val folderId: FolderId?,
+                    val folders: List<Folder>,
+                    val playlists: List<Playlist>,
+                    val tracks: List<Track>
+                ) : Content() {
+                    data class Track(
+                        val id: TrackId,
+                        val importSessionItemId: ImportSessionItemId,
+                        val name: String,
+                        val image: MediaFileId?,
+                        val artists: List<Artist>
+                    ) {
+                        data class Artist(
+                            val id: SpotifyArtistId?,
+                            val name: String
+                        )
+                    }
+
+                    data class Playlist(
+                        val id: PlaylistId,
+                        val name: String
+                    )
+                }
+            }
+
+            data class Actions(
+                val onImportClick: () -> Unit,
+                val onSearchQueryChange: (String) -> Unit,
+                val onNewFolder: (name: String) -> Unit,
+                val onFolderClick: (Folder?) -> Unit,
+                val onAddFolderToPlaylistClick: (FolderId) -> Unit,
+                val onAddFolderToQueueClick: (FolderId) -> Unit,
+                val onPlayFolder: (FolderId) -> Unit,
+                val onPlaylistClick: (PlaylistId) -> Unit,
+                val onPlayPlaylistClick: (PlaylistId) -> Unit,
+                val onAddPlaylistToPlaylistClick: (PlaylistId) -> Unit,
+                val onAddPlaylistToQueueClick: (PlaylistId) -> Unit,
+                val onMoveTrackToFolder: (id: TrackId) -> Unit,
+                val onMoveFolderToFolder: (id: FolderId) -> Unit,
+                val onMovePlaylistToFolder: (id: PlaylistId) -> Unit,
+                val onTrackClick: (TrackId) -> Unit,
+                val onAddTrackToPlaylistClick: (TrackId) -> Unit,
+                val onArtistClick: (SpotifyArtistId) -> Unit,
+                val onRenameFolder: (id: FolderId, name: String) -> Unit,
+                val onRenamePlaylist: (id: PlaylistId, name: String) -> Unit,
+                val onDeleteFolder: (FolderId) -> Unit,
+                val onDeletePlaylist: (PlaylistId) -> Unit,
+                val onDeleteTrack: (ImportSessionItemId) -> Unit,
+                val onAddTrackToQueue: (TrackId) -> Unit,
+                val onDismissAddToPlaylistDialog: () -> Unit
             )
+        }
+
+        @Composable
+        fun Content(
+            content: State.Content,
+            gridState: LazyGridState,
+            actions: State.Actions,
+            folderUi: @Composable (Modifier, Folder, State.Actions) -> Unit,
+            playlistUi: @Composable (Modifier, State.Content.Loaded.Playlist, State.Actions) -> Unit,
+            trackUi: @Composable (Modifier, State.Content.Loaded.Track, State.Actions) -> Unit
+        ) {
+            val minColumnWidth: Dp = when (getWindowSizeClass()) {
+                WindowWidthSizeClass.Compact -> 100.dp
+                else -> 200.dp
+            }
+
+            when (content) {
+                is State.Content.Loading -> {
+                    Box(Modifier.fillMaxWidth().padding(10.dp), Alignment.Center) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(50.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                }
+                is State.Content.Loaded -> {
+                    LazyVerticalGrid(
+                        modifier = Modifier.fillMaxSize(),
+                        state = gridState,
+                        contentPadding = PaddingValues(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        columns = GridCells.Adaptive(minColumnWidth)
+                    ) {
+                        val ratio = 0.65f
+                        items(content.folders, { "folder#${it.id}" }) { folder -> folderUi(Modifier.aspectRatio(ratio), folder, actions) }
+                        items(content.playlists, { "playlist#${it.id}" }) { playlist -> playlistUi(Modifier.aspectRatio(ratio), playlist, actions) }
+                        items(content.tracks, { "track#${it.id}" }) { track -> trackUi(Modifier.aspectRatio(ratio), track, actions) }
+                    }
+                }
+            }
+        }
+
+        @Composable
+        private fun RenameDialog(
+            title: String,
+            name: String = "",
+            onDone: (name: String) -> Unit,
+            onDismiss: () -> Unit
+        ) {
+            var name by remember { mutableStateOf(name) }
+
+            Dialog(onDismissRequest = onDismiss) {
+                Surface(
+                    modifier = Modifier.width(500.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                            text = title,
+                            style = MaterialTheme.typography.headlineMedium,
+                            textAlign = TextAlign.Center
+                        )
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Name") },
+                            value = name,
+                            onValueChange = { name = it },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { onDone(name) }),
+                        )
+                        Button(
+                            content = { Text("Done") },
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { onDone(name) }
+                        )
+                    }
+                }
+            }
         }
 
         object Wide {
             @Composable
             fun Main(
                 modifier: Modifier,
-                state: State,
-                onImportClick: () -> Unit
+                state: State
             ) {
                 Main(
                     modifier = modifier,
                     path = state.path,
-                    loadingItems = state.loadingItems,
                     searchQuery = state.searchQuery,
                     tagsFilterState = state.tagsFilterState,
-                    onSearchQueryChange = state.onSearchQueryChange,
-                    folders = state.folders,
-                    playlists = state.playlists,
-                    tracks = state.tracks,
-                    onImportClick = onImportClick,
-                    onNewFolder = state.onNewFolder,
-                    onFolderClick = state.onFolderClick,
-                    onAddFolderToPlaylistClick = state.onAddFolderToPlaylistClick,
-                    onAddFolderToQueueClick = state.onAddFolderToQueueClick,
-                    onPlayFolder = state.onPlayFolder,
-                    onPlaylistClick = state.onPlaylistClick,
-                    onPlayPlaylistClick = state.onPlayPlaylistClick,
-                    onAddPlaylistToPlaylistClick = state.onAddPlaylistToPlaylistClick,
-                    onMoveFolderToFolder = state.onMoveFolderToFolder,
-                    onMoveTrackToFolder = state.onMoveTrackToFolder,
-                    onMovePlaylistToFolder = state.onMovePlaylistToFolder,
-                    onAddPlaylistToQueueClick = state.onAddPlaylistToQueueClick,
-                    onTrackClick = state.onTrackClick,
-                    onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick,
-                    onArtistClick = state.onArtistClick,
-                    onRenameFolder = state.onRenameFolder,
-                    onRenamePlaylist = state.onRenamePlaylist,
-                    onDeleteFolder = state.onDeleteFolder,
-                    onDeletePlaylist = state.onDeletePlaylist,
-                    onDeleteTrack = state.onDeleteTrack,
-                    onAddTrackToQueue = state.onAddTrackToQueue
+                    content = state.content,
+                    actions = state.actions
                 )
             }
 
@@ -538,133 +608,100 @@ class Library(
             private fun Main(
                 modifier: Modifier,
                 path: StateFlow<List<State.NodeState>>,
-                loadingItems: StateFlow<Boolean>,
                 searchQuery: StateFlow<String>,
                 tagsFilterState: TagsFilterState,
-                onSearchQueryChange: (String) -> Unit,
-                folders: StateFlow<List<dev.younesgouyd.apps.music.common.models.datamodels.Folder>>,
-                playlists: StateFlow<List<State.Playlist>>,
-                tracks: StateFlow<List<State.Track>>,
-                onImportClick: () -> Unit,
-                onNewFolder: (name: String) -> Unit,
-                onFolderClick: (dev.younesgouyd.apps.music.common.models.datamodels.Folder?) -> Unit,
-                onAddFolderToPlaylistClick: (FolderId) -> Unit,
-                onAddFolderToQueueClick: (FolderId) -> Unit,
-                onPlayFolder: (FolderId) -> Unit,
-                onPlaylistClick: (PlaylistId) -> Unit,
-                onPlayPlaylistClick: (PlaylistId) -> Unit,
-                onAddPlaylistToPlaylistClick: (PlaylistId) -> Unit,
-                onMoveFolderToFolder: (id: FolderId) -> Unit,
-                onMoveTrackToFolder: (id: TrackId) -> Unit,
-                onMovePlaylistToFolder: (id: PlaylistId) -> Unit,
-                onAddPlaylistToQueueClick: (PlaylistId) -> Unit,
-                onTrackClick: (TrackId) -> Unit,
-                onAddTrackToPlaylistClick: (TrackId) -> Unit,
-                onArtistClick: (SpotifyArtistId) -> Unit,
-                onRenameFolder: (id: FolderId, name: String) -> Unit,
-                onRenamePlaylist: (id: PlaylistId, name: String) -> Unit,
-                onDeleteFolder: (FolderId) -> Unit,
-                onDeletePlaylist: (PlaylistId) -> Unit,
-                onDeleteTrack: (ImportSessionItemId) -> Unit,
-                onAddTrackToQueue: (TrackId) -> Unit
+                content: StateFlow<State.Content>,
+                actions: State.Actions
             ) {
                 val path by path.collectAsState()
-                val loadingItems by loadingItems.collectAsState()
-                val folders by folders.collectAsState()
-                val playlists by playlists.collectAsState()
-                val tracks by tracks.collectAsState()
-                val scrollState = remember(path.last().folder?.id) {
-                    path.last().scrollState
+                val content by content.collectAsState()
+                val node = path.last()
+                val gridState = remember(node) {
+                    LazyGridState(node.firstVisibleItemIndex, node.firstVisibleItemScrollOffset)
                 }
+
+                DisposableEffect(node) {
+                    onDispose {
+                        node.firstVisibleItemIndex = gridState.firstVisibleItemIndex
+                        node.firstVisibleItemScrollOffset = gridState.firstVisibleItemScrollOffset
+                    }
+                }
+
                 Scaffold(
                     modifier = modifier,
-                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) },
                     content = { paddingValues ->
                         Column(
                             modifier = Modifier.fillMaxSize().padding(paddingValues),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Spacer(Modifier.size(12.dp))
                             ToolBar(
                                 modifier = Modifier.fillMaxWidth(),
                                 path = path.mapNotNull { it.folder },
                                 searchQuery = searchQuery,
                                 tagsFilterState = tagsFilterState,
-                                onFolderClick = onFolderClick,
-                                onImportClick = onImportClick,
-                                onNewFolder = onNewFolder,
-                                onSearchQueryChange = onSearchQueryChange
+                                onFolderClick = actions.onFolderClick,
+                                onImportClick = actions.onImportClick,
+                                onNewFolder = actions.onNewFolder,
+                                onSearchQueryChange = actions.onSearchQueryChange
                             )
-                            LazyVerticalGrid(
-                                modifier = Modifier.fillMaxSize().padding(16.dp),
-                                state = scrollState,
-                                contentPadding = PaddingValues(vertical = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(18.dp),
-                                verticalArrangement = Arrangement.spacedBy(18.dp),
-                                columns = GridCells.Adaptive(200.dp)
-                            ) {
-                                items(folders, { "folder#${it.id}" }) { folder ->
+                            Content(
+                                content = content,
+                                gridState = gridState,
+                                actions = actions,
+                                folderUi = { modifier, folder, actions ->
                                     FolderItem(
+                                        modifier = modifier,
                                         folder = folder,
-                                        onClick = { onFolderClick(folder) },
-                                        onMoveToFolder = { onMoveFolderToFolder(folder.id) },
-                                        onAddToPlaylistClick = { onAddFolderToPlaylistClick(folder.id) },
-                                        onAddToQueueClick = { onAddFolderToQueueClick(folder.id) },
-                                        onPlayClick = { onPlayFolder(folder.id) },
-                                        onRenameClick = { onRenameFolder(folder.id, it) },
-                                        onDeleteClick = { onDeleteFolder(folder.id) }
+                                        onClick = { actions.onFolderClick(folder) },
+                                        onMoveToFolder = { actions.onMoveFolderToFolder(folder.id) },
+                                        onAddToPlaylistClick = { actions.onAddFolderToPlaylistClick(folder.id) },
+                                        onAddToQueueClick = { actions.onAddFolderToQueueClick(folder.id) },
+                                        onPlayClick = { actions.onPlayFolder(folder.id) },
+                                        onRenameClick = { actions.onRenameFolder(folder.id, it) },
+                                        onDeleteClick = { actions.onDeleteFolder(folder.id) }
                                     )
-                                }
-                                items(playlists, { "playlist#${it.id}" }) { playlist ->
+
+                                },
+                                playlistUi = { modifier, playlist, actions ->
                                     PlaylistItem(
+                                        modifier = modifier,
                                         playlist = playlist,
-                                        onClick = { onPlaylistClick(playlist.id) },
-                                        onPlayClick = { onPlayPlaylistClick(playlist.id) },
-                                        onMoveToFolder = { onMovePlaylistToFolder(playlist.id) },
-                                        onAddToPlaylistClick = { onAddPlaylistToPlaylistClick(playlist.id) },
-                                        onAddToQueueClick = { onAddPlaylistToQueueClick(playlist.id) },
-                                        onRenameClick = { onRenamePlaylist(playlist.id, it) },
-                                        onDeleteClick = { onDeletePlaylist(playlist.id) }
+                                        onClick = { actions.onPlaylistClick(playlist.id) },
+                                        onPlayClick = { actions.onPlayPlaylistClick(playlist.id) },
+                                        onMoveToFolder = { actions.onMovePlaylistToFolder(playlist.id) },
+                                        onAddToPlaylistClick = { actions.onAddPlaylistToPlaylistClick(playlist.id) },
+                                        onAddToQueueClick = { actions.onAddPlaylistToQueueClick(playlist.id) },
+                                        onRenameClick = { actions.onRenamePlaylist(playlist.id, it) },
+                                        onDeleteClick = { actions.onDeletePlaylist(playlist.id) }
                                     )
-                                }
-                                items(tracks, { "track#${it.id}" }) { track ->
+
+                                },
+                                trackUi = { modifier, track, actions ->
                                     TrackItem(
+                                        modifier = modifier,
                                         track = track,
-                                        onClick = { onTrackClick(track.id) },
-                                        onMoveToFolder = { onMoveTrackToFolder(track.id) },
-                                        onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
-                                        onArtistClick = onArtistClick,
-                                        onDeleteClick = { onDeleteTrack(track.importSessionItemId) },
-                                        onAddToQueueClick = { onAddTrackToQueue(track.id) }
+                                        onClick = { actions.onTrackClick(track.id) },
+                                        onMoveToFolder = { actions.onMoveTrackToFolder(track.id) },
+                                        onAddToPlaylistClick = { actions.onAddTrackToPlaylistClick(track.id) },
+                                        onArtistClick = actions.onArtistClick,
+                                        onDeleteClick = { actions.onDeleteTrack(track.importSessionItemId) },
+                                        onAddToQueueClick = { actions.onAddTrackToQueue(track.id) }
                                     )
                                 }
-                                if (loadingItems) {
-                                    item(span = { GridItemSpan(maxLineSpan) }) {
-                                        Box(
-                                            modifier = Modifier.fillMaxWidth().padding(10.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(50.dp),
-                                                strokeWidth = 2.dp
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                            )
                         }
-                    }
+                    },
+                    floatingActionButton = { ScrollToTopFloatingActionButton(gridState) }
                 )
             }
 
             @Composable
             private fun ToolBar(
                 modifier: Modifier,
-                path: List<dev.younesgouyd.apps.music.common.models.datamodels.Folder>,
+                path: List<Folder>,
                 searchQuery: StateFlow<String>,
                 tagsFilterState: TagsFilterState,
-                onFolderClick: (dev.younesgouyd.apps.music.common.models.datamodels.Folder?) -> Unit,
+                onFolderClick: (Folder?) -> Unit,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
                 onSearchQueryChange: (String) -> Unit
@@ -807,7 +844,8 @@ class Library(
 
             @Composable
             private fun FolderItem(
-                folder: dev.younesgouyd.apps.music.common.models.datamodels.Folder,
+                modifier: Modifier,
+                folder: Folder,
                 onClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -820,36 +858,32 @@ class Library(
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
-                Item(onClick = onClick) {
+                Item(
+                    modifier = modifier,
+                    onClick = onClick
+                ) {
                     Column(
+                        modifier = Modifier.fillMaxHeight(),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         Image(
-                            modifier = Modifier.aspectRatio(1f),
+                            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
                             imageVector = Icons.Default.Folder,
-                            contentScale = ContentScale.FillWidth,
-                            alignment = Alignment.TopCenter,
+                            contentScale = ContentScale.Fit,
                             contentDescription = null
                         )
-                        Text(
-                            modifier = Modifier.fillMaxWidth().padding(4.dp),
-                            text = folder.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            textAlign = TextAlign.Center,
-                            minLines = 2,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            modifier = Modifier.padding(4.dp),
-                            text = "Folder",
-                            style = MaterialTheme.typography.labelMedium,
-                            textAlign = TextAlign.Center,
-                            minLines = 1,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Box(
+                            modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 2.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = folder.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                textAlign = TextAlign.Center,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -936,7 +970,8 @@ class Library(
 
             @Composable
             private fun PlaylistItem(
-                playlist: State.Playlist,
+                modifier: Modifier,
+                playlist: State.Content.Loaded.Playlist,
                 onClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
@@ -949,35 +984,32 @@ class Library(
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
-                Item(onClick = onClick) {
+                Item(
+                    modifier = modifier,
+                    onClick = onClick
+                ) {
                     Column(
+                        modifier = Modifier.fillMaxHeight(),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         Image(
-                            modifier = Modifier.aspectRatio(1f),
+                            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
                             id = null,
-                            contentScale = ContentScale.FillWidth,
-                            alignment = Alignment.TopCenter
+                            contentScale = ContentScale.Fit,
+                            alignment = Alignment.Center
                         )
-                        Text(
-                            modifier = Modifier.fillMaxWidth().padding(12.dp),
-                            text = playlist.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            textAlign = TextAlign.Center,
-                            minLines = 2,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            modifier = Modifier.padding(4.dp),
-                            text = "Playlist",
-                            style = MaterialTheme.typography.labelMedium,
-                            textAlign = TextAlign.Center,
-                            minLines = 1,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Box(
+                            modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 2.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = playlist.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                textAlign = TextAlign.Center,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1064,7 +1096,8 @@ class Library(
 
             @Composable
             private fun TrackItem(
-                track: State.Track,
+                modifier: Modifier,
+                track: State.Content.Loaded.Track,
                 onClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -1075,35 +1108,32 @@ class Library(
                 var showContextMenu by remember { mutableStateOf(false) }
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
 
-                Item(onClick = onClick) {
+                Item(
+                    modifier = modifier,
+                    onClick = onClick
+                ) {
                     Column(
+                        modifier = Modifier.fillMaxHeight(),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         Image(
-                            modifier = Modifier.aspectRatio(1f),
+                            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
                             id = track.image,
-                            contentScale = ContentScale.FillWidth,
-                            alignment = Alignment.TopCenter
+                            contentScale = ContentScale.Fit,
+                            alignment = Alignment.Center
                         )
-                        Text(
-                            modifier = Modifier.fillMaxWidth().padding(12.dp),
-                            text = track.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            textAlign = TextAlign.Center,
-                            minLines = 2,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            modifier = Modifier.padding(4.dp),
-                            text = "Track",
-                            style = MaterialTheme.typography.labelMedium,
-                            textAlign = TextAlign.Center,
-                            minLines = 1,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Box(
+                            modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 2.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = track.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                textAlign = TextAlign.Center,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1124,7 +1154,7 @@ class Library(
                                                 Icon(Icons.Default.Person, null)
                                                 Text(
                                                     text = artist.name,
-                                                    style = MaterialTheme.typography.labelMedium,
+                                                    style = MaterialTheme.typography.labelSmall,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
@@ -1206,93 +1236,20 @@ class Library(
                     )
                 }
             }
-
-            @Composable
-            private fun RenameDialog(
-                title: String,
-                name: String = "",
-                onDone: (name: String) -> Unit,
-                onDismiss: () -> Unit
-            ) {
-                var name by remember { mutableStateOf(name) }
-
-                Dialog(onDismissRequest = onDismiss) {
-                    Surface(
-                        modifier = Modifier.width(500.dp),
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.background
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                                text = title,
-                                style = MaterialTheme.typography.headlineMedium,
-                                textAlign = TextAlign.Center
-                            )
-                            OutlinedTextField(
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Name") },
-                                value = name,
-                                onValueChange = { name = it },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                keyboardActions = KeyboardActions(onDone = { onDone(name) }),
-                            )
-                            Button(
-                                content = { Text("Done") },
-                                modifier = Modifier.fillMaxWidth(),
-                                onClick = { onDone(name) }
-                            )
-                        }
-                    }
-                }
-            }
         }
 
         object Compact {
             @Composable
             fun Main(
                 modifier: Modifier,
-                state: State,
-                onImportClick: () -> Unit
+                state: State
             ) {
                 Main(
                     modifier = modifier,
                     path = state.path,
-                    loadingItems = state.loadingItems,
                     searchQuery = state.searchQuery,
-                    tagsFilterState = state.tagsFilterState,
-                    onSearchQueryChange = state.onSearchQueryChange,
-                    folders = state.folders,
-                    playlists = state.playlists,
-                    tracks = state.tracks,
-                    onImportClick = onImportClick,
-                    onNewFolder = state.onNewFolder,
-                    onFolderClick = state.onFolderClick,
-                    onAddFolderToPlaylistClick = state.onAddFolderToPlaylistClick,
-                    onAddFolderToQueueClick = state.onAddFolderToQueueClick,
-                    onPlayFolder = state.onPlayFolder,
-                    onPlaylistClick = state.onPlaylistClick,
-                    onPlayPlaylistClick = state.onPlayPlaylistClick,
-                    onAddPlaylistToPlaylistClick = state.onAddPlaylistToPlaylistClick,
-                    onMoveFolderToFolder = state.onMoveFolderToFolder,
-                    onMoveTrackToFolder = state.onMoveTrackToFolder,
-                    onMovePlaylistToFolder = state.onMovePlaylistToFolder,
-                    onAddPlaylistToQueueClick = state.onAddPlaylistToQueueClick,
-                    onTrackClick = state.onTrackClick,
-                    onAddTrackToPlaylistClick = state.onAddTrackToPlaylistClick,
-                    onArtistClick = state.onArtistClick,
-                    onRenameFolder = state.onRenameFolder,
-                    onRenamePlaylist = state.onRenamePlaylist,
-                    onDeleteFolder = state.onDeleteFolder,
-                    onDeletePlaylist = state.onDeletePlaylist,
-                    onDeleteTrack = state.onDeleteTrack,
-                    onAddTrackToQueue = state.onAddTrackToQueue,
-                    onDismissAddToPlaylistDialog = state.onDismissAddToPlaylistDialog
+                    content = state.content,
+                    actions = state.actions
                 )
             }
 
@@ -1300,123 +1257,85 @@ class Library(
             private fun Main(
                 modifier: Modifier,
                 path: StateFlow<List<State.NodeState>>,
-                loadingItems: StateFlow<Boolean>,
                 searchQuery: StateFlow<String>,
-                tagsFilterState: TagsFilterState,
-                onSearchQueryChange: (String) -> Unit,
-                folders: StateFlow<List<dev.younesgouyd.apps.music.common.models.datamodels.Folder>>,
-                playlists: StateFlow<List<State.Playlist>>,
-                tracks: StateFlow<List<State.Track>>,
-                onImportClick: () -> Unit,
-                onNewFolder: (name: String) -> Unit,
-                onFolderClick: (dev.younesgouyd.apps.music.common.models.datamodels.Folder?) -> Unit,
-                onAddFolderToPlaylistClick: (FolderId) -> Unit,
-                onAddFolderToQueueClick: (FolderId) -> Unit,
-                onPlayFolder: (FolderId) -> Unit,
-                onPlaylistClick: (PlaylistId) -> Unit,
-                onPlayPlaylistClick: (PlaylistId) -> Unit,
-                onAddPlaylistToPlaylistClick: (PlaylistId) -> Unit,
-                onAddPlaylistToQueueClick: (PlaylistId) -> Unit,
-                onTrackClick: (TrackId) -> Unit,
-                onAddTrackToPlaylistClick: (TrackId) -> Unit,
-                onMoveFolderToFolder: (id: FolderId) -> Unit,
-                onMoveTrackToFolder: (id: TrackId) -> Unit,
-                onMovePlaylistToFolder: (id: PlaylistId) -> Unit,
-                onArtistClick: (SpotifyArtistId) -> Unit,
-                onRenameFolder: (id: FolderId, name: String) -> Unit,
-                onRenamePlaylist: (id: PlaylistId, name: String) -> Unit,
-                onDeleteFolder: (FolderId) -> Unit,
-                onDeletePlaylist: (PlaylistId) -> Unit,
-                onDeleteTrack: (ImportSessionItemId) -> Unit,
-                onAddTrackToQueue: (TrackId) -> Unit,
-                onDismissAddToPlaylistDialog: () -> Unit
+                content: StateFlow<State.Content>,
+                actions: State.Actions
             ) {
                 val path by path.collectAsState()
-                val loadingItems by loadingItems.collectAsState()
-                val folders by folders.collectAsState()
-                val playlists by playlists.collectAsState()
-                val tracks by tracks.collectAsState()
-                val scrollState = remember(path.last().folder?.id) {
-                    path.last().scrollState
+                val content by content.collectAsState()
+                val node = path.last()
+                val gridState = remember(node) {
+                    LazyGridState(node.firstVisibleItemIndex, node.firstVisibleItemScrollOffset)
+                }
+
+                DisposableEffect(node) {
+                    onDispose {
+                        node.firstVisibleItemIndex = gridState.firstVisibleItemIndex
+                        node.firstVisibleItemScrollOffset = gridState.firstVisibleItemScrollOffset
+                    }
                 }
 
                 Scaffold(
                     modifier = modifier,
-                    floatingActionButton = { ScrollToTopFloatingActionButton(scrollState) },
+                    floatingActionButton = { ScrollToTopFloatingActionButton(gridState) },
                     content = { paddingValues ->
                         Column(
                             modifier = Modifier.fillMaxSize().padding(paddingValues),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Spacer(Modifier.size(12.dp))
                             ToolBar(
                                 modifier = Modifier.fillMaxWidth(),
                                 path = path.mapNotNull { it.folder },
                                 searchQuery = searchQuery,
-                                tagsFilterState = tagsFilterState,
-                                onFolderClick = onFolderClick,
-                                onImportClick = onImportClick,
-                                onNewFolder = onNewFolder,
-                                onSearchQueryChange = onSearchQueryChange
+                                onFolderClick = actions.onFolderClick,
+                                onImportClick = actions.onImportClick,
+                                onNewFolder = actions.onNewFolder,
+                                onSearchQueryChange = actions.onSearchQueryChange
                             )
-                            LazyVerticalGrid(
-                                modifier = Modifier.fillMaxSize().padding(12.dp),
-                                state = scrollState,
-                                contentPadding = PaddingValues(vertical = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                                columns = GridCells.Adaptive(100.dp)
-                            ) {
-                                items(folders, { "folder#${it.id}" }) { folder ->
+                            Content(
+                                content = content,
+                                gridState = gridState,
+                                actions = actions,
+                                folderUi = { modifier, folder, actions ->
                                     FolderItem(
+                                        modifier = modifier,
                                         folder = folder,
-                                        onClick = { onFolderClick(folder) },
-                                        onMoveToFolder = { onMoveFolderToFolder(folder.id) },
-                                        onAddToPlaylistClick = { onAddFolderToPlaylistClick(folder.id) },
-                                        onAddToQueueClick = { onAddFolderToQueueClick(folder.id) },
-                                        onPlayClick = { onPlayFolder(folder.id) },
-                                        onRenameClick = { onRenameFolder(folder.id, it) },
-                                        onDeleteClick = { onDeleteFolder(folder.id) }
+                                        onClick = { actions.onFolderClick(folder) },
+                                        onMoveToFolder = { actions.onMoveFolderToFolder(folder.id) },
+                                        onAddToPlaylistClick = { actions.onAddFolderToPlaylistClick(folder.id) },
+                                        onAddToQueueClick = { actions.onAddFolderToQueueClick(folder.id) },
+                                        onPlayClick = { actions.onPlayFolder(folder.id) },
+                                        onRenameClick = { actions.onRenameFolder(folder.id, it) },
+                                        onDeleteClick = { actions.onDeleteFolder(folder.id) }
                                     )
-                                }
-                                items(playlists, { "playlist#${it.id}" }) { playlist ->
+
+                                },
+                                playlistUi = { modifier, playlist, actions ->
                                     PlaylistItem(
+                                        modifier = modifier,
                                         playlist = playlist,
-                                        onClick = { onPlaylistClick(playlist.id) },
-                                        onPlayClick = { onPlayPlaylistClick(playlist.id) },
-                                        onMoveToFolder = { onMovePlaylistToFolder(playlist.id) },
-                                        onAddToPlaylistClick = { onAddPlaylistToPlaylistClick(playlist.id) },
-                                        onAddToQueueClick = { onAddPlaylistToQueueClick(playlist.id) },
-                                        onRenameClick = { onRenamePlaylist(playlist.id, it) },
-                                        onDeleteClick = { onDeletePlaylist(playlist.id) }
+                                        onClick = { actions.onPlaylistClick(playlist.id) },
+                                        onPlayClick = { actions.onPlayPlaylistClick(playlist.id) },
+                                        onMoveToFolder = { actions.onMovePlaylistToFolder(playlist.id) },
+                                        onAddToPlaylistClick = { actions.onAddPlaylistToPlaylistClick(playlist.id) },
+                                        onAddToQueueClick = { actions.onAddPlaylistToQueueClick(playlist.id) },
+                                        onRenameClick = { actions.onRenamePlaylist(playlist.id, it) },
+                                        onDeleteClick = { actions.onDeletePlaylist(playlist.id) }
                                     )
-                                }
-                                items(tracks, { "track#${it.id}" }) { track ->
+
+                                },
+                                trackUi = { modifier, track, actions ->
                                     TrackItem(
+                                        modifier = modifier,
                                         track = track,
-                                        onClick = { onTrackClick(track.id) },
-                                        onMoveToFolder = { onMoveTrackToFolder(track.id) },
-                                        onAddToPlaylistClick = { onAddTrackToPlaylistClick(track.id) },
-                                        onArtistClick = onArtistClick,
-                                        onDeleteClick = { onDeleteTrack(track.importSessionItemId) },
-                                        onAddToQueueClick = { onAddTrackToQueue(track.id) }
+                                        onClick = { actions.onTrackClick(track.id) },
+                                        onMoveToFolder = { actions.onMoveTrackToFolder(track.id) },
+                                        onAddToPlaylistClick = { actions.onAddTrackToPlaylistClick(track.id) },
+                                        onDeleteClick = { actions.onDeleteTrack(track.importSessionItemId) },
+                                        onAddToQueueClick = { actions.onAddTrackToQueue(track.id) }
                                     )
                                 }
-                                if (loadingItems) {
-                                    item(span = { GridItemSpan(maxLineSpan) }) {
-                                        Box(
-                                            modifier = Modifier.fillMaxWidth().padding(10.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(50.dp),
-                                                strokeWidth = 2.dp
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                            )
                         }
                     }
                 )
@@ -1425,10 +1344,9 @@ class Library(
             @Composable
             private fun ToolBar(
                 modifier: Modifier,
-                path: List<dev.younesgouyd.apps.music.common.models.datamodels.Folder>,
+                path: List<Folder>,
                 searchQuery: StateFlow<String>,
-                tagsFilterState: TagsFilterState,
-                onFolderClick: (dev.younesgouyd.apps.music.common.models.datamodels.Folder?) -> Unit,
+                onFolderClick: (Folder?) -> Unit,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
                 onSearchQueryChange: (String) -> Unit
@@ -1550,10 +1468,6 @@ class Library(
                             }
                         }
                     }
-                    TagsFilter(
-                        modifier = Modifier.fillMaxWidth(),
-                        state = tagsFilterState
-                    )
                 }
 
                 if (newFolderFormVisible) {
@@ -1571,7 +1485,8 @@ class Library(
 
             @Composable
             private fun FolderItem(
-                folder: dev.younesgouyd.apps.music.common.models.datamodels.Folder,
+                modifier: Modifier,
+                folder: Folder,
                 onClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
@@ -1585,37 +1500,32 @@ class Library(
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
                 Item(
+                    modifier = modifier,
                     onClick = onClick,
                     onLongClick = { showContextMenu = true }
                 ) {
                     Column(
+                        modifier = Modifier.fillMaxHeight(),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         Image(
-                            modifier = Modifier.aspectRatio(1f),
+                            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
                             imageVector = Icons.Default.Folder,
-                            contentScale = ContentScale.FillWidth,
-                            alignment = Alignment.TopCenter,
+                            contentScale = ContentScale.Fit,
                             contentDescription = null
                         )
-                        Text(
-                            modifier = Modifier.fillMaxWidth().padding(8.dp),
-                            text = folder.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            textAlign = TextAlign.Center,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            modifier = Modifier.padding(4.dp),
-                            text = "Folder",
-                            style = MaterialTheme.typography.labelMedium,
-                            textAlign = TextAlign.Center,
-                            minLines = 1,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Box(
+                            modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 2.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = folder.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                textAlign = TextAlign.Center,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
 
@@ -1693,7 +1603,8 @@ class Library(
 
             @Composable
             private fun PlaylistItem(
-                playlist: State.Playlist,
+                modifier: Modifier,
+                playlist: State.Content.Loaded.Playlist,
                 onClick: () -> Unit,
                 onPlayClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
@@ -1707,36 +1618,32 @@ class Library(
                 var showEditFormDialog by remember { mutableStateOf(false) }
 
                 Item(
+                    modifier = modifier,
                     onClick = onClick,
                     onLongClick = { showContextMenu = true }
                 ) {
                     Column(
+                        modifier = Modifier.fillMaxHeight(),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         Image(
-                            modifier = Modifier.aspectRatio(1f),
+                            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
                             id = null,
-                            contentScale = ContentScale.FillWidth,
-                            alignment = Alignment.TopCenter
+                            contentScale = ContentScale.Fit,
+                            alignment = Alignment.Center
                         )
-                        Text(
-                            modifier = Modifier.fillMaxWidth().padding(8.dp),
-                            text = playlist.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            textAlign = TextAlign.Center,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            modifier = Modifier.padding(4.dp),
-                            text = "Playlist",
-                            style = MaterialTheme.typography.labelMedium,
-                            textAlign = TextAlign.Center,
-                            minLines = 1,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Box(
+                            modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 2.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = playlist.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                textAlign = TextAlign.Center,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
 
@@ -1814,11 +1721,11 @@ class Library(
 
             @Composable
             private fun TrackItem(
-                track: State.Track,
+                modifier: Modifier,
+                track: State.Content.Loaded.Track,
                 onClick: () -> Unit,
                 onMoveToFolder: () -> Unit,
                 onAddToPlaylistClick: () -> Unit,
-                onArtistClick: (SpotifyArtistId) -> Unit,
                 onDeleteClick: () -> Unit,
                 onAddToQueueClick: () -> Unit
             ) {
@@ -1826,53 +1733,48 @@ class Library(
                 var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
 
                 Item(
+                    modifier = modifier,
                     onClick = onClick,
                     onLongClick = { showContextMenu = true }
                 ) {
                     Column(
+                        modifier = Modifier.fillMaxHeight(),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         Image(
-                            modifier = Modifier.aspectRatio(1f),
+                            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
                             id = track.image,
-                            contentScale = ContentScale.FillWidth,
-                            alignment = Alignment.TopCenter
+                            contentScale = ContentScale.Fit,
+                            alignment = Alignment.Center
                         )
-                        Text(
-                            modifier = Modifier.fillMaxWidth().padding(8.dp),
-                            text = track.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            textAlign = TextAlign.Center,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Row(
+                        Box(
+                            modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 2.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = track.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                textAlign = TextAlign.Center,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        LazyRow(
                             modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(4.dp),
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            LazyRow(
-                                modifier = Modifier.weight(1f),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                items(track.artists) { artist ->
-                                    TextButton(
-                                        content = {
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Icon(Icons.Default.Person, null)
-                                                Text(
-                                                    text = artist.name,
-                                                    style = MaterialTheme.typography.labelMedium
-                                                )
-                                            }
-                                        },
-                                        enabled = artist.id != null,
-                                        onClick = { onArtistClick(artist.id!!) }
+                            items(track.artists) { artist ->
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        text = artist.name,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
@@ -1941,51 +1843,6 @@ class Library(
                             onDeleteClick()
                         }
                     )
-                }
-            }
-
-            @Composable
-            private fun RenameDialog(
-                title: String,
-                name: String = "",
-                onDone: (name: String) -> Unit,
-                onDismiss: () -> Unit
-            ) {
-                var name by remember { mutableStateOf(name) }
-
-                Dialog(onDismissRequest = onDismiss) {
-                    Surface(
-                        modifier = Modifier.width(500.dp),
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.background
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                                text = title,
-                                style = MaterialTheme.typography.headlineMedium,
-                                textAlign = TextAlign.Center
-                            )
-                            OutlinedTextField(
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Name") },
-                                value = name,
-                                onValueChange = { name = it },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                keyboardActions = KeyboardActions(onDone = { onDone(name) }),
-                            )
-                            Button(
-                                content = { Text("Done") },
-                                modifier = Modifier.fillMaxWidth(),
-                                onClick = { onDone(name) }
-                            )
-                        }
-                    }
                 }
             }
         }

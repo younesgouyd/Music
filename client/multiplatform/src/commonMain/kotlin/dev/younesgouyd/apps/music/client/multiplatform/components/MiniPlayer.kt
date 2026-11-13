@@ -7,7 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -156,7 +156,7 @@ class MiniPlayer(
                 val track by track.collectAsState()
                 val isPlaying by isPlaying.collectAsState()
                 val repeatState by repeatState.collectAsState()
-                val formattedDuration = remember(track?.durationMs) { track?.durationMs?.milliseconds.formatted() }
+                val formattedDuration = rememberSaveable(track?.durationMs) { track?.durationMs?.milliseconds.formatted() }
                 val positionMs by positionMs.collectAsState()
 
                 Surface(
@@ -323,7 +323,7 @@ class MiniPlayer(
                 onClick: () -> Unit
             ) {
                 val track by track.collectAsState()
-                val formattedDuration = remember(track?.durationMs) { track?.durationMs?.milliseconds.formatted() }
+                val formattedDuration = rememberSaveable(track?.durationMs) { track?.durationMs?.milliseconds.formatted() }
                 val positionMs by positionMs.collectAsState()
 
                 Surface(

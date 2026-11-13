@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -290,7 +291,7 @@ class AddToPlaylist(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 item {
-                                    var name by remember { mutableStateOf("") }
+                                    var name by rememberSaveable { mutableStateOf("") }
 
                                     dev.younesgouyd.apps.music.common.ui.Item(
                                         modifier = Modifier.padding(8.dp)

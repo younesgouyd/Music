@@ -2,8 +2,8 @@ package dev.younesgouyd.apps.music.client.multiplatform.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddToQueue
 import androidx.compose.material.icons.filled.Info
@@ -56,7 +56,6 @@ class AlbumDetails(
         state = albumRepo.get(id).mapLatest { dbAlbum ->
             if (dbAlbum == null) return@mapLatest Ui.State.ItemDoesNotExist
             Ui.State.Loaded(
-                scrollState = LazyListState(),
                 album = Ui.State.Loaded.Album(
                     name = dbAlbum.name,
                     image = dbAlbum.mediumImgId,
@@ -113,7 +112,6 @@ class AlbumDetails(
             data object Loading : State()
 
             class Loaded(
-                val scrollState: LazyListState,
                 val album: Album,
                 val tracks: StateFlow<List<Track>>,
                 val onPlayClick: () -> Unit,
@@ -153,7 +151,6 @@ class AlbumDetails(
         private fun Main(modifier: Modifier, state: State.Loaded) {
             Main(
                 modifier = modifier,
-                scrollState = state.scrollState,
                 album = state.album,
                 tracks = state.tracks,
                 onPlayClick = state.onPlayClick,
@@ -168,7 +165,6 @@ class AlbumDetails(
         @Composable
         private fun Main(
             modifier: Modifier,
-            scrollState: LazyListState,
             album: State.Loaded.Album,
             tracks: StateFlow<List<State.Loaded.Track>>,
             onPlayClick: () -> Unit,
@@ -179,6 +175,7 @@ class AlbumDetails(
             onShowTrackDetailsClick: (TrackId) -> Unit
         ) {
             val tracks by tracks.collectAsState()
+            val scrollState = rememberLazyListState()
 
             Scaffold(
                 modifier = modifier.fillMaxSize(),

@@ -52,7 +52,6 @@ class ArtistList(
                     initialOffset = Offset.Id.initial<SpotifyArtistId>()
                 ),
                 searchQuery = searchQuery.asStateFlow(),
-                scrollState = LazyGridState(),
                 onSearchQueryChange = { searchQuery.value = it },
                 onArtistClick = showArtistDetails,
                 onPlayArtistClick = { id: SpotifyArtistId -> mediaController.playQueue(listOf(QueueItemParameter.Artist(id))) },
@@ -105,7 +104,6 @@ class ArtistList(
             class Loaded(
                 val artists: LazilyLoadedItems<ArtistItem, Offset.Id<SpotifyArtistId>>,
                 val searchQuery: StateFlow<String>,
-                val scrollState: LazyGridState,
                 val onSearchQueryChange: (String) -> Unit,
                 val onArtistClick: (SpotifyArtistId) -> Unit,
                 val onPlayArtistClick: (SpotifyArtistId) -> Unit,
@@ -134,7 +132,6 @@ class ArtistList(
                     modifier = modifier,
                     artists = loaded.artists,
                     searchQuery = loaded.searchQuery,
-                    scrollState = loaded.scrollState,
                     onSearchQueryChange = loaded.onSearchQueryChange,
                     onArtistClick = loaded.onArtistClick,
                     onPlayArtistClick = loaded.onPlayArtistClick,
@@ -147,7 +144,6 @@ class ArtistList(
                 modifier: Modifier,
                 artists: LazilyLoadedItems<ArtistItem, Offset.Id<SpotifyArtistId>>,
                 searchQuery: StateFlow<String>,
-                scrollState: LazyGridState,
                 onSearchQueryChange: (String) -> Unit,
                 onArtistClick: (SpotifyArtistId) -> Unit,
                 onPlayArtistClick: (SpotifyArtistId) -> Unit,
@@ -156,6 +152,7 @@ class ArtistList(
                 val items by artists.items.collectAsState()
                 val loadingItems by artists.loading.collectAsState()
                 val searchQuery by searchQuery.collectAsState()
+                val scrollState = rememberLazyGridState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),
@@ -302,7 +299,6 @@ class ArtistList(
                     modifier = modifier,
                     artists = loaded.artists,
                     searchQuery = loaded.searchQuery,
-                    scrollState = loaded.scrollState,
                     onSearchQueryChange = loaded.onSearchQueryChange,
                     onArtistClick = loaded.onArtistClick,
                     onPlayArtistClick = loaded.onPlayArtistClick,
@@ -315,7 +311,6 @@ class ArtistList(
                 modifier: Modifier,
                 artists: LazilyLoadedItems<ArtistItem, Offset.Id<SpotifyArtistId>>,
                 searchQuery: StateFlow<String>,
-                scrollState: LazyGridState,
                 onSearchQueryChange: (String) -> Unit,
                 onArtistClick: (SpotifyArtistId) -> Unit,
                 onPlayArtistClick: (SpotifyArtistId) -> Unit,
@@ -324,6 +319,7 @@ class ArtistList(
                 val items by artists.items.collectAsState()
                 val loadingItems by artists.loading.collectAsState()
                 val searchQuery by searchQuery.collectAsState()
+                val scrollState = rememberLazyGridState()
 
                 Scaffold(
                     modifier = modifier.fillMaxSize(),

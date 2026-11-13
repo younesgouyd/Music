@@ -3,9 +3,9 @@ package dev.younesgouyd.apps.music.client.multiplatform.components
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
@@ -77,7 +77,6 @@ class PlaylistDetails(
             playlistRepo.get(id).mapLatest { dbPlaylist ->
                 if (dbPlaylist == null) return@mapLatest Ui.State.ItemDoesNotExist
                 Ui.State.Loaded(
-                    scrollState = LazyListState(),
                     playlist = Ui.State.Loaded.Playlist(
                         name = dbPlaylist.name,
                         image = null
@@ -177,7 +176,6 @@ class PlaylistDetails(
             data object Loading : State()
 
             class Loaded(
-                val scrollState: LazyListState,
                 val playlist: Playlist,
                 val tracks: StateFlow<List<Track>>,
                 val addToPlaylistDialogVisible: StateFlow<Boolean>,
@@ -240,7 +238,6 @@ class PlaylistDetails(
 
                 Main(
                     modifier = modifier,
-                    scrollState = state.scrollState,
                     playlist = state.playlist,
                     tracks = state.tracks,
                     searchQuery = state.searchQuery,
@@ -267,7 +264,6 @@ class PlaylistDetails(
             @Composable
             private fun Main(
                 modifier: Modifier,
-                scrollState: LazyListState,
                 playlist: State.Loaded.Playlist,
                 tracks: StateFlow<List<State.Loaded.Track>>,
                 searchQuery: StateFlow<String>,
@@ -287,6 +283,7 @@ class PlaylistDetails(
                 var orderedItems by remember { mutableStateOf(items) }
                 val searchQuery by searchQuery.collectAsState()
                 var isDragging by remember { mutableStateOf(false) }
+                val scrollState = rememberLazyListState()
                 val reorderState = rememberReorderableLazyListState(
                     onMove = { fromItem, toItem ->
                         isDragging = true
@@ -399,9 +396,7 @@ class PlaylistDetails(
                         }
                     },
                     floatingActionButton = {
-                        ScrollToTopFloatingActionButton(
-                            scrollState
-                        )
+                        ScrollToTopFloatingActionButton(scrollState)
                     }
                 )
 
@@ -671,7 +666,6 @@ class PlaylistDetails(
 
                 Main(
                     modifier = modifier,
-                    scrollState = state.scrollState,
                     playlist = state.playlist,
                     tracks = state.tracks,
                     searchQuery = state.searchQuery,
@@ -698,7 +692,6 @@ class PlaylistDetails(
             @Composable
             private fun Main(
                 modifier: Modifier,
-                scrollState: LazyListState,
                 playlist: State.Loaded.Playlist,
                 tracks: StateFlow<List<State.Loaded.Track>>,
                 searchQuery: StateFlow<String>,
@@ -718,6 +711,7 @@ class PlaylistDetails(
                 var orderedItems by remember { mutableStateOf(items) }
                 val searchQuery by searchQuery.collectAsState()
                 var isDragging by remember { mutableStateOf(false) }
+                val scrollState = rememberLazyListState()
                 val reorderState = rememberReorderableLazyListState(
                     onMove = { fromItem, toItem ->
                         isDragging = true

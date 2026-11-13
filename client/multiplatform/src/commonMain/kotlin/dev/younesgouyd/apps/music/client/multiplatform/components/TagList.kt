@@ -1,10 +1,9 @@
 package dev.younesgouyd.apps.music.client.multiplatform.components
 
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,7 +35,6 @@ class TagList(
         val searchQuery = MutableStateFlow("")
         coroutineScope.launch {
             state.value = TagListState.Loaded(
-                scrollState = ScrollState(0),
                 searchQuery = searchQuery.asStateFlow(),
                 tags = searchQuery.flatMapLatest { tagRepo.search(it) }.stateIn(coroutineScope),
                 onSearchQueryChange = { searchQuery.value = it },
@@ -73,7 +71,6 @@ class TagList(
         data object Loading : TagListState()
 
         class Loaded(
-            val scrollState: ScrollState,
             val searchQuery: StateFlow<String>,
             val tags: StateFlow<List<Tag>>,
             val onSearchQueryChange: (String) -> Unit,
@@ -102,7 +99,6 @@ class TagList(
         ) {
             Main(
                 modifier = modifier,
-                scrollState = loaded.scrollState,
                 searchQuery = loaded.searchQuery,
                 tags = loaded.tags,
                 onSearchQueryChange = loaded.onSearchQueryChange,
@@ -115,7 +111,6 @@ class TagList(
         @Composable
         private fun Main(
             modifier: Modifier,
-            scrollState: ScrollState,
             searchQuery: StateFlow<String>,
             tags: StateFlow<List<Tag>>,
             onSearchQueryChange: (String) -> Unit,
@@ -126,6 +121,7 @@ class TagList(
             val searchQuery by searchQuery.collectAsState()
             val tags by tags.collectAsState()
             var isNewTagDialogVisible by remember { mutableStateOf(false) }
+            val scrollState = rememberScrollState()
 
             Scaffold(
                 modifier = modifier.fillMaxSize(),

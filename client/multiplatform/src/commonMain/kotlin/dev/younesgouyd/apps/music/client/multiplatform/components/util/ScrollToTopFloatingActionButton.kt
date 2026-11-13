@@ -57,6 +57,24 @@ fun ScrollToTopFloatingActionButton(state: LazyGridState) {
 }
 
 @Composable
+fun ScrollToTopFloatingActionButton(
+    state: LazyGridState,
+    placeholder: @Composable () -> Unit
+) {
+    val coroutineScope = rememberCoroutineScope()
+    val visible by remember {
+        derivedStateOf { state.firstVisibleItemIndex > 5 }
+    }
+
+    if (visible) {
+        FloatingActionButton(
+            content = { Icon(Icons.Default.ArrowUpward, null) },
+            onClick = { coroutineScope.launch { state.animateScrollToItem(0) } }
+        )
+    } else placeholder()
+}
+
+@Composable
 fun ScrollToTopFloatingActionButton(state: LazyStaggeredGridState) {
     val coroutineScope = rememberCoroutineScope()
     val visible by remember {

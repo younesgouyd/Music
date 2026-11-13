@@ -7,19 +7,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DownloadDone
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -449,6 +439,8 @@ class TrackDetails(
             import: State.Loaded.Import,
             onUriClick: () -> Unit
         ) {
+            val scrollState = rememberScrollState()
+
             Surface(modifier) {
                 AdaptiveUi(
                     wide = {
@@ -472,7 +464,7 @@ class TrackDetails(
                     },
                     compact = {
                         ItemDetailsHeaderCompact(
-                            modifier = Modifier.verticalScroll(rememberScrollState()),
+                            modifier = Modifier.verticalScroll(scrollState),
                             title = import.title,
                             image = import.image,
                             itemAttributes = {
@@ -511,10 +503,10 @@ class TrackDetails(
                 val onSearchClick: () -> Unit = state.onSearchClick
                 val onSearchItemClick: (Track) -> Unit = state.onSearchItemClick
                 val onLinkedTrackClick: (TrackId) -> Unit = state.onLinkedTrackClick
-
                 val inputEnabled = !searching && !settingTrack
+                val scrollState = rememberScrollState()
 
-                Surface(modifier.verticalScroll(rememberScrollState())) {
+                Surface(modifier.verticalScroll(scrollState)) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -819,9 +811,10 @@ class TrackDetails(
             val applied by applied.collectAsState()
             val unapplied by unapplied.collectAsState()
             var isNewTagDialogVisible by remember { mutableStateOf(false) }
+            val scrollState = rememberScrollState()
 
             Column(
-                modifier = modifier.verticalScroll(rememberScrollState()),
+                modifier = modifier.verticalScroll(scrollState),
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {

@@ -3,8 +3,8 @@ package dev.younesgouyd.apps.music.client.multiplatform.components
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.*
@@ -38,7 +38,6 @@ class Queue(
     private val state: StateFlow<Ui.State>
 
     init {
-        val listState = LazyListState()
         val enableAutoScrollingToCurrentItem = MutableStateFlow(true)
         state = mediaController.state.mapLatest { mediaControllerState ->
             when (mediaControllerState) {
@@ -50,7 +49,6 @@ class Queue(
                         queue = mediaControllerState.queue,
                         currentItem = mediaControllerState.currentItem,
                         currentItemIndex = mediaControllerState.queueItemIndex,
-                        listState = listState,
                         enableAutoScrollingToCurrentItem = enableAutoScrollingToCurrentItem.asStateFlow(),
                         onEnableAutoScrollingToCurrentItemChange = { enableAutoScrollingToCurrentItem.value = it },
                         onPlayQueueItem = mediaController::playItem,
@@ -86,7 +84,6 @@ class Queue(
                 val queue: StateFlow<List<QueueItem>>,
                 val currentItem: StateFlow<QueueItem?>,
                 val currentItemIndex: StateFlow<Int>,
-                val listState: LazyListState,
                 val enableAutoScrollingToCurrentItem: StateFlow<Boolean>,
                 val onEnableAutoScrollingToCurrentItemChange: (Boolean) -> Unit,
                 val onPlayQueueItem: (queueItemIndex: Int) -> Unit,
@@ -116,7 +113,6 @@ class Queue(
                 queue = state.queue,
                 currentItem = state.currentItem,
                 currentItemIndex = state.currentItemIndex,
-                listState = state.listState,
                 enableAutoScrollingToCurrentItem = state.enableAutoScrollingToCurrentItem,
                 onEnableAutoScrollingToCurrentItemChange = state.onEnableAutoScrollingToCurrentItemChange,
                 onPlayQueueItem = state.onPlayQueueItem,
@@ -133,7 +129,6 @@ class Queue(
             queue: StateFlow<List<QueueItem>>,
             currentItem: StateFlow<QueueItem?>,
             currentItemIndex: StateFlow<Int>,
-            listState: LazyListState,
             enableAutoScrollingToCurrentItem: StateFlow<Boolean>,
             onEnableAutoScrollingToCurrentItemChange: (Boolean) -> Unit,
             onPlayQueueItem: (queueItemIndex: Int) -> Unit,
@@ -149,6 +144,7 @@ class Queue(
             var orderedItems by remember { mutableStateOf(queue) }
             var programmaticScrolling by remember { mutableStateOf(false) }
             var isDragging by remember { mutableStateOf(false) }
+            val listState = rememberLazyListState()
             val disableAutoScrollingToPlayingItem by remember {
                 derivedStateOf { isDragging || (listState.isScrollInProgress && !programmaticScrolling) }
             }
