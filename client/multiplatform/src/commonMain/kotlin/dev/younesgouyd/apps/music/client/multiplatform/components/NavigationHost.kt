@@ -28,22 +28,26 @@ import java.util.Stack
 class NavigationHost(
     private val toggleDrawerState: suspend () -> Unit,
     repoStore: RepoStore,
-    deleteFolderUseCase: DeleteFolderUseCase,
+    addToPlaylistUseCase: AddToPlaylistUseCase,
+    deleteUseCase: DeleteUseCase,
     clearImportItemUseCase: ClearImportItemUseCase,
     setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase,
     unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase,
     prepareImportUseCase: PrepareImportUseCase,
+    moveItemsToFolderUseCase: MoveItemsToFolderUseCase,
     mediaController: MediaController,
     startDestination: Destination
 ) : Component() {
     override val title: String = ""
     private val navController = NavigationController(
         repoStore = repoStore,
-        deleteFolderUseCase = deleteFolderUseCase,
+        addToPlaylistUseCase = addToPlaylistUseCase,
+        deleteUseCase = deleteUseCase,
         clearImportItemUseCase = clearImportItemUseCase,
         setTrackMetadataFromSpotifyUseCase = setTrackMetadataFromSpotifyUseCase,
         unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
         prepareImportUseCase = prepareImportUseCase,
+        moveItemsToFolderUseCase = moveItemsToFolderUseCase,
         mediaController = mediaController,
         startDestination = startDestination
     )
@@ -149,11 +153,13 @@ class NavigationHost(
 
     private class NavigationController(
         private val repoStore: RepoStore,
-        private val deleteFolderUseCase: DeleteFolderUseCase,
+        private val addToPlaylistUseCase: AddToPlaylistUseCase,
+        private val deleteUseCase: DeleteUseCase,
         private val clearImportItemUseCase: ClearImportItemUseCase,
         private val setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase,
         private val unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase,
         private val prepareImportUseCase: PrepareImportUseCase,
+        private val moveItemsToFolderUseCase: MoveItemsToFolderUseCase,
         private val mediaController: MediaController,
         startDestination: Destination
     ) {
@@ -245,24 +251,22 @@ class NavigationHost(
                         folderRepo = repoStore.folderRepo,
                         playlistRepo = repoStore.playlistRepo,
                         trackRepo = repoStore.trackRepo,
-                        artistRepo = repoStore.spotifyArtistRepo,
-                        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
-                        deleteFolderUseCase = deleteFolderUseCase,
+                        addToPlaylistUseCase = addToPlaylistUseCase,
+                        deleteUseCase = deleteUseCase,
                         clearImportItemUseCase = clearImportItemUseCase,
+                        moveItemsToFolderUseCase = moveItemsToFolderUseCase,
                         mediaController = mediaController,
                         showImportFlow = { navigateTo(Destination.ImportFlow(it)) },
                         showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
                         showTrack = { navigateTo(Destination.TrackDetails(it)) },
-                        albumRepo = repoStore.spotifyAlbumRepo
                     )
                     is Destination.ArtistDetails -> ArtistDetails(
                         id = destination.id,
                         artistRepo = repoStore.spotifyArtistRepo,
-                        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
                         trackRepo = repoStore.trackRepo,
-                        folderRepo = repoStore.folderRepo,
                         playlistRepo = repoStore.playlistRepo,
+                        addToPlaylistUseCase = addToPlaylistUseCase,
                         mediaController = mediaController,
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
                         albumRepo = repoStore.spotifyAlbumRepo,
@@ -287,23 +291,18 @@ class NavigationHost(
                         id = destination.id,
                         trackRepo = repoStore.trackRepo,
                         playlistRepo = repoStore.playlistRepo,
-                        artistRepo = repoStore.spotifyArtistRepo,
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
-                        folderRepo = repoStore.folderRepo,
+                        addToPlaylistUseCase = addToPlaylistUseCase,
                         mediaController = mediaController,
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
-                        albumRepo = repoStore.spotifyAlbumRepo,
                         showTrack = { navigateTo(Destination.TrackDetails(it)) }
                     )
                     is Destination.PlaylistList -> PlaylistList(
                         playlistRepo = repoStore.playlistRepo,
-                        playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
-                        trackRepo = repoStore.trackRepo,
-                        folderRepo = repoStore.folderRepo,
-                        artistRepo = repoStore.spotifyArtistRepo,
+                        addToPlaylistUseCase = addToPlaylistUseCase,
+                        deleteUseCase = deleteUseCase,
                         mediaController = mediaController,
                         showPlaylistDetails = { navigateTo(Destination.PlaylistDetails(it)) },
-                        albumRepo = repoStore.spotifyAlbumRepo
                     )
                     is Destination.ImportList -> ImportList(
                         importSessionRepo = repoStore.importSessionRepo,

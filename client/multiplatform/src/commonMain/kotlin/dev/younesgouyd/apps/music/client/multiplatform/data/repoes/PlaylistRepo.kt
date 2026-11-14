@@ -76,10 +76,4 @@ class PlaylistRepo(
             )
         )
     }
-
-    suspend fun delete(id: PlaylistId) {
-        server.call(
-            Rpc.ToServer.Playlist.Delete(id)
-        )
-    }
 }

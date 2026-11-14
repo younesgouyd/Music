@@ -24,7 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.*
-import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.*
+import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.PlaylistRepo
+import dev.younesgouyd.apps.music.client.multiplatform.usecases.AddToPlaylistUseCase
+import dev.younesgouyd.apps.music.client.multiplatform.usecases.DeleteUseCase
 import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.PlaylistId
 import dev.younesgouyd.apps.music.common.models.QueueItemParameter
@@ -38,11 +40,8 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistList(
     playlistRepo: PlaylistRepo,
-    playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
-    trackRepo: TrackRepo,
-    folderRepo: FolderRepo,
-    artistRepo: SpotifyArtistRepo,
-    albumRepo: SpotifyAlbumRepo,
+    addToPlaylistUseCase: AddToPlaylistUseCase,
+    deleteUseCase: DeleteUseCase,
     mediaController: MediaController,
     showPlaylistDetails: (PlaylistId) -> Unit
 ) : Component() {
@@ -75,21 +74,27 @@ class PlaylistList(
                 onAddToPlaylist = { playlistId: PlaylistId ->
                     addToPlaylist.update {
                         AddToPlaylist(
-                            itemToAdd = AddToPlaylist.Item.Playlist(playlistId),
-                            playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                            trackRepo = trackRepo,
-                            folderRepo = folderRepo,
-                            artistRepo = artistRepo,
-                            dismiss = ::dismissAddToPlaylistDialog,
+                            tracks = emptyList(),
+                            playlists = listOf(playlistId),
+                            folders = emptyList(),
+                            artists = emptyList(),
+                            albums = emptyList(),
                             playlistRepo = playlistRepo,
-                            albumRepo = albumRepo
+                            addToPlaylistUseCase = addToPlaylistUseCase,
+                            dismiss = ::dismissAddToPlaylistDialog
                         )
                     }
                     addToPlaylistDialogVisible.update { true }
                 },
                 onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
                 onDeletePlaylist = { id: PlaylistId ->
-                    coroutineScope.launch { playlistRepo.delete(id) }
+                    coroutineScope.launch {
+                        deleteUseCase.execute(
+                            tracks = emptySet(),
+                            playlists = setOf(id),
+                            folders = emptySet()
+                        )
+                    }
                 },
                 onRenamePlaylist = { newName: String, id: PlaylistId ->
                     coroutineScope.launch {

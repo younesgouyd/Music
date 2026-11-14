@@ -37,9 +37,11 @@ class WebSocketSessionHandler(
     spotify: Spotify,
     unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase,
     setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase,
+    addToPlaylistUseCase: AddToPlaylistUseCase,
     clearImportItemUseCase: ClearImportItemUseCase,
-    deleteFolderUseCase: DeleteFolderUseCase,
+    deleteUseCase: DeleteUseCase,
     prepareImportUseCase: PrepareImportUseCase,
+    moveItemsToFolderUseCase: MoveItemsToFolderUseCase,
     playbackIntervalManager: PlaybackIntervalManager
 ) {
     private val logger = KotlinLogging.logger {}
@@ -53,9 +55,11 @@ class WebSocketSessionHandler(
         spotify = spotify,
         unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
         setTrackMetadataFromSpotifyUseCase = setTrackMetadataFromSpotifyUseCase,
+        addToPlaylistUseCase = addToPlaylistUseCase,
         clearImportItemUseCase = clearImportItemUseCase,
-        deleteFolderUseCase = deleteFolderUseCase,
+        deleteUseCase = deleteUseCase,
         prepareImportUseCase = prepareImportUseCase,
+        moveItemsToFolderUseCase = moveItemsToFolderUseCase,
         playbackIntervalManager = playbackIntervalManager
     )
 
@@ -234,9 +238,11 @@ class WebSocketSessionHandler(
         private val spotify: Spotify,
         private val unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase,
         private val setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase,
+        private val addToPlaylistUseCase: AddToPlaylistUseCase,
         private val clearImportItemUseCase: ClearImportItemUseCase,
-        private val deleteFolderUseCase: DeleteFolderUseCase,
+        private val deleteUseCase: DeleteUseCase,
         private val prepareImportUseCase: PrepareImportUseCase,
+        private val moveItemsToFolderUseCase: MoveItemsToFolderUseCase,
         private val playbackIntervalManager: PlaybackIntervalManager
     ) {
         private val jobs = ConcurrentHashMap<Uuid, Job>()
@@ -285,6 +291,150 @@ class WebSocketSessionHandler(
 
         private suspend fun process(correlationId: Uuid, rpc: Rpc.ToServer) {
             when (rpc) {
+                is Rpc.ToServer.UseCase -> when (rpc) {
+                    is Rpc.ToServer.UseCase.AddToPlaylist -> {
+                        addToPlaylistUseCase.execute(
+                            tracks = rpc.tracks,
+                            playlists = rpc.playlists,
+                            folders = rpc.folders,
+                            artists = rpc.artists,
+                            albums = rpc.albums,
+                            playlist = rpc.playlist
+                        )
+                        sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.UseCase.ClearImportItem -> {
+                        clearImportItemUseCase.execute(rpc.id)
+                        sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.UseCase.Delete -> {
+                        deleteUseCase.execute(
+                            tracks = rpc.tracks,
+                            playlists = rpc.playlists,
+                            folders = rpc.folders
+                        )
+                        sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.UseCase.MoveItemsToFolder -> {
+                        moveItemsToFolderUseCase.execute(rpc.tracks, rpc.playlists, rpc.folders, rpc.folder)
+                        sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.UseCase.PrepareImport -> {
+                        val result = prepareImportUseCase.execute(
+                            selected = rpc.selected,
+                            url = rpc.url,
+                            inspection = rpc.inspection,
+                            destinationFolderId = rpc.destinationFolderId
+                        )
+                        sendData(correlationId, result, rpc.serializer)
+                    }
+                    is Rpc.ToServer.UseCase.SetTrackMetadataFromSpotify -> {
+                        setTrackMetadataFromSpotifyUseCase.execute(
+                            trackId = rpc.trackId,
+                            spotifyApiTrack = rpc.spotifyApiTrack
+                        )
+                        sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.UseCase.UnsetSpotifyTrack -> {
+                        unsetSpotifyTrackUseCase.execute(
+                            trackId = rpc.trackId,
+                            spotifyTrackId = rpc.spotifyTrackId,
+                            spotifyAlbumId = rpc.spotifyAlbumId
+                        )
+                        sendDone(correlationId)
+                    }
+                }
+                is Rpc.ToServer.Inspect -> {
+                    val result = ytDlp.inspect(rpc.url).first()
+                    sendData(correlationId, result, rpc.serializer)
+                }
+                is Rpc.ToServer.SetPlaybackIntervalStart -> {
+                    playbackIntervalManager.setStart(rpc.start)
+                    sendDone(correlationId)
+                }
+                is Rpc.ToServer.MediaController -> when (rpc) {
+                    is Rpc.ToServer.MediaController.ObserveState ->  {
+                        mediaController.state.collect { sendData(correlationId, it, rpc.serializer) }
+                    }
+                    is Rpc.ToServer.MediaController.ObserveAvailableState -> when (rpc) {
+                        is Rpc.ToServer.MediaController.ObserveAvailableState.Clients -> {
+                            mediaController.clients.collect { sendData(correlationId, it, rpc.serializer) }
+                        }
+                        is Rpc.ToServer.MediaController.ObserveAvailableState.Enabled -> {
+                            mediaController.enabled.collect { sendData(correlationId, it, rpc.serializer) }
+                        }
+                        is Rpc.ToServer.MediaController.ObserveAvailableState.Queue -> {
+                            mediaController.queue.collect { sendData(correlationId, it, rpc.serializer) }
+                        }
+                        is Rpc.ToServer.MediaController.ObserveAvailableState.QueueItemIndex -> {
+                            mediaController.currentItemIndex.collect { sendData(correlationId, it, rpc.serializer) }
+                        }
+                        is Rpc.ToServer.MediaController.ObserveAvailableState.RepeatState -> {
+                            mediaController.repeatState.collect { sendData(correlationId, it, rpc.serializer) }
+                        }
+                        is Rpc.ToServer.MediaController.ObserveAvailableState.SelectedClient -> {
+                            mediaController.selectedClient.collect { sendData(correlationId, it, rpc.serializer) }
+                        }
+                        is Rpc.ToServer.MediaController.ObserveAvailableState.MediaPlayerState -> {
+                            mediaController.mediaPlayerState.collect { sendData(correlationId, it, rpc.serializer) }
+                        }
+                    }
+                    is Rpc.ToServer.MediaController.SelectClient -> {
+                        mediaController.selectClient(rpc.id)
+                        sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.MediaController.PlayQueue -> {
+                        mediaController.playQueue(
+                            clientId = clientId,
+                            queue = rpc.queue,
+                            queueItemIndex = rpc.queueItemIndex
+                        )
+                        sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.MediaController.Play -> {
+                        mediaController.play(clientId)
+                        sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.MediaController.Pause -> {
+                        mediaController.pause()
+                        sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.MediaController.Seek -> {
+                        mediaController.seek(rpc.positionMs)
+                        sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.MediaController.Next -> {
+                        mediaController.next(clientId)
+                        sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.MediaController.Previous -> {
+                        mediaController.previous(clientId)
+                        sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.MediaController.Repeat -> {
+                        mediaController.repeat()
+                        sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.MediaController.AddToQueue -> {
+                        mediaController.addToQueue(clientId, rpc.items)
+                        sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.MediaController.PlayItem -> {
+                        mediaController.playItem(clientId, rpc.index)
+                        sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.MediaController.ChangeItemIndex -> {
+                        mediaController.changeItemIndex(
+                            oldIndex = rpc.oldIndex,
+                            newIndex = rpc.newIndex
+                        )
+                        sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.MediaController.RemoveItem -> {
+                        mediaController.removeItem(clientId, rpc.key)
+                        sendDone(correlationId)
+                    }
+                }
                 is Rpc.ToServer.Folder -> when (rpc) {
                     is Rpc.ToServer.Folder.Add -> {
                         val result = folderRepo.add(rpc.name, rpc.parentFolderId)
@@ -363,10 +513,6 @@ class WebSocketSessionHandler(
                         sendData(correlationId, result, rpc.serializer)
                     }
                 }
-                is Rpc.ToServer.Inspection.Inspect -> {
-                    val result = ytDlp.inspect(rpc.url).first()
-                    sendData(correlationId, result, rpc.serializer)
-                }
                 is Rpc.ToServer.Playlist -> when (rpc) {
                     is Rpc.ToServer.Playlist.GetAll -> {
                         val result = playlistRepo.getAll(
@@ -422,10 +568,6 @@ class WebSocketSessionHandler(
                             id = rpc.id,
                             folderId = rpc.folderId
                         )
-                        sendDone(correlationId)
-                    }
-                    is Rpc.ToServer.Playlist.Delete -> {
-                        playlistRepo.delete(rpc.id)
                         sendDone(correlationId)
                     }
                 }
@@ -698,127 +840,8 @@ class WebSocketSessionHandler(
                         sendDone(correlationId)
                     }
                 }
-                is Rpc.ToServer.ClearImportItem -> {
-                    clearImportItemUseCase.execute(rpc.id)
-                    sendDone(correlationId)
-                }
-                is Rpc.ToServer.DeleteFolder -> {
-                    deleteFolderUseCase.execute(rpc.id)
-                    sendDone(correlationId)
-                }
-                is Rpc.ToServer.PrepareImport -> {
-                    val result = prepareImportUseCase.execute(
-                        selected = rpc.selected,
-                        url = rpc.url,
-                        inspection = rpc.inspection,
-                        destinationFolderId = rpc.destinationFolderId
-                    )
-                    sendData(correlationId, result, rpc.serializer)
-                }
-                is Rpc.ToServer.SetTrackMetadataFromSpotify -> {
-                    setTrackMetadataFromSpotifyUseCase.execute(
-                        trackId = rpc.trackId,
-                        spotifyApiTrack = rpc.spotifyApiTrack
-                    )
-                    sendDone(correlationId)
-                }
-                is Rpc.ToServer.UnsetSpotifyTrack -> {
-                    unsetSpotifyTrackUseCase.execute(
-                        trackId = rpc.trackId,
-                        spotifyTrackId = rpc.spotifyTrackId,
-                        spotifyAlbumId = rpc.spotifyAlbumId
-                    )
-                    sendDone(correlationId)
-                }
-                is Rpc.ToServer.MediaController -> when (rpc) {
-                    is Rpc.ToServer.MediaController.ObserveState ->  {
-                        mediaController.state.collect { sendData(correlationId, it, rpc.serializer) }
-                    }
-                    is Rpc.ToServer.MediaController.ObserveAvailableState -> when (rpc) {
-                        is Rpc.ToServer.MediaController.ObserveAvailableState.Clients -> {
-                            mediaController.clients.collect { sendData(correlationId, it, rpc.serializer) }
-                        }
-                        is Rpc.ToServer.MediaController.ObserveAvailableState.Enabled -> {
-                            mediaController.enabled.collect { sendData(correlationId, it, rpc.serializer) }
-                        }
-                        is Rpc.ToServer.MediaController.ObserveAvailableState.Queue -> {
-                            mediaController.queue.collect { sendData(correlationId, it, rpc.serializer) }
-                        }
-                        is Rpc.ToServer.MediaController.ObserveAvailableState.QueueItemIndex -> {
-                            mediaController.currentItemIndex.collect { sendData(correlationId, it, rpc.serializer) }
-                        }
-                        is Rpc.ToServer.MediaController.ObserveAvailableState.RepeatState -> {
-                            mediaController.repeatState.collect { sendData(correlationId, it, rpc.serializer) }
-                        }
-                        is Rpc.ToServer.MediaController.ObserveAvailableState.SelectedClient -> {
-                            mediaController.selectedClient.collect { sendData(correlationId, it, rpc.serializer) }
-                        }
-                        is Rpc.ToServer.MediaController.ObserveAvailableState.MediaPlayerState -> {
-                            mediaController.mediaPlayerState.collect { sendData(correlationId, it, rpc.serializer) }
-                        }
-                    }
-                    is Rpc.ToServer.MediaController.SelectClient -> {
-                        mediaController.selectClient(rpc.id)
-                        sendDone(correlationId)
-                    }
-                    is Rpc.ToServer.MediaController.PlayQueue -> {
-                        mediaController.playQueue(
-                            clientId = clientId,
-                            queue = rpc.queue,
-                            queueItemIndex = rpc.queueItemIndex
-                        )
-                        sendDone(correlationId)
-                    }
-                    is Rpc.ToServer.MediaController.Play -> {
-                        mediaController.play(clientId)
-                        sendDone(correlationId)
-                    }
-                    is Rpc.ToServer.MediaController.Pause -> {
-                        mediaController.pause()
-                        sendDone(correlationId)
-                    }
-                    is Rpc.ToServer.MediaController.Seek -> {
-                        mediaController.seek(rpc.positionMs)
-                        sendDone(correlationId)
-                    }
-                    is Rpc.ToServer.MediaController.Next -> {
-                        mediaController.next(clientId)
-                        sendDone(correlationId)
-                    }
-                    is Rpc.ToServer.MediaController.Previous -> {
-                        mediaController.previous(clientId)
-                        sendDone(correlationId)
-                    }
-                    is Rpc.ToServer.MediaController.Repeat -> {
-                        mediaController.repeat()
-                        sendDone(correlationId)
-                    }
-                    is Rpc.ToServer.MediaController.AddToQueue -> {
-                        mediaController.addToQueue(clientId, rpc.items)
-                        sendDone(correlationId)
-                    }
-                    is Rpc.ToServer.MediaController.PlayItem -> {
-                        mediaController.playItem(clientId, rpc.index)
-                        sendDone(correlationId)
-                    }
-                    is Rpc.ToServer.MediaController.ChangeItemIndex -> {
-                        mediaController.changeItemIndex(
-                            oldIndex = rpc.oldIndex,
-                            newIndex = rpc.newIndex
-                        )
-                        sendDone(correlationId)
-                    }
-                    is Rpc.ToServer.MediaController.RemoveItem -> {
-                        mediaController.removeItem(clientId, rpc.key)
-                        sendDone(correlationId)
-                    }
-                }
                 is Rpc.ToServer.PlaybackInterval.Add -> {
                     playbackIntervalManager.add(rpc.item)
-                    sendDone(correlationId)
-                }
-                is Rpc.ToServer.SetPlaybackIntervalStart -> {
-                    playbackIntervalManager.setStart(rpc.start)
                     sendDone(correlationId)
                 }
             }

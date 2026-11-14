@@ -1,12 +1,15 @@
 package dev.younesgouyd.apps.music.common.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,6 +20,7 @@ fun Item(
     modifier: Modifier = Modifier,
     contentAlignment: Alignment = Alignment.Center,
     contentPadding: PaddingValues = PaddingValues(0.dp),
+    isSelected: Boolean = false,
     content: @Composable () -> Unit
 ) {
     Card(
@@ -30,6 +34,7 @@ fun Item(
             )
         },
         elevation = CardDefaults.elevatedCardElevation(),
+        border = if (isSelected) BorderStroke(3.dp, MaterialTheme.colorScheme.primary) else null,
         colors = CardDefaults.elevatedCardColors()
     )
 }
@@ -40,6 +45,8 @@ fun Item(
     onClick: (() -> Unit)?,
     contentAlignment: Alignment = Alignment.Center,
     contentPadding: PaddingValues = PaddingValues(0.dp),
+    isSelected: Boolean = false,
+    interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit
 ) {
     if (onClick == null) {
@@ -62,7 +69,9 @@ fun Item(
             },
             onClick = onClick,
             elevation = CardDefaults.elevatedCardElevation(),
-            colors = CardDefaults.elevatedCardColors()
+            colors = CardDefaults.elevatedCardColors(),
+            border = if (isSelected) BorderStroke(3.dp, MaterialTheme.colorScheme.primary) else null,
+            interactionSource = interactionSource
         )
     }
 }
@@ -74,6 +83,8 @@ fun Item(
     onLongClick: () -> Unit,
     contentAlignment: Alignment = Alignment.Center,
     contentPadding: PaddingValues = PaddingValues(0.dp),
+    isSelected: Boolean = false,
+    interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit
 ) {
     Card(
@@ -83,6 +94,7 @@ fun Item(
                 modifier = Modifier.wrapContentSize()
                     .padding(contentPadding)
                     .combinedClickable(
+                        interactionSource = interactionSource,
                         onClick = onClick,
                         onLongClick = onLongClick
                     ),
@@ -91,7 +103,8 @@ fun Item(
             )
         },
         elevation = CardDefaults.elevatedCardElevation(),
-        colors = CardDefaults.elevatedCardColors()
+        colors = CardDefaults.elevatedCardColors(),
+        border = if (isSelected) BorderStroke(3.dp, MaterialTheme.colorScheme.primary) else null,
     )
 }
 

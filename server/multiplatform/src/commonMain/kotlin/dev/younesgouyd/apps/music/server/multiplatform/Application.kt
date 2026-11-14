@@ -170,13 +170,14 @@ abstract class Application(appDir: File) {
                 spotify = spotify,
                 fileManager = fileManager
             )
+            val addToPlaylistUseCase = AddToPlaylistUseCase(database.addToPlaylist())
             val clearImportItemUseCase = ClearImportItemUseCase(
                 unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
                 trackRepo = repoStore.trackRepo,
                 transaction = database.clearImportSessionItem(),
                 fileManager = fileManager
             )
-            val deleteFolderUseCase = DeleteFolderUseCase(
+            val deleteUseCase = DeleteUseCase(
                 playlistRepo = repoStore.playlistRepo,
                 trackRepo = repoStore.trackRepo,
                 clearImportItemUseCase = clearImportItemUseCase,
@@ -185,6 +186,9 @@ abstract class Application(appDir: File) {
             val prepareImportUseCase = PrepareImportUseCase(
                 fileManager = fileManager,
                 transaction = database.prepareImportFromInternet()
+            )
+            val moveItemsToFolderUseCase = MoveItemsToFolderUseCase(
+                transaction = database.moveItemsToFolder()
             )
             val playbackIntervalManager = PlaybackIntervalManager(database.playbackIntervalDao(), failedPlaybackIntervalsDir)
 
@@ -354,9 +358,11 @@ abstract class Application(appDir: File) {
                                     spotify = spotify,
                                     unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
                                     setTrackMetadataFromSpotifyUseCase = setTrackMetadataFromSpotifyUseCase,
+                                    addToPlaylistUseCase = addToPlaylistUseCase,
                                     clearImportItemUseCase = clearImportItemUseCase,
-                                    deleteFolderUseCase = deleteFolderUseCase,
+                                    deleteUseCase = deleteUseCase,
                                     prepareImportUseCase = prepareImportUseCase,
+                                    moveItemsToFolderUseCase = moveItemsToFolderUseCase,
                                     playbackIntervalManager = playbackIntervalManager
                                 )
                                 webSocketSessionHandlersMap[clientId] = handler

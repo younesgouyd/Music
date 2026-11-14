@@ -17,159 +17,68 @@ import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.Image
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.LazilyLoadedItems
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.PageSize
-import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.*
+import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.PlaylistRepo
+import dev.younesgouyd.apps.music.client.multiplatform.usecases.AddToPlaylistUseCase
 import dev.younesgouyd.apps.music.common.models.*
-import dev.younesgouyd.apps.music.common.models.datamodels.Track
 import dev.younesgouyd.apps.music.common.ui.Component
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import dev.younesgouyd.apps.music.common.ui.Item
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class AddToPlaylist(
-    itemToAdd: Item,
-    playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
-    trackRepo: TrackRepo,
-    folderRepo: FolderRepo,
-    artistRepo: SpotifyArtistRepo,
-    albumRepo: SpotifyAlbumRepo,
+    tracks: List<TrackId>,
+    playlists: List<PlaylistId>,
+    folders: List<FolderId>,
+    artists: List<SpotifyArtistId>,
+    albums: List<SpotifyAlbumId>,
     playlistRepo: PlaylistRepo,
+    addToPlaylistUseCase: AddToPlaylistUseCase,
     dismiss: () -> Unit
 ) : Component() {
     override val title: String = "Add to Playlist"
-    private val state: StateFlow<Ui.State>
+    private val state: Ui.State
     private val _adding: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val adding = _adding.asStateFlow()
 
+
     init {
-        val item = when (itemToAdd) {
-            is Item.Track -> trackRepo.get(itemToAdd.id).mapLatest { dbTrack ->
-                if (dbTrack == null) return@mapLatest null
-                Ui.State.Loaded.ItemToAdd(
-                    name = dbTrack.spotifyTrackRelation?.spotifyTrack?.name ?: dbTrack.originalImport.title,
-                    image = dbTrack.spotifyTrackRelation?.spotifyAlbum?.mediumImgId ?: dbTrack.originalImport.imgId
-                )
-            }
-            is Item.Playlist -> playlistRepo.get(itemToAdd.id).mapLatest { dbPlaylist ->
-                if (dbPlaylist == null) return@mapLatest null
-                Ui.State.Loaded.ItemToAdd(
-                    name = dbPlaylist.name,
-                    image = null
-                )
-            }
-            is Item.Folder -> folderRepo.get(itemToAdd.id).mapLatest { dbFolder ->
-                if (dbFolder == null) return@mapLatest null
-                Ui.State.Loaded.ItemToAdd(
-                    name = dbFolder.name,
-                    image = null
-                )
-            }
-            is Item.Artist -> artistRepo.get(itemToAdd.id).mapLatest { dbArtist ->
-                if (dbArtist == null) return@mapLatest null
-                Ui.State.Loaded.ItemToAdd(
-                    name = dbArtist.name,
-                    image = dbArtist.mediumImgId
-                )
-            }
-            is Item.Album -> albumRepo.get(itemToAdd.id).mapLatest { dbAlbum ->
-                if (dbAlbum == null) return@mapLatest null
-                Ui.State.Loaded.ItemToAdd(
-                    name = dbAlbum.name,
-                    image = dbAlbum.mediumImgId
-                )
-            }
+        if (tracks.isEmpty() && playlists.isEmpty() && folders.isEmpty() && artists.isEmpty() && albums.isEmpty()) {
+            TODO()
         }
-        val playlists: LazilyLoadedItems<Ui.State.Loaded.PlaylistOption, Offset.Id<PlaylistId>> = LazilyLoadedItems(
-            scope = coroutineScope,
-            loader = { offset: Offset.Id<PlaylistId>, pageSize: PageSize ->
-                val rows = playlistRepo.getAll(pageSize, offset)
-                LazilyLoadedItems.Page(
-                    nextOffset = rows.lastOrNull()?.id?.let { Offset.Id(it) },
-                    items = rows.map { Ui.State.Loaded.PlaylistOption(it.id, it.name, null) }
-                )
-            },
-            initialOffset = Offset.Id.initial<PlaylistId>()
-        )
-        state = item.mapLatest { item ->
-            if (item == null) return@mapLatest Ui.State.ItemDoesNotExist
-            Ui.State.Loaded(
-                adding = _adding.asStateFlow(),
-                itemToAdd = item,
-                playlists = playlists,
-                onDoneClick = { playlistToAddTo: Ui.State.Loaded.PlaylistToAddTo ->
-                    coroutineScope.launch {
-                        _adding.update { true }
-                        val playlistId = when (playlistToAddTo) {
-                            is Ui.State.Loaded.PlaylistToAddTo.Id -> playlistToAddTo.value
-                            is Ui.State.Loaded.PlaylistToAddTo.New -> playlistRepo.add(
-                                name = playlistToAddTo.name,
-                                folderId = null
-                            )
-                        }
-                        when (itemToAdd) {
-                            is Item.Track -> {
-                                val exists = playlistTrackCrossRefRepo.get(playlistId, itemToAdd.id).first() != null
-                                if (!exists) {
-                                    playlistTrackCrossRefRepo.add(playlistId, itemToAdd.id)
-                                }
-                            }
-                            is Item.Playlist -> {
-                                val tracks: List<Track> = trackRepo.getPlaylistTracks(itemToAdd.id).first().map { it.track }
-                                for (track in tracks) {
-                                    val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
-                                    if (!exists) {
-                                        playlistTrackCrossRefRepo.add(playlistId, track.id)
-                                    }
-                                }
-                            }
-                            is Item.Folder -> {
-                                suspend fun addFolderToPlaylist(folderId: FolderId) {
-                                    val tracks: List<Track> = trackRepo.getFolderTracks(folderId).first()
-                                    for (track in tracks) {
-                                        val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
-                                        if (!exists) {
-                                            playlistTrackCrossRefRepo.add(playlistId, track.id)
-                                        }
-                                    }
-                                    val subfolders = folderRepo.getSubfolders(folderId).first()
-                                    for (subfolder in subfolders) {
-                                        addFolderToPlaylist(subfolder.id)
-                                    }
-                                }
-                                addFolderToPlaylist(itemToAdd.id)
-                            }
-                            is Item.Artist -> {
-                                val tracks: List<Track> = trackRepo.getArtistTracks(itemToAdd.id).first().map { it.track }
-                                for (track in tracks) {
-                                    val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
-                                    if (!exists) {
-                                        playlistTrackCrossRefRepo.add(playlistId, track.id)
-                                    }
-                                }
-                            }
-                            is Item.Album -> {
-                                val tracks: List<Track> = trackRepo.getAlbumTracks(itemToAdd.id).first().map { it.track }
-                                for (track in tracks) {
-                                    val exists = playlistTrackCrossRefRepo.get(playlistId, track.id).first() != null
-                                    if (!exists) {
-                                        playlistTrackCrossRefRepo.add(playlistId, track.id)
-                                    }
-                                }
-                            }
-                        }
-                        _adding.update { false }
-                        dismiss()
-                    }
+        state = Ui.State(
+            adding = _adding.asStateFlow(),
+            playlists = LazilyLoadedItems(
+                scope = coroutineScope,
+                loader = { offset: Offset.Id<PlaylistId>, pageSize: PageSize ->
+                    val rows = playlistRepo.getAll(pageSize, offset)
+                    LazilyLoadedItems.Page(
+                        nextOffset = rows.lastOrNull()?.id?.let { Offset.Id(it) },
+                        items = rows.map { Ui.State.PlaylistOption(it.id, it.name, null) }
+                    )
+                },
+                initialOffset = Offset.Id.initial()
+            ),
+            onDoneClick = { playlistToAddTo: PlaylistToAddTo ->
+                coroutineScope.launch {
+                    _adding.update { true }
+                    addToPlaylistUseCase.execute(
+                        tracks = tracks,
+                        playlists = playlists,
+                        folders = folders,
+                        artists = artists,
+                        albums = albums,
+                        playlist = playlistToAddTo
+                    )
+                    _adding.update { false }
+                    dismiss()
                 }
-            )
-        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Loading)
+            }
+        )
     }
 
     @Composable
     override fun show(modifier: Modifier) {
-        val state by state.collectAsState()
-
         Ui.Main(
             modifier = modifier.size(width = 500.dp, height = 600.dp),
             state = state
@@ -180,47 +89,17 @@ class AddToPlaylist(
         coroutineScope.cancel()
     }
 
-    sealed class Item {
-        data class Track(val id: TrackId) : Item()
-
-        data class Playlist(val id: PlaylistId) : Item()
-
-        data class Folder(val id: FolderId) : Item()
-
-        data class Artist(val id: SpotifyArtistId) : Item()
-
-        data class Album(val id: SpotifyAlbumId) : Item()
-    }
-
     private object Ui {
-        sealed class State {
-            data object Loading : State()
-
-            class Loaded(
-                val adding: StateFlow<Boolean>,
-                val itemToAdd: ItemToAdd,
-                val playlists: LazilyLoadedItems<PlaylistOption, Offset.Id<PlaylistId>>,
-                val onDoneClick: (playlistId: PlaylistToAddTo) -> Unit
-            ) : State() {
-                data class ItemToAdd(
-                    val name: String,
-                    val image: MediaFileId?
-                )
-
-                data class PlaylistOption(
-                    val id: PlaylistId,
-                    val name: String,
-                    val image: MediaFileId?
-                )
-
-                sealed class PlaylistToAddTo {
-                    data class Id(val value: PlaylistId) : PlaylistToAddTo()
-
-                    data class New(val name: String) : PlaylistToAddTo()
-                }
-            }
-
-            data object ItemDoesNotExist : State()
+        class State(
+            val adding: StateFlow<Boolean>,
+            val playlists: LazilyLoadedItems<PlaylistOption, Offset.Id<PlaylistId>>,
+            val onDoneClick: (playlistId: PlaylistToAddTo) -> Unit
+        ) {
+            data class PlaylistOption(
+                val id: PlaylistId,
+                val name: String,
+                val image: MediaFileId?
+            )
         }
 
         @Composable
@@ -228,32 +107,25 @@ class AddToPlaylist(
             modifier: Modifier,
             state: State
         ) {
-            when (state) {
-                is State.Loading -> Text(modifier = modifier, text = "Loading...")
-                is State.Loaded -> Main(modifier = modifier, loaded = state)
-                is State.ItemDoesNotExist -> Text(modifier = modifier, text = "This item no long exists")
-            }
-        }
+            val adding by state.adding.collectAsState()
+            val playlists = state.playlists
+            val items by playlists.items.collectAsState()
+            val loadingItems by playlists.loading.collectAsState()
+            val lazyColumnState = rememberLazyListState()
 
-        @Composable
-        fun Main(
-            modifier: Modifier,
-            loaded: State.Loaded
-        ) {
-            val adding by loaded.adding.collectAsState()
-
-            if (!adding) {
-                val itemToAdd = loaded.itemToAdd
-                val playlists = loaded.playlists
-                val items by playlists.items.collectAsState()
-                val loadingItems by playlists.loading.collectAsState()
-                val lazyColumnState = rememberLazyListState()
-
-                Surface(
-                    modifier = modifier,
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.background
-                ) {
+            Surface(
+                modifier = modifier,
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.background
+            ) {
+                if (adding) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "Please wait...")
+                    }
+                } else {
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -266,115 +138,95 @@ class AddToPlaylist(
                             style = MaterialTheme.typography.headlineMedium,
                             textAlign = TextAlign.Center
                         )
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
+                            state = lazyColumnState,
+                            contentPadding = PaddingValues(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Image(
-                                modifier = Modifier.size(64.dp),
-                                id = itemToAdd.image
-                            )
-                            Text(
-                                text = itemToAdd.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        Box(modifier = Modifier.fillMaxWidth()) {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
-                                state = lazyColumnState,
-                                contentPadding = PaddingValues(8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                item {
-                                    var name by rememberSaveable { mutableStateOf("") }
+                            item {
+                                var name by rememberSaveable { mutableStateOf("") }
 
-                                    dev.younesgouyd.apps.music.common.ui.Item(
-                                        modifier = Modifier.padding(8.dp)
+                                Item(
+                                    modifier = Modifier.padding(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            androidx.compose.foundation.Image(
-                                                modifier = Modifier.size(64.dp),
-                                                imageVector = Icons.AutoMirrored.Default.PlaylistAdd,
-                                                contentDescription = null
-                                            )
-                                            OutlinedTextField(
-                                                modifier = Modifier.weight(1f),
-                                                label = { Text("Create new playlist") },
-                                                value = name,
-                                                onValueChange = { name = it }
-                                            )
-                                            Button(
-                                                content = { Text("Done") },
-                                                onClick = {
-                                                    loaded.onDoneClick(
-                                                        State.Loaded.PlaylistToAddTo.New(name)
-                                                    )
-                                                }
-                                            )
-                                        }
+                                        androidx.compose.foundation.Image(
+                                            modifier = Modifier.size(64.dp),
+                                            imageVector = Icons.AutoMirrored.Default.PlaylistAdd,
+                                            contentDescription = null
+                                        )
+                                        OutlinedTextField(
+                                            modifier = Modifier.weight(1f),
+                                            label = { Text("Create new playlist") },
+                                            value = name,
+                                            onValueChange = { name = it }
+                                        )
+                                        Button(
+                                            content = { Text("Done") },
+                                            onClick = {
+                                                state.onDoneClick(
+                                                    PlaylistToAddTo.New(name)
+                                                )
+                                            }
+                                        )
                                     }
                                 }
-                                items(
-                                    items = items,
-                                    key = { it.id.value }
-                                ) { playlistOption ->
-                                    dev.younesgouyd.apps.music.common.ui.Item(
-                                        modifier = Modifier.padding(8.dp),
-                                        onClick = {
-                                            loaded.onDoneClick(
-                                                State.Loaded.PlaylistToAddTo.Id(playlistOption.id)
-                                            )
-                                        }
+                            }
+                            items(
+                                items = items,
+                                key = { it.id.value }
+                            ) { playlistOption ->
+                                Item(
+                                    modifier = Modifier.padding(8.dp),
+                                    onClick = {
+                                        state.onDoneClick(
+                                            PlaylistToAddTo.Id(playlistOption.id)
+                                        )
+                                    }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Image(
-                                                modifier = Modifier.size(64.dp),
-                                                id = playlistOption.image
-                                            )
-                                            Text(
-                                                text = playlistOption.name,
-                                                style = MaterialTheme.typography.titleMedium,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
+                                        Image(
+                                            modifier = Modifier.size(64.dp),
+                                            id = playlistOption.image
+                                        )
+                                        Text(
+                                            text = playlistOption.name,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
                                     }
                                 }
-                                if (loadingItems) {
-                                    item {
-                                        Box(modifier = Modifier.fillMaxWidth().padding(10.dp), contentAlignment = Alignment.Center) {
-                                            CircularProgressIndicator(modifier = Modifier.size(50.dp), strokeWidth = 2.dp)
-                                        }
+                            }
+                            if (loadingItems) {
+                                item {
+                                    Box(modifier = Modifier.fillMaxWidth().padding(10.dp), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator(modifier = Modifier.size(50.dp), strokeWidth = 2.dp)
                                     }
                                 }
                             }
                         }
                     }
                 }
+            }
 
-                LaunchedEffect(lazyColumnState, playlists) {
-                    snapshotFlow {
-                        lazyColumnState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
-                    }.map { it == null ||  it >= (items.size + 1) - 5  }
-                        .distinctUntilChanged()
-                        .filter { it }
-                        .collect { playlists.loadMore() }
-                }
-            } else {
-                Text(modifier = modifier, text = "Adding...")
+            LaunchedEffect(lazyColumnState, playlists) {
+                snapshotFlow {
+                    lazyColumnState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                }.map { it == null ||  it >= (items.size + 1) - 5  }
+                    .distinctUntilChanged()
+                    .filter { it }
+                    .collect { playlists.loadMore() }
             }
         }
     }

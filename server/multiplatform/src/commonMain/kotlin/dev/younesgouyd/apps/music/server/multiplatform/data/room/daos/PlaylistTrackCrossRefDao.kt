@@ -16,7 +16,7 @@ abstract class PlaylistTrackCrossRefDao {
     companion object {
         private val playlistLocks = ConcurrentHashMap<PlaylistId, Mutex>()
 
-        private fun lockFor(id: PlaylistId): Mutex {
+        fun lockFor(id: PlaylistId): Mutex {
             return playlistLocks.computeIfAbsent(id) { Mutex() }
         }
     }

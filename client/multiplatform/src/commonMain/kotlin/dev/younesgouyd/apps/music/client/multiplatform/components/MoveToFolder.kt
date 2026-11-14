@@ -17,12 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.younesgouyd.apps.music.client.multiplatform.components.util.Image
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.FolderRepo
-import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.PlaylistRepo
-import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.TrackRepo
+import dev.younesgouyd.apps.music.client.multiplatform.usecases.MoveItemsToFolderUseCase
 import dev.younesgouyd.apps.music.common.models.FolderId
-import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.PlaylistId
 import dev.younesgouyd.apps.music.common.models.TrackId
 import dev.younesgouyd.apps.music.common.models.datamodels.Folder
@@ -35,15 +32,16 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MoveToFolder(
-    itemToMove: ItemToMove,
+    tracks: Set<TrackId>,
+    playlists: Set<PlaylistId>,
+    folders: Set<FolderId>,
     folderRepo: FolderRepo,
-    trackRepo: TrackRepo,
-    playlistRepo: PlaylistRepo,
+    moveItemsToFolderUseCase: MoveItemsToFolderUseCase,
     dismiss: () -> Unit
 ) : Component() {
     override val title: String = "Move to Folder"
     private val _moving: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    private val state: StateFlow<Ui.State>
+    private val state: Ui.State
 
     val moving get() = _moving.asStateFlow()
 
@@ -51,65 +49,31 @@ class MoveToFolder(
         val path = MutableStateFlow(listOf<Folder?>(null))
         val currentFolder: StateFlow<Folder?> =  path.map { it.last() }
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
-        val item = when (itemToMove) {
-            is ItemToMove.Track -> trackRepo.get(itemToMove.id).mapLatest { dbTrack ->
-                if (dbTrack == null) return@mapLatest null
-                Ui.State.Loaded.ItemToAdd(
-                    name = dbTrack.spotifyTrackRelation?.spotifyTrack?.name ?: dbTrack.originalImport.title,
-                    image = dbTrack.spotifyTrackRelation?.spotifyAlbum?.mediumImgId ?: dbTrack.originalImport.imgId
-                )
-            }
-            is ItemToMove.Playlist -> playlistRepo.get(itemToMove.id).mapLatest { dbPlaylist ->
-                if (dbPlaylist == null) return@mapLatest null
-                Ui.State.Loaded.ItemToAdd(
-                    name = dbPlaylist.name,
-                    image = null
-                )
-            }
-            is ItemToMove.Folder -> folderRepo.get(itemToMove.id).mapLatest { dbFolder ->
-                if (dbFolder == null) return@mapLatest null
-                Ui.State.Loaded.ItemToAdd(
-                    name = dbFolder.name,
-                    image = null
-                )
-            }
-        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
-        val folders = currentFolder.flatMapLatest { folderRepo.getSubfolders(it?.id) }
-            .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
-        state = item.mapLatest { item ->
-            if (item == null) return@mapLatest Ui.State.ItemDoesNotExist
-            Ui.State.Loaded(
-                loading = _moving.asStateFlow(),
-                itemToAdd = item,
-                path = path,
-                folders = folders,
-                openFolder = { folder ->
-                    path.update { list ->
-                        if (folder == null) return@update list.take(1)
-                        val i = list.indexOfFirst { it?.id == folder.id }
-                        if (i >= 0) list.take(i + 1) else list + folder
-                    }
-                },
-                move = {
-                    coroutineScope.launch {
-                        _moving.update { true }
-                        when (itemToMove) {
-                            is ItemToMove.Track -> trackRepo.updateFolderId(itemToMove.id, currentFolder.value?.id)
-                            is ItemToMove.Playlist -> playlistRepo.updateFolderId(itemToMove.id, currentFolder.value?.id)
-                            is ItemToMove.Folder -> folderRepo.updateParentFolderId(itemToMove.id, currentFolder.value?.id)
-                        }
-                        _moving.update { false }
-                        dismiss()
-                    }
+        state = Ui.State.Loaded(
+            loading = _moving.asStateFlow(),
+            path = path,
+            folders = currentFolder.flatMapLatest { folderRepo.getSubfolders(it?.id) }
+                .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
+            openFolder = { folder ->
+                path.update { list ->
+                    if (folder == null) return@update list.take(1)
+                    val i = list.indexOfFirst { it?.id == folder.id }
+                    if (i >= 0) list.take(i + 1) else list + folder
                 }
-            )
-        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Loading)
+            },
+            move = {
+                coroutineScope.launch {
+                    _moving.update { true }
+                    moveItemsToFolderUseCase.execute(tracks, playlists, folders, currentFolder.value?.id)
+                    _moving.update { false }
+                    dismiss()
+                }
+            }
+        )
     }
 
     @Composable
     override fun show(modifier: Modifier) {
-        val state by state.collectAsState()
-
         Ui.Main(
             modifier = modifier.size(width = 500.dp, height = 600.dp),
             state = state
@@ -120,33 +84,17 @@ class MoveToFolder(
         coroutineScope.cancel()
     }
 
-    sealed class ItemToMove {
-        data class Track(val id: TrackId) : ItemToMove()
-
-        data class Playlist(val id: PlaylistId) : ItemToMove()
-
-        data class Folder(val id: FolderId) : ItemToMove()
-    }
-
     private object Ui {
         sealed class State {
             data object Loading : State()
 
             class Loaded(
                 val loading: StateFlow<Boolean>,
-                val itemToAdd: ItemToAdd,
                 val path: StateFlow<List<Folder?>>,
                 val folders: StateFlow<List<Folder>>,
                 val openFolder: (Folder?) -> Unit,
                 val move: () -> Unit
-            ) : State() {
-                data class ItemToAdd(
-                    val name: String,
-                    val image: MediaFileId?
-                )
-            }
-
-            data object ItemDoesNotExist : State()
+            ) : State()
         }
 
         @Composable
@@ -157,7 +105,6 @@ class MoveToFolder(
             when (state) {
                 is State.Loading -> Text(modifier = modifier, text = "Loading...")
                 is State.Loaded -> Main(modifier = modifier, loaded = state)
-                is State.ItemDoesNotExist -> Text(modifier = modifier, text = "This item no long exists")
             }
         }
 
@@ -167,7 +114,6 @@ class MoveToFolder(
             loaded: State.Loaded
         ) {
             val loading by loaded.loading.collectAsState()
-            val itemToAdd = loaded.itemToAdd
             val path by loaded.path.collectAsState()
             val folders by loaded.folders.collectAsState()
             val lazyColumnState = rememberLazyListState()
@@ -177,7 +123,14 @@ class MoveToFolder(
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.background
             ) {
-                if (!loading) {
+                if (loading) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "Please wait...")
+                    }
+                } else {
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -195,22 +148,6 @@ class MoveToFolder(
                                 style = MaterialTheme.typography.headlineMedium,
                                 textAlign = TextAlign.Center
                             )
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Image(
-                                    modifier = Modifier.size(64.dp),
-                                    id = itemToAdd.image
-                                )
-                                Text(
-                                    text = itemToAdd.name,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
                             Path(
                                 modifier = Modifier.fillMaxWidth(),
                                 path = path.filterNotNull(),
@@ -238,13 +175,6 @@ class MoveToFolder(
                             content = { Text("Move here") },
                             onClick = loaded.move
                         )
-                    }
-                } else {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = "Please wait...")
                     }
                 }
             }

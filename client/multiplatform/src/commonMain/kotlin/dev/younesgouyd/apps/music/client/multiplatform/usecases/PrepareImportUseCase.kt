@@ -16,7 +16,7 @@ class PrepareImportUseCase(
         destinationFolderId: FolderId
     ): ImportSessionId {
         return server.get(
-            Rpc.ToServer.PrepareImport(
+            Rpc.ToServer.UseCase.PrepareImport(
                 selected = selected,
                 url = url,
                 inspection = inspection,

@@ -65,64 +65,70 @@ sealed class Rpc {
     @Serializable
     sealed class ToServer : Rpc() {
         @Serializable
-        data class ClearImportItem(val id: ImportSessionItemId) : ToServer(), ResultType.Action
-
-        @Serializable
-        data class DeleteFolder(val id: FolderId) : ToServer(), ResultType.Action
-
-        @Serializable
-        sealed class ImportSessionItem : ToServer() {
+        sealed class UseCase : ToServer() {
             @Serializable
-            data class Get(
-                val id: ImportSessionItemId
-            ) : ImportSessionItem(), ResultType.Data.Dynamic<ImportSessionItemModel?> {
-                @Transient override val serializer: KSerializer<ImportSessionItemModel?> = ImportSessionItemModel.serializer().nullable
+            data class AddToPlaylist(
+                val tracks: List<TrackId>,
+                val playlists: List<PlaylistId>,
+                val folders: List<FolderId>,
+                val artists: List<SpotifyArtistId>,
+                val albums: List<SpotifyAlbumId>,
+                val playlist: PlaylistToAddTo
+            ) : UseCase(), ResultType.Action
+
+            @Serializable
+            data class ClearImportItem(val id: ImportSessionItemId) : UseCase(), ResultType.Action
+
+            @Serializable
+            data class Delete(
+                val tracks: Set<TrackId>,
+                val playlists: Set<PlaylistId>,
+                val folders: Set<FolderId>
+            ) : UseCase(), ResultType.Action
+
+            @Serializable
+            data class MoveItemsToFolder(
+                val tracks: Set<TrackId>,
+                val playlists: Set<PlaylistId>,
+                val folders: Set<FolderId>,
+                val folder: FolderId?
+            ) : UseCase(), ResultType.Action
+
+            @Serializable
+            data class PrepareImport(
+                val selected: List<Long>,
+                val url: String,
+                val inspection: InspectionModel,
+                val destinationFolderId: FolderId
+            ) : UseCase(), ResultType.Data.Static<ImportSessionId> {
+                @Transient override val serializer: KSerializer<ImportSessionId> = ImportSessionId.serializer()
             }
 
             @Serializable
-            data class Search(
-                val importSessionId: ImportSessionId,
-                val state: ImportSessionItemModel.State,
-                val titleQuery: String,
-                val order: DbOrder
-            ) : ImportSessionItem(), ResultType.Data.Dynamic<List<ImportSessionItemModel>> {
-                @Transient override val serializer: KSerializer<List<ImportSessionItemModel>> = ListSerializer(ImportSessionItemModel.serializer())
-            }
+            data class SetTrackMetadataFromSpotify(
+                val trackId: TrackId,
+                val spotifyApiTrack: dev.younesgouyd.apps.music.common.models.spotify.Track
+            ) : UseCase(), ResultType.Action
 
             @Serializable
-            data class UpdateState(
-                val id: ImportSessionItemId,
-                val state: ImportSessionItemModel.State
-            ) : ImportSessionItem(), ResultType.Action
+            data class UnsetSpotifyTrack(
+                val trackId: TrackId,
+                val spotifyTrackId: SpotifyTrackId,
+                val spotifyAlbumId: SpotifyAlbumId
+            ) : UseCase(), ResultType.Action
         }
 
         @Serializable
-        sealed class ImportSession : ToServer() {
-            @Serializable
-            data class GetAll(
-                val limit: Int,
-                val offset: Offset.Index
-            ) : ImportSession(), ResultType.Data.Static<List<ImportSessionModel>> {
-                @Transient override val serializer: KSerializer<List<ImportSessionModel>> = ListSerializer(ImportSessionModel.serializer())
-            }
-
-            @Serializable
-            data class Get(
-                val id: ImportSessionId
-            ) : ImportSession(), ResultType.Data.Dynamic<ImportSessionModel?> {
-                @Transient override val serializer: KSerializer<ImportSessionModel?> = ImportSessionModel.serializer().nullable
-            }
+        data class Inspect(
+            val url: String
+        ) : ToServer(), ResultType.Data.Static<InspectionModel> {
+            @Transient override val serializer: KSerializer<InspectionModel> = InspectionModel.serializer()
         }
 
         @Serializable
-        sealed class Inspection : ToServer() {
-            @Serializable
-            data class Inspect(
-                val url: String
-            ) : Inspection(), ResultType.Data.Static<InspectionModel> {
-                @Transient override val serializer: KSerializer<InspectionModel> = InspectionModel.serializer()
-            }
-        }
+        data class SetPlaybackIntervalStart(
+            val start: PlaybackIntervalStart
+        ) : ToServer(), ResultType.Action
 
         @Serializable
         sealed class MediaController : ToServer() {
@@ -200,17 +206,56 @@ sealed class Rpc {
         }
 
         @Serializable
+        sealed class ImportSessionItem : ToServer() {
+            @Serializable
+            data class Get(
+                val id: ImportSessionItemId
+            ) : ImportSessionItem(), ResultType.Data.Dynamic<ImportSessionItemModel?> {
+                @Transient override val serializer: KSerializer<ImportSessionItemModel?> = ImportSessionItemModel.serializer().nullable
+            }
+
+            @Serializable
+            data class Search(
+                val importSessionId: ImportSessionId,
+                val state: ImportSessionItemModel.State,
+                val titleQuery: String,
+                val order: DbOrder
+            ) : ImportSessionItem(), ResultType.Data.Dynamic<List<ImportSessionItemModel>> {
+                @Transient override val serializer: KSerializer<List<ImportSessionItemModel>> = ListSerializer(ImportSessionItemModel.serializer())
+            }
+
+            @Serializable
+            data class UpdateState(
+                val id: ImportSessionItemId,
+                val state: ImportSessionItemModel.State
+            ) : ImportSessionItem(), ResultType.Action
+        }
+
+        @Serializable
+        sealed class ImportSession : ToServer() {
+            @Serializable
+            data class GetAll(
+                val limit: Int,
+                val offset: Offset.Index
+            ) : ImportSession(), ResultType.Data.Static<List<ImportSessionModel>> {
+                @Transient override val serializer: KSerializer<List<ImportSessionModel>> = ListSerializer(ImportSessionModel.serializer())
+            }
+
+            @Serializable
+            data class Get(
+                val id: ImportSessionId
+            ) : ImportSession(), ResultType.Data.Dynamic<ImportSessionModel?> {
+                @Transient override val serializer: KSerializer<ImportSessionModel?> = ImportSessionModel.serializer().nullable
+            }
+        }
+
+        @Serializable
         sealed class PlaybackInterval : ToServer() {
             @Serializable
             data class Add(
                 val item: PlaybackIntervalModel
             ) : PlaybackInterval(), ResultType.Action
         }
-
-        @Serializable
-        data class SetPlaybackIntervalStart(
-            val start: PlaybackIntervalStart
-        ) : ToServer(), ResultType.Action
 
         @Serializable
         sealed class Folder : ToServer() {
@@ -327,11 +372,6 @@ sealed class Rpc {
                 val id: PlaylistId,
                 val folderId: FolderId?
             ) : Playlist(), ResultType.Action
-
-            @Serializable
-            data class Delete(
-                val id: PlaylistId
-            ) : Playlist(), ResultType.Action
         }
 
         @Serializable
@@ -365,16 +405,6 @@ sealed class Rpc {
         }
 
         @Serializable
-        data class PrepareImport(
-            val selected: List<Long>,
-            val url: String,
-            val inspection: InspectionModel,
-            val destinationFolderId: FolderId
-        ) : ToServer(), ResultType.Data.Static<ImportSessionId> {
-            @Transient override val serializer: KSerializer<ImportSessionId> = ImportSessionId.serializer()
-        }
-
-        @Serializable
         sealed class Setting : ToServer() {
             @Serializable
             data object GetDarkTheme : Setting(), ResultType.Data.Dynamic<SettingModel?> {
@@ -386,12 +416,6 @@ sealed class Rpc {
                 val theme: DarkThemeOptions
             ) : Setting(), ResultType.Action
         }
-
-        @Serializable
-        data class SetTrackMetadataFromSpotify(
-            val trackId: TrackId,
-            val spotifyApiTrack: dev.younesgouyd.apps.music.common.models.spotify.Track
-        ) : ToServer(), ResultType.Action
 
         @Serializable
         sealed class SpotifyAlbum : ToServer() {
@@ -681,13 +705,6 @@ sealed class Rpc {
                 val folderId: FolderId?
             ) : Track(), ResultType.Action
         }
-
-        @Serializable
-        data class UnsetSpotifyTrack(
-            val trackId: TrackId,
-            val spotifyTrackId: SpotifyTrackId,
-            val spotifyAlbumId: SpotifyAlbumId
-        ) : ToServer(), ResultType.Action
     }
 }
 

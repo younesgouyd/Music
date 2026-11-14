@@ -21,16 +21,18 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 
 class Main(
-    private val server: Server
+    server: Server
 ) : Component() {
     override val title: String = ""
 
     private val repoStore: RepoStore = RepoStore(server)
-    private val deleteFolderUseCase = DeleteFolderUseCase(server)
+    private val addToPlaylistUseCase = AddToPlaylistUseCase(server)
+    private val deleteUseCase = DeleteUseCase(server)
     private val clearImportItemUseCase = ClearImportItemUseCase(server)
     private val setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(server)
     private val unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(server)
     private val prepareImportUseCase = PrepareImportUseCase(server)
+    private val moveItemsToFolderUseCase = MoveItemsToFolderUseCase(server)
     private val mediaController = MediaController(server)
     private val imageLoader = ImageLoader(server)
 
@@ -169,11 +171,13 @@ class Main(
         return NavigationHost(
             toggleDrawerState = { isDrawerOpen.update { !it } },
             repoStore = repoStore,
-            deleteFolderUseCase = deleteFolderUseCase,
+            addToPlaylistUseCase = addToPlaylistUseCase,
+            deleteUseCase = deleteUseCase,
             clearImportItemUseCase = clearImportItemUseCase,
             setTrackMetadataFromSpotifyUseCase = setTrackMetadataFromSpotifyUseCase,
             unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
             prepareImportUseCase = prepareImportUseCase,
+            moveItemsToFolderUseCase = moveItemsToFolderUseCase,
             mediaController = mediaController,
             startDestination = startDestination
         )

@@ -54,6 +54,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun prepareImportFromInternet(): PrepareImport
     abstract fun setTrackMetadataFromSpotify(): SetTrackMetadataFromSpotify
     abstract fun unsetSpotifyTrack(): UnsetSpotifyTrack
+    abstract fun moveItemsToFolder(): MoveItemsToFolder
+    abstract fun addToPlaylist(): AddToPlaylist
 }
 
 @Suppress("NO_ACTUAL_FOR_EXPECT")

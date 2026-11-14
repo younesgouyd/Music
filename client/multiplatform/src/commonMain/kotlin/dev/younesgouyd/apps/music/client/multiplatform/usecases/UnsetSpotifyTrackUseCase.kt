@@ -15,7 +15,7 @@ class UnsetSpotifyTrackUseCase(
         spotifyAlbumId: SpotifyAlbumId
     ) {
         server.call(
-            Rpc.ToServer.UnsetSpotifyTrack(trackId, spotifyTrackId, spotifyAlbumId)
+            Rpc.ToServer.UseCase.UnsetSpotifyTrack(trackId, spotifyTrackId, spotifyAlbumId)
         )
     }
 }

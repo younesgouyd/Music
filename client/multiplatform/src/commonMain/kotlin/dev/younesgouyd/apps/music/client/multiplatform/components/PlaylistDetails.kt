@@ -20,7 +20,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.*
-import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.*
+import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.PlaylistRepo
+import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.PlaylistTrackCrossRefRepo
+import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.TrackRepo
+import dev.younesgouyd.apps.music.client.multiplatform.usecases.AddToPlaylistUseCase
 import dev.younesgouyd.apps.music.common.Platform
 import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.platform
@@ -36,10 +39,8 @@ class PlaylistDetails(
     id: PlaylistId,
     trackRepo: TrackRepo,
     playlistRepo: PlaylistRepo,
-    artistRepo: SpotifyArtistRepo,
     playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
-    folderRepo: FolderRepo,
-    albumRepo: SpotifyAlbumRepo,
+    addToPlaylistUseCase: AddToPlaylistUseCase,
     mediaController: MediaController,
     showArtistDetails: (SpotifyArtistId) -> Unit,
     showTrack: (TrackId) -> Unit
@@ -96,14 +97,14 @@ class PlaylistDetails(
                     onAddToPlaylistClick = {
                         addToPlaylist.update {
                             AddToPlaylist(
-                                itemToAdd = AddToPlaylist.Item.Playlist(id),
-                                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                                trackRepo = trackRepo,
-                                folderRepo = folderRepo,
-                                artistRepo = artistRepo,
-                                dismiss = ::dismissAddToPlaylistDialog,
+                                tracks = emptyList(),
+                                playlists = listOf(id),
+                                folders = emptyList(),
+                                artists = emptyList(),
+                                albums = emptyList(),
                                 playlistRepo = playlistRepo,
-                                albumRepo = albumRepo
+                                addToPlaylistUseCase = addToPlaylistUseCase,
+                                dismiss = ::dismissAddToPlaylistDialog
                             )
                         }
                         addToPlaylistDialogVisible.update { true }
@@ -122,14 +123,14 @@ class PlaylistDetails(
                     onAddTrackToPlaylistClick = { trackId: TrackId ->
                         addToPlaylist.update {
                             AddToPlaylist(
-                                itemToAdd = AddToPlaylist.Item.Track(trackId),
-                                playlistTrackCrossRefRepo = playlistTrackCrossRefRepo,
-                                trackRepo = trackRepo,
-                                folderRepo = folderRepo,
-                                artistRepo = artistRepo,
-                                dismiss = ::dismissAddToPlaylistDialog,
+                                tracks = listOf(trackId),
+                                playlists = emptyList(),
+                                folders = emptyList(),
+                                artists = emptyList(),
+                                albums = emptyList(),
                                 playlistRepo = playlistRepo,
-                                albumRepo = albumRepo
+                                addToPlaylistUseCase = addToPlaylistUseCase,
+                                dismiss = ::dismissAddToPlaylistDialog
                             )
                         }
                         addToPlaylistDialogVisible.update { true }

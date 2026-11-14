@@ -8,6 +8,6 @@ class InspectionRepo(
     private val server: Server
 ) {
     suspend fun inspect(url: String): Inspection {
-        return server.get(Rpc.ToServer.Inspection.Inspect(url))
+        return server.get(Rpc.ToServer.Inspect(url))
     }
 }

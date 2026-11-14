@@ -12,6 +12,6 @@ class SetTrackMetadataFromSpotifyUseCase(
         trackId: TrackId,
         spotifyApiTrack: Track
     ) {
-        server.call(Rpc.ToServer.SetTrackMetadataFromSpotify(trackId, spotifyApiTrack))
+        server.call(Rpc.ToServer.UseCase.SetTrackMetadataFromSpotify(trackId, spotifyApiTrack))
     }
 }
