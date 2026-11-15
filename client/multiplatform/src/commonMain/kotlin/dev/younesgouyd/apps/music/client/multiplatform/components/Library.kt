@@ -211,6 +211,7 @@ class Library(
                         val (tracks, playlists, folders) = items.toTriple()
                         moveToFolder.update {
                             MoveToFolder(
+                                startFolder = currentFolder.value?.id,
                                 tracks = tracks.toSet(),
                                 playlists = playlists.toSet(),
                                 folders = folders.toSet(),
@@ -226,6 +227,7 @@ class Library(
                 onMoveFolderToFolder = { id: FolderId ->
                     moveToFolder.update {
                         MoveToFolder(
+                            startFolder = currentFolder.value?.id,
                             tracks = emptySet(),
                             playlists = emptySet(),
                             folders = setOf(id),
@@ -240,6 +242,7 @@ class Library(
                 onMovePlaylistToFolder = { id: PlaylistId ->
                     moveToFolder.update {
                         MoveToFolder(
+                            startFolder = currentFolder.value?.id,
                             tracks = emptySet(),
                             playlists = setOf(id),
                             folders = emptySet(),
@@ -254,6 +257,7 @@ class Library(
                 onMoveTrackToFolder = { id: TrackId ->
                     moveToFolder.update {
                         MoveToFolder(
+                            startFolder = currentFolder.value?.id,
                             tracks = setOf(id),
                             playlists = emptySet(),
                             folders = emptySet(),

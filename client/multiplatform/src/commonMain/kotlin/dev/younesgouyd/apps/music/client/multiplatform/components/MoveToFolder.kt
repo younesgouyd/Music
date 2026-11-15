@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MoveToFolder(
+    startFolder: FolderId?,
     tracks: Set<TrackId>,
     playlists: Set<PlaylistId>,
     folders: Set<FolderId>,
@@ -41,39 +42,65 @@ class MoveToFolder(
 ) : Component() {
     override val title: String = "Move to Folder"
     private val _moving: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    private val state: Ui.State
+    private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
 
     val moving get() = _moving.asStateFlow()
 
     init {
-        val path = MutableStateFlow(listOf<Folder?>(null))
-        val currentFolder: StateFlow<Folder?> =  path.map { it.last() }
-            .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
-        state = Ui.State.Loaded(
-            loading = _moving.asStateFlow(),
-            path = path,
-            folders = currentFolder.flatMapLatest { folderRepo.getSubfolders(it?.id) }
-                .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
-            openFolder = { folder ->
-                path.update { list ->
-                    if (folder == null) return@update list.take(1)
-                    val i = list.indexOfFirst { it?.id == folder.id }
-                    if (i >= 0) list.take(i + 1) else list + folder
+        coroutineScope.launch {
+            val path: MutableStateFlow<List<Folder?>> = run {
+                val path: List<Folder?> = run {
+                    if (startFolder == null) {
+                        listOf(null)
+                    } else {
+                        val mut = mutableListOf<Folder?>()
+                        var parent = startFolder
+                        while (parent != null) {
+                            val f = folderRepo.get(parent).first()
+                            if (f == null) {
+                                mut.clear()
+                                break
+                            }
+                            mut.add(f)
+                            parent = f.parentFolderId
+                        }
+                        mut.add(null)
+                        mut.reverse()
+                        mut.toList()
+                    }
                 }
-            },
-            move = {
-                coroutineScope.launch {
-                    _moving.update { true }
-                    moveItemsToFolderUseCase.execute(tracks, playlists, folders, currentFolder.value?.id)
-                    _moving.update { false }
-                    dismiss()
-                }
+                MutableStateFlow(path)
             }
-        )
+            val currentFolder: StateFlow<Folder?> =  path.map { it.last() }
+                .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
+            state.value = Ui.State.Loaded(
+                loading = _moving.asStateFlow(),
+                path = path,
+                folders = currentFolder.flatMapLatest { folderRepo.getSubfolders(it?.id) }
+                    .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
+                openFolder = { folder ->
+                    path.update { list ->
+                        if (folder == null) return@update list.take(1)
+                        val i = list.indexOfFirst { it?.id == folder.id }
+                        if (i >= 0) list.take(i + 1) else list + folder
+                    }
+                },
+                move = {
+                    coroutineScope.launch {
+                        _moving.update { true }
+                        moveItemsToFolderUseCase.execute(tracks, playlists, folders, currentFolder.value?.id)
+                        _moving.update { false }
+                        dismiss()
+                    }
+                }
+            )
+        }
     }
 
     @Composable
     override fun show(modifier: Modifier) {
+        val state by state.collectAsState()
+
         Ui.Main(
             modifier = modifier.size(width = 500.dp, height = 600.dp),
             state = state
