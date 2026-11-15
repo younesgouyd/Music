@@ -57,7 +57,7 @@ class YtDlp(
                         install(SSE)
                         install(HttpTimeout) {
                             requestTimeoutMillis = 5*60*1000
-                            socketTimeoutMillis = 5*60*1000
+                            socketTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS
                         }
                         defaultRequest {
                             url {
@@ -85,7 +85,10 @@ class YtDlp(
         return flow {
             client.value!!.sse(
                 urlString = "inspect",
-                request =  { parameter("url", url) },
+                request =  {
+                    parameter("url", url)
+                    timeout { requestTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS }
+                },
                 deserialize = { typeInfo, it ->
                     val serializer = json.serializersModule.serializer(typeInfo.kotlinType!!)
                     json.decodeFromString(serializer, it)!!
@@ -102,7 +105,10 @@ class YtDlp(
         return flow {
             client.value!!.sse(
                 urlString = "download",
-                request = { parameter("url", url) }
+                request = {
+                    parameter("url", url)
+                    timeout { requestTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS }
+                }
             ) {
                 incoming.collect {
                     this@flow.emit(it.event!!)

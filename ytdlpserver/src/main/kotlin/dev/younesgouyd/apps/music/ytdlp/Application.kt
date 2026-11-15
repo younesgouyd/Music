@@ -135,6 +135,7 @@ class Application {
                 }
 
                 sse("/download") {
+                    heartbeat {}
                     if (!call.verifyPassword(_password.value)) {
                         call.respond(HttpStatusCode.Unauthorized, "Invalid or missing credentials")
                         return@sse
