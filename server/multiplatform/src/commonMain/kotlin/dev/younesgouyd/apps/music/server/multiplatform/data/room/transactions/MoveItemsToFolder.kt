@@ -16,11 +16,28 @@ abstract class MoveItemsToFolder {
         folders: Set<FolderId>,
         folder: FolderId?
     ) {
+        if (folder != null && folders.isNotEmpty() && isInvalidMove(movedIds = folders, destination = folder)) {
+            throw IllegalArgumentException("Cannot move a folder into itself or one of its descendants")
+        }
         moveTracks(folderId = folder, ids = tracks)
         movePlaylists(folderId = folder, ids = playlists)
         moveFolders(folderId = folder, ids = folders)
     }
 
+    @Query("""
+        with recursive ancestors(id, parentFolderId) as (
+            select id, parentFolderId from folder where id = :destination
+            union
+            select f.id, f.parentFolderId
+            from folder f
+            join ancestors a on f.id = a.parentFolderId
+        )
+        select exists (select 1 from ancestors where id in (:movedIds))
+    """)
+    protected abstract suspend fun isInvalidMove(
+        movedIds: Set<FolderId>,
+        destination: FolderId
+    ): Boolean
 
     @Query("""
         update track

@@ -1,4 +1,5 @@
 
+- support tagging multiple items
 - clean up: check unused repository methods
 - consider using ktor's WebSocketDeflateExtension
 - long click on import artist, album... to copy text.

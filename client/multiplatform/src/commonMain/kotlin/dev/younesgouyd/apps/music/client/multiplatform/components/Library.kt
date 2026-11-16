@@ -174,11 +174,13 @@ class Library(
                             tracks = tracks
                         )
                     }
+                }.onEach {
+                    selectedItems.value = emptySet()
                 }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Content.Loading)
             },
             actions = Ui.State.Actions(
                 onImport = { showImportFlow(path.value.last().folder!!.id) },
-                onSearchQueryChange = { value: String -> searchQuery.value = value },
+                onSearchQueryChange = { searchQuery.value = it },
                 onNewFolder = {
                     coroutineScope.launch {
                         folderRepo.add(name = it, parentFolderId = currentFolder.value?.id)
@@ -973,7 +975,7 @@ class Library(
                             ) {
                                 ToolBar(
                                     modifier = Modifier.fillMaxWidth(),
-                                    path = path.mapNotNull { it.folder },
+                                    path = path.map { it.folder },
                                     searchQuery = searchQuery,
                                     tagsFilterState = tagsFilterState,
                                     onFolderClick = actions.onOpenFolder,
@@ -1079,7 +1081,7 @@ class Library(
             @Composable
             private fun ToolBar(
                 modifier: Modifier,
-                path: List<Folder>,
+                path: List<Folder?>,
                 searchQuery: StateFlow<String>,
                 tagsFilterState: TagsFilterState,
                 onFolderClick: (Folder?) -> Unit,
@@ -1088,12 +1090,12 @@ class Library(
                 onSearchQueryChange: (String) -> Unit
             ) {
                 val pathLazyListState = rememberLazyListState()
-                val searchQuery by searchQuery.collectAsState()
                 var newFolderFormVisible by remember { mutableStateOf(false) }
-                var isSearchVisible by remember { mutableStateOf(false) }
 
                 LaunchedEffect(path) {
-                    pathLazyListState.animateScrollToItem(path.size)
+                    if (path.isNotEmpty()) {
+                        pathLazyListState.animateScrollToItem(path.size - 1)
+                    }
                 }
 
                 Column(
@@ -1106,106 +1108,37 @@ class Library(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (!isSearchVisible) {
-                            Surface(
-                                modifier = Modifier.weight(1f),
-                                shape = MaterialTheme.shapes.large,
-                                color = MaterialTheme.colorScheme.surfaceContainer
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    LazyRow(
-                                        modifier = Modifier.weight(1f),
-                                        state = pathLazyListState,
-                                        horizontalArrangement = Arrangement.Start,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        item {
-                                            Row(
-                                                horizontalArrangement = Arrangement.Start,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                TextButton(
-                                                    content = { Text(".") },
-                                                    onClick = { onFolderClick(null) }
-                                                )
-                                                Text("/")
-                                            }
-                                        }
-                                        items(items = path) { folder ->
-                                            Row(
-                                                horizontalArrangement = Arrangement.Start,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                TextButton(
-                                                    content = { Text(folder.name) },
-                                                    onClick = { onFolderClick(folder) }
-                                                )
-                                                Text("/")
-                                            }
-                                        }
-                                    }
-                                    IconButton(
-                                        onClick = { isSearchVisible = true },
-                                        content = { Icon(Icons.Default.Search, null) }
-                                    )
-                                }
+                        Path(
+                            modifier = Modifier.weight(1f),
+                            path = path,
+                            searchQuery = searchQuery,
+                            onFolderClick = onFolderClick,
+                            onSearchQueryChange = onSearchQueryChange
+                        )
+                        Row(
+                            modifier = Modifier.height(IntrinsicSize.Min),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (path.size > 1) {
+                                IconButton(
+                                    onClick = onImportClick,
+                                    content = { Icon(Icons.Default.ImportExport, null) }
+                                )
                             }
-                        } else {
-                            OutlinedTextField(
-                                modifier = Modifier.weight(1f),
-                                leadingIcon = { Icon(Icons.Default.Search, null) },
-                                label = { Text("Search") },
-                                value = searchQuery,
-                                onValueChange = onSearchQueryChange,
-                                trailingIcon = {
-                                    IconButton(
-                                        onClick = { isSearchVisible = false; onSearchQueryChange("") },
-                                        content = { Icon(Icons.Default.Close, null) }
-                                    )
-                                }
+                            IconButton(
+                                onClick = { newFolderFormVisible = true },
+                                content = { Icon(Icons.Default.CreateNewFolder, null) }
                             )
-                        }
-                        Surface(
-                            shape = MaterialTheme.shapes.large,
-                            color = MaterialTheme.colorScheme.surfaceContainer
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                IconButton(
-                                    onClick = { /* todo - sort by alpha */ },
-                                    content = { Icon(Icons.Default.SortByAlpha, null) }
-                                )
-                                IconButton(
-                                    onClick = { /* todo - sort by date */ },
-                                    content = { Icon(Icons.AutoMirrored.Default.Sort, null) }
-                                )
-                            }
-                        }
-                        Surface(
-                            shape = MaterialTheme.shapes.large,
-                            color = MaterialTheme.colorScheme.surfaceContainer
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                if (path.isNotEmpty()) {
-                                    IconButton(
-                                        onClick = onImportClick,
-                                        content = { Icon(Icons.Default.ImportExport, null) }
-                                    )
-                                }
-                                IconButton(
-                                    onClick = { newFolderFormVisible = true },
-                                    content = { Icon(Icons.Default.CreateNewFolder, null) }
-                                )
-                            }
+                            VerticalDivider()
+                            IconButton(
+                                onClick = { /* todo - sort by alpha */ },
+                                content = { Icon(Icons.Default.SortByAlpha, null) }
+                            )
+                            IconButton(
+                                onClick = { /* todo - sort by date */ },
+                                content = { Icon(Icons.AutoMirrored.Default.Sort, null) }
+                            )
                         }
                     }
                     TagsFilter(
@@ -1739,7 +1672,7 @@ class Library(
                             ) {
                                 ToolBar(
                                     modifier = Modifier.fillMaxWidth(),
-                                    path = path.mapNotNull { it.folder },
+                                    path = path.map { it.folder },
                                     searchQuery = searchQuery,
                                     onFolderClick = actions.onOpenFolder,
                                     onImportClick = actions.onImport,
@@ -1827,7 +1760,7 @@ class Library(
             @Composable
             private fun ToolBar(
                 modifier: Modifier,
-                path: List<Folder>,
+                path: List<Folder?>,
                 searchQuery: StateFlow<String>,
                 onFolderClick: (Folder?) -> Unit,
                 onImportClick: () -> Unit,
@@ -1835,121 +1768,50 @@ class Library(
                 onSearchQueryChange: (String) -> Unit
             ) {
                 val pathLazyListState = rememberLazyListState()
-                val searchQuery by searchQuery.collectAsState()
                 var newFolderFormVisible by remember { mutableStateOf(false) }
-                var isSearchVisible by remember { mutableStateOf(false) }
+
+                LaunchedEffect(path) {
+                    if (path.isNotEmpty()) {
+                        pathLazyListState.animateScrollToItem(path.size - 1)
+                    }
+                }
 
                 Column(
                     modifier = modifier,
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    if (!isSearchVisible) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.large,
-                            color = MaterialTheme.colorScheme.surfaceContainer
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                LazyRow(
-                                    modifier = Modifier.weight(1f),
-                                    state = pathLazyListState,
-                                    horizontalArrangement = Arrangement.Start,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    item {
-                                        Row(
-                                            horizontalArrangement = Arrangement.Start,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            TextButton(
-                                                content = { Text(".") },
-                                                onClick = { onFolderClick(null) }
-                                            )
-                                            Text("/")
-                                        }
-                                    }
-                                    items(items = path) { folder ->
-                                        Row(
-                                            horizontalArrangement = Arrangement.Start,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            TextButton(
-                                                content = { Text(folder.name) },
-                                                onClick = { onFolderClick(folder) }
-                                            )
-                                            Text("/")
-                                        }
-                                    }
-                                }
-                                IconButton(
-                                    onClick = { isSearchVisible = true },
-                                    content = { Icon(Icons.Default.Search, null) }
-                                )
-                            }
-                        }
-                    } else {
-                        OutlinedTextField(
-                            modifier = Modifier.fillMaxWidth(),
-                            leadingIcon = { Icon(Icons.Default.Search, null) },
-                            label = { Text("Search") },
-                            value = searchQuery,
-                            onValueChange = onSearchQueryChange,
-                            trailingIcon = {
-                                IconButton(
-                                    onClick = { isSearchVisible = false; onSearchQueryChange("") },
-                                    content = { Icon(Icons.Default.Close, null) }
-                                )
-                            }
-                        )
-                    }
+                    Path(
+                        modifier = Modifier.fillMaxWidth(),
+                        path = path,
+                        searchQuery = searchQuery,
+                        onFolderClick = onFolderClick,
+                        onSearchQueryChange = onSearchQueryChange
+                    )
                     Row(
-                        modifier = modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Surface(
-                            shape = MaterialTheme.shapes.large,
-                            color = MaterialTheme.colorScheme.surfaceContainer
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                IconButton(
-                                    onClick = { /* todo - sort by alpha */ },
-                                    content = { Icon(Icons.Default.SortByAlpha, null) }
-                                )
-                                IconButton(
-                                    onClick = { /* todo - sort by date */ },
-                                    content = { Icon(Icons.AutoMirrored.Default.Sort, null) }
-                                )
-                            }
+                        if (path.size > 1) {
+                            IconButton(
+                                onClick = onImportClick,
+                                content = { Icon(Icons.Default.ImportExport, null) }
+                            )
                         }
-                        Surface(
-                            shape = MaterialTheme.shapes.large,
-                            color = MaterialTheme.colorScheme.surfaceContainer
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(space = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                if (path.isNotEmpty()) {
-                                    IconButton(
-                                        onClick = onImportClick,
-                                        content = { Icon(Icons.Default.ImportExport, null) }
-                                    )
-                                }
-                                IconButton(
-                                    onClick = { newFolderFormVisible = true },
-                                    content = { Icon(Icons.Default.CreateNewFolder, null) }
-                                )
-                            }
-                        }
+                        IconButton(
+                            onClick = { newFolderFormVisible = true },
+                            content = { Icon(Icons.Default.CreateNewFolder, null) }
+                        )
+                        VerticalDivider()
+                        IconButton(
+                            onClick = { /* todo - sort by alpha */ },
+                            content = { Icon(Icons.Default.SortByAlpha, null) }
+                        )
+                        IconButton(
+                            onClick = { /* todo - sort by date */ },
+                            content = { Icon(Icons.AutoMirrored.Default.Sort, null) }
+                        )
                     }
                 }
 
@@ -1959,10 +1821,6 @@ class Library(
                         onDone = { onNewFolder(it); newFolderFormVisible = false },
                         onDismiss = { newFolderFormVisible = false }
                     )
-                }
-
-                LaunchedEffect(path) {
-                    pathLazyListState.animateScrollToItem(path.size)
                 }
             }
 
