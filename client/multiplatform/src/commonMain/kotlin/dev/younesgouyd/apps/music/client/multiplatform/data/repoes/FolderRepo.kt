@@ -25,10 +25,6 @@ class FolderRepo(
         )
     }
 
-    fun getSubfolders(id: FolderId?): Flow<List<Folder>> {
-        return server.observe(Rpc.ToServer.Folder.GetSubfolders(id))
-    }
-
     suspend fun add(name: String, parentFolderId: FolderId?): FolderId {
         require(name.isNotEmpty())
         return server.get(
@@ -47,18 +43,5 @@ class FolderRepo(
                 name = name
             )
         )
-    }
-
-    suspend fun updateParentFolderId(id: FolderId, parentFolderId: FolderId?) {
-        server.call(
-            Rpc.ToServer.Folder.UpdateParentFolderId(
-                id = id,
-                parentFolderId = parentFolderId
-            )
-        )
-    }
-
-    suspend fun delete(id: FolderId) {
-        server.call(Rpc.ToServer.Folder.Delete(id))
     }
 }

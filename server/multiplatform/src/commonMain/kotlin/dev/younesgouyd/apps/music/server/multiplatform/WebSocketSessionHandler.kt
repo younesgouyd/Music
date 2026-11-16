@@ -449,11 +449,6 @@ class WebSocketSessionHandler(
                             .map { it?.toModel() }
                             .collect { sendData(correlationId, it, rpc.serializer) }
                     }
-                    is Rpc.ToServer.Folder.GetSubfolders -> {
-                        folderRepo.getSubfolders(rpc.id)
-                            .map { it.map { it.toModel() } }
-                            .collect { sendData(correlationId, it, rpc.serializer) }
-                    }
                     is Rpc.ToServer.Folder.SearchFolder -> {
                         folderRepo.searchFolder(
                             folderId = rpc.folderId,
@@ -465,13 +460,6 @@ class WebSocketSessionHandler(
                         folderRepo.updateName(
                             id = rpc.id,
                             name = rpc.name
-                        )
-                        sendDone(correlationId)
-                    }
-                    is Rpc.ToServer.Folder.UpdateParentFolderId -> {
-                        folderRepo.updateParentFolderId(
-                            id = rpc.id,
-                            parentFolderId = rpc.parentFolderId
                         )
                         sendDone(correlationId)
                     }
@@ -538,23 +526,10 @@ class WebSocketSessionHandler(
                         ).map { it.map { it.toModel() } }
                             .collect { sendData(correlationId, it, rpc.serializer) }
                     }
-                    is Rpc.ToServer.Playlist.GetFolderPlaylists -> {
-                        playlistRepo.getFolderPlaylists(
-                            folderId = rpc.folderId
-                        ).map { it.map { it.toModel() } }
-                            .collect { sendData(correlationId, it, rpc.serializer) }
-                    }
                     is Rpc.ToServer.Playlist.GetTrackPlaylists -> {
                         playlistRepo.getTrackPlaylists(rpc.id)
                             .map { it.map { it.toModel() } }
                             .collect { sendData(correlationId, it, rpc.serializer) }
-                    }
-                    is Rpc.ToServer.Playlist.Add -> {
-                        val result = playlistRepo.add(
-                            name = rpc.name,
-                            folderId = rpc.folderId
-                        )
-                        sendData(correlationId, result, rpc.serializer)
                     }
                     is Rpc.ToServer.Playlist.UpdateName -> {
                         playlistRepo.updateName(
@@ -563,29 +538,8 @@ class WebSocketSessionHandler(
                         )
                         sendDone(correlationId)
                     }
-                    is Rpc.ToServer.Playlist.UpdateFolderId -> {
-                        playlistRepo.updateFolderId(
-                            id = rpc.id,
-                            folderId = rpc.folderId
-                        )
-                        sendDone(correlationId)
-                    }
                 }
                 is Rpc.ToServer.PlaylistTrackCrossRef -> when (rpc) {
-                    is Rpc.ToServer.PlaylistTrackCrossRef.Get -> {
-                        playlistTrackCrossRefRepo.get(
-                            playlistId = rpc.playlistId,
-                            trackId = rpc.trackId
-                        ).map { it?.toModel() }
-                            .collect { sendData(correlationId, it, rpc.serializer) }
-                    }
-                    is Rpc.ToServer.PlaylistTrackCrossRef.Add -> {
-                        playlistTrackCrossRefRepo.add(
-                            playlistId = rpc.playlistId,
-                            trackId = rpc.trackId
-                        )
-                        sendDone(correlationId)
-                    }
                     is Rpc.ToServer.PlaylistTrackCrossRef.ChangeItemPosition -> {
                         playlistTrackCrossRefRepo.changeItemPosition(
                             playlistId = rpc.playlistId,
@@ -795,21 +749,6 @@ class WebSocketSessionHandler(
                         ).map { it.map { it.toModel() } }
                             .collect { sendData(correlationId, it, rpc.serializer) }
                     }
-                    is Rpc.ToServer.Track.GetFolderTracks -> {
-                        val flow = trackRepo.getFolderTracks(rpc.id)
-                            .map { it.map { it.track.toModel() } }
-                        flow.collect { sendData(correlationId, it, rpc.serializer) }
-                    }
-                    is Rpc.ToServer.Track.GetArtistTracks -> {
-                        trackRepo.getArtistTracks(rpc.id)
-                            .map { it.map { it.toModel() } }
-                            .collect { sendData(correlationId, it, rpc.serializer) }
-                    }
-                    is Rpc.ToServer.Track.GetAlbumTracks -> {
-                        trackRepo.getAlbumTracks(rpc.id)
-                            .map { it.map { it.toModel() } }
-                            .collect { sendData(correlationId, it, rpc.serializer) }
-                    }
                     is Rpc.ToServer.Track.GetPlaylistTracks -> {
                         trackRepo.getPlaylistTracks(rpc.id)
                             .map { it.map { it.toModel() } }
@@ -823,21 +762,6 @@ class WebSocketSessionHandler(
                         trackRepo.getImportSessionTrack(rpc.id)
                             .map { it?.toModel() }
                             .collect { sendData(correlationId, it, rpc.serializer) }
-                    }
-                    is Rpc.ToServer.Track.Add -> {
-                        val result = trackRepo.add(
-                            importSessionItemId = rpc.importSessionItemId,
-                            spotifyTrackId = rpc.spotifyTrackId,
-                            folderId = rpc.folderId
-                        )
-                        sendData(correlationId, result, rpc.serializer)
-                    }
-                    is Rpc.ToServer.Track.UpdateFolderId -> {
-                        trackRepo.updateFolderId(
-                            id = rpc.id,
-                            folderId = rpc.folderId
-                        )
-                        sendDone(correlationId)
                     }
                 }
                 is Rpc.ToServer.PlaybackInterval.Add -> {

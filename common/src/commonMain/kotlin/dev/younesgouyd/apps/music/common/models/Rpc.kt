@@ -20,7 +20,6 @@ import dev.younesgouyd.apps.music.common.models.datamodels.MediaPlayerState as M
 import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackInterval as PlaybackIntervalModel
 import dev.younesgouyd.apps.music.common.models.datamodels.Playlist as PlaylistModel
 import dev.younesgouyd.apps.music.common.models.datamodels.PlaylistTrack as PlaylistTrackModel
-import dev.younesgouyd.apps.music.common.models.datamodels.PlaylistTrackCrossRef as PlaylistTrackCrossRefModel
 import dev.younesgouyd.apps.music.common.models.datamodels.QueueItem as QueueItemModel
 import dev.younesgouyd.apps.music.common.models.datamodels.Setting as SettingModel
 import dev.younesgouyd.apps.music.common.models.datamodels.SpotifyAlbum as SpotifyAlbumModel
@@ -28,7 +27,6 @@ import dev.younesgouyd.apps.music.common.models.datamodels.SpotifyArtist as Spot
 import dev.younesgouyd.apps.music.common.models.datamodels.SpotifyAuthState as SpotifyAuthStateModel
 import dev.younesgouyd.apps.music.common.models.datamodels.SpotifyTrackRelation as SpotifyTrackRelationModel
 import dev.younesgouyd.apps.music.common.models.datamodels.Tag as TagModel
-import dev.younesgouyd.apps.music.common.models.datamodels.Track as TrackModel
 import dev.younesgouyd.apps.music.common.models.datamodels.TrackRelation as TrackRelationModel
 
 @Serializable
@@ -275,13 +273,6 @@ sealed class Rpc {
             }
 
             @Serializable
-            data class GetSubfolders(
-                val id: FolderId?
-            ) : Folder(), ResultType.Data.Dynamic<List<FolderModel>> {
-                @Transient override val serializer: KSerializer<List<FolderModel>> = ListSerializer(FolderModel.serializer())
-            }
-
-            @Serializable
             data class Add(
                 val name: String,
                 val parentFolderId: FolderId?
@@ -293,12 +284,6 @@ sealed class Rpc {
             data class UpdateName(
                 val id: FolderId,
                 val name: String
-            ) : Folder(), ResultType.Action
-
-            @Serializable
-            data class UpdateParentFolderId(
-                val id: FolderId,
-                val parentFolderId: FolderId?
             ) : Folder(), ResultType.Action
 
             @Serializable
@@ -340,13 +325,6 @@ sealed class Rpc {
             }
 
             @Serializable
-            data class GetFolderPlaylists(
-                val folderId: FolderId?
-            ) : Playlist(), ResultType.Data.Dynamic<List<PlaylistModel>> {
-                @Transient override val serializer: KSerializer<List<PlaylistModel>> = ListSerializer(PlaylistModel.serializer())
-            }
-
-            @Serializable
             data class GetTrackPlaylists(
                 val id: TrackId
             ) : Playlist(), ResultType.Data.Dynamic<List<PlaylistModel>> {
@@ -354,42 +332,14 @@ sealed class Rpc {
             }
 
             @Serializable
-            data class Add(
-                val name: String,
-                val folderId: FolderId?
-            ) : Playlist(), ResultType.Data.Static<PlaylistId> {
-                @Transient override val serializer: KSerializer<PlaylistId> = PlaylistId.serializer()
-            }
-
-            @Serializable
             data class UpdateName(
                 val id: PlaylistId,
                 val name: String
-            ) : Playlist(), ResultType.Action
-
-            @Serializable
-            data class UpdateFolderId(
-                val id: PlaylistId,
-                val folderId: FolderId?
             ) : Playlist(), ResultType.Action
         }
 
         @Serializable
         sealed class PlaylistTrackCrossRef : ToServer() {
-            @Serializable
-            data class Get(
-                val playlistId: PlaylistId,
-                val trackId: TrackId
-            ) : PlaylistTrackCrossRef(), ResultType.Data.Dynamic<PlaylistTrackCrossRefModel?> {
-                @Transient override val serializer: KSerializer<PlaylistTrackCrossRefModel?> = PlaylistTrackCrossRefModel.serializer().nullable
-            }
-
-            @Serializable
-            data class Add(
-                val playlistId: PlaylistId,
-                val trackId: TrackId
-            ) : PlaylistTrackCrossRef(), ResultType.Action
-
             @Serializable
             data class ChangeItemPosition(
                 val playlistId: PlaylistId,
@@ -649,27 +599,6 @@ sealed class Rpc {
             }
 
             @Serializable
-            data class GetFolderTracks(
-                val id: FolderId
-            ) : Track(), ResultType.Data.Dynamic<List<TrackModel>> {
-                @Transient override val serializer: KSerializer<List<TrackModel>> = ListSerializer(TrackModel.serializer())
-            }
-
-            @Serializable
-            data class GetArtistTracks(
-                val id: SpotifyArtistId
-            ) : Track(), ResultType.Data.Dynamic<List<TrackRelationModel>> {
-                @Transient override val serializer: KSerializer<List<TrackRelationModel>> = ListSerializer(TrackRelationModel.serializer())
-            }
-
-            @Serializable
-            data class GetAlbumTracks(
-                val id: SpotifyAlbumId
-            ) : Track(), ResultType.Data.Dynamic<List<TrackRelationModel>> {
-                @Transient override val serializer: KSerializer<List<TrackRelationModel>> = ListSerializer(TrackRelationModel.serializer())
-            }
-
-            @Serializable
             data class GetPlaylistTracks(
                 val id: PlaylistId
             ) : Track(), ResultType.Data.Dynamic<List<TrackRelationModel>> {
@@ -689,21 +618,6 @@ sealed class Rpc {
             ) : Track(), ResultType.Data.Dynamic<TrackRelationModel?> {
                 @Transient override val serializer: KSerializer<TrackRelationModel?> = TrackRelationModel.serializer().nullable
             }
-
-            @Serializable
-            data class Add(
-                val importSessionItemId: ImportSessionItemId,
-                val spotifyTrackId: SpotifyTrackId?,
-                val folderId: FolderId
-            ) : Track(), ResultType.Data.Static<TrackId> {
-                @Transient override val serializer: KSerializer<TrackId> = TrackId.serializer()
-            }
-
-            @Serializable
-            data class UpdateFolderId(
-                val id: TrackId,
-                val folderId: FolderId?
-            ) : Track(), ResultType.Action
         }
     }
 }

@@ -3,7 +3,6 @@ package dev.younesgouyd.apps.music.client.multiplatform.data.repoes
 import dev.younesgouyd.apps.music.client.multiplatform.data.Server
 import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.models.datamodels.PlaylistTrack
-import dev.younesgouyd.apps.music.common.models.datamodels.Track
 import dev.younesgouyd.apps.music.common.models.datamodels.TrackRelation
 import kotlinx.coroutines.flow.Flow
 
@@ -108,18 +107,6 @@ class TrackRepo(
         )
     }
 
-    fun getFolderTracks(id: FolderId): Flow<List<Track>> {
-        return server.observe(Rpc.ToServer.Track.GetFolderTracks(id))
-    }
-
-    fun getArtistTracks(id: SpotifyArtistId): Flow<List<TrackRelation>> {
-        return server.observe(Rpc.ToServer.Track.GetArtistTracks(id))
-    }
-
-    fun getAlbumTracks(id: SpotifyAlbumId): Flow<List<TrackRelation>> {
-        return server.observe(Rpc.ToServer.Track.GetAlbumTracks(id))
-    }
-
     fun getPlaylistTracks(id: PlaylistId): Flow<List<TrackRelation>> {
         return server.observe(Rpc.ToServer.Track.GetPlaylistTracks(id))
     }
@@ -132,28 +119,5 @@ class TrackRepo(
 
     fun getImportSessionTrack(id: ImportSessionItemId): Flow<TrackRelation?> {
         return server.observe(Rpc.ToServer.Track.GetImportSessionTrack(id))
-    }
-
-    suspend fun add(
-        importSessionItemId: ImportSessionItemId,
-        spotifyTrackId: SpotifyTrackId?,
-        folderId: FolderId
-    ): TrackId {
-        return server.get(
-            Rpc.ToServer.Track.Add(
-                importSessionItemId = importSessionItemId,
-                spotifyTrackId = spotifyTrackId,
-                folderId = folderId
-            )
-        )
-    }
-
-    suspend fun updateFolderId(id: TrackId, folderId: FolderId?) {
-        server.call(
-            Rpc.ToServer.Track.UpdateFolderId(
-                id = id,
-                folderId = folderId
-            )
-        )
     }
 }

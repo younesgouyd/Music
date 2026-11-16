@@ -37,25 +37,8 @@ class PlaylistRepo(
         )
     }
 
-    fun getFolderPlaylists(folderId: FolderId?): Flow<List<Playlist>> {
-        return server.observe(Rpc.ToServer.Playlist.GetFolderPlaylists(folderId))
-    }
-
     fun getTrackPlaylists(id: TrackId): Flow<List<Playlist>> {
         return server.observe(Rpc.ToServer.Playlist.GetTrackPlaylists(id))
-    }
-
-    suspend fun add(
-        name: String,
-        folderId: FolderId?
-    ): PlaylistId {
-        require(name.isNotEmpty())
-        return server.get(
-            Rpc.ToServer.Playlist.Add(
-                name = name,
-                folderId = folderId
-            )
-        )
     }
 
     suspend fun updateName(id: PlaylistId, name: String) {
@@ -64,15 +47,6 @@ class PlaylistRepo(
             Rpc.ToServer.Playlist.UpdateName(
                 id = id,
                 name = name
-            )
-        )
-    }
-
-    suspend fun updateFolderId(id: PlaylistId, folderId: FolderId?) {
-        server.call(
-            Rpc.ToServer.Playlist.UpdateFolderId(
-                id = id,
-                folderId = folderId
             )
         )
     }
