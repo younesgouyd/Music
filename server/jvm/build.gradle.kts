@@ -25,7 +25,7 @@ compose.desktop {
         mainClass = "dev.younesgouyd.apps.music.server.jvm.MainKt"
 
         nativeDistributions {
-            targetFormats(TargetFormat.AppImage, TargetFormat.Deb)
+            targetFormats(TargetFormat.Deb, TargetFormat.Exe)
             packageName = "dev.younesgouyd.apps.music.server.jvm"
         }
     }

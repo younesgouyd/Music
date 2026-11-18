@@ -31,6 +31,21 @@ abstract class FolderDao {
     @Query("select * from folder where parentFolderId is null order by name asc")
     abstract fun getRoot(): Flow<List<Folder>>
 
+    @Query("""
+        with recursive ancestors(id, parentFolderId, depth) as (
+            select id, parentFolderId, 0 from folder where id = :target
+            union
+            select f.id, f.parentFolderId, a.depth + 1
+            from folder f
+            join ancestors a on f.id = a.parentFolderId
+        )
+        select folder.*
+        from ancestors
+        join folder on folder.id = ancestors.id
+        order by ancestors.depth desc
+    """)
+    abstract fun getPath(target: FolderId): Flow<List<Folder>>
+
     @Query(
         """
         insert into folder (name, parentFolderId, creationDatetime, updateDatetime)

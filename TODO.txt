@@ -1,6 +1,8 @@
 
-- support tagging multiple items
-- consider using ktor's WebSocketDeflateExtension
+- in server MediaController, coroutine cancellations (usually caused by client disconnection).
+- check SharingStarted.WhileSubscribed in Components.
+- support tagging multiple items.
+- consider using ktor's WebSocketDeflateExtension.
 - long click on import artist, album... to copy text.
 - thumbnails that are 1:1 in aspect ratio are imported incorrectly.
 - pagination with buffer limit.
@@ -24,7 +26,7 @@
 - implement sorting playlists/albums/folders.
 
 done:
-- clean up: check unused repository methods
+- clean up: check unused repository methods.
 - support multi selection.
 - revisit ImportWorker and consider running it on a single thread.
 - use the serializer in Rpcs to send data for type safety.

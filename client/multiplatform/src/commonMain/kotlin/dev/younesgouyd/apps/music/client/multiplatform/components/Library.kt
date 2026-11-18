@@ -48,11 +48,14 @@ import dev.younesgouyd.apps.music.common.models.datamodels.TrackRelation
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.seconds
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class Library(
     tagRepo: TagRepo,
     folderRepo: FolderRepo,
@@ -69,40 +72,60 @@ class Library(
     showTrack: (TrackId) -> Unit
 ) : Component() {
     override val title: String = "Library"
-    private val path = MutableStateFlow(listOf(Ui.State.NodeState(null)))
-    private val currentFolder: StateFlow<Folder?> = path.map { it.last().folder }
-        .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
+    private val currentFolder: MutableStateFlow<FolderId?> = MutableStateFlow(null)
     private val selectedTags = MutableStateFlow(emptyList<TagId>())
     private val selectedItems = MutableStateFlow(emptySet<SelectedItem>())
     private val loadingFolders = MutableStateFlow(true)
     private val loadingPlaylists = MutableStateFlow(true)
     private val loadingTracks = MutableStateFlow(true)
     private val deletingFolder = MutableStateFlow(false)
-    private val addToPlaylistDialogVisible = MutableStateFlow(false)
-    private val moveToFolderDialogVisible = MutableStateFlow(false)
     private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
     private val moveToFolder: MutableStateFlow<MoveToFolder?> = MutableStateFlow(null)
     private val searchQuery = MutableStateFlow("")
     private val tagSearchQuery = MutableStateFlow("")
     private val enableFiltering = MutableStateFlow(false)
     private val includeUntagged = MutableStateFlow(false)
-    private val uiState: Ui.State
+    private val notifications: Channel<String> = Channel(Channel.BUFFERED)
+    private val state: Ui.State
 
     private data class TracksFilter(
-        val currentFolder: Folder?,
+        val currentFolder: FolderId?,
         val search: String,
         val tags: List<TagId>,
         val enableFiltering: Boolean,
         val includeUntagged: Boolean
     )
 
+    private class ScrollState(
+        var firstVisibleItemIndex: Int = 0,
+        var firstVisibleItemScrollOffset: Int = 0
+    )
+
     init {
-        uiState = Ui.State(
-            path = path,
+        state = Ui.State(
+            path = run {
+                var scrollStates: Map<FolderId?, ScrollState> = mapOf()
+                currentFolder.flatMapLatest {
+                    if (it == null) flowOf(emptyList())
+                    else folderRepo.getPath(it)
+                }.map { path ->
+                    val temp: MutableMap<FolderId?, ScrollState> = mutableMapOf()
+                    val rootState = scrollStates[null] ?: ScrollState()
+                    temp[null] = rootState
+                    val new = path.map { folder ->
+                        val id = folder.id
+                        val scrollState = scrollStates[id] ?: ScrollState()
+                        temp[id] = scrollState
+                        Ui.State.NodeState(folder, scrollState)
+                    }
+                    scrollStates = temp
+                    listOf(Ui.State.NodeState(null, rootState)) + new
+                }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), listOf(Ui.State.NodeState()))
+            },
             searchQuery = searchQuery.asStateFlow(),
             selectedItems = selectedItems.asStateFlow(),
             tagsFilterState = TagsFilterState(
-                tags = combine(tagSearchQuery, selectedTags, ::Pair)
+                tags = combine(tagSearchQuery.debounce(1.seconds), selectedTags, ::Pair)
                     .flatMapLatest { (search, selected) ->
                         tagRepo.search(search).map {
                             it.sortedByDescending { selected.contains(it.id) }
@@ -135,34 +158,35 @@ class Library(
                 }
             ),
             content = run {
-                val folders = combine(currentFolder, searchQuery, ::Pair)
+                val debouncedSearch = searchQuery.debounce(1.seconds)
+                val folders = combine(currentFolder, debouncedSearch, ::Pair)
                     .onEach { loadingFolders.value = true }
-                    .flatMapLatest { (folder, search) -> folderRepo.searchFolder(folder?.id, search) }
+                    .flatMapLatest { (currentFolder, search) -> folderRepo.searchFolder(currentFolder, search) }
                     .onEach { loadingFolders.value = false }
                     .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
-                val playlists: StateFlow<List<Ui.State.Content.Loaded.Playlist>> = combine(currentFolder, searchQuery, ::Pair)
+                val playlists: StateFlow<List<Ui.State.Content.Loaded.Playlist>> = combine(currentFolder, debouncedSearch, ::Pair)
                     .onEach { loadingPlaylists.value = true }
-                    .flatMapLatest { (folder, search) -> playlistRepo.searchFolder(folder?.id, search) }
+                    .flatMapLatest { (currentFolder, search) -> playlistRepo.searchFolder(currentFolder, search) }
                     .map { dbPlaylists -> dbPlaylists.toPlaylistModels() }
                     .onEach { loadingPlaylists.value = false }
                     .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
                 val tracks: StateFlow<List<Ui.State.Content.Loaded.Track>> = combine(
-                    currentFolder, searchQuery,
+                    currentFolder, debouncedSearch,
                     selectedTags, enableFiltering,
                     includeUntagged, ::TracksFilter
                 ).onEach { loadingTracks.value = true }
                     .flatMapLatest { (currentFolder, searchQuery, selectedTags, enableFiltering, includeUntagged) ->
                         if (enableFiltering) {
-                            trackRepo.searchFolderWithTags(currentFolder?.id, searchQuery, selectedTags, includeUntagged)
+                            trackRepo.searchFolderWithTags(currentFolder, searchQuery, selectedTags, includeUntagged)
                         } else {
-                            trackRepo.searchFolder(currentFolder?.id, searchQuery)
+                            trackRepo.searchFolder(currentFolder, searchQuery)
                         }
                     }.mapLatest { dbTracks -> dbTracks.toTrackModels() }
                     .onEach { loadingTracks.value = false }
                     .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
                 val loadingItems = combine(loadingFolders, loadingPlaylists, loadingTracks) { l1, l2, l3 -> l1 || l2 || l3 }
                 combine(
-                    loadingItems, currentFolder.map { it?.id }, folders, playlists, tracks
+                    loadingItems, currentFolder, folders, playlists, tracks
                 ) { loadingItems, currentFolder, folders, playlists, tracks ->
                     if (loadingItems) {
                         Ui.State.Content.Loading
@@ -178,22 +202,17 @@ class Library(
                     selectedItems.value = emptySet()
                 }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), Ui.State.Content.Loading)
             },
+            notifications = notifications.receiveAsFlow(),
             actions = Ui.State.Actions(
-                onImport = { showImportFlow(path.value.last().folder!!.id) },
+                onImport = { showImportFlow(currentFolder.value!!) },
                 onSearchQueryChange = { searchQuery.value = it },
                 onNewFolder = {
                     coroutineScope.launch {
-                        folderRepo.add(name = it, parentFolderId = currentFolder.value?.id)
+                        folderRepo.add(name = it, parentFolderId = currentFolder.value)
                     }
                 },
 
-                onOpenFolder = { folder ->
-                    path.update { list ->
-                        if (folder == null) return@update list.take(1)
-                        val i = list.indexOfFirst { it.folder?.id == folder.id }
-                        if (i >= 0) list.take(i + 1) else list + Ui.State.NodeState(folder)
-                    }
-                },
+                onOpenFolder = { currentFolder.value = it },
                 onPlaylistClick = showPlaylist,
                 onTrackClick = showTrack,
                 onArtistClick = showArtistDetails,
@@ -211,138 +230,110 @@ class Library(
                     val items = selectedItems.value
                     if (items.isNotEmpty()) {
                         val (tracks, playlists, folders) = items.toTriple()
-                        moveToFolder.update {
-                            MoveToFolder(
-                                startFolder = currentFolder.value?.id,
-                                tracks = tracks.toSet(),
-                                playlists = playlists.toSet(),
-                                folders = folders.toSet(),
-                                folderRepo = folderRepo,
-                                moveItemsToFolderUseCase = moveItemsToFolderUseCase,
-                                dismiss = ::dismissMoveToFolderDialog
-                            )
-                        }
+                        moveToFolder.value = MoveToFolder(
+                            startFolder = currentFolder.value,
+                            tracks = tracks.toSet(),
+                            playlists = playlists.toSet(),
+                            folders = folders.toSet(),
+                            folderRepo = folderRepo,
+                            moveItemsToFolderUseCase = moveItemsToFolderUseCase,
+                            dismiss = ::dismissMoveToFolderDialog
+                        )
                         selectedItems.value = emptySet()
-                        moveToFolderDialogVisible.value = true
                     }
                 },
                 onMoveFolderToFolder = { id: FolderId ->
-                    moveToFolder.update {
-                        MoveToFolder(
-                            startFolder = currentFolder.value?.id,
-                            tracks = emptySet(),
-                            playlists = emptySet(),
-                            folders = setOf(id),
-                            folderRepo = folderRepo,
-                            moveItemsToFolderUseCase = moveItemsToFolderUseCase,
-                            dismiss = ::dismissMoveToFolderDialog
-                        )
-                    }
+                    moveToFolder.value = MoveToFolder(
+                        startFolder = currentFolder.value,
+                        tracks = emptySet(),
+                        playlists = emptySet(),
+                        folders = setOf(id),
+                        folderRepo = folderRepo,
+                        moveItemsToFolderUseCase = moveItemsToFolderUseCase,
+                        dismiss = ::dismissMoveToFolderDialog
+                    )
                     selectedItems.value = emptySet()
-                    moveToFolderDialogVisible.value = true
                 },
                 onMovePlaylistToFolder = { id: PlaylistId ->
-                    moveToFolder.update {
-                        MoveToFolder(
-                            startFolder = currentFolder.value?.id,
-                            tracks = emptySet(),
-                            playlists = setOf(id),
-                            folders = emptySet(),
-                            folderRepo = folderRepo,
-                            moveItemsToFolderUseCase = moveItemsToFolderUseCase,
-                            dismiss = ::dismissMoveToFolderDialog
-                        )
-                    }
+                    moveToFolder.value = MoveToFolder(
+                        startFolder = currentFolder.value,
+                        tracks = emptySet(),
+                        playlists = setOf(id),
+                        folders = emptySet(),
+                        folderRepo = folderRepo,
+                        moveItemsToFolderUseCase = moveItemsToFolderUseCase,
+                        dismiss = ::dismissMoveToFolderDialog
+                    )
                     selectedItems.value = emptySet()
-                    moveToFolderDialogVisible.value = true
                 },
                 onMoveTrackToFolder = { id: TrackId ->
-                    moveToFolder.update {
-                        MoveToFolder(
-                            startFolder = currentFolder.value?.id,
-                            tracks = setOf(id),
-                            playlists = emptySet(),
-                            folders = emptySet(),
-                            folderRepo = folderRepo,
-                            moveItemsToFolderUseCase = moveItemsToFolderUseCase,
-                            dismiss = ::dismissMoveToFolderDialog
-                        )
-                    }
+                    moveToFolder.value = MoveToFolder(
+                        startFolder = currentFolder.value,
+                        tracks = setOf(id),
+                        playlists = emptySet(),
+                        folders = emptySet(),
+                        folderRepo = folderRepo,
+                        moveItemsToFolderUseCase = moveItemsToFolderUseCase,
+                        dismiss = ::dismissMoveToFolderDialog
+                    )
                     selectedItems.value = emptySet()
-                    moveToFolderDialogVisible.value = true
                 },
 
                 onAddSelectedToPlaylist = {
                     val items = selectedItems.value
                     if (items.isNotEmpty()) {
                         val (tracks, playlists, folders) = items.toTriple()
-                        addToPlaylist.update {
-                            if (it != null) TODO()
-                            AddToPlaylist(
-                                tracks = tracks.toList(),
-                                playlists = playlists.toList(),
-                                folders = folders.toList(),
-                                artists = emptyList(),
-                                albums = emptyList(),
-                                playlistRepo = playlistRepo,
-                                addToPlaylistUseCase = addToPlaylistUseCase,
-                                dismiss = ::dismissAddToPlaylistDialog
-                            )
-                        }
+                        addToPlaylist.value = AddToPlaylist(
+                            tracks = tracks.toList(),
+                            playlists = playlists.toList(),
+                            folders = folders.toList(),
+                            artists = emptyList(),
+                            albums = emptyList(),
+                            playlistRepo = playlistRepo,
+                            addToPlaylistUseCase = addToPlaylistUseCase,
+                            dismiss = ::dismissAddToPlaylistDialog
+                        )
                         selectedItems.value = emptySet()
-                        addToPlaylistDialogVisible.value = true
                     }
                 },
                 onAddFolderToPlaylist = { folderId: FolderId ->
-                    addToPlaylist.update {
-                        if (it != null) TODO()
-                        AddToPlaylist(
-                            tracks = emptyList(),
-                            playlists = emptyList(),
-                            folders = listOf(folderId),
-                            artists = emptyList(),
-                            albums = emptyList(),
-                            playlistRepo = playlistRepo,
-                            addToPlaylistUseCase = addToPlaylistUseCase,
-                            dismiss = ::dismissAddToPlaylistDialog
-                        )
-                    }
-                    addToPlaylistDialogVisible.value = true
+                    addToPlaylist.value = AddToPlaylist(
+                        tracks = emptyList(),
+                        playlists = emptyList(),
+                        folders = listOf(folderId),
+                        artists = emptyList(),
+                        albums = emptyList(),
+                        playlistRepo = playlistRepo,
+                        addToPlaylistUseCase = addToPlaylistUseCase,
+                        dismiss = ::dismissAddToPlaylistDialog
+                    )
                     selectedItems.value = emptySet()
                 },
                 onAddPlaylistToPlaylist = { playlistId: PlaylistId ->
-                    addToPlaylist.update {
-                        if (it != null) TODO()
-                        AddToPlaylist(
-                            tracks = emptyList(),
-                            playlists = listOf(playlistId),
-                            folders = emptyList(),
-                            artists = emptyList(),
-                            albums = emptyList(),
-                            playlistRepo = playlistRepo,
-                            addToPlaylistUseCase = addToPlaylistUseCase,
-                            dismiss = ::dismissAddToPlaylistDialog
-                        )
-                    }
-                    addToPlaylistDialogVisible.value = true
+                    addToPlaylist.value = AddToPlaylist(
+                        tracks = emptyList(),
+                        playlists = listOf(playlistId),
+                        folders = emptyList(),
+                        artists = emptyList(),
+                        albums = emptyList(),
+                        playlistRepo = playlistRepo,
+                        addToPlaylistUseCase = addToPlaylistUseCase,
+                        dismiss = ::dismissAddToPlaylistDialog
+                    )
                     selectedItems.value = emptySet()
                 },
                 onAddTrackToPlaylist = { trackId: TrackId ->
-                    addToPlaylist.update {
-                        if (it != null) TODO()
-                        AddToPlaylist(
-                            tracks = listOf(trackId),
-                            playlists = emptyList(),
-                            folders = emptyList(),
-                            artists = emptyList(),
-                            albums = emptyList(),
-                            playlistRepo = playlistRepo,
-                            addToPlaylistUseCase = addToPlaylistUseCase,
-                            dismiss = ::dismissAddToPlaylistDialog
-                        )
-                    }
+                    addToPlaylist.value = AddToPlaylist(
+                        tracks = listOf(trackId),
+                        playlists = emptyList(),
+                        folders = emptyList(),
+                        artists = emptyList(),
+                        albums = emptyList(),
+                        playlistRepo = playlistRepo,
+                        addToPlaylistUseCase = addToPlaylistUseCase,
+                        dismiss = ::dismissAddToPlaylistDialog
+                    )
                     selectedItems.value = emptySet()
-                    addToPlaylistDialogVisible.value = true
                 },
 
                 onAddSelectedToQueue = {
@@ -474,17 +465,15 @@ class Library(
 
     @Composable
     override fun show(modifier: Modifier) {
-        val addToPlaylistDialogVisible by addToPlaylistDialogVisible.collectAsState()
-        val moveToFolderDialogVisible by moveToFolderDialogVisible.collectAsState()
         val deletingFolder by deletingFolder.collectAsState()
         val addToPlaylist: Component? by addToPlaylist.collectAsState()
         val moveToFolder : Component? by moveToFolder.collectAsState()
 
         DisposableEffect(Unit) {
             Application.registerBackHandler {
-                val path = path.value
+                val path = state.path.value
                 if (path.size > 1) {
-                    uiState.actions.onOpenFolder(path[path.size - 2].folder)
+                    state.actions.onOpenFolder(path[path.size - 2].folder?.id)
                 }
             }
             onDispose {
@@ -496,25 +485,25 @@ class Library(
             wide = {
                 Ui.Wide.Main(
                     modifier = modifier,
-                    state = uiState
+                    state = state
                 )
             },
             compact = {
                 Ui.Compact.Main(
                     modifier = modifier,
-                    state = uiState
+                    state = state
                 )
             }
         )
 
-        if (addToPlaylistDialogVisible) {
+        if (addToPlaylist != null) {
             Dialog(onDismissRequest = ::dismissAddToPlaylistDialog) {
                 addToPlaylist!!.show(Modifier)
             }
         }
-        if (moveToFolderDialogVisible) {
-            Dialog(onDismissRequest = ::dismissMoveToFolderDialog) {
-                moveToFolder!!.show(Modifier)
+        if (moveToFolder != null) {
+            Dialog(onDismissRequest = { dismissMoveToFolderDialog(true) }) {
+                moveToFolder?.show(Modifier)
             }
         }
         if (deletingFolder) {
@@ -538,7 +527,7 @@ class Library(
     override fun clear() {
         coroutineScope.cancel()
     }
-    
+
     private fun Set<SelectedItem>.toTriple(): Triple<Set<TrackId>, Set<PlaylistId>, Set<FolderId>> {
         val tracks = mutableSetOf<TrackId>()
         val playlists = mutableSetOf<PlaylistId>()
@@ -581,19 +570,24 @@ class Library(
     }
 
     private fun dismissAddToPlaylistDialog() {
-        if (addToPlaylist.value?.adding?.value == true) {
+        val tmp = addToPlaylist.value
+        if (tmp?.adding?.value == true) {
             return
         }
-        addToPlaylistDialogVisible.update { false }
-        addToPlaylist.update { it!!.clear(); null }
+        addToPlaylist.value = null
+        tmp?.clear()
     }
 
-    private fun dismissMoveToFolderDialog() {
-        if (moveToFolder.value?.moving?.value == true) {
+    private fun dismissMoveToFolderDialog(success: Boolean) {
+        val tmp = moveToFolder.value
+        if (tmp?.moving?.value == true) {
             return
         }
-        moveToFolderDialogVisible.update { false }
-        moveToFolder.update { it!!.clear(); null }
+        moveToFolder.value = null
+        tmp?.clear()
+        if (!success) {
+            notifications.trySend("Cannot move a folder into itself")
+        }
     }
 
     private sealed class SelectedItem {
@@ -609,14 +603,13 @@ class Library(
             val selectedItems: StateFlow<Set<SelectedItem>>,
             val tagsFilterState: TagsFilterState,
             val content: StateFlow<Content>,
+            val notifications: Flow<String>,
             val actions: Actions
         ) {
             class NodeState(
-                val folder: Folder?
-            ) {
-                var firstVisibleItemIndex: Int = 0
-                var firstVisibleItemScrollOffset: Int = 0
-            }
+                val folder: Folder? = null,
+                val scrollState: ScrollState = ScrollState()
+            )
 
             sealed class Content {
                 data object Loading : Content()
@@ -652,7 +645,7 @@ class Library(
                 val onSearchQueryChange: (String) -> Unit,
                 val onNewFolder: (name: String) -> Unit,
 
-                val onOpenFolder: (Folder?) -> Unit,
+                val onOpenFolder: (FolderId?) -> Unit,
                 val onPlaylistClick: (PlaylistId) -> Unit,
                 val onTrackClick: (TrackId) -> Unit,
                 val onArtistClick: (SpotifyArtistId) -> Unit,
@@ -689,237 +682,6 @@ class Library(
             )
         }
 
-        @Composable
-        fun Content(
-            modifier: Modifier,
-            content: State.Content,
-            gridState: LazyGridState,
-            actions: State.Actions,
-            selectedItems: Set<SelectedItem>,
-            folderUi: @Composable (Modifier, Folder, isSelected: Boolean, State.Actions) -> Unit,
-            playlistUi: @Composable (Modifier, State.Content.Loaded.Playlist, isSelected: Boolean, State.Actions) -> Unit,
-            trackUi: @Composable (Modifier, State.Content.Loaded.Track, isSelected: Boolean, State.Actions) -> Unit
-        ) {
-            val minColumnWidth: Dp = when (getWindowSizeClass()) {
-                WindowWidthSizeClass.Compact -> 100.dp
-                else -> 200.dp
-            }
-
-            when (content) {
-                is State.Content.Loading -> {
-                    Box(modifier.padding(10.dp), Alignment.Center) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(50.dp),
-                            strokeWidth = 2.dp
-                        )
-                    }
-                }
-                is State.Content.Loaded -> {
-                    LazyVerticalGrid(
-                        modifier = modifier,
-                        state = gridState,
-                        contentPadding = PaddingValues(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        columns = GridCells.Adaptive(minColumnWidth)
-                    ) {
-                        val ratio = 0.65f
-                        items(content.folders, { "folder#${it.id}" }) { folder ->
-                            val isSelected = selectedItems.any {
-                                it is SelectedItem.Folder && it.value.id == folder.id
-                            }
-                            folderUi(Modifier.aspectRatio(ratio), folder, isSelected, actions)
-                        }
-                        items(content.playlists, { "playlist#${it.id}" }) { playlist ->
-                            val isSelected = selectedItems.any {
-                                it is SelectedItem.Playlist && it.value.id == playlist.id
-                            }
-                            playlistUi(Modifier.aspectRatio(ratio), playlist, isSelected, actions)
-                        }
-                        items(content.tracks, { "track#${it.id}" }) { track ->
-                            val isSelected = selectedItems.any {
-                                it is SelectedItem.Track && it.value.id == track.id
-                            }
-                            trackUi(Modifier.aspectRatio(ratio), track, isSelected, actions)
-                        }
-                    }
-                }
-            }
-        }
-
-        @Composable
-        private fun ContextMenu(
-            modifier: Modifier,
-            selectedItems: Set<SelectedItem>,
-            onCancel: () -> Unit,
-            onPlay: () -> Unit,
-            onMove: () -> Unit,
-            onRename: (SelectedItem, String) -> Unit,
-            onAddToPlaylistClick: () -> Unit,
-            onAddToQueueClick: () -> Unit,
-            onDelete: () -> Unit
-        ) {
-            var showMore by remember { mutableStateOf(false)}
-
-            ElevatedCard(
-                modifier = modifier
-            ) {
-                Column(
-                    modifier = Modifier.padding(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = onCancel,
-                            content = { Icon(Icons.Default.Close, "Cancel") }
-                        )
-                        Text(
-                            text = "${selectedItems.size} selected",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = onMove,
-                            content = { Icon(Icons.AutoMirrored.Default.DriveFileMove, "Move") }
-                        )
-                        IconButton(
-                            onClick = onAddToPlaylistClick,
-                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, "Add to playlist") }
-                        )
-                        IconButton(
-                            onClick = onPlay,
-                            content = { Icon(Icons.Default.PlayCircle, "Play") }
-                        )
-                        IconButton(
-                            onClick = { showMore = true },
-                            content = { Icon(Icons.Default.MoreVert, "More") }
-                        )
-                    }
-                }
-            }
-
-            if (showMore) {
-                var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
-
-                Dialog(onDismissRequest = { showMore = false }) {
-                    Surface(
-                        modifier = Modifier.width(400.dp),
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.surfaceContainer
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Top
-                        ) {
-                            if (selectedItems.size == 1 && selectedItems.first() !is SelectedItem.Track) {
-                                var showEditFormDialog by remember { mutableStateOf(false) }
-                                val item = selectedItems.first()
-                                val (title, name) = remember {
-                                    when (item) {
-                                        is SelectedItem.Folder -> Pair("Rename folder: ${item.value.name}", item.value.name)
-                                        is SelectedItem.Playlist -> Pair("Rename folder: ${item.value.name}", item.value.name)
-                                        is SelectedItem.Track -> TODO()
-                                    }
-                                }
-                                Option(
-                                    label = "Rename",
-                                    icon = Icons.Default.Edit,
-                                    onClick = { showEditFormDialog = true },
-                                )
-                                if (showEditFormDialog) {
-                                    RenameDialog(
-                                        title = title,
-                                        name = name,
-                                        onDone = {
-                                            onRename(item, it)
-                                            showEditFormDialog = false
-                                            showMore = false
-                                        },
-                                        onDismiss = { showEditFormDialog = false }
-                                    )
-                                }
-                            }
-                            Option(
-                                label = "Add to queue",
-                                icon = Icons.Default.AddToQueue,
-                                onClick = onAddToQueueClick
-                            )
-                            Option(
-                                label = "Delete",
-                                icon = Icons.Default.Delete,
-                                onClick = { showDeleteConfirmationDialog = true },
-                            )
-                        }
-                    }
-                }
-
-                if (showDeleteConfirmationDialog) {
-                    DeleteConfirmationDialog(
-                        message = "Delete ${selectedItems.size} items?",
-                        onDismissRequest = { showDeleteConfirmationDialog = false },
-                        onYesClick = {
-                            showDeleteConfirmationDialog = false
-                            onDelete()
-                        }
-                    )
-                }
-            }
-        }
-
-        @Composable
-        private fun RenameDialog(
-            title: String,
-            name: String = "",
-            onDone: (name: String) -> Unit,
-            onDismiss: () -> Unit
-        ) {
-            var name by remember { mutableStateOf(name) }
-
-            Dialog(onDismissRequest = onDismiss) {
-                Surface(
-                    modifier = Modifier.width(500.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                            text = title,
-                            style = MaterialTheme.typography.headlineMedium,
-                            textAlign = TextAlign.Center
-                        )
-                        OutlinedTextField(
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Name") },
-                            value = name,
-                            onValueChange = { name = it },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = { onDone(name) }),
-                        )
-                        Button(
-                            content = { Text("Done") },
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = { onDone(name) }
-                        )
-                    }
-                }
-            }
-        }
-
         object Wide {
             @Composable
             fun Main(
@@ -933,6 +695,7 @@ class Library(
                     selectedItems = state.selectedItems,
                     tagsFilterState = state.tagsFilterState,
                     content = state.content,
+                    notifications = state.notifications,
                     actions = state.actions
                 )
             }
@@ -945,20 +708,29 @@ class Library(
                 selectedItems: StateFlow<Set<SelectedItem>>,
                 tagsFilterState: TagsFilterState,
                 content: StateFlow<State.Content>,
+                notifications: Flow<String>,
                 actions: State.Actions
             ) {
-                val path by path.collectAsState()
+                val _path by path.collectAsState()
+                val path = remember(_path) { _path.map { it.folder } }
+                val scrollState = _path.last().scrollState
                 val content by content.collectAsState()
-                val node = path.last()
-                val gridState = remember(node) {
-                    LazyGridState(node.firstVisibleItemIndex, node.firstVisibleItemScrollOffset)
-                }
                 val selectedItems by selectedItems.collectAsState()
+                val gridState = remember(scrollState) {
+                    LazyGridState(scrollState.firstVisibleItemIndex, scrollState.firstVisibleItemScrollOffset)
+                }
+                val snackbarHostState = remember { SnackbarHostState() }
 
-                DisposableEffect(node) {
+                DisposableEffect(scrollState) {
                     onDispose {
-                        node.firstVisibleItemIndex = gridState.firstVisibleItemIndex
-                        node.firstVisibleItemScrollOffset = gridState.firstVisibleItemScrollOffset
+                        scrollState.firstVisibleItemIndex = gridState.firstVisibleItemIndex
+                        scrollState.firstVisibleItemScrollOffset = gridState.firstVisibleItemScrollOffset
+                    }
+                }
+
+                LaunchedEffect(Unit) {
+                    notifications.collect {
+                        snackbarHostState.showSnackbar(it)
                     }
                 }
 
@@ -975,7 +747,7 @@ class Library(
                             ) {
                                 ToolBar(
                                     modifier = Modifier.fillMaxWidth(),
-                                    path = path.map { it.folder },
+                                    path = path,
                                     searchQuery = searchQuery,
                                     tagsFilterState = tagsFilterState,
                                     onFolderClick = actions.onOpenFolder,
@@ -998,7 +770,7 @@ class Library(
                                                 if (selectedItems.isNotEmpty()) {
                                                     actions.onToggleSelection(SelectedItem.Folder(folder))
                                                 } else {
-                                                    actions.onOpenFolder(folder)
+                                                    actions.onOpenFolder(folder.id)
                                                 }
                                             },
                                             onToggleSelection = { actions.onToggleSelection(SelectedItem.Folder(folder)) },
@@ -1074,6 +846,7 @@ class Library(
                             }
                         }
                     },
+                    snackbarHost = { SnackbarHost(snackbarHostState) },
                     floatingActionButton = { ScrollToTopFloatingActionButton(gridState) }
                 )
             }
@@ -1084,7 +857,7 @@ class Library(
                 path: List<Folder?>,
                 searchQuery: StateFlow<String>,
                 tagsFilterState: TagsFilterState,
-                onFolderClick: (Folder?) -> Unit,
+                onFolderClick: (FolderId?) -> Unit,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
                 onSearchQueryChange: (String) -> Unit
@@ -1631,6 +1404,7 @@ class Library(
                     searchQuery = state.searchQuery,
                     selectedItems = state.selectedItems,
                     content = state.content,
+                    notifications = state.notifications,
                     actions = state.actions
                 )
             }
@@ -1642,20 +1416,29 @@ class Library(
                 searchQuery: StateFlow<String>,
                 selectedItems: StateFlow<Set<SelectedItem>>,
                 content: StateFlow<State.Content>,
+                notifications: Flow<String>,
                 actions: State.Actions
             ) {
-                val path by path.collectAsState()
+                val _path by path.collectAsState()
+                val path = remember(_path) { _path.map { it.folder } }
+                val scrollState = _path.last().scrollState
                 val content by content.collectAsState()
-                val node = path.last()
-                val gridState = remember(node) {
-                    LazyGridState(node.firstVisibleItemIndex, node.firstVisibleItemScrollOffset)
-                }
                 val selectedItems by selectedItems.collectAsState()
+                val gridState = remember(scrollState) {
+                    LazyGridState(scrollState.firstVisibleItemIndex, scrollState.firstVisibleItemScrollOffset)
+                }
+                val snackbarHostState = remember { SnackbarHostState() }
 
-                DisposableEffect(node) {
+                DisposableEffect(scrollState) {
                     onDispose {
-                        node.firstVisibleItemIndex = gridState.firstVisibleItemIndex
-                        node.firstVisibleItemScrollOffset = gridState.firstVisibleItemScrollOffset
+                        scrollState.firstVisibleItemIndex = gridState.firstVisibleItemIndex
+                        scrollState.firstVisibleItemScrollOffset = gridState.firstVisibleItemScrollOffset
+                    }
+                }
+
+                LaunchedEffect(Unit) {
+                    notifications.collect {
+                        snackbarHostState.showSnackbar(it)
                     }
                 }
 
@@ -1672,7 +1455,7 @@ class Library(
                             ) {
                                 ToolBar(
                                     modifier = Modifier.fillMaxWidth(),
-                                    path = path.map { it.folder },
+                                    path = path,
                                     searchQuery = searchQuery,
                                     onFolderClick = actions.onOpenFolder,
                                     onImportClick = actions.onImport,
@@ -1694,7 +1477,7 @@ class Library(
                                                 if (selectedItems.isNotEmpty()) {
                                                     actions.onToggleSelection(SelectedItem.Folder(folder))
                                                 } else {
-                                                    actions.onOpenFolder(folder)
+                                                    actions.onOpenFolder(folder.id)
                                                 }
                                             },
                                             onToggleSelection = { actions.onToggleSelection(SelectedItem.Folder(folder)) }
@@ -1753,6 +1536,7 @@ class Library(
                             }
                         }
                     },
+                    snackbarHost = { SnackbarHost(snackbarHostState) },
                     floatingActionButton = { ScrollToTopFloatingActionButton(gridState) }
                 )
             }
@@ -1762,7 +1546,7 @@ class Library(
                 modifier: Modifier,
                 path: List<Folder?>,
                 searchQuery: StateFlow<String>,
-                onFolderClick: (Folder?) -> Unit,
+                onFolderClick: (FolderId?) -> Unit,
                 onImportClick: () -> Unit,
                 onNewFolder: (name: String) -> Unit,
                 onSearchQueryChange: (String) -> Unit
@@ -1832,15 +1616,11 @@ class Library(
                 onClick: () -> Unit,
                 onToggleSelection: () -> Unit,
             ) {
-                val interactionSource = remember { MutableInteractionSource() }
-                val isHovered by interactionSource.collectIsHoveredAsState()
-
                 Item(
                     modifier = modifier,
                     onClick = onClick,
                     onLongClick = onToggleSelection,
-                    isSelected = isSelected,
-                    interactionSource = interactionSource
+                    isSelected = isSelected
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -1869,16 +1649,12 @@ class Library(
                                 )
                             }
                         }
-                        if (isHovered || isSelected) {
+                        if (isSelected) {
                             IconButton(
                                 modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
                                 onClick = onToggleSelection,
                             ) {
-                                if (isSelected) {
-                                    Icon(Icons.Default.CheckBox, null)
-                                } else {
-                                    Icon(Icons.Default.CheckBoxOutlineBlank, null)
-                                }
+                                Icon(Icons.Default.CheckBox, null)
                             }
                         }
                     }
@@ -1893,15 +1669,11 @@ class Library(
                 onClick: () -> Unit,
                 onToggleSelection: () -> Unit,
             ) {
-                val interactionSource = remember { MutableInteractionSource() }
-                val isHovered by interactionSource.collectIsHoveredAsState()
-
                 Item(
                     modifier = modifier,
                     onClick = onClick,
                     onLongClick = onToggleSelection,
                     isSelected = isSelected,
-                    interactionSource = interactionSource
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -1930,16 +1702,12 @@ class Library(
                                 )
                             }
                         }
-                        if (isHovered || isSelected) {
+                        if (isSelected) {
                             IconButton(
                                 modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
                                 onClick = onToggleSelection,
                             ) {
-                                if (isSelected) {
-                                    Icon(Icons.Default.CheckBox, null)
-                                } else {
-                                    Icon(Icons.Default.CheckBoxOutlineBlank, null)
-                                }
+                                Icon(Icons.Default.CheckBox, null)
                             }
                         }
                     }
@@ -1954,15 +1722,11 @@ class Library(
                 onClick: () -> Unit,
                 onToggleSelection: () -> Unit,
             ) {
-                val interactionSource = remember { MutableInteractionSource() }
-                val isHovered by interactionSource.collectIsHoveredAsState()
-
                 Item(
                     modifier = modifier,
                     onClick = onClick,
                     onLongClick = onToggleSelection,
                     isSelected = isSelected,
-                    interactionSource = interactionSource
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -2011,18 +1775,245 @@ class Library(
                                 }
                             }
                         }
-                        if (isHovered || isSelected) {
+                        if (isSelected) {
                             IconButton(
                                 modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
                                 onClick = onToggleSelection,
                             ) {
-                                if (isSelected) {
-                                    Icon(Icons.Default.CheckBox, null)
-                                } else {
-                                    Icon(Icons.Default.CheckBoxOutlineBlank, null)
-                                }
+                                Icon(Icons.Default.CheckBox, null)
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        @Composable
+        fun Content(
+            modifier: Modifier,
+            content: State.Content,
+            gridState: LazyGridState,
+            actions: State.Actions,
+            selectedItems: Set<SelectedItem>,
+            folderUi: @Composable (Modifier, Folder, isSelected: Boolean, State.Actions) -> Unit,
+            playlistUi: @Composable (Modifier, State.Content.Loaded.Playlist, isSelected: Boolean, State.Actions) -> Unit,
+            trackUi: @Composable (Modifier, State.Content.Loaded.Track, isSelected: Boolean, State.Actions) -> Unit
+        ) {
+            val minColumnWidth: Dp = when (getWindowSizeClass()) {
+                WindowWidthSizeClass.Compact -> 100.dp
+                else -> 200.dp
+            }
+
+            when (content) {
+                is State.Content.Loading -> {
+                    Box(modifier.padding(10.dp), Alignment.Center) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(50.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                }
+                is State.Content.Loaded -> {
+                    LazyVerticalGrid(
+                        modifier = modifier,
+                        state = gridState,
+                        contentPadding = PaddingValues(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        columns = GridCells.Adaptive(minColumnWidth)
+                    ) {
+                        val ratio = 0.65f
+                        items(content.folders, { "folder#${it.id}" }) { folder ->
+                            val isSelected = selectedItems.any {
+                                it is SelectedItem.Folder && it.value.id == folder.id
+                            }
+                            folderUi(Modifier.aspectRatio(ratio), folder, isSelected, actions)
+                        }
+                        items(content.playlists, { "playlist#${it.id}" }) { playlist ->
+                            val isSelected = selectedItems.any {
+                                it is SelectedItem.Playlist && it.value.id == playlist.id
+                            }
+                            playlistUi(Modifier.aspectRatio(ratio), playlist, isSelected, actions)
+                        }
+                        items(content.tracks, { "track#${it.id}" }) { track ->
+                            val isSelected = selectedItems.any {
+                                it is SelectedItem.Track && it.value.id == track.id
+                            }
+                            trackUi(Modifier.aspectRatio(ratio), track, isSelected, actions)
+                        }
+                    }
+                }
+            }
+        }
+
+        @Composable
+        private fun ContextMenu(
+            modifier: Modifier,
+            selectedItems: Set<SelectedItem>,
+            onCancel: () -> Unit,
+            onPlay: () -> Unit,
+            onMove: () -> Unit,
+            onRename: (SelectedItem, String) -> Unit,
+            onAddToPlaylistClick: () -> Unit,
+            onAddToQueueClick: () -> Unit,
+            onDelete: () -> Unit
+        ) {
+            var showMore by remember { mutableStateOf(false)}
+
+            ElevatedCard(
+                modifier = modifier
+            ) {
+                Column(
+                    modifier = Modifier.padding(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = onCancel,
+                            content = { Icon(Icons.Default.Close, "Cancel") }
+                        )
+                        Text(
+                            text = "${selectedItems.size} selected",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = onMove,
+                            content = { Icon(Icons.AutoMirrored.Default.DriveFileMove, "Move") }
+                        )
+                        IconButton(
+                            onClick = onAddToPlaylistClick,
+                            content = { Icon(Icons.AutoMirrored.Default.PlaylistAdd, "Add to playlist") }
+                        )
+                        IconButton(
+                            onClick = onPlay,
+                            content = { Icon(Icons.Default.PlayCircle, "Play") }
+                        )
+                        IconButton(
+                            onClick = { showMore = true },
+                            content = { Icon(Icons.Default.MoreVert, "More") }
+                        )
+                    }
+                }
+            }
+
+            if (showMore) {
+                var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
+
+                Dialog(onDismissRequest = { showMore = false }) {
+                    Surface(
+                        modifier = Modifier.width(400.dp),
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surfaceContainer
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Top
+                        ) {
+                            if (selectedItems.size == 1 && selectedItems.first() !is SelectedItem.Track) {
+                                var showEditFormDialog by remember { mutableStateOf(false) }
+                                val item = selectedItems.first()
+                                val (title, name) = remember(item) {
+                                    when (item) {
+                                        is SelectedItem.Folder -> Pair("Rename folder: ${item.value.name}", item.value.name)
+                                        is SelectedItem.Playlist -> Pair("Rename playlist: ${item.value.name}", item.value.name)
+                                        is SelectedItem.Track -> TODO()
+                                    }
+                                }
+                                Option(
+                                    label = "Rename",
+                                    icon = Icons.Default.Edit,
+                                    onClick = { showEditFormDialog = true },
+                                )
+                                if (showEditFormDialog) {
+                                    RenameDialog(
+                                        title = title,
+                                        name = name,
+                                        onDone = {
+                                            onRename(item, it)
+                                            showEditFormDialog = false
+                                            showMore = false
+                                        },
+                                        onDismiss = { showEditFormDialog = false }
+                                    )
+                                }
+                            }
+                            Option(
+                                label = "Add to queue",
+                                icon = Icons.Default.AddToQueue,
+                                onClick = onAddToQueueClick
+                            )
+                            Option(
+                                label = "Delete",
+                                icon = Icons.Default.Delete,
+                                onClick = { showDeleteConfirmationDialog = true },
+                            )
+                        }
+                    }
+                }
+
+                if (showDeleteConfirmationDialog) {
+                    DeleteConfirmationDialog(
+                        message = "Delete ${selectedItems.size} items?",
+                        onDismissRequest = { showDeleteConfirmationDialog = false },
+                        onYesClick = {
+                            showDeleteConfirmationDialog = false
+                            onDelete()
+                        }
+                    )
+                }
+            }
+        }
+
+        @Composable
+        private fun RenameDialog(
+            title: String,
+            name: String = "",
+            onDone: (name: String) -> Unit,
+            onDismiss: () -> Unit
+        ) {
+            var name by remember { mutableStateOf(name) }
+
+            Dialog(onDismissRequest = onDismiss) {
+                Surface(
+                    modifier = Modifier.width(500.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                            text = title,
+                            style = MaterialTheme.typography.headlineMedium,
+                            textAlign = TextAlign.Center
+                        )
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Name") },
+                            value = name,
+                            onValueChange = { name = it },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { onDone(name) }),
+                        )
+                        Button(
+                            content = { Text("Done") },
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { onDone(name) }
+                        )
                     }
                 }
             }

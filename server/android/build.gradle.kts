@@ -43,4 +43,14 @@ android {
         excludes += "/META-INF/INDEX.LIST"
         excludes += "/META-INF/io.netty.versions.properties"
     }
+
+    buildTypes {
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+            isDebuggable = false
+            isMinifyEnabled = false
+        }
+    }
 }

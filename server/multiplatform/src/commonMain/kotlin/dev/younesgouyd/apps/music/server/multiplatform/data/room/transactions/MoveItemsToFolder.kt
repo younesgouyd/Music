@@ -15,13 +15,14 @@ abstract class MoveItemsToFolder {
         playlists: Set<PlaylistId>,
         folders: Set<FolderId>,
         folder: FolderId?
-    ) {
+    ): Boolean {
         if (folder != null && folders.isNotEmpty() && isInvalidMove(movedIds = folders, destination = folder)) {
-            throw IllegalArgumentException("Cannot move a folder into itself or one of its descendants")
+            return false
         }
         moveTracks(folderId = folder, ids = tracks)
         movePlaylists(folderId = folder, ids = playlists)
         moveFolders(folderId = folder, ids = folders)
+        return true
     }
 
     @Query("""

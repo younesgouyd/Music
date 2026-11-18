@@ -43,80 +43,55 @@ class MoveToFolder(
     folders: Set<FolderId>,
     folderRepo: FolderRepo,
     moveItemsToFolderUseCase: MoveItemsToFolderUseCase,
-    dismiss: () -> Unit
+    dismiss: (Boolean) -> Unit
 ) : Component() {
     override val title: String = "Move to Folder"
     private val _moving: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
     private val searchQuery = MutableStateFlow("")
-    private val path: MutableStateFlow<List<Folder?>> = MutableStateFlow(listOf(null))
-    val currentFolder: StateFlow<Folder?> = path.map { it.last() }
-        .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
+    private val currentFolder: MutableStateFlow<FolderId?> = MutableStateFlow(startFolder)
     private val loadingFolders = MutableStateFlow(true)
 
     val moving get() = _moving.asStateFlow()
 
     init {
         coroutineScope.launch {
-            path.value = run {
-                if (startFolder == null) {
-                    listOf(null)
-                } else {
-                    val mut = mutableListOf<Folder?>()
-                    var parent = startFolder
-                    while (parent != null) {
-                        val f = folderRepo.get(parent).first()
-                        if (f == null) {
-                            mut.clear()
-                            break
-                        }
-                        mut.add(f)
-                        parent = f.parentFolderId
-                    }
-                    mut.add(null)
-                    mut.reverse()
-                    mut.toList().takeWhile { it?.id !in folders }
-                }
-            }
-
             state.value = Ui.State.Loaded(
                 moving = moving,
-                path = path,
+                path = currentFolder.flatMapLatest {
+                    if (it == null) flowOf(emptyList())
+                    else folderRepo.getPath(it)
+                }.map { listOf(null) + it }
+                    .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), listOf(null)),
                 searchQuery = searchQuery.asStateFlow(),
                 folders = combine(currentFolder, searchQuery, ::Pair)
                     .onEach { loadingFolders.value = true }
-                    .flatMapLatest { (folder, search) -> folderRepo.searchFolder(folder?.id, search) }
-                    .map { it.filterNot { it.id in folders } }
+                    .flatMapLatest { (folder, search) -> folderRepo.searchFolder(folder, search) }
                     .onEach { loadingFolders.value = false }
                     .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList()),
                 loadingFolders = loadingFolders.asStateFlow(),
                 onSearchQueryChange = { searchQuery.value = it },
                 onNewFolder = {
                     coroutineScope.launch {
-                        val id = folderRepo.add(name = it, parentFolderId = currentFolder.value?.id)
-                        val folder = folderRepo.get(id).first()
-                        openFolder(folder)
+                        val id = folderRepo.add(name = it, parentFolderId = currentFolder.value)
+                        openFolder(id)
                     }
                 },
                 openFolder = ::openFolder,
                 move = {
                     coroutineScope.launch {
                         _moving.update { true }
-                        moveItemsToFolderUseCase.execute(tracks, playlists, folders, currentFolder.value?.id)
+                        val result = moveItemsToFolderUseCase.execute(tracks, playlists, folders, currentFolder.value)
                         _moving.update { false }
-                        dismiss()
+                        dismiss(result)
                     }
                 }
             )
         }
     }
 
-    private fun openFolder(folder: Folder?) {
-        path.update { list ->
-            if (folder == null) return@update list.take(1)
-            val i = list.indexOfFirst { it?.id == folder.id }
-            if (i >= 0) list.take(i + 1) else list + folder
-        }
+    private fun openFolder(target: FolderId?) {
+        currentFolder.value = target
     }
 
     @Composable
@@ -145,7 +120,7 @@ class MoveToFolder(
                 val loadingFolders: StateFlow<Boolean>,
                 val onSearchQueryChange: (String) -> Unit,
                 val onNewFolder: (name: String) -> Unit,
-                val openFolder: (Folder?) -> Unit,
+                val openFolder: (FolderId?) -> Unit,
                 val move: () -> Unit
             ) : State()
         }
@@ -253,7 +228,7 @@ class MoveToFolder(
                                     ) { folder ->
                                         FolderItem(
                                             folder = folder,
-                                            onClick = { loaded.openFolder(folder) }
+                                            onClick = { loaded.openFolder(folder.id) }
                                         )
                                     }
                                 }

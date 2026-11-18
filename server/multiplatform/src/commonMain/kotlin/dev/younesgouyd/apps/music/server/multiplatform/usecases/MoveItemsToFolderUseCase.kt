@@ -13,7 +13,7 @@ class MoveItemsToFolderUseCase(
         playlists: Set<PlaylistId>,
         folders: Set<FolderId>,
         folder: FolderId?
-    ) {
-        transaction.execute(tracks, playlists, folders, folder)
+    ): Boolean {
+        return transaction.execute(tracks, playlists, folders, folder)
     }
 }

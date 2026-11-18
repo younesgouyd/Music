@@ -14,8 +14,8 @@ class MoveItemsToFolderUseCase(
         playlists: Set<PlaylistId>,
         folders: Set<FolderId>,
         folder: FolderId?
-    ) {
-        server.call(
+    ): Boolean {
+        return server.get(
             Rpc.ToServer.UseCase.MoveItemsToFolder(tracks, playlists, folders, folder)
         )
     }

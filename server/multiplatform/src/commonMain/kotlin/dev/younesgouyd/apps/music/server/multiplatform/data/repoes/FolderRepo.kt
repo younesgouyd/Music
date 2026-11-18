@@ -28,6 +28,10 @@ class FolderRepo(
         }
     }
 
+    fun getPath(target: FolderId): Flow<List<Folder>> {
+        return dao.getPath(target)
+    }
+
     suspend fun add(name: String, parentFolderId: FolderId?): FolderId {
         require(name.isNotEmpty())
         val currentTime = System.currentTimeMillis()

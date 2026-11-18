@@ -25,6 +25,12 @@ class FolderRepo(
         )
     }
 
+    fun getPath(target: FolderId): Flow<List<Folder>> {
+        return server.observe(
+            Rpc.ToServer.Folder.GetPath(target)
+        )
+    }
+
     suspend fun add(name: String, parentFolderId: FolderId?): FolderId {
         require(name.isNotEmpty())
         return server.get(

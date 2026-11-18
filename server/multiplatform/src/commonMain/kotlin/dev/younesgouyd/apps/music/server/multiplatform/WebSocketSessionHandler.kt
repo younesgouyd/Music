@@ -316,8 +316,8 @@ class WebSocketSessionHandler(
                         sendDone(correlationId)
                     }
                     is Rpc.ToServer.UseCase.MoveItemsToFolder -> {
-                        moveItemsToFolderUseCase.execute(rpc.tracks, rpc.playlists, rpc.folders, rpc.folder)
-                        sendDone(correlationId)
+                        val result = moveItemsToFolderUseCase.execute(rpc.tracks, rpc.playlists, rpc.folders, rpc.folder)
+                        sendData(correlationId, result, rpc.serializer)
                     }
                     is Rpc.ToServer.UseCase.PrepareImport -> {
                         val result = prepareImportUseCase.execute(
@@ -453,6 +453,12 @@ class WebSocketSessionHandler(
                         folderRepo.searchFolder(
                             folderId = rpc.folderId,
                             nameQuery = rpc.nameQuery
+                        ).map { it.map { it.toModel() } }
+                            .collect { sendData(correlationId, it, rpc.serializer) }
+                    }
+                    is Rpc.ToServer.Folder.GetPath -> {
+                        folderRepo.getPath(
+                            target = rpc.target,
                         ).map { it.map { it.toModel() } }
                             .collect { sendData(correlationId, it, rpc.serializer) }
                     }

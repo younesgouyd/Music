@@ -90,7 +90,9 @@ sealed class Rpc {
                 val playlists: Set<PlaylistId>,
                 val folders: Set<FolderId>,
                 val folder: FolderId?
-            ) : UseCase(), ResultType.Action
+            ) : UseCase(), ResultType.Data.Static<Boolean> {
+                override val serializer: KSerializer<Boolean> = Boolean.serializer()
+            }
 
             @Serializable
             data class PrepareImport(
@@ -268,6 +270,13 @@ sealed class Rpc {
             data class SearchFolder(
                 val folderId: FolderId?,
                 val nameQuery: String
+            ) : Folder(), ResultType.Data.Dynamic<List<FolderModel>> {
+                @Transient override val serializer: KSerializer<List<FolderModel>> = ListSerializer(FolderModel.serializer())
+            }
+
+            @Serializable
+            data class GetPath(
+                val target: FolderId,
             ) : Folder(), ResultType.Data.Dynamic<List<FolderModel>> {
                 @Transient override val serializer: KSerializer<List<FolderModel>> = ListSerializer(FolderModel.serializer())
             }

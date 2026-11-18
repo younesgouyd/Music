@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
+import dev.younesgouyd.apps.music.common.models.FolderId
 import dev.younesgouyd.apps.music.common.models.datamodels.Folder
 import kotlinx.coroutines.flow.StateFlow
 
@@ -22,7 +23,7 @@ fun Path(
     modifier: Modifier,
     path: List<Folder?>,
     searchQuery: StateFlow<String>,
-    onFolderClick: (Folder?) -> Unit,
+    onFolderClick: (FolderId?) -> Unit,
     onSearchQueryChange: (String) -> Unit,
 ) {
     val pathLazyListState = rememberLazyListState()
@@ -76,7 +77,7 @@ fun Path(
                                 ) {
                                     TextButton(
                                         content = { Text(folder.name) },
-                                        onClick = { onFolderClick(folder) }
+                                        onClick = { onFolderClick(folder.id) }
                                     )
                                     Text("/")
                                 }
