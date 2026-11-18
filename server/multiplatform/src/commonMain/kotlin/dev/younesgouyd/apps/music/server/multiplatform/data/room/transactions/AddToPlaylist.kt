@@ -32,11 +32,16 @@ abstract class AddToPlaylist {
     }
 
     protected suspend fun addTracks(tracks: List<TrackId>, target: PlaylistId) {
+        var position = (getMaxPosition(target) ?: -1) + 1
         for (track in tracks) {
-            addTrackToPlaylistIfNotExist(
+            val inserted = addTrackToPlaylistIfNotExist(
                 playlistId = target,
-                trackId = track
-            )
+                trackId = track,
+                position = position
+            ) != -1L
+            if (inserted) {
+                position++
+            }
         }
     }
 
@@ -93,11 +98,7 @@ abstract class AddToPlaylist {
     @Query(
         """
         insert into playlisttrackcrossref (playlistId, trackId, position, creationDatetime, updateDatetime)
-        select :playlistId,
-            :trackId,
-            coalesce((select max(position) + 1 from playlisttrackcrossref where playlistId = :playlistId), 0),
-            :creationDatetime,
-            :updateDatetime
+        select :playlistId, :trackId, :position, :creationDatetime, :updateDatetime
         where not exists(
             select 1
             from playlisttrackcrossref
@@ -109,42 +110,13 @@ abstract class AddToPlaylist {
     abstract suspend fun addTrackToPlaylistIfNotExist(
         playlistId: PlaylistId,
         trackId: TrackId,
+        position: Int,
         creationDatetime: Long = System.currentTimeMillis(),
         updateDatetime: Long = System.currentTimeMillis()
-    )
+    ): Long
 
-//    @Query(
-//        """
-//        insert into playlisttrackcrossref (playlistId, trackId, position, creationDatetime, updateDatetime)
-//        values (:playlistId, :trackId, :position, :creationDatetime, :updateDatetime)
-//    """
-//    )
-//    abstract suspend fun addTrackToPlaylist(
-//        playlistId: PlaylistId,
-//        trackId: TrackId,
-//        position: Int,
-//        creationDatetime: Long = System.currentTimeMillis(),
-//        updateDatetime: Long = System.currentTimeMillis()
-//    )
-
-//    @Query(
-//        """
-//        select not exists(
-//            select 1
-//            from playlisttrackcrossref
-//            where playlistId = :playlistId
-//            and trackId = :trackId
-//        )
-//    """
-//    )
-//    abstract suspend fun trackNotExists(playlistId: PlaylistId, trackId: TrackId): Boolean
-
-//    @Query("""
-//        select COALESCE(MAX(position), -1) + 1
-//        from playlisttrackcrossref
-//        where playlistId = :playlistId
-//    """)
-//    abstract suspend fun nextPosition(playlistId: PlaylistId): Int
+    @Query("select max(position) from playlisttrackcrossref where playlistId = :playlistId")
+    abstract suspend fun getMaxPosition(playlistId: PlaylistId): Int?
 
     @Query("""
         select t.id
