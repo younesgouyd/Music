@@ -18,63 +18,64 @@ abstract class AddToPlaylist {
         albums: List<SpotifyAlbumId>,
         playlist: PlaylistToAddTo
     ) {
-        val playlistId = when (playlist) {
+        val target = when (playlist) {
             is PlaylistToAddTo.Id -> playlist.value
             is PlaylistToAddTo.New -> PlaylistId(addPlaylist(playlist.name))
         }
-        lockFor(playlistId).withLock {
-            addTracks(playlistId, tracks)
-            addPlaylists(playlistId, playlists)
-            addFolders(playlistId, folders)
-            addArtists(playlistId, artists)
-            addAlbums(playlistId, albums)
+        lockFor(target).withLock {
+            addTracks(tracks, target)
+            addPlaylists(playlists, target)
+            addFolders(folders, target)
+            addArtists(artists, target)
+            addAlbums(albums, target)
         }
     }
 
-    protected suspend fun addTracks(playlistId: PlaylistId, tracks: List<TrackId>) {
+    protected suspend fun addTracks(tracks: List<TrackId>, target: PlaylistId) {
         for (track in tracks) {
             addTrackToPlaylistIfNotExist(
-                playlistId = playlistId,
+                playlistId = target,
                 trackId = track
             )
         }
     }
 
-    protected suspend fun addPlaylists(playlistId: PlaylistId, playlists: List<PlaylistId>) {
-        for (playlist in playlists) {
-            val tracks = getPlaylistTracks(playlistId).map { TrackId(it) }
-            addTracks(playlist, tracks)
+    protected suspend fun addPlaylists(playlists: List<PlaylistId>, target: PlaylistId, ) {
+        for (source in playlists) {
+            val tracks = getPlaylistTracks(source).map { TrackId(it) }
+            addTracks(tracks, target)
         }
     }
 
-    protected suspend fun addFolders(playlistId: PlaylistId, folders: List<FolderId>) {
-        suspend fun _getFolderTracks(folderId: FolderId): List<TrackId> {
-            val tracks: List<TrackId> = getFolderTracks(folderId).map { TrackId(it) }
-            val playlistTracks = getFolderPlaylists(folderId).flatMap {
-                getPlaylistTracks(PlaylistId(it)).map { TrackId(it) }
-            }
-            val subfolderTracks = getSubfolders(folderId).flatMap {
-                _getFolderTracks(FolderId(it))
-            }
-            return tracks + playlistTracks + subfolderTracks
-        }
+    protected suspend fun addFolders(folders: List<FolderId>, target: PlaylistId) {
         for (folder in folders) {
-            addTracks(playlistId, _getFolderTracks(folder))
+            addTracks(getFolderTracksRecursive(folder), target)
         }
     }
 
-    protected suspend fun addArtists(playlistId: PlaylistId, artists: List<SpotifyArtistId>) {
+    protected suspend fun addArtists(artists: List<SpotifyArtistId>, target: PlaylistId) {
         for (artist in artists) {
             val tracks = getArtistTracks(artist).map { TrackId(it) }
-            addTracks(playlistId, tracks)
+            addTracks(tracks, target)
         }
     }
 
-    protected suspend fun addAlbums(playlistId: PlaylistId, albums: List<SpotifyAlbumId>) {
+    protected suspend fun addAlbums(albums: List<SpotifyAlbumId>, target: PlaylistId) {
         for (album in albums) {
             val tracks = getAlbumTracks(album).map { TrackId(it) }
-            addTracks(playlistId, tracks)
+            addTracks(tracks, target)
         }
+    }
+
+    protected suspend fun getFolderTracksRecursive(folderId: FolderId): List<TrackId> {
+        val tracks: List<TrackId> = getFolderTracks(folderId).map { TrackId(it) }
+        val playlistTracks = getFolderPlaylists(folderId).flatMap {
+            getPlaylistTracks(PlaylistId(it)).map { TrackId(it) }
+        }
+        val subfolderTracks = getSubfolders(folderId).flatMap {
+            getFolderTracksRecursive(FolderId(it))
+        }
+        return tracks + playlistTracks + subfolderTracks
     }
 
     @Query(
