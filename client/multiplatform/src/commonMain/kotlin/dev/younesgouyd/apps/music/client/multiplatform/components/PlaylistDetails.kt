@@ -46,7 +46,6 @@ class PlaylistDetails(
     showTrack: (TrackId) -> Unit
 ) : Component() {
     override val title: String = "Playlist"
-    private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
     private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
 
@@ -83,7 +82,6 @@ class PlaylistDetails(
                         image = null
                     ),
                     tracks = tracks,
-                    addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     searchQuery = searchQuery.asStateFlow(),
                     onPlayClick = { mediaController.playQueue(listOf(QueueItemParameter.Playlist(id))) },
@@ -95,19 +93,16 @@ class PlaylistDetails(
                     },
                     onAddToQueueClick = { mediaController.addToQueue(listOf(QueueItemParameter.Playlist(id))) },
                     onAddToPlaylistClick = {
-                        addToPlaylist.update {
-                            AddToPlaylist(
-                                tracks = emptyList(),
-                                playlists = listOf(id),
-                                folders = emptyList(),
-                                artists = emptyList(),
-                                albums = emptyList(),
-                                playlistRepo = playlistRepo,
-                                addToPlaylistUseCase = addToPlaylistUseCase,
-                                dismiss = ::dismissAddToPlaylistDialog
-                            )
-                        }
-                        addToPlaylistDialogVisible.update { true }
+                        addToPlaylist.value = AddToPlaylist(
+                            tracks = emptyList(),
+                            playlists = listOf(id),
+                            folders = emptyList(),
+                            artists = emptyList(),
+                            albums = emptyList(),
+                            playlistRepo = playlistRepo,
+                            addToPlaylistUseCase = addToPlaylistUseCase,
+                            dismiss = ::dismissAddToPlaylistDialog
+                        )
                     },
                     onTrackClick = { trackId ->
                         coroutineScope.launch {
@@ -121,19 +116,16 @@ class PlaylistDetails(
                     },
                     onArtistClick = showArtistDetails,
                     onAddTrackToPlaylistClick = { trackId: TrackId ->
-                        addToPlaylist.update {
-                            AddToPlaylist(
-                                tracks = listOf(trackId),
-                                playlists = emptyList(),
-                                folders = emptyList(),
-                                artists = emptyList(),
-                                albums = emptyList(),
-                                playlistRepo = playlistRepo,
-                                addToPlaylistUseCase = addToPlaylistUseCase,
-                                dismiss = ::dismissAddToPlaylistDialog
-                            )
-                        }
-                        addToPlaylistDialogVisible.update { true }
+                        addToPlaylist.value = AddToPlaylist(
+                            tracks = listOf(trackId),
+                            playlists = emptyList(),
+                            folders = emptyList(),
+                            artists = emptyList(),
+                            albums = emptyList(),
+                            playlistRepo = playlistRepo,
+                            addToPlaylistUseCase = addToPlaylistUseCase,
+                            dismiss = ::dismissAddToPlaylistDialog
+                        )
                     },
                     onRemoveTrackFromPlaylistClick = { trackId: TrackId ->
                         coroutineScope.launch {
@@ -165,11 +157,12 @@ class PlaylistDetails(
     }
 
     private fun dismissAddToPlaylistDialog() {
-        if (addToPlaylist.value?.adding?.value == true) {
+        val tmp = addToPlaylist.value
+        if (tmp?.adding?.value == true) {
             return
         }
-        addToPlaylistDialogVisible.update { false }
-        addToPlaylist.update { it?.clear(); null }
+        addToPlaylist.value = null
+        tmp?.clear()
     }
 
     private object Ui {
@@ -179,7 +172,6 @@ class PlaylistDetails(
             class Loaded(
                 val playlist: Playlist,
                 val tracks: StateFlow<List<Track>>,
-                val addToPlaylistDialogVisible: StateFlow<Boolean>,
                 val addToPlaylist: StateFlow<Component?>,
                 val searchQuery: StateFlow<String>,
                 val onPlayClick: () -> Unit,
@@ -234,7 +226,6 @@ class PlaylistDetails(
 
             @Composable
             private fun Main(modifier: Modifier, state: State.Loaded) {
-                val addToPlaylistDialogVisible by state.addToPlaylistDialogVisible.collectAsState()
                 val addToPlaylist by state.addToPlaylist.collectAsState()
 
                 Main(
@@ -255,9 +246,9 @@ class PlaylistDetails(
                     onShowTrackDetailsClick = state.onShowTrackDetailsClick
                 )
 
-                if (addToPlaylistDialogVisible) {
+                if (addToPlaylist != null) {
                     Dialog(onDismissRequest = state.onDismissAddToPlaylistDialog) {
-                        addToPlaylist!!.show(Modifier)
+                        addToPlaylist?.show(Modifier)
                     }
                 }
             }
@@ -662,7 +653,6 @@ class PlaylistDetails(
 
             @Composable
             private fun Main(modifier: Modifier, state: State.Loaded) {
-                val addToPlaylistDialogVisible by state.addToPlaylistDialogVisible.collectAsState()
                 val addToPlaylist by state.addToPlaylist.collectAsState()
 
                 Main(
@@ -683,9 +673,9 @@ class PlaylistDetails(
                     onShowTrackDetailsClick = state.onShowTrackDetailsClick
                 )
 
-                if (addToPlaylistDialogVisible) {
+                if (addToPlaylist != null) {
                     Dialog(onDismissRequest = state.onDismissAddToPlaylistDialog) {
-                        addToPlaylist!!.show(Modifier)
+                        addToPlaylist?.show(Modifier)
                     }
                 }
             }

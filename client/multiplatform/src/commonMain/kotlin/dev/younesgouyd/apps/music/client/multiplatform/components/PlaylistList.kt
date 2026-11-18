@@ -47,7 +47,6 @@ class PlaylistList(
 ) : Component() {
     override val title: String = "Playlists"
     private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
-    private val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
     private val searchQuery = MutableStateFlow("")
 
@@ -65,26 +64,22 @@ class PlaylistList(
                         }
                     }
                 }.stateIn(coroutineScope),
-                addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                 addToPlaylist = addToPlaylist.asStateFlow(),
                 searchQuery = searchQuery.asStateFlow(),
                 onSearchQueryChange = { searchQuery.value = it },
                 onPlaylistClick = showPlaylistDetails,
                 onPlayPlaylist = { id: PlaylistId -> mediaController.playQueue(listOf(QueueItemParameter.Playlist(id))) },
                 onAddToPlaylist = { playlistId: PlaylistId ->
-                    addToPlaylist.update {
-                        AddToPlaylist(
-                            tracks = emptyList(),
-                            playlists = listOf(playlistId),
-                            folders = emptyList(),
-                            artists = emptyList(),
-                            albums = emptyList(),
-                            playlistRepo = playlistRepo,
-                            addToPlaylistUseCase = addToPlaylistUseCase,
-                            dismiss = ::dismissAddToPlaylistDialog
-                        )
-                    }
-                    addToPlaylistDialogVisible.update { true }
+                    addToPlaylist.value = AddToPlaylist(
+                        tracks = emptyList(),
+                        playlists = listOf(playlistId),
+                        folders = emptyList(),
+                        artists = emptyList(),
+                        albums = emptyList(),
+                        playlistRepo = playlistRepo,
+                        addToPlaylistUseCase = addToPlaylistUseCase,
+                        dismiss = ::dismissAddToPlaylistDialog
+                    )
                 },
                 onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
                 onDeletePlaylist = { id: PlaylistId ->
@@ -122,11 +117,12 @@ class PlaylistList(
     }
 
     private fun dismissAddToPlaylistDialog() {
-        if (addToPlaylist.value?.adding?.value == true) {
+        val tmp = addToPlaylist.value
+        if (tmp?.adding?.value == true) {
             return
         }
-        addToPlaylistDialogVisible.update { false }
-        addToPlaylist.update { it?.clear(); null }
+        addToPlaylist.value = null
+        tmp?.clear()
     }
 
     private object Ui {
@@ -135,7 +131,6 @@ class PlaylistList(
 
             class Loaded(
                 val playlists: StateFlow<List<PlaylistListItem>>,
-                val addToPlaylistDialogVisible: StateFlow<Boolean>,
                 val addToPlaylist: StateFlow<Component?>,
                 val searchQuery: StateFlow<String>,
                 val onSearchQueryChange: (String) -> Unit,
@@ -210,7 +205,6 @@ class PlaylistList(
 
             @Composable
             private fun Main(modifier: Modifier, state: State.Loaded) {
-                val addToPlaylistDialogVisible by state.addToPlaylistDialogVisible.collectAsState()
                 val addToPlaylist by state.addToPlaylist.collectAsState()
 
                 Main(
@@ -226,9 +220,9 @@ class PlaylistList(
                     onAddPlaylistToQueue = state.onAddPlaylistToQueue
                 )
 
-                if (addToPlaylistDialogVisible) {
+                if (addToPlaylist != null) {
                     Dialog(onDismissRequest = state.onDismissAddToPlaylistDialog) {
-                        addToPlaylist!!.show(Modifier)
+                        addToPlaylist?.show(Modifier)
                     }
                 }
             }
@@ -422,7 +416,6 @@ class PlaylistList(
 
             @Composable
             private fun Main(modifier: Modifier, state: State.Loaded) {
-                val addToPlaylistDialogVisible by state.addToPlaylistDialogVisible.collectAsState()
                 val addToPlaylist by state.addToPlaylist.collectAsState()
 
                 Main(
@@ -438,9 +431,9 @@ class PlaylistList(
                     onAddPlaylistToQueue = state.onAddPlaylistToQueue
                 )
 
-                if (addToPlaylistDialogVisible) {
+                if (addToPlaylist != null) {
                     Dialog(onDismissRequest = state.onDismissAddToPlaylistDialog) {
-                        addToPlaylist!!.show(Modifier)
+                        addToPlaylist?.show(Modifier)
                     }
                 }
             }

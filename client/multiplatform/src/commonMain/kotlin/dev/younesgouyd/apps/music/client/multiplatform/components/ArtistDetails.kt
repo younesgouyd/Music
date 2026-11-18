@@ -45,7 +45,6 @@ class ArtistDetails(
     showTrack: (TrackId) -> Unit
 ) : Component() {
     override val title: String = "Artist"
-    val addToPlaylistDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val addToPlaylist: MutableStateFlow<AddToPlaylist?> = MutableStateFlow(null)
     private val state: MutableStateFlow<Ui.State> = MutableStateFlow(Ui.State.Loading)
 
@@ -89,62 +88,52 @@ class ArtistDetails(
                     albums = albums,
                     tracks = tracks,
                     searchQuery = searchQuery.asStateFlow(),
-                    addToPlaylistDialogVisible = addToPlaylistDialogVisible.asStateFlow(),
                     addToPlaylist = addToPlaylist.asStateFlow(),
                     onTabClick = { selectedTab.value = it },
                     onPlayClick = { mediaController.playQueue(listOf(QueueItemParameter.Artist(id))) },
                     onSearchQueryChange = { searchQuery.value = it },
                     onAddToQueueClick = { mediaController.addToQueue(listOf(QueueItemParameter.Artist(id))) },
                     onAddToPlaylistClick = {
-                        addToPlaylist.update {
-                            AddToPlaylist(
-                                tracks = emptyList(),
-                                playlists = emptyList(),
-                                folders = emptyList(),
-                                artists = listOf(id),
-                                albums = emptyList(),
-                                playlistRepo = playlistRepo,
-                                addToPlaylistUseCase = addToPlaylistUseCase,
-                                dismiss = ::dismissAddToPlaylistDialog
-                            )
-                        }
-                        addToPlaylistDialogVisible.update { true }
+                        addToPlaylist.value = AddToPlaylist(
+                            tracks = emptyList(),
+                            playlists = emptyList(),
+                            folders = emptyList(),
+                            artists = listOf(id),
+                            albums = emptyList(),
+                            playlistRepo = playlistRepo,
+                            addToPlaylistUseCase = addToPlaylistUseCase,
+                            dismiss = ::dismissAddToPlaylistDialog
+                        )
                     },
                     onArtistClick = showArtistDetails,
                     onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
                     onAlbumClick = showAlbum,
                     onAddAlbumToPlaylistClick = { albumId ->
-                        addToPlaylist.update {
-                            AddToPlaylist(
-                                tracks = emptyList(),
-                                playlists = emptyList(),
-                                folders = emptyList(),
-                                artists = emptyList(),
-                                albums = listOf(albumId),
-                                playlistRepo = playlistRepo,
-                                addToPlaylistUseCase = addToPlaylistUseCase,
-                                dismiss = ::dismissAddToPlaylistDialog
-                            )
-                        }
-                        addToPlaylistDialogVisible.value = true
+                        addToPlaylist.value = AddToPlaylist(
+                            tracks = emptyList(),
+                            playlists = emptyList(),
+                            folders = emptyList(),
+                            artists = emptyList(),
+                            albums = listOf(albumId),
+                            playlistRepo = playlistRepo,
+                            addToPlaylistUseCase = addToPlaylistUseCase,
+                            dismiss = ::dismissAddToPlaylistDialog
+                        )
                     },
                     onAddAlbumToQueueClick = { id -> mediaController.addToQueue(listOf(QueueItemParameter.Album(id))) },
                     onTrackClick = { mediaController.playQueue(listOf(QueueItemParameter.Track(it))) },
                     onShowTrackDetailsClick = showTrack,
                     onAddTrackToPlaylistClick = { trackId ->
-                        addToPlaylist.update {
-                            AddToPlaylist(
-                                tracks = listOf(trackId),
-                                playlists = emptyList(),
-                                folders = emptyList(),
-                                artists = emptyList(),
-                                albums = emptyList(),
-                                playlistRepo = playlistRepo,
-                                addToPlaylistUseCase = addToPlaylistUseCase,
-                                dismiss = ::dismissAddToPlaylistDialog
-                            )
-                        }
-                        addToPlaylistDialogVisible.value = true
+                        addToPlaylist.value = AddToPlaylist(
+                            tracks = listOf(trackId),
+                            playlists = emptyList(),
+                            folders = emptyList(),
+                            artists = emptyList(),
+                            albums = emptyList(),
+                            playlistRepo = playlistRepo,
+                            addToPlaylistUseCase = addToPlaylistUseCase,
+                            dismiss = ::dismissAddToPlaylistDialog
+                        )
                     },
                     onAddTrackToQueueClick = { mediaController.addToQueue(listOf(QueueItemParameter.Track(it))) }
                 )
@@ -167,11 +156,12 @@ class ArtistDetails(
     }
 
     private fun dismissAddToPlaylistDialog() {
-        if (addToPlaylist.value?.adding?.value == true) {
+        val tmp = addToPlaylist.value
+        if (tmp?.adding?.value == true) {
             return
         }
-        addToPlaylistDialogVisible.update { false }
-        addToPlaylist.update { it?.clear(); null }
+        addToPlaylist.value = null
+        tmp?.clear()
     }
 
     private class Loader(
@@ -210,7 +200,6 @@ class ArtistDetails(
                 val albums: StateFlow<List<Album>>,
                 val tracks: LazilyLoadedItems<Track, Offset.Id<TrackId>>,
                 val searchQuery: StateFlow<String>,
-                val addToPlaylistDialogVisible: StateFlow<Boolean>,
                 val addToPlaylist: StateFlow<Component?>,
                 val onTabClick: (Pair<Int, State.Loaded.Tab>) -> Unit,
                 val onPlayClick: () -> Unit,
@@ -265,7 +254,6 @@ class ArtistDetails(
 
             @Composable
             private fun Main(modifier: Modifier, state: State.Loaded) {
-                val addToPlaylistDialogVisible by state.addToPlaylistDialogVisible.collectAsState()
                 val addToPlaylist by state.addToPlaylist.collectAsState()
 
                 Main(
@@ -290,9 +278,9 @@ class ArtistDetails(
                     onAddTrackToQueueClick = state.onAddTrackToQueueClick
                 )
 
-                if (addToPlaylistDialogVisible) {
+                if (addToPlaylist != null) {
                     Dialog(onDismissRequest = state.onDismissAddToPlaylistDialog) {
-                        addToPlaylist!!.show(Modifier)
+                        addToPlaylist?.show(Modifier)
                     }
                 }
             }
@@ -616,7 +604,6 @@ class ArtistDetails(
 
             @Composable
             private fun Main(modifier: Modifier, state: State.Loaded) {
-                val addToPlaylistDialogVisible by state.addToPlaylistDialogVisible.collectAsState()
                 val addToPlaylist by state.addToPlaylist.collectAsState()
 
                 Main(
@@ -640,9 +627,9 @@ class ArtistDetails(
                     onAddTrackToQueueClick = state.onAddTrackToQueueClick
                 )
 
-                if (addToPlaylistDialogVisible) {
+                if (addToPlaylist != null) {
                     Dialog(onDismissRequest = state.onDismissAddToPlaylistDialog) {
-                        addToPlaylist!!.show(Modifier)
+                        addToPlaylist?.show(Modifier)
                     }
                 }
             }
