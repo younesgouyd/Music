@@ -17,7 +17,7 @@ abstract class Component {
     val id: ComponentId = (nextId++).toString()
 
     @Composable
-    abstract fun show(modifier: Modifier)
+    abstract fun show(modifier: Modifier = Modifier)
 
     abstract fun clear()
 }

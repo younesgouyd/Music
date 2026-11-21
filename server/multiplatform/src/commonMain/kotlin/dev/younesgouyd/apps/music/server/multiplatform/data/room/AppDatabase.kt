@@ -53,6 +53,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun importTrx(): Import
     abstract fun prepareImportFromInternet(): PrepareImport
     abstract fun setTrackMetadataFromSpotify(): SetTrackMetadataFromSpotify
+    abstract fun tagItems(): TagItems
     abstract fun unsetSpotifyTrack(): UnsetSpotifyTrack
     abstract fun moveItemsToFolder(): MoveItemsToFolder
     abstract fun addToPlaylist(): AddToPlaylist

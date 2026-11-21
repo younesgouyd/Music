@@ -34,7 +34,7 @@ import dev.younesgouyd.apps.music.common.models.TrackId
 )
 data class PlaylistTrackCrossRef(
     @PrimaryKey(autoGenerate = true)
-    val id: PlaylistTrackCrossRefId,
+    val id: PlaylistTrackCrossRefId = PlaylistTrackCrossRefId(0),
     val playlistId: PlaylistId,
     val trackId: TrackId,
     val position: Int,

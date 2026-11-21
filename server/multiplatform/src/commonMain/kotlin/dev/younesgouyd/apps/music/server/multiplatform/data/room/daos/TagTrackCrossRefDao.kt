@@ -7,12 +7,6 @@ import dev.younesgouyd.apps.music.common.models.TrackId
 
 @Dao
 abstract class TagTrackCrossRefDao {
-    @Query("""
-        insert into tagtrackcrossref (tagId, trackId, creationDatetime)
-        values (:tagId, :trackId, :creationDatetime)
-    """)
-    abstract suspend fun add(tagId: TagId, trackId: TrackId, creationDatetime: Long)
-
     @Query("delete from tagtrackcrossref where tagId = :tagId and trackId = :trackId")
     abstract suspend fun delete(tagId: TagId, trackId: TrackId)
 }

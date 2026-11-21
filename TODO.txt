@@ -1,7 +1,6 @@
 
 - in server MediaController, coroutine cancellations (usually caused by client disconnection).
 - check SharingStarted.WhileSubscribed in Components.
-- support tagging multiple items.
 - consider using ktor's WebSocketDeflateExtension.
 - long click on import artist, album... to copy text.
 - thumbnails that are 1:1 in aspect ratio are imported incorrectly.
@@ -26,6 +25,7 @@
 - implement sorting playlists/albums/folders.
 
 done:
+- support tagging multiple items.
 - clean up: check unused repository methods.
 - support multi selection.
 - revisit ImportWorker and consider running it on a single thread.

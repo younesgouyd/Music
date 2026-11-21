@@ -30,8 +30,8 @@ class NavigationHost(
     repoStore: RepoStore,
     addToPlaylistUseCase: AddToPlaylistUseCase,
     deleteUseCase: DeleteUseCase,
-    clearImportItemUseCase: ClearImportItemUseCase,
     setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase,
+    tagItemsUseCase: TagItemsUseCase,
     unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase,
     prepareImportUseCase: PrepareImportUseCase,
     moveItemsToFolderUseCase: MoveItemsToFolderUseCase,
@@ -43,8 +43,8 @@ class NavigationHost(
         repoStore = repoStore,
         addToPlaylistUseCase = addToPlaylistUseCase,
         deleteUseCase = deleteUseCase,
-        clearImportItemUseCase = clearImportItemUseCase,
         setTrackMetadataFromSpotifyUseCase = setTrackMetadataFromSpotifyUseCase,
+        tagItemsUseCase = tagItemsUseCase,
         unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
         prepareImportUseCase = prepareImportUseCase,
         moveItemsToFolderUseCase = moveItemsToFolderUseCase,
@@ -155,11 +155,11 @@ class NavigationHost(
         private val repoStore: RepoStore,
         private val addToPlaylistUseCase: AddToPlaylistUseCase,
         private val deleteUseCase: DeleteUseCase,
-        private val clearImportItemUseCase: ClearImportItemUseCase,
         private val setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase,
         private val unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase,
         private val prepareImportUseCase: PrepareImportUseCase,
         private val moveItemsToFolderUseCase: MoveItemsToFolderUseCase,
+        private val tagItemsUseCase: TagItemsUseCase,
         private val mediaController: MediaController,
         startDestination: Destination
     ) {
@@ -253,8 +253,8 @@ class NavigationHost(
                         trackRepo = repoStore.trackRepo,
                         addToPlaylistUseCase = addToPlaylistUseCase,
                         deleteUseCase = deleteUseCase,
-                        clearImportItemUseCase = clearImportItemUseCase,
                         moveItemsToFolderUseCase = moveItemsToFolderUseCase,
+                        tagItemsUseCase = tagItemsUseCase,
                         mediaController = mediaController,
                         showImportFlow = { navigateTo(Destination.ImportFlow(it)) },
                         showPlaylist = { navigateTo(Destination.PlaylistDetails(it)) },
@@ -313,7 +313,8 @@ class NavigationHost(
                         defaultTab = destination.defaultTab,
                         importSessionRepo = repoStore.importSessionRepo,
                         importSessionItemRepo = repoStore.importSessionItemRepo,
-                        clearImportItemUseCase = clearImportItemUseCase,
+                        trackRepo = repoStore.trackRepo,
+                        deleteUseCase = deleteUseCase,
                         showImportItem = { navigateTo(Destination.ImportItemDetails(it)) }
                     )
                     is Destination.TagList -> TagList(
@@ -324,7 +325,7 @@ class NavigationHost(
                         id = destination.id,
                         tagRepo = repoStore.tagRepo,
                         trackRepo = repoStore.trackRepo,
-                        tagTrackCrossRefRepo = repoStore.tagTrackCrossRefRepo,
+                        tagItemsUseCase = tagItemsUseCase,
                         showTrack = { navigateTo(Destination.TrackDetails(it)) },
                         showArtist = { navigateTo(Destination.ArtistDetails(it)) }
                     )
@@ -342,9 +343,9 @@ class NavigationHost(
                         spotifyTrackRepo = repoStore.spotifyTrackRepo,
                         spotifySearchRepo = repoStore.spotifySearchRepo,
                         playlistRepo = repoStore.playlistRepo,
-                        tagTrackCrossRefRepo = repoStore.tagTrackCrossRefRepo,
                         playlistTrackCrossRefRepo = repoStore.playlistTrackCrossRefRepo,
                         setTrackMetadataFromSpotifyUseCase = setTrackMetadataFromSpotifyUseCase,
+                        tagItemsUseCase = tagItemsUseCase,
                         unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
                         mediaController = mediaController,
                         showTag = { navigateTo(Destination.TagDetails(it)) },

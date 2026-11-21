@@ -37,8 +37,8 @@ class WebSocketSessionHandler(
     spotify: Spotify,
     unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase,
     setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase,
+    tagItemsUseCase: TagItemsUseCase,
     addToPlaylistUseCase: AddToPlaylistUseCase,
-    clearImportItemUseCase: ClearImportItemUseCase,
     deleteUseCase: DeleteUseCase,
     prepareImportUseCase: PrepareImportUseCase,
     moveItemsToFolderUseCase: MoveItemsToFolderUseCase,
@@ -55,8 +55,8 @@ class WebSocketSessionHandler(
         spotify = spotify,
         unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
         setTrackMetadataFromSpotifyUseCase = setTrackMetadataFromSpotifyUseCase,
+        tagItemsUseCase = tagItemsUseCase,
         addToPlaylistUseCase = addToPlaylistUseCase,
-        clearImportItemUseCase = clearImportItemUseCase,
         deleteUseCase = deleteUseCase,
         prepareImportUseCase = prepareImportUseCase,
         moveItemsToFolderUseCase = moveItemsToFolderUseCase,
@@ -238,8 +238,8 @@ class WebSocketSessionHandler(
         private val spotify: Spotify,
         private val unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase,
         private val setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase,
+        private val tagItemsUseCase: TagItemsUseCase,
         private val addToPlaylistUseCase: AddToPlaylistUseCase,
-        private val clearImportItemUseCase: ClearImportItemUseCase,
         private val deleteUseCase: DeleteUseCase,
         private val prepareImportUseCase: PrepareImportUseCase,
         private val moveItemsToFolderUseCase: MoveItemsToFolderUseCase,
@@ -255,7 +255,6 @@ class WebSocketSessionHandler(
         private val importSessionRepo get() = repoStore.importSessionRepo
         private val importSessionItemRepo get() = repoStore.importSessionItemRepo
         private val tagRepo get() = repoStore.tagRepo
-        private val tagTrackCrossRefRepo get() = repoStore.tagTrackCrossRefRepo
         private val spotifyAlbumRepo get() = repoStore.spotifyAlbumRepo
         private val spotifyArtistRepo get() = repoStore.spotifyArtistRepo
         private val spotifyTrackRepo get() = repoStore.spotifyTrackRepo
@@ -303,10 +302,6 @@ class WebSocketSessionHandler(
                         )
                         sendDone(correlationId)
                     }
-                    is Rpc.ToServer.UseCase.ClearImportItem -> {
-                        clearImportItemUseCase.execute(rpc.id)
-                        sendDone(correlationId)
-                    }
                     is Rpc.ToServer.UseCase.Delete -> {
                         deleteUseCase.execute(
                             tracks = rpc.tracks,
@@ -334,6 +329,17 @@ class WebSocketSessionHandler(
                             spotifyApiTrack = rpc.spotifyApiTrack
                         )
                         sendDone(correlationId)
+                    }
+                    is Rpc.ToServer.UseCase.TagItems -> {
+                        tagItemsUseCase.execute(
+                            tracks = rpc.tracks,
+                            playlists = rpc.playlists,
+                            folders = rpc.folders,
+                            artists = rpc.artists,
+                            albums = rpc.albums,
+                            tags = rpc.tags,
+                            unset = rpc.unset
+                        )
                     }
                     is Rpc.ToServer.UseCase.UnsetSpotifyTrack -> {
                         unsetSpotifyTrackUseCase.execute(
@@ -675,20 +681,8 @@ class WebSocketSessionHandler(
                         val result = tagRepo.add(rpc.name)
                         sendData(correlationId, result, rpc.serializer)
                     }
-
                     is Rpc.ToServer.Tag.Delete -> {
                         tagRepo.delete(rpc.id)
-                        sendDone(correlationId)
-                    }
-                }
-                is Rpc.ToServer.TagTrackCrossRef -> when (rpc) {
-                    is Rpc.ToServer.TagTrackCrossRef.Add -> {
-                        tagTrackCrossRefRepo.add(rpc.tagId, rpc.trackId)
-                        sendDone(correlationId)
-                    }
-
-                    is Rpc.ToServer.TagTrackCrossRef.Delete -> {
-                        tagTrackCrossRefRepo.delete(rpc.tagId, rpc.trackId)
                         sendDone(correlationId)
                     }
                 }

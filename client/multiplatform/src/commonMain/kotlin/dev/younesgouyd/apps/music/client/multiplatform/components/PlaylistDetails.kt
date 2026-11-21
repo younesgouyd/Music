@@ -94,14 +94,14 @@ class PlaylistDetails(
                     onAddToQueueClick = { mediaController.addToQueue(listOf(QueueItemParameter.Playlist(id))) },
                     onAddToPlaylistClick = {
                         addToPlaylist.value = AddToPlaylist(
-                            tracks = emptyList(),
-                            playlists = listOf(id),
-                            folders = emptyList(),
-                            artists = emptyList(),
-                            albums = emptyList(),
+                            tracks = emptySet(),
+                            playlists = setOf(id),
+                            folders = emptySet(),
+                            artists = emptySet(),
+                            albums = emptySet(),
                             playlistRepo = playlistRepo,
                             addToPlaylistUseCase = addToPlaylistUseCase,
-                            dismiss = ::dismissAddToPlaylistDialog
+                            onDone = { dismissAddToPlaylistDialog() }
                         )
                     },
                     onTrackClick = { trackId ->
@@ -117,14 +117,14 @@ class PlaylistDetails(
                     onArtistClick = showArtistDetails,
                     onAddTrackToPlaylistClick = { trackId: TrackId ->
                         addToPlaylist.value = AddToPlaylist(
-                            tracks = listOf(trackId),
-                            playlists = emptyList(),
-                            folders = emptyList(),
-                            artists = emptyList(),
-                            albums = emptyList(),
+                            tracks = setOf(trackId),
+                            playlists = emptySet(),
+                            folders = emptySet(),
+                            artists = emptySet(),
+                            albums = emptySet(),
                             playlistRepo = playlistRepo,
                             addToPlaylistUseCase = addToPlaylistUseCase,
-                            dismiss = ::dismissAddToPlaylistDialog
+                            onDone = { dismissAddToPlaylistDialog() }
                         )
                     },
                     onRemoveTrackFromPlaylistClick = { trackId: TrackId ->

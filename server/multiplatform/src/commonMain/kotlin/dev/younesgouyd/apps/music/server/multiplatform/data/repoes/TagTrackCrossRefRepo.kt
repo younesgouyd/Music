@@ -7,14 +7,6 @@ import dev.younesgouyd.apps.music.server.multiplatform.data.room.daos.TagTrackCr
 class TagTrackCrossRefRepo(
     private val dao: TagTrackCrossRefDao
 ) {
-    suspend fun add(tagId: TagId, trackId: TrackId) {
-        dao.add(
-            tagId = tagId,
-            trackId = trackId,
-            creationDatetime = System.currentTimeMillis()
-        )
-    }
-
     suspend fun delete(tagId: TagId, trackId: TrackId) {
         dao.delete(
             tagId = tagId,

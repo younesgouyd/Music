@@ -4,18 +4,21 @@ import dev.younesgouyd.apps.music.common.models.PlaylistId
 import dev.younesgouyd.apps.music.common.models.TrackId
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.daos.PlaylistTrackCrossRefDao
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.PlaylistTrackCrossRef
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 
 class PlaylistTrackCrossRefRepo(
     private val dao: PlaylistTrackCrossRefDao
 ) {
+    private val logger = KotlinLogging.logger {  }
+
     fun get(playlistId: PlaylistId, trackId: TrackId): Flow<PlaylistTrackCrossRef?> {
         return dao.get(playlistId, trackId)
     }
 
     suspend fun add(playlistId: PlaylistId, trackId: TrackId) {
         val currentTime = System.currentTimeMillis()
-        dao.addWithAutoPosition(
+        dao.add(
             playlistId = playlistId,
             trackId = trackId,
             creationDatetime = currentTime,
@@ -25,7 +28,8 @@ class PlaylistTrackCrossRefRepo(
 
     suspend fun changeItemPosition(playlistId: PlaylistId, from: Int, to: Int) {
         if (from == to) return
-        dao.changeItemPosition(playlistId, from, to)
+        val ret = dao.changeItemPosition(playlistId, from, to)
+        logger.debug { "... changeItemPosition | rows updated: $ret" }
     }
 
     suspend fun delete(playlistId: PlaylistId, trackId: TrackId) {

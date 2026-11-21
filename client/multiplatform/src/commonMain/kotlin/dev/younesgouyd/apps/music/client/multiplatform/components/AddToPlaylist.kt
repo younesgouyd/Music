@@ -27,20 +27,19 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class AddToPlaylist(
-    tracks: List<TrackId>,
-    playlists: List<PlaylistId>,
-    folders: List<FolderId>,
-    artists: List<SpotifyArtistId>,
-    albums: List<SpotifyAlbumId>,
+    tracks: Set<TrackId> = emptySet(),
+    playlists: Set<PlaylistId> = emptySet(),
+    folders: Set<FolderId> = emptySet(),
+    artists: Set<SpotifyArtistId> = emptySet(),
+    albums: Set<SpotifyAlbumId> = emptySet(),
     playlistRepo: PlaylistRepo,
     addToPlaylistUseCase: AddToPlaylistUseCase,
-    dismiss: () -> Unit
+    onDone: AddToPlaylist.() -> Unit
 ) : Component() {
     override val title: String = "Add to Playlist"
     private val state: Ui.State
     private val _adding: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val adding = _adding.asStateFlow()
-
 
     init {
         if (tracks.isEmpty() && playlists.isEmpty() && folders.isEmpty() && artists.isEmpty() && albums.isEmpty()) {
@@ -71,7 +70,7 @@ class AddToPlaylist(
                         playlist = playlistToAddTo
                     )
                     _adding.update { false }
-                    dismiss()
+                    onDone()
                 }
             }
         )

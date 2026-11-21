@@ -33,7 +33,7 @@ import dev.younesgouyd.apps.music.common.models.TrackId
 )
 data class TagTrackCrossRef(
     @PrimaryKey(autoGenerate = true)
-    val id: TagTrackCrossRefId,
+    val id: TagTrackCrossRefId = TagTrackCrossRefId(0),
     val tagId: TagId,
     val trackId: TrackId,
     val creationDatetime: Long

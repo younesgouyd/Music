@@ -16,6 +16,5 @@ class RepoStore(server: Server) {
     val spotifySearchRepo = SpotifySearchRepo(server)
     val spotifyTrackRepo = SpotifyTrackRepo(server)
     val tagRepo = TagRepo(server)
-    val tagTrackCrossRefRepo = TagTrackCrossRefRepo(server)
     val trackRepo = TrackRepo(server)
 }

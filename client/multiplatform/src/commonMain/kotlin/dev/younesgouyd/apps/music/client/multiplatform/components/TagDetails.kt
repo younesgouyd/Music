@@ -20,8 +20,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.Image
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.TagRepo
-import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.TagTrackCrossRefRepo
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.TrackRepo
+import dev.younesgouyd.apps.music.client.multiplatform.usecases.TagItemsUseCase
 import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
 import dev.younesgouyd.apps.music.common.models.TagId
@@ -39,7 +39,7 @@ class TagDetails(
     id: TagId,
     tagRepo: TagRepo,
     trackRepo: TrackRepo,
-    tagTrackCrossRefRepo: TagTrackCrossRefRepo,
+    tagItemsUseCase: TagItemsUseCase,
     showTrack: (TrackId) -> Unit,
     showArtist: (SpotifyArtistId) -> Unit
 ) : Component() {
@@ -77,7 +77,7 @@ class TagDetails(
                     onArtistClick = showArtist,
                     onRemoveTrackClick = {
                         coroutineScope.launch {
-                            tagTrackCrossRefRepo.delete(id, it)
+                            tagItemsUseCase.execute(tracks = setOf(it), tags = setOf(id), unset = true)
                         }
                     }
                 )

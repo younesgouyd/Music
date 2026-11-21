@@ -18,7 +18,8 @@ import dev.younesgouyd.apps.music.client.multiplatform.components.util.Image
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.formatted
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.ImportSessionItemRepo
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.ImportSessionRepo
-import dev.younesgouyd.apps.music.client.multiplatform.usecases.ClearImportItemUseCase
+import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.TrackRepo
+import dev.younesgouyd.apps.music.client.multiplatform.usecases.DeleteUseCase
 import dev.younesgouyd.apps.music.common.models.DbOrder
 import dev.younesgouyd.apps.music.common.models.ImportSessionId
 import dev.younesgouyd.apps.music.common.models.ImportSessionItemId
@@ -42,7 +43,8 @@ class ImportDetails(
     defaultTab: ImportSessionItem.State,
     importSessionRepo: ImportSessionRepo,
     importSessionItemRepo: ImportSessionItemRepo,
-    clearImportItemUseCase: ClearImportItemUseCase,
+    trackRepo: TrackRepo,
+    deleteUseCase: DeleteUseCase,
     showImportItem: (ImportSessionItemId) -> Unit
 ) : Component() {
     override val title: String = "Import"
@@ -107,7 +109,10 @@ class ImportDetails(
                         },
                         onClearItemClick = { id ->
                             coroutineScope.launch {
-                                clearImportItemUseCase.execute(id)
+                                val trackId = trackRepo.getImportSessionTrack(id).first()?.track?.id
+                                if (trackId != null) {
+                                    deleteUseCase.execute(tracks = setOf(trackId))
+                                }
                             }
                         },
                         onRetryItemClick = { id ->

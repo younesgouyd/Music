@@ -71,24 +71,20 @@ class PlaylistList(
                 onPlayPlaylist = { id: PlaylistId -> mediaController.playQueue(listOf(QueueItemParameter.Playlist(id))) },
                 onAddToPlaylist = { playlistId: PlaylistId ->
                     addToPlaylist.value = AddToPlaylist(
-                        tracks = emptyList(),
-                        playlists = listOf(playlistId),
-                        folders = emptyList(),
-                        artists = emptyList(),
-                        albums = emptyList(),
+                        tracks = emptySet(),
+                        playlists = setOf(playlistId),
+                        folders = emptySet(),
+                        artists = emptySet(),
+                        albums = emptySet(),
                         playlistRepo = playlistRepo,
                         addToPlaylistUseCase = addToPlaylistUseCase,
-                        dismiss = ::dismissAddToPlaylistDialog
+                        onDone = { dismissAddToPlaylistDialog() }
                     )
                 },
                 onDismissAddToPlaylistDialog = ::dismissAddToPlaylistDialog,
                 onDeletePlaylist = { id: PlaylistId ->
                     coroutineScope.launch {
-                        deleteUseCase.execute(
-                            tracks = emptySet(),
-                            playlists = setOf(id),
-                            folders = emptySet()
-                        )
+                        deleteUseCase.execute(playlists = setOf(id))
                     }
                 },
                 onRenamePlaylist = { newName: String, id: PlaylistId ->

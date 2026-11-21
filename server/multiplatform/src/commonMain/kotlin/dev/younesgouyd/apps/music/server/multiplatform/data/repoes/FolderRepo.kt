@@ -33,10 +33,10 @@ class FolderRepo(
     }
 
     suspend fun add(name: String, parentFolderId: FolderId?): FolderId {
-        require(name.isNotEmpty())
+        require(name.isNotBlank())
         val currentTime = System.currentTimeMillis()
         val id = dao.add(
-            name = name,
+            name = name.trim(),
             parentFolderId = parentFolderId,
             creationDatetime = currentTime,
             updateDatetime = currentTime
@@ -45,8 +45,8 @@ class FolderRepo(
     }
 
     suspend fun updateName(id: FolderId, name: String) {
-        require(name.isNotEmpty())
-        dao.updateName(name, System.currentTimeMillis(), id)
+        require(name.isNotBlank())
+        dao.updateName(name.trim(), System.currentTimeMillis(), id)
     }
 
     suspend fun updateParentFolderId(id: FolderId, parentFolderId: FolderId?) {

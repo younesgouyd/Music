@@ -66,16 +66,13 @@ sealed class Rpc {
         sealed class UseCase : ToServer() {
             @Serializable
             data class AddToPlaylist(
-                val tracks: List<TrackId>,
-                val playlists: List<PlaylistId>,
-                val folders: List<FolderId>,
-                val artists: List<SpotifyArtistId>,
-                val albums: List<SpotifyAlbumId>,
+                val tracks: Set<TrackId>,
+                val playlists: Set<PlaylistId>,
+                val folders: Set<FolderId>,
+                val artists: Set<SpotifyArtistId>,
+                val albums: Set<SpotifyAlbumId>,
                 val playlist: PlaylistToAddTo
             ) : UseCase(), ResultType.Action
-
-            @Serializable
-            data class ClearImportItem(val id: ImportSessionItemId) : UseCase(), ResultType.Action
 
             @Serializable
             data class Delete(
@@ -108,6 +105,17 @@ sealed class Rpc {
             data class SetTrackMetadataFromSpotify(
                 val trackId: TrackId,
                 val spotifyApiTrack: dev.younesgouyd.apps.music.common.models.spotify.Track
+            ) : UseCase(), ResultType.Action
+
+            @Serializable
+            data class TagItems(
+                val tracks: Set<TrackId>,
+                val playlists: Set<PlaylistId>,
+                val folders: Set<FolderId>,
+                val artists: Set<SpotifyArtistId>,
+                val albums: Set<SpotifyAlbumId>,
+                val tags: Set<TagId>,
+                val unset: Boolean
             ) : UseCase(), ResultType.Action
 
             @Serializable
@@ -517,21 +525,6 @@ sealed class Rpc {
             data class Delete(
                 val id: TagId
             ) : Tag(), ResultType.Action
-        }
-
-        @Serializable
-        sealed class TagTrackCrossRef : ToServer() {
-            @Serializable
-            data class Add(
-                val tagId: TagId,
-                val trackId: TrackId
-            ) : TagTrackCrossRef(), ResultType.Action
-
-            @Serializable
-            data class Delete(
-                val tagId: TagId,
-                val trackId: TrackId
-            ) : TagTrackCrossRef(), ResultType.Action
         }
 
         @Serializable

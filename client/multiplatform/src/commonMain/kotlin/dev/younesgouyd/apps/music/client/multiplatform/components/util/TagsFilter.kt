@@ -108,7 +108,7 @@ private fun TagsFilter(
                                         modifier = Modifier.size(FilterChipDefaults.IconSize)
                                     )
                                 }
-                            } else { null },
+                            } else null,
                             label = { Text("Untagged") },
                             selected = includeUntagged,
                             onClick = { onIncludeUntaggedChange(!includeUntagged) }
@@ -119,16 +119,14 @@ private fun TagsFilter(
             }
             items(tags) { tag ->
                 FilterChip(
-                    leadingIcon = if (tag.selected) {
-                        {
+                    leadingIcon = {
+                        if (tag.selected) {
                             Icon(
                                 imageVector = Icons.Default.Done,
                                 contentDescription = null,
                                 modifier = Modifier.size(FilterChipDefaults.IconSize)
                             )
-                        }
-                    } else {
-                        {
+                        } else {
                             Icon(
                                 imageVector = Icons.Default.Tag,
                                 contentDescription = null,

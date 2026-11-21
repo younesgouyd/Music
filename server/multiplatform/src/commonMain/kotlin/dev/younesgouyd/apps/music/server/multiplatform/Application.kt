@@ -170,18 +170,15 @@ abstract class Application(appDir: File) {
                 spotify = spotify,
                 fileManager = fileManager
             )
+            val tagItemsUseCase = TagItemsUseCase(database.tagItems())
             val addToPlaylistUseCase = AddToPlaylistUseCase(database.addToPlaylist())
-            val clearImportItemUseCase = ClearImportItemUseCase(
-                unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
-                trackRepo = repoStore.trackRepo,
-                transaction = database.clearImportSessionItem(),
-                fileManager = fileManager
-            )
             val deleteUseCase = DeleteUseCase(
+                unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
                 playlistRepo = repoStore.playlistRepo,
                 trackRepo = repoStore.trackRepo,
-                clearImportItemUseCase = clearImportItemUseCase,
-                folderRepo = repoStore.folderRepo
+                folderRepo = repoStore.folderRepo,
+                fileManager = fileManager,
+                clearImportItemTrx = database.clearImportSessionItem()
             )
             val prepareImportUseCase = PrepareImportUseCase(
                 fileManager = fileManager,
@@ -358,8 +355,8 @@ abstract class Application(appDir: File) {
                                     spotify = spotify,
                                     unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
                                     setTrackMetadataFromSpotifyUseCase = setTrackMetadataFromSpotifyUseCase,
+                                    tagItemsUseCase = tagItemsUseCase,
                                     addToPlaylistUseCase = addToPlaylistUseCase,
-                                    clearImportItemUseCase = clearImportItemUseCase,
                                     deleteUseCase = deleteUseCase,
                                     prepareImportUseCase = prepareImportUseCase,
                                     moveItemsToFolderUseCase = moveItemsToFolderUseCase,

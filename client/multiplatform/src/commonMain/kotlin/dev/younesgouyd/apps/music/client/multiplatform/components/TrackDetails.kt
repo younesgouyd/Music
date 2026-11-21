@@ -20,6 +20,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.MediaController
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.*
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.*
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.SetTrackMetadataFromSpotifyUseCase
+import dev.younesgouyd.apps.music.client.multiplatform.usecases.TagItemsUseCase
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.UnsetSpotifyTrackUseCase
 import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.models.datamodels.Tag
@@ -42,9 +43,9 @@ class TrackDetails(
     spotifyTrackRepo: SpotifyTrackRepo,
     spotifySearchRepo: SpotifySearchRepo,
     playlistRepo: PlaylistRepo,
-    tagTrackCrossRefRepo: TagTrackCrossRefRepo,
     playlistTrackCrossRefRepo: PlaylistTrackCrossRefRepo,
     setTrackMetadataFromSpotifyUseCase: SetTrackMetadataFromSpotifyUseCase,
+    tagItemsUseCase: TagItemsUseCase,
     unsetSpotifyTrackUseCase: UnsetSpotifyTrackUseCase,
     mediaController: MediaController,
     showTag: (TagId) -> Unit,
@@ -174,21 +175,26 @@ class TrackDetails(
                         coroutineScope.launch {
                             val tagId = tagRepo.add(name)
                             if (setItOnTrack) {
-                                tagTrackCrossRefRepo.add(tagId, id)
+                                tagItemsUseCase.execute(tracks = setOf(id), tags = setOf(tagId), unset = false)
                             }
                         }
                     },
-                    onSetTag = { coroutineScope.launch { tagTrackCrossRefRepo.add(it, id) } },
-                    onUnsetTag = { coroutineScope.launch { tagTrackCrossRefRepo.delete(it, id) } },
+                    onSetTag = {
+                        coroutineScope.launch {
+                            tagItemsUseCase.execute(tracks = setOf(id), tags = setOf(it), unset = false)
+                        }
+                    },
+                    onUnsetTag = {
+                        coroutineScope.launch {
+                            tagItemsUseCase.execute(tracks = setOf(id), tags = setOf(it), unset = true)
+                        }
+                    },
                     onTagDetailsClick = showTag,
                     onImportClick = showImportSessionItem,
                     onPlaylistClick = showPlaylist,
                     onRemoveFromPlaylistClick = {
                         coroutineScope.launch {
-                            playlistTrackCrossRefRepo.delete(
-                                it,
-                                id
-                            )
+                            playlistTrackCrossRefRepo.delete(it, id)
                         }
                     }
                 )

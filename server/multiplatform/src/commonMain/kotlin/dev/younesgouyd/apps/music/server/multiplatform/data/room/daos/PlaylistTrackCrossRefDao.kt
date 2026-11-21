@@ -7,20 +7,9 @@ import dev.younesgouyd.apps.music.common.models.PlaylistId
 import dev.younesgouyd.apps.music.common.models.TrackId
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.PlaylistTrackCrossRef
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import java.util.concurrent.ConcurrentHashMap
 
 @Dao
 abstract class PlaylistTrackCrossRefDao {
-    companion object {
-        private val playlistLocks = ConcurrentHashMap<PlaylistId, Mutex>()
-
-        fun lockFor(id: PlaylistId): Mutex {
-            return playlistLocks.computeIfAbsent(id) { Mutex() }
-        }
-    }
-    
     @Query(
         """
         select *
@@ -31,74 +20,65 @@ abstract class PlaylistTrackCrossRefDao {
     )
     abstract fun get(playlistId: PlaylistId, trackId: TrackId): Flow<PlaylistTrackCrossRef?>
 
-    suspend fun addWithAutoPosition(
-        playlistId: PlaylistId,
-        trackId: TrackId,
-        creationDatetime: Long,
-        updateDatetime: Long
-    ) {
-        lockFor(playlistId).withLock {
-            add(
-                playlistId = playlistId,
-                trackId = trackId,
-                position = nextPosition(playlistId),
-                creationDatetime = creationDatetime,
-                updateDatetime = updateDatetime
-            )
-        }
-    }
-
     @Query(
         """
         insert into playlisttrackcrossref (playlistId, trackId, position, creationDatetime, updateDatetime)
-        values (:playlistId, :trackId, :position, :creationDatetime, :updateDatetime)
+        values (
+            :playlistId,
+            :trackId,
+            (select coalesce(max(position), -1) + 1 from playlisttrackcrossref where playlistId = :playlistId),
+            :creationDatetime,
+            :updateDatetime
+        )
     """
     )
     abstract suspend fun add(
         playlistId: PlaylistId,
         trackId: TrackId,
-        position: Int,
         creationDatetime: Long,
         updateDatetime: Long
     )
 
+    @Query("""
+        update playlisttrackcrossref
+        set position = case
+            when position = :from then :to
+            when :from < :to then position - 1
+            else position + 1
+        end
+        where playlistId = :playlistId
+        and position between min(:from, :to) and max(:from, :to)
+    """)
+    abstract suspend fun changeItemPosition(playlistId: PlaylistId, from: Int, to: Int): Int
+
     @Transaction
-    open suspend fun changeItemPosition(playlistId: PlaylistId, from: Int, to: Int) {
+    open suspend fun changeItemPosition2(playlistId: PlaylistId, from: Int, to: Int) {
         require(from != to)
-        lockFor(playlistId).withLock {
-            val temp = -1
-            updatePosition(
-                playlistId = playlistId,
-                oldPosition = from,
-                newPosition = temp
-            )
-            putItemsInATemporaryPosition(
-                playlistId = playlistId,
-                from = from,
-                to = to
-            )
-            shiftItems(
-                playlistId = playlistId,
-                from = from,
-                to = to
-            )
-            updatePosition(
-                playlistId = playlistId,
-                oldPosition = temp,
-                newPosition = to
-            )
-        }
+        val temp = -1
+        updatePosition(
+            playlistId = playlistId,
+            oldPosition = from,
+            newPosition = temp
+        )
+        putItemsInATemporaryPosition(
+            playlistId = playlistId,
+            from = from,
+            to = to
+        )
+        shiftItems(
+            playlistId = playlistId,
+            from = from,
+            to = to
+        )
+        updatePosition(
+            playlistId = playlistId,
+            oldPosition = temp,
+            newPosition = to
+        )
     }
 
     @Query("delete from playlisttrackcrossref where playlistId = :playlistId and trackId = :trackId")
     abstract suspend fun delete(playlistId: PlaylistId, trackId: TrackId)
-
-    @Query("""
-        select COALESCE(MAX(position), -1) + 1
-        from playlisttrackcrossref
-        where playlistId = :playlistId
-    """)
-    abstract suspend fun nextPosition(playlistId: PlaylistId): Int
 
     @Query("""
         update playlisttrackcrossref

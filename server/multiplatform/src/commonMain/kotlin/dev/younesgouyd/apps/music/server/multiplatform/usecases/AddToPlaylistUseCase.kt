@@ -7,11 +7,11 @@ class AddToPlaylistUseCase(
     private val transaction: AddToPlaylist
 ) {
     suspend fun execute(
-        tracks: List<TrackId>,
-        playlists: List<PlaylistId>,
-        folders: List<FolderId>,
-        artists: List<SpotifyArtistId>,
-        albums: List<SpotifyAlbumId>,
+        tracks: Set<TrackId>,
+        playlists: Set<PlaylistId>,
+        folders: Set<FolderId>,
+        artists: Set<SpotifyArtistId>,
+        albums: Set<SpotifyAlbumId>,
         playlist: PlaylistToAddTo
     ) {
         transaction.execute(

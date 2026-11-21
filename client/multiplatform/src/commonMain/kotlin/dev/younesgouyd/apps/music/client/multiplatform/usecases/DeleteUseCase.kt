@@ -10,10 +10,11 @@ class DeleteUseCase(
     private val server: Server
 ) {
     suspend fun execute(
-        tracks: Set<TrackId>,
-        playlists: Set<PlaylistId>,
-        folders: Set<FolderId>
+        tracks: Set<TrackId> = emptySet(),
+        playlists: Set<PlaylistId> = emptySet(),
+        folders: Set<FolderId> = emptySet(),
     ) {
+        require(tracks.isNotEmpty() || playlists.isNotEmpty() || folders.isNotEmpty())
         server.call(
             Rpc.ToServer.UseCase.Delete(
                 tracks = tracks,

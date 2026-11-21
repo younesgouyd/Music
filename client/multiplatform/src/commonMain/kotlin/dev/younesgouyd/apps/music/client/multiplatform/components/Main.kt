@@ -28,8 +28,8 @@ class Main(
     private val repoStore: RepoStore = RepoStore(server)
     private val addToPlaylistUseCase = AddToPlaylistUseCase(server)
     private val deleteUseCase = DeleteUseCase(server)
-    private val clearImportItemUseCase = ClearImportItemUseCase(server)
     private val setTrackMetadataFromSpotifyUseCase = SetTrackMetadataFromSpotifyUseCase(server)
+    private val tagItemsUseCase = TagItemsUseCase(server)
     private val unsetSpotifyTrackUseCase = UnsetSpotifyTrackUseCase(server)
     private val prepareImportUseCase = PrepareImportUseCase(server)
     private val moveItemsToFolderUseCase = MoveItemsToFolderUseCase(server)
@@ -173,8 +173,8 @@ class Main(
             repoStore = repoStore,
             addToPlaylistUseCase = addToPlaylistUseCase,
             deleteUseCase = deleteUseCase,
-            clearImportItemUseCase = clearImportItemUseCase,
             setTrackMetadataFromSpotifyUseCase = setTrackMetadataFromSpotifyUseCase,
+            tagItemsUseCase = tagItemsUseCase,
             unsetSpotifyTrackUseCase = unsetSpotifyTrackUseCase,
             prepareImportUseCase = prepareImportUseCase,
             moveItemsToFolderUseCase = moveItemsToFolderUseCase,

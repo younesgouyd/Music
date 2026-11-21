@@ -43,10 +43,10 @@ class PlaylistRepo(
         name: String,
         folderId: FolderId?,
     ): PlaylistId {
-        require(name.isNotEmpty())
+        require(name.isNotBlank())
         val currentTime = System.currentTimeMillis()
         val id = dao.add(
-            name = name,
+            name = name.trim(),
             folderId = folderId,
             creationDatetime = currentTime,
             updateDatetime = currentTime
@@ -55,8 +55,8 @@ class PlaylistRepo(
     }
 
     suspend fun updateName(id: PlaylistId, name: String) {
-        require(name.isNotEmpty())
-        dao.updateName(name, System.currentTimeMillis(), id)
+        require(name.isNotBlank())
+        dao.updateName(name.trim(), System.currentTimeMillis(), id)
     }
 
     suspend fun updateFolderId(id: PlaylistId, folderId: FolderId?) {

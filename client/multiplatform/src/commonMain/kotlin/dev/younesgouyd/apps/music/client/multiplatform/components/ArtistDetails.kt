@@ -95,14 +95,14 @@ class ArtistDetails(
                     onAddToQueueClick = { mediaController.addToQueue(listOf(QueueItemParameter.Artist(id))) },
                     onAddToPlaylistClick = {
                         addToPlaylist.value = AddToPlaylist(
-                            tracks = emptyList(),
-                            playlists = emptyList(),
-                            folders = emptyList(),
-                            artists = listOf(id),
-                            albums = emptyList(),
+                            tracks = emptySet(),
+                            playlists = emptySet(),
+                            folders = emptySet(),
+                            artists = setOf(id),
+                            albums = emptySet(),
                             playlistRepo = playlistRepo,
                             addToPlaylistUseCase = addToPlaylistUseCase,
-                            dismiss = ::dismissAddToPlaylistDialog
+                            onDone = { dismissAddToPlaylistDialog() }
                         )
                     },
                     onArtistClick = showArtistDetails,
@@ -110,14 +110,14 @@ class ArtistDetails(
                     onAlbumClick = showAlbum,
                     onAddAlbumToPlaylistClick = { albumId ->
                         addToPlaylist.value = AddToPlaylist(
-                            tracks = emptyList(),
-                            playlists = emptyList(),
-                            folders = emptyList(),
-                            artists = emptyList(),
-                            albums = listOf(albumId),
+                            tracks = emptySet(),
+                            playlists = emptySet(),
+                            folders = emptySet(),
+                            artists = emptySet(),
+                            albums = setOf(albumId),
                             playlistRepo = playlistRepo,
                             addToPlaylistUseCase = addToPlaylistUseCase,
-                            dismiss = ::dismissAddToPlaylistDialog
+                            onDone = { dismissAddToPlaylistDialog() }
                         )
                     },
                     onAddAlbumToQueueClick = { id -> mediaController.addToQueue(listOf(QueueItemParameter.Album(id))) },
@@ -125,14 +125,14 @@ class ArtistDetails(
                     onShowTrackDetailsClick = showTrack,
                     onAddTrackToPlaylistClick = { trackId ->
                         addToPlaylist.value = AddToPlaylist(
-                            tracks = listOf(trackId),
-                            playlists = emptyList(),
-                            folders = emptyList(),
-                            artists = emptyList(),
-                            albums = emptyList(),
+                            tracks = setOf(trackId),
+                            playlists = emptySet(),
+                            folders = emptySet(),
+                            artists = emptySet(),
+                            albums = emptySet(),
                             playlistRepo = playlistRepo,
                             addToPlaylistUseCase = addToPlaylistUseCase,
-                            dismiss = ::dismissAddToPlaylistDialog
+                            onDone = { dismissAddToPlaylistDialog() }
                         )
                     },
                     onAddTrackToQueueClick = { mediaController.addToQueue(listOf(QueueItemParameter.Track(it))) }

@@ -30,7 +30,7 @@ class TagRepo(
         require(name.isNotBlank())
         val currentTime = System.currentTimeMillis()
         val id = dao.add(
-            name = name,
+            name = name.trim(),
             creationDatetime = currentTime
         )
         return TagId(id)
