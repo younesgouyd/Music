@@ -939,7 +939,7 @@ class Library(
                                         columns = GridCells.Adaptive(minColumnWidth)
                                     ) {
                                         val ratio = 0.65f
-                                        items(content.folders, { "folder#${it.id}" }) { folder ->
+                                        items(content.folders, { it.id.key }) { folder ->
                                             val selectedItem = remember(folder) { SelectedItem.Folder(folder) }
                                             FolderItem(
                                                 modifier = Modifier.aspectRatio(ratio),
@@ -971,7 +971,7 @@ class Library(
                                                 )
                                             )
                                         }
-                                        items(content.playlists, { "playlist#${it.id}" }) { playlist ->
+                                        items(content.playlists, { it.id.key }) { playlist ->
                                             val selectedItem = remember(playlist) { SelectedItem.Playlist(playlist) }
                                             PlaylistItem(
                                                 modifier = Modifier.aspectRatio(ratio),
@@ -1003,7 +1003,7 @@ class Library(
                                                 )
                                             )
                                         }
-                                        items(content.tracks, { "track#${it.id}" }) { track ->
+                                        items(content.tracks, { it.id.key }) { track ->
                                             val selectedItem = remember(track) { SelectedItem.Track(track) }
                                             TrackItem(
                                                 modifier = Modifier.aspectRatio(ratio),

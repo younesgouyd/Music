@@ -1,7 +1,6 @@
 
 - update ui: ImportList, Queue, Player... etc.
 - update repositories to return models/pages of models.
-- update id classes: validate input, add key for lazy lists.
 - thumbnails that are 1:1 in aspect ratio are imported incorrectly.
 - in server MediaController, coroutine cancellations (usually caused by client disconnection).
 - check SharingStarted.WhileSubscribed in Components.
@@ -28,6 +27,7 @@
 - implement sorting playlists/albums/folders.
 
 done:
+- update id classes: validate input, add key for lazy lists.
 - support tagging multiple items.
 - clean up: check unused repository methods.
 - support multi selection.

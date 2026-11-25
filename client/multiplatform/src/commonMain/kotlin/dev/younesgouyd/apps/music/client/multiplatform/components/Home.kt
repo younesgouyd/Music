@@ -199,11 +199,11 @@ class Home(
     }
 
     private fun HomeItems.toFeedEntries(): List<HomeFeedEntry> = buildList {
-        tracks.forEach { add(HomeFeedEntry.TrackEntry("track_${it.track.id}", it.originalImport.title)) }
-        playlists.forEach { add(HomeFeedEntry.PlaylistEntry("playlist_${it.id}", it.name)) }
-        albums.forEach { add(HomeFeedEntry.AlbumEntry("album_${it.id}", it.name)) }
-        artists.forEach { add(HomeFeedEntry.ArtistEntry("artist_${it.id}", it.name)) }
-        tags.forEach { add(HomeFeedEntry.TagEntry("tag_${it.id}", it.name)) }
+        tracks.forEach { add(HomeFeedEntry.TrackEntry(it.track.id.key, it.originalImport.title)) }
+        playlists.forEach { add(HomeFeedEntry.PlaylistEntry(it.id.key, it.name)) }
+        albums.forEach { add(HomeFeedEntry.AlbumEntry(it.id.key, it.name)) }
+        artists.forEach { add(HomeFeedEntry.ArtistEntry(it.id.key, it.name)) }
+        tags.forEach { add(HomeFeedEntry.TagEntry(it.id.key, it.name)) }
     }
 
     private object Ui {
