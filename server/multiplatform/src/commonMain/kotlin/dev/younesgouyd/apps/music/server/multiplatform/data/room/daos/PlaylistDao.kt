@@ -16,8 +16,8 @@ abstract class PlaylistDao {
     @Query("select * from playlist where id = :id")
     abstract fun get(id: PlaylistId): Flow<Playlist?>
 
-    @Query("select * from playlist where name like '%' ||  :nameQuery || '%'")
-    abstract fun search(nameQuery: String): Flow<List<Playlist>>
+    @Query("select * from playlist where id in (:ids)")
+    abstract suspend fun getByIds(ids: Set<PlaylistId>): List<Playlist>
 
     fun searchFolder(folderId: FolderId?, nameQuery: String): Flow<List<Playlist>> {
         return if (folderId == null) {

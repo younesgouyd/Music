@@ -4,6 +4,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.*
 
 class RepoStore(server: Server) {
     val folderRepo = FolderRepo(server)
+    val homeRepo = HomeRepo(server)
     val importSessionItemRepo = ImportSessionItemRepo(server)
     val importSessionRepo = ImportSessionRepo(server)
     val inspectionRepo = InspectionRepo(server)

@@ -249,6 +249,7 @@ class WebSocketSessionHandler(
 
         private val clientSettingRepo get() = repoStore.clientSettingRepo
         private val folderRepo get() = repoStore.folderRepo
+        private val homeRepo get() = repoStore.homeRepo
         private val playlistRepo get() = repoStore.playlistRepo
         private val playlistTrackCrossRefRepo get() = repoStore.playlistTrackCrossRefRepo
         private val trackRepo get() = repoStore.trackRepo
@@ -446,10 +447,6 @@ class WebSocketSessionHandler(
                         val result = folderRepo.add(rpc.name, rpc.parentFolderId)
                         sendData(correlationId, result, rpc.serializer)
                     }
-                    is Rpc.ToServer.Folder.Delete -> {
-                        folderRepo.delete(rpc.id)
-                        sendDone(correlationId)
-                    }
                     is Rpc.ToServer.Folder.Get -> {
                         folderRepo.get(rpc.id)
                             .map { it?.toModel() }
@@ -475,6 +472,15 @@ class WebSocketSessionHandler(
                         )
                         sendDone(correlationId)
                     }
+                }
+                is Rpc.ToServer.Home.GetPage -> {
+                    val result = homeRepo.getPage(
+                        query = rpc.query,
+                        selectedTypes = rpc.selectedTypes,
+                        selectedTags = rpc.selectedTags,
+                        offset = rpc.offset
+                    )
+                    sendData(correlationId, result, rpc.serializer)
                 }
                 is Rpc.ToServer.ImportSessionItem -> when (rpc) {
                     is Rpc.ToServer.ImportSessionItem.Get -> {
@@ -524,11 +530,6 @@ class WebSocketSessionHandler(
                     is Rpc.ToServer.Playlist.Get -> {
                         playlistRepo.get(rpc.id)
                             .map { it?.toModel() }
-                            .collect { sendData(correlationId, it, rpc.serializer) }
-                    }
-                    is Rpc.ToServer.Playlist.Search -> {
-                        playlistRepo.search(rpc.nameQuery)
-                            .map { it.map { it.toModel() } }
                             .collect { sendData(correlationId, it, rpc.serializer) }
                     }
                     is Rpc.ToServer.Playlist.SearchFolder -> {
@@ -599,14 +600,6 @@ class WebSocketSessionHandler(
                         spotifyArtistRepo.get(rpc.id)
                             .map { it?.toModel() }
                             .collect { sendData(correlationId, it, rpc.serializer) }
-                    }
-                    is Rpc.ToServer.SpotifyArtist.Search -> {
-                        val result = spotifyArtistRepo.search(
-                            nameQuery = rpc.nameQuery,
-                            limit = rpc.limit,
-                            offset = rpc.offset
-                        ).map { it.toModel() }
-                        sendData(correlationId, result, rpc.serializer)
                     }
                     is Rpc.ToServer.SpotifyArtist.GetSpotifyTrackSpotifyArtists -> {
                         spotifyArtistRepo.getSpotifyTrackSpotifyArtists(rpc.id)
@@ -681,34 +674,12 @@ class WebSocketSessionHandler(
                         val result = tagRepo.add(rpc.name)
                         sendData(correlationId, result, rpc.serializer)
                     }
-                    is Rpc.ToServer.Tag.Delete -> {
-                        tagRepo.delete(rpc.id)
-                        sendDone(correlationId)
-                    }
                 }
                 is Rpc.ToServer.Track -> when (rpc) {
                     is Rpc.ToServer.Track.Get -> {
                         trackRepo.get(rpc.id)
                             .map { it?.toModel() }
                             .collect { sendData(correlationId, it, rpc.serializer) }
-                    }
-                    is Rpc.ToServer.Track.Search -> {
-                        val result = trackRepo.search(
-                            nameQuery = rpc.nameQuery,
-                            limit = rpc.limit,
-                            offset = rpc.offset
-                        ).map { it.toModel() }
-                        sendData(correlationId, result, rpc.serializer)
-                    }
-                    is Rpc.ToServer.Track.SearchWithTags -> {
-                        val result = trackRepo.searchWithTags(
-                            nameQuery = rpc.nameQuery,
-                            tags = rpc.tags,
-                            includeUntagged = rpc.includeUntagged,
-                            limit = rpc.limit,
-                            offset = rpc.offset
-                        ).map { it.toModel() }
-                        sendData(correlationId, result, rpc.serializer)
                     }
                     is Rpc.ToServer.Track.SearchFolder -> {
                         trackRepo.searchFolder(

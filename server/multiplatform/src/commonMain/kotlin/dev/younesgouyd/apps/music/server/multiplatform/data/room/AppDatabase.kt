@@ -46,8 +46,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun spotifyArtistDao(): SpotifyArtistDao
     abstract fun spotifyTrackDao(): SpotifyTrackDao
     abstract fun tagDao(): TagDao
-    abstract fun tagTrackCrossRefDao(): TagTrackCrossRefDao
     abstract fun trackDao(): TrackDao
+
+    abstract fun homeDao(): HomeDao
 
     abstract fun clearImportSessionItem(): ClearImportSessionItem
     abstract fun importTrx(): Import

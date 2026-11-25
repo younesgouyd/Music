@@ -44,7 +44,7 @@ fun Ui(
         )
     }
 
-    MaterialTheme(
+    MaterialExpressiveTheme(
         colorScheme = darkColorScheme()
     ) {
         Surface(

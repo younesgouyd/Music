@@ -1,9 +1,12 @@
 
+- update ui: ImportList, Queue, Player... etc.
+- update repositories to return models/pages of models.
+- update id classes: validate input, add key for lazy lists.
+- thumbnails that are 1:1 in aspect ratio are imported incorrectly.
 - in server MediaController, coroutine cancellations (usually caused by client disconnection).
 - check SharingStarted.WhileSubscribed in Components.
 - consider using ktor's WebSocketDeflateExtension.
 - long click on import artist, album... to copy text.
-- thumbnails that are 1:1 in aspect ratio are imported incorrectly.
 - pagination with buffer limit.
 - create a standard dialog composable.
 - remember clients:

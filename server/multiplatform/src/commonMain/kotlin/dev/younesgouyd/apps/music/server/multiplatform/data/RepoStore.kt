@@ -8,13 +8,21 @@ class RepoStore(database: AppDatabase) {
     val clientSessionRepo = ClientSessionRepo(database.clientSessionDao())
     val clientSettingRepo = ClientSettingRepo(database.clientSettingDao())
     val folderRepo = FolderRepo(database.folderDao())
+    val homeRepo = HomeRepo(
+        database = database,
+        homeDao = database.homeDao(),
+        trackDao = database.trackDao(),
+        playlistDao = database.playlistDao(),
+        albumDao = database.spotifyAlbumDao(),
+        artistDao = database.spotifyArtistDao(),
+        tagDao = database.tagDao()
+    )
     val playlistRepo = PlaylistRepo(database.playlistDao())
     val playlistTrackCrossRefRepo = PlaylistTrackCrossRefRepo(database.playlistTrackCrossRefDao())
     val trackRepo = TrackRepo(database.trackDao())
     val importSessionRepo = ImportSessionRepo(database.importSessionDao())
     val importSessionItemRepo = ImportSessionItemRepo(database.importSessionItemDao())
     val tagRepo = TagRepo(database.tagDao())
-    val tagTrackCrossRefRepo = TagTrackCrossRefRepo(database.tagTrackCrossRefDao())
     val settingRepo = SettingRepo(database.settingDao())
     val spotifyAlbumRepo = SpotifyAlbumRepo(database.spotifyAlbumDao())
     val spotifyArtistRepo = SpotifyArtistRepo(database.spotifyArtistDao())

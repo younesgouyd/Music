@@ -44,13 +44,14 @@ dependencyResolutionManagement {
                 }
                 val ktor = "3.5.2"
                 val compose = object {
-                    val plugin = "1.12.2"
-                    val material3 = "1.9.0"
+                    val plugin = "1.13.0-rc01"
+                    val material3 = "1.13.0-rc01"
                     val materialIconsExtended = "1.7.3"
+                    val materialkolor = "6.0.0"
                 }
                 val android = object {
                     val agp = "9.1.1"
-                    val androidCompileSdk = version("androidCompileSdk", "36")
+                    val androidCompileSdk = version("androidCompileSdk", "37")
                     val androidMinSdk = version("androidMinSdk", "29")
                     val androidTargetSdk = version("androidTargetSdk", "36")
                     val coreKtx = "1.18.0"
@@ -72,8 +73,11 @@ dependencyResolutionManagement {
 
             library("compose.material3", "org.jetbrains.compose.material3", "material3").version(versions.compose.material3)
             library("compose.windowSizeClass", "org.jetbrains.compose.material3", "material3-window-size-class").version(versions.compose.material3)
-            library("compose.materialIconsExtended", "org.jetbrains.compose.material", "material-icons-extended").version(versions.compose.materialIconsExtended)
             library("compose.uiDesktop", "org.jetbrains.compose.ui", "ui-desktop").version(versions.compose.plugin)
+            library("compose.adaptiveNavigation", "org.jetbrains.compose.material3", "material3-adaptive-navigation-suite").version(versions.compose.material3)
+            library("compose.materialIconsExtended", "org.jetbrains.compose.material", "material-icons-extended").version(versions.compose.materialIconsExtended)
+            library("compose.materialkolor.palette", "com.materialkolor", "material-kolor-palette").version(versions.compose.materialkolor)
+            library("compose.materialkolor.material3", "com.materialkolor", "material-kolor-material3").version(versions.compose.materialkolor)
 
             library("serialization.core", "org.jetbrains.kotlinx", "kotlinx-serialization-core").version(versions.serialization)
             library("serialization.json", "org.jetbrains.kotlinx", "kotlinx-serialization-json").version(versions.serialization)

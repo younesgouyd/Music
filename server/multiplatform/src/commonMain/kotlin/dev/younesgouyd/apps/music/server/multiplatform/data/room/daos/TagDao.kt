@@ -12,6 +12,9 @@ abstract class TagDao {
     @Query("select * from tag where id = :id")
     abstract fun get(id: TagId): Flow<Tag?>
 
+    @Query("select * from tag where id in (:ids)")
+    abstract suspend fun getByIds(ids: Set<TagId>): List<Tag>
+
     @Query("select * from tag where name like '%' || :nameQuery || '%'")
     abstract fun search(nameQuery: String): Flow<List<Tag>>
 
@@ -48,7 +51,4 @@ abstract class TagDao {
         name: String,
         creationDatetime: Long
     ): Long
-
-    @Query("delete from tag where id = :id")
-    abstract suspend fun delete(id: TagId)
 }

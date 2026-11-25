@@ -35,8 +35,4 @@ class TagRepo(
         )
         return TagId(id)
     }
-
-    suspend fun delete(id: TagId) {
-        dao.delete(id)
-    }
 }

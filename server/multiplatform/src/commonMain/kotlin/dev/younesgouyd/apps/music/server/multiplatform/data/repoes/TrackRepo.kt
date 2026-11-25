@@ -1,6 +1,7 @@
 package dev.younesgouyd.apps.music.server.multiplatform.data.repoes
 
 import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.models.pagination.Offset
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.daos.TrackDao
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.PlaylistTrack
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.models.TrackRelation
@@ -12,34 +13,6 @@ class TrackRepo(
 ) {
     fun get(id: TrackId): Flow<TrackRelation?> {
         return dao.get(id)
-    }
-
-    suspend fun search(
-        nameQuery: String,
-        limit: Int,
-        offset: Offset.Id<TrackId>,
-    ): List<TrackRelation> {
-        return dao.search(
-            nameQuery = nameQuery.toSearchQuery(),
-            limit = limit,
-            lastId = offset.value ?: TrackId(0)
-        )
-    }
-
-    suspend fun searchWithTags(
-        nameQuery: String,
-        tags: List<TagId>,
-        includeUntagged: Boolean,
-        limit: Int,
-        offset: Offset.Id<TrackId>,
-    ): List<TrackRelation> {
-        return dao.search(
-            nameQuery = nameQuery.toSearchQuery(),
-            tags = tags,
-            includeUntagged = includeUntagged,
-            limit = limit,
-            lastId = offset.value ?: TrackId(0)
-        )
     }
 
     fun searchFolder(

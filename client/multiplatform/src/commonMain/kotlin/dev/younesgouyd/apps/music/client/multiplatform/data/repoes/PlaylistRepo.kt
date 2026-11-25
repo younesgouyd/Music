@@ -1,8 +1,12 @@
 package dev.younesgouyd.apps.music.client.multiplatform.data.repoes
 
 import dev.younesgouyd.apps.music.client.multiplatform.data.Server
-import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.models.FolderId
+import dev.younesgouyd.apps.music.common.models.PlaylistId
+import dev.younesgouyd.apps.music.common.models.Rpc
+import dev.younesgouyd.apps.music.common.models.TrackId
 import dev.younesgouyd.apps.music.common.models.datamodels.Playlist
+import dev.younesgouyd.apps.music.common.models.pagination.Offset
 import kotlinx.coroutines.flow.Flow
 
 class PlaylistRepo(
@@ -19,10 +23,6 @@ class PlaylistRepo(
 
     fun get(id: PlaylistId): Flow<Playlist?> {
         return server.observe(Rpc.ToServer.Playlist.Get(id))
-    }
-
-    fun search(nameQuery: String): Flow<List<Playlist>> {
-        return server.observe(Rpc.ToServer.Playlist.Search(nameQuery))
     }
 
     fun searchFolder(

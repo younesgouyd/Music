@@ -14,8 +14,9 @@ import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.LazilyLoadedItems
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.ImportSessionRepo
 import dev.younesgouyd.apps.music.common.models.ImportSessionId
-import dev.younesgouyd.apps.music.common.models.Offset
 import dev.younesgouyd.apps.music.common.models.datamodels.ImportSession
+import dev.younesgouyd.apps.music.common.models.pagination.Offset
+import dev.younesgouyd.apps.music.common.models.pagination.Page
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
 import kotlinx.coroutines.cancel
@@ -34,8 +35,12 @@ class ImportList(
             scope = coroutineScope,
             loader = { offset, limit ->
                 val rows = importSessionRepo.getAll(limit, offset)
-                LazilyLoadedItems.Page(
-                    nextOffset = if (rows.size < limit) { null } else { Offset.Index(offset.value + limit) },
+                Page(
+                    nextOffset = if (rows.size < limit) {
+                        null
+                    } else {
+                        Offset.Index(offset.value + limit)
+                    },
                     items = rows
                 )
             },

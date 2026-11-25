@@ -3,6 +3,9 @@ package dev.younesgouyd.apps.music.common.models
 import dev.younesgouyd.apps.music.common.models.datamodels.MediaPlayerState
 import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackContext
 import dev.younesgouyd.apps.music.common.models.datamodels.PlaybackIntervalStart
+import dev.younesgouyd.apps.music.common.models.datamodels.home.HomeItems
+import dev.younesgouyd.apps.music.common.models.pagination.Offset
+import dev.younesgouyd.apps.music.common.models.pagination.Page
 import dev.younesgouyd.apps.music.common.models.spotify.SearchResult
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -302,11 +305,19 @@ sealed class Rpc {
                 val id: FolderId,
                 val name: String
             ) : Folder(), ResultType.Action
+        }
 
+        @Serializable
+        sealed class Home : ToServer() {
             @Serializable
-            data class Delete(
-                val id: FolderId
-            ) : Folder(), ResultType.Action
+            data class GetPage(
+                val query: String,
+                val selectedTypes: Set<HomeItemType>,
+                val selectedTags: Set<TagId>,
+                val offset: Offset.Home?
+            ) : Home(), ResultType.Data.Static<Page<HomeItems, Offset.Home>> {
+                @Transient override val serializer: KSerializer<Page<HomeItems, Offset.Home>> = Page.serializer(HomeItems.serializer(), Offset.Home.serializer())
+            }
         }
 
         @Serializable
@@ -324,13 +335,6 @@ sealed class Rpc {
                 val id: PlaylistId
             ) : Playlist(), ResultType.Data.Dynamic<PlaylistModel?> {
                 @Transient override val serializer: KSerializer<PlaylistModel?> = PlaylistModel.serializer().nullable
-            }
-
-            @Serializable
-            data class Search(
-                val nameQuery: String
-            ) : Playlist(), ResultType.Data.Dynamic<List<PlaylistModel>> {
-                @Transient override val serializer: KSerializer<List<PlaylistModel>> = ListSerializer(PlaylistModel.serializer())
             }
 
             @Serializable
@@ -409,15 +413,6 @@ sealed class Rpc {
                 val id: SpotifyArtistId
             ) : SpotifyArtist(), ResultType.Data.Dynamic<SpotifyArtistModel?> {
                 @Transient override val serializer: KSerializer<SpotifyArtistModel?> = SpotifyArtistModel.serializer().nullable
-            }
-
-            @Serializable
-            data class Search(
-                val nameQuery: String,
-                val limit: Int,
-                val offset: Offset.Id<SpotifyArtistId>
-            ) : SpotifyArtist(), ResultType.Data.Static<List<SpotifyArtistModel>> {
-                @Transient override val serializer: KSerializer<List<SpotifyArtistModel>> = ListSerializer(SpotifyArtistModel.serializer())
             }
 
             @Serializable
@@ -520,11 +515,6 @@ sealed class Rpc {
             ) : Tag(), ResultType.Data.Static<TagId> {
                 @Transient override val serializer: KSerializer<TagId> = TagId.serializer()
             }
-
-            @Serializable
-            data class Delete(
-                val id: TagId
-            ) : Tag(), ResultType.Action
         }
 
         @Serializable
@@ -534,26 +524,6 @@ sealed class Rpc {
                 val id: TrackId
             ) : Track(), ResultType.Data.Dynamic<TrackRelationModel?> {
                 @Transient override val serializer: KSerializer<TrackRelationModel?> = TrackRelationModel.serializer().nullable
-            }
-
-            @Serializable
-            data class Search(
-                val nameQuery: String,
-                val limit: Int,
-                val offset: Offset.Id<TrackId>
-            ) : Track(), ResultType.Data.Static<List<TrackRelationModel>> {
-                @Transient override val serializer: KSerializer<List<TrackRelationModel>> = ListSerializer(TrackRelationModel.serializer())
-            }
-
-            @Serializable
-            data class SearchWithTags(
-                val nameQuery: String,
-                val tags: List<TagId>,
-                val includeUntagged: Boolean,
-                val limit: Int,
-                val offset: Offset.Id<TrackId>
-            ) : Track(), ResultType.Data.Static<List<TrackRelationModel>> {
-                @Transient override val serializer: KSerializer<List<TrackRelationModel>> = ListSerializer(TrackRelationModel.serializer())
             }
 
             @Serializable

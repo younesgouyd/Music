@@ -1,6 +1,7 @@
 package dev.younesgouyd.apps.music.client.multiplatform.components.util
 
-import dev.younesgouyd.apps.music.common.models.Offset
+import dev.younesgouyd.apps.music.common.models.pagination.Offset
+import dev.younesgouyd.apps.music.common.models.pagination.Page
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
@@ -73,9 +74,4 @@ class LazilyLoadedItems<Item, OffsetType : Offset>(
     fun interface Loader<Item, OffsetType : Offset> {
         suspend fun load(offset: OffsetType, pageSize: PageSize): Page<Item, OffsetType>
     }
-
-    data class Page<Item, OffsetType: Offset>(
-        val nextOffset: OffsetType?,
-        val items: List<Item>
-    )
 }

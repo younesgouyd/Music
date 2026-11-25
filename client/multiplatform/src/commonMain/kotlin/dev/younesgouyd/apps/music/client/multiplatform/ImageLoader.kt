@@ -15,7 +15,7 @@ import java.net.URI
 import java.time.Instant
 
 class ImageLoader(
-    private val mediaFileDownloader: MediaFileDownloader
+    private val mediaFileLoader: MediaFileLoader
 ) {
     companion object {
         private val MAX_CACHE_SIZE: Long = when (platform) {
@@ -36,7 +36,7 @@ class ImageLoader(
                 if (fromCache == null) {
                     val imageBitmap = try {
                         when (key) {
-                            is Key.Mfid -> mediaFileDownloader.download(key.id).readBytes().decodeToImageBitmap()
+                            is Key.Mfid -> mediaFileLoader.load(key.id).readBytes().decodeToImageBitmap()
                             is Key.Url -> URI(key.url).toURL().readBytes().decodeToImageBitmap()
                         }
                     } catch (e: CancellationException) {

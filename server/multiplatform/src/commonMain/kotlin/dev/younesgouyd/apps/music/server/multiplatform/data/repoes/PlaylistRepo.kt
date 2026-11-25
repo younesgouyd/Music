@@ -1,9 +1,9 @@
 package dev.younesgouyd.apps.music.server.multiplatform.data.repoes
 
 import dev.younesgouyd.apps.music.common.models.FolderId
-import dev.younesgouyd.apps.music.common.models.Offset
 import dev.younesgouyd.apps.music.common.models.PlaylistId
 import dev.younesgouyd.apps.music.common.models.TrackId
+import dev.younesgouyd.apps.music.common.models.pagination.Offset
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.daos.PlaylistDao
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.entities.Playlist
 import dev.younesgouyd.apps.music.server.multiplatform.data.room.toSearchQuery
@@ -18,10 +18,6 @@ class PlaylistRepo(
 
     fun get(id: PlaylistId): Flow<Playlist?> {
         return dao.get(id)
-    }
-
-    fun search(nameQuery: String): Flow<List<Playlist>> {
-        return dao.search(nameQuery.toSearchQuery())
     }
 
     fun searchFolder(

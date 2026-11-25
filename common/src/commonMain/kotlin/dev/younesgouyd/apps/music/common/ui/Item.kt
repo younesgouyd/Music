@@ -99,12 +99,41 @@ fun Item(
                         onLongClick = onLongClick
                     ),
                 contentAlignment = contentAlignment,
-                content = { content() }
+                content = { content() },
             )
         },
         elevation = CardDefaults.elevatedCardElevation(),
         colors = CardDefaults.elevatedCardColors(),
         border = if (isSelected) BorderStroke(3.dp, MaterialTheme.colorScheme.primary) else null,
     )
+}
+
+@Composable
+fun Item(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    contentAlignment: Alignment = Alignment.Center,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    isSelected: Boolean = false,
+    interactionSource: MutableInteractionSource? = null,
+    contextMenuItems: List<List<MenuItem>>,
+    content: @Composable RightClickMenuScope.() -> Unit
+) {
+    RightClickMenuBox(
+        modifier = modifier,
+        menuItems = contextMenuItems
+    ) {
+        Item(
+            onClick = onClick,
+            onLongClick = onLongClick,
+            contentAlignment = contentAlignment,
+            contentPadding = contentPadding,
+            isSelected = isSelected,
+            interactionSource = interactionSource
+        ) {
+            content()
+        }
+    }
 }
 

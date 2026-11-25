@@ -164,7 +164,6 @@ class Settings(
             }
         }
 
-        @OptIn(ExperimentalMaterial3Api::class)
         @Composable
         private fun DarkTheme(
             modifier: Modifier,
@@ -196,13 +195,12 @@ class Settings(
                         expanded = expanded,
                         onDismissRequest = { expanded = false }
                     ) {
-                        for (darkThemeOption in DarkThemeOptions.entries) {
-                            DropdownMenuItem(
-                                text = { Text(darkThemeOption.label) },
-                                onClick = {
-                                    onDarkThemeChange(darkThemeOption)
-                                    expanded = false
-                                }
+                        DarkThemeOptions.entries.forEachIndexed { index, option ->
+                            SelectableDropdownMenuItem(
+                                text = { Text(option.label) },
+                                selected = option == selectedOption,
+                                onClick = { onDarkThemeChange(option) },
+                                shapes = MenuDefaults.itemShape(index, DarkThemeOptions.entries.size)
                             )
                         }
                     }

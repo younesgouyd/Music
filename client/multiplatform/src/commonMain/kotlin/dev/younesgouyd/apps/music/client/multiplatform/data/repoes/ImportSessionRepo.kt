@@ -2,9 +2,9 @@ package dev.younesgouyd.apps.music.client.multiplatform.data.repoes
 
 import dev.younesgouyd.apps.music.client.multiplatform.data.Server
 import dev.younesgouyd.apps.music.common.models.ImportSessionId
-import dev.younesgouyd.apps.music.common.models.Offset
 import dev.younesgouyd.apps.music.common.models.Rpc
 import dev.younesgouyd.apps.music.common.models.datamodels.ImportSession
+import dev.younesgouyd.apps.music.common.models.pagination.Offset
 import kotlinx.coroutines.flow.Flow
 
 class ImportSessionRepo(

@@ -30,8 +30,4 @@ class TagRepo(
         require(name.isNotBlank())
         return server.get(Rpc.ToServer.Tag.Add(name))
     }
-
-    suspend fun delete(id: TagId) {
-        server.call(Rpc.ToServer.Tag.Delete(id))
-    }
 }

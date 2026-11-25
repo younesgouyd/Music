@@ -1,17 +1,12 @@
 package dev.younesgouyd.apps.music.client.multiplatform.components
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.Application
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
 import dev.younesgouyd.apps.music.client.multiplatform.data.RepoStore
@@ -22,11 +17,9 @@ import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.ComponentId
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import java.util.Stack
 
 class NavigationHost(
-    private val toggleDrawerState: suspend () -> Unit,
     repoStore: RepoStore,
     addToPlaylistUseCase: AddToPlaylistUseCase,
     deleteUseCase: DeleteUseCase,
@@ -52,13 +45,11 @@ class NavigationHost(
         startDestination = startDestination
     )
 
-    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun show(modifier: Modifier) {
         val navController by rememberUpdatedState(navController)
         val currentDestination by navController.currentDestination.collectAsState()
         val inHome by navController.inHome.collectAsState()
-        val coroutineScope = rememberCoroutineScope()
         val stateHolder = rememberSaveableStateHolder()
 
         LaunchedEffect(Unit) {
@@ -83,22 +74,11 @@ class NavigationHost(
             topBar = {
                 TopAppBar(
                     navigationIcon = {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        if (!inHome) {
                             IconButton(
-                                content = { Icon(Icons.Default.Menu, null) },
-                                onClick = {
-                                    coroutineScope.launch { toggleDrawerState() }
-                                }
+                                content = { Icon(Icons.AutoMirrored.Default.ArrowBack, null) },
+                                onClick = navController::navigateBack
                             )
-                            if (!inHome) {
-                                IconButton(
-                                    content = { Icon(Icons.AutoMirrored.Default.ArrowBack, null) },
-                                    onClick = navController::navigateBack
-                                )
-                            }
                         }
                     },
                     title = { Text(text = currentDestination.title, style = MaterialTheme.typography.headlineMedium) }
@@ -122,23 +102,17 @@ class NavigationHost(
     }
 
     sealed class Destination {
+        data object Home : Destination()
+
         data object Library : Destination()
 
-        data object PlaylistList : Destination()
-
         data class PlaylistDetails(val id: PlaylistId) : Destination()
-
-        data object ArtistList : Destination()
 
         data class ArtistDetails(val id: SpotifyArtistId) : Destination()
 
         data class AlbumDetails(val id: SpotifyAlbumId) : Destination()
 
-        data object TagList : Destination()
-
         data class TagDetails(val id: TagId) : Destination()
-
-        data object TrackList : Destination()
 
         data class TrackDetails(val id: TrackId) : Destination()
 
@@ -246,6 +220,10 @@ class NavigationHost(
         private inner class DestinationFactory {
             fun get(destination: Destination): Component {
                 return when (destination) {
+                    is Destination.Home -> Home(
+                        homeRepo = repoStore.homeRepo,
+                        tagRepo = repoStore.tagRepo
+                    )
                     is Destination.Library -> Library(
                         tagRepo = repoStore.tagRepo,
                         folderRepo = repoStore.folderRepo,
@@ -282,11 +260,6 @@ class NavigationHost(
                         showTrack = { navigateTo(Destination.TrackDetails(it)) },
                         showArtist = { navigateTo(Destination.ArtistDetails(it)) }
                     )
-                    is Destination.ArtistList -> ArtistList(
-                        artistRepo = repoStore.spotifyArtistRepo,
-                        mediaController = mediaController,
-                        showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) }
-                    )
                     is Destination.PlaylistDetails -> PlaylistDetails(
                         id = destination.id,
                         trackRepo = repoStore.trackRepo,
@@ -296,13 +269,6 @@ class NavigationHost(
                         mediaController = mediaController,
                         showArtistDetails = { navigateTo(Destination.ArtistDetails(it)) },
                         showTrack = { navigateTo(Destination.TrackDetails(it)) }
-                    )
-                    is Destination.PlaylistList -> PlaylistList(
-                        playlistRepo = repoStore.playlistRepo,
-                        addToPlaylistUseCase = addToPlaylistUseCase,
-                        deleteUseCase = deleteUseCase,
-                        mediaController = mediaController,
-                        showPlaylistDetails = { navigateTo(Destination.PlaylistDetails(it)) },
                     )
                     is Destination.ImportList -> ImportList(
                         importSessionRepo = repoStore.importSessionRepo,
@@ -317,22 +283,11 @@ class NavigationHost(
                         deleteUseCase = deleteUseCase,
                         showImportItem = { navigateTo(Destination.ImportItemDetails(it)) }
                     )
-                    is Destination.TagList -> TagList(
-                        tagRepo = repoStore.tagRepo,
-                        showTag = { navigateTo(Destination.TagDetails(it)) }
-                    )
                     is Destination.TagDetails -> TagDetails(
                         id = destination.id,
                         tagRepo = repoStore.tagRepo,
                         trackRepo = repoStore.trackRepo,
                         tagItemsUseCase = tagItemsUseCase,
-                        showTrack = { navigateTo(Destination.TrackDetails(it)) },
-                        showArtist = { navigateTo(Destination.ArtistDetails(it)) }
-                    )
-                    is Destination.TrackList -> TrackList(
-                        trackRepo = repoStore.trackRepo,
-                        tagRepo = repoStore.tagRepo,
-                        mediaController = mediaController,
                         showTrack = { navigateTo(Destination.TrackDetails(it)) },
                         showArtist = { navigateTo(Destination.ArtistDetails(it)) }
                     )

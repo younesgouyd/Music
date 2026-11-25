@@ -12,6 +12,9 @@ abstract class SpotifyAlbumDao {
     @Query("select * from spotifyalbum where id = :id")
     abstract fun get(id: SpotifyAlbumId): Flow<SpotifyAlbum?>
 
+    @Query("select * from spotifyalbum where id in (:ids)")
+    abstract suspend fun getByIds(ids: Set<SpotifyAlbumId>): List<SpotifyAlbum>
+
     @Query("""
         select a.*
         from spotifyalbum a

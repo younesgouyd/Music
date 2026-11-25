@@ -22,6 +22,8 @@ import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.SpotifyArtist
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.TrackRepo
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.AddToPlaylistUseCase
 import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.models.pagination.Offset
+import dev.younesgouyd.apps.music.common.models.pagination.Page
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -172,9 +174,9 @@ class ArtistDetails(
         override suspend fun load(
             offset: Offset.Id<TrackId>,
             pageSize: PageSize
-        ): LazilyLoadedItems.Page<Ui.State.Loaded.Track, Offset.Id<TrackId>> {
+        ): Page<Track, Offset.Id<TrackId>> {
             val rows = trackRepo.searchArtistContributions(artistId, query, pageSize, offset)
-            return LazilyLoadedItems.Page(
+            return Page(
                 nextOffset = rows.lastOrNull()?.track?.id?.let {
                     Offset.Id(it)
                 },

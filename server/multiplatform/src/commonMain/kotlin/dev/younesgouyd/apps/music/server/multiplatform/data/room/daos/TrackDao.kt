@@ -15,51 +15,8 @@ abstract class TrackDao {
     abstract fun get(id: TrackId): Flow<TrackRelation?>
 
     @Transaction
-    @Query("""
-        select distinct t.*
-        from track t
-        join importsessionitem i on i.id = t.importSessionItemId
-        left join spotifytrack sp on sp.id = t.spotifyTrackId
-        where t.id > :lastId
-        and (
-            (sp.name is not null and sp.name like '%' || :nameQuery || '%')
-            or (sp.name is null and i.title is not null and i.title like '%' || :nameQuery || '%') 
-        )
-        order by t.id asc
-        limit :limit
-    """)
-    abstract suspend fun search(
-        nameQuery: String,
-        limit: Int,
-        lastId: TrackId
-    ): List<TrackRelation>
-
-    @Transaction
-    @Query("""
-        select distinct t.*
-        from track t
-        join importsessionitem i on i.id = t.importSessionItemId
-        left join spotifytrack sp on sp.id = t.spotifyTrackId
-        left join tagtrackcrossref cr on cr.trackId = t.id
-        where t.id > :lastId
-        and (
-            (sp.name is not null and sp.name like '%' || :nameQuery || '%')
-            or (sp.name is null and i.title is not null and i.title like '%' || :nameQuery || '%') 
-        )
-        and (
-            cr.tagId in (:tags)
-            or (:includeUntagged and cr.trackId is null)
-        )
-        order by t.id asc
-        limit :limit
-    """)
-    abstract suspend fun search(
-        nameQuery: String,
-        tags: List<TagId>,
-        includeUntagged: Boolean,
-        limit: Int,
-        lastId: TrackId
-    ): List<TrackRelation>
+    @Query("select * from track where id in (:ids)")
+    abstract suspend fun getByIds(ids: Set<TrackId>): List<TrackRelation>
 
     @Transaction
     @Query("select * from track where importSessionItemId = :id")

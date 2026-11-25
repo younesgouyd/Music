@@ -1,7 +1,10 @@
 package dev.younesgouyd.apps.music.client.multiplatform.data.repoes
 
 import dev.younesgouyd.apps.music.client.multiplatform.data.Server
-import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.models.Rpc
+import dev.younesgouyd.apps.music.common.models.SpotifyAlbumId
+import dev.younesgouyd.apps.music.common.models.SpotifyArtistId
+import dev.younesgouyd.apps.music.common.models.SpotifyTrackId
 import dev.younesgouyd.apps.music.common.models.datamodels.SpotifyArtist
 import kotlinx.coroutines.flow.Flow
 
@@ -10,16 +13,6 @@ class SpotifyArtistRepo(
 ) {
     fun get(id: SpotifyArtistId): Flow<SpotifyArtist?> {
         return server.observe(Rpc.ToServer.SpotifyArtist.Get(id))
-    }
-
-    suspend fun search(nameQuery: String, limit: Int, offset: Offset.Id<SpotifyArtistId>): List<SpotifyArtist> {
-        return server.get(
-            Rpc.ToServer.SpotifyArtist.Search(
-                nameQuery = nameQuery,
-                limit = limit,
-                offset = offset
-            )
-        )
     }
 
     fun getSpotifyTrackSpotifyArtists(id: SpotifyTrackId): Flow<List<SpotifyArtist>> {

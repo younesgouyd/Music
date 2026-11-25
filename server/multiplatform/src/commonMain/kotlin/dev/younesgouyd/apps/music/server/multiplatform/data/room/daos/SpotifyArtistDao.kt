@@ -13,19 +13,8 @@ abstract class SpotifyArtistDao {
     @Query("select * from spotifyartist where id = :id")
     abstract fun get(id: SpotifyArtistId): Flow<SpotifyArtist?>
 
-    @Query("""
-        select *
-        from spotifyartist
-        where id > :lastId
-        and name like '%' || :nameQuery || '%'
-        order by id asc
-        limit :limit
-    """)
-    abstract suspend fun search(
-        nameQuery: String,
-        limit: Int,
-        lastId: SpotifyArtistId
-    ): List<SpotifyArtist>
+    @Query("select * from spotifyartist where id in (:ids)")
+    abstract suspend fun getByIds(ids: Set<SpotifyArtistId>): List<SpotifyArtist>
 
     @Query("""
         select a.*

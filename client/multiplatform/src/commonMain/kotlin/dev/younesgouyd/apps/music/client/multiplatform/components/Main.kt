@@ -1,27 +1,37 @@
 package dev.younesgouyd.apps.music.client.multiplatform.components
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItem
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.kmpalette.loader.ByteArrayLoader
+import com.materialkolor.PaletteStyle
+import com.materialkolor.material3.rememberDynamicColorScheme
+import com.materialkolor.palette.rememberThemeColor
 import dev.younesgouyd.apps.music.client.multiplatform.ImageLoader
 import dev.younesgouyd.apps.music.client.multiplatform.LocalImageLoader
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
+import dev.younesgouyd.apps.music.client.multiplatform.MediaControllerState
 import dev.younesgouyd.apps.music.client.multiplatform.data.RepoStore
 import dev.younesgouyd.apps.music.client.multiplatform.data.Server
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.*
 import dev.younesgouyd.apps.music.common.models.DarkThemeOptions
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.YounesMusicTheme
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 
 class Main(
-    server: Server
+    private val server: Server
 ) : Component() {
     override val title: String = ""
 
@@ -41,6 +51,18 @@ class Main(
             .map { it?.value?.let { DarkThemeOptions.valueOf(it) } ?: DarkThemeOptions.SystemDefault }
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), DarkThemeOptions.SystemDefault)
     }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val currentAlbumImage: StateFlow<ByteArray?> = mediaController.state.flatMapLatest {
+        when (it) {
+            is MediaControllerState.Unavailable -> flowOf(null)
+            is MediaControllerState.Loading -> flowOf(null)
+            is MediaControllerState.Available -> it.currentItem.map { it?.imageId }
+        }
+    }.mapLatest { imageId ->
+        imageId?.let {
+            server.getFile(imageId).takeIf { it.exists() }?.readBytes()
+        }
+    }.stateIn(coroutineScope, SharingStarted.Eagerly, null)
 
     private val playerExpanded = MutableStateFlow(false)
 
@@ -48,7 +70,7 @@ class Main(
         settingRepo = repoStore.settingRepo,
         spotifyAuthRepo = repoStore.spotifyAuthRepo
     )
-    private var navigationHost: NavigationHost = getNewNavHost(NavigationHost.Destination.Library)
+    private var navigationHost: NavigationHost = getNewNavHost(NavigationHost.Destination.Home)
     private val miniPlayer: Component = MiniPlayer(
         mediaController = mediaController,
         showAlbum = {
@@ -90,24 +112,23 @@ class Main(
     )
 
     private val mainComponent: MutableStateFlow<Component> = MutableStateFlow(navigationHost)
-    private val selectedNavigationDrawerItem = MutableStateFlow(NavigationDrawerItems.Library)
-
-    private val isDrawerOpen = MutableStateFlow(false)
+    private val selectedNavigationDrawerItem = MutableStateFlow(NavigationItems.Home)
 
     @Composable
     override fun show(modifier: Modifier) {
         val darkTheme by darkTheme.collectAsState()
+
         CompositionLocalProvider(LocalImageLoader provides imageLoader) {
             Ui.Main(
                 modifier = modifier,
                 darkTheme = darkTheme,
-                mainComponent = mainComponent.asStateFlow(),
+                mainComponent = mainComponent,
                 player = player,
                 miniPlayer = miniPlayer,
                 playerExpanded = playerExpanded,
                 queue = queue,
-                selectedNavigationDrawerItem = selectedNavigationDrawerItem.asStateFlow(),
-                isDrawerOpen = isDrawerOpen.asStateFlow(),
+                selectedNavigationDrawerItem = selectedNavigationDrawerItem,
+                currentAlbumImage = currentAlbumImage,
                 onMinimizePlayerClick = ::minimizePlayer,
                 onNavigationDrawerItemClick = ::handleNavigationDrawerItemClick
             )
@@ -127,40 +148,25 @@ class Main(
         playerExpanded.value = false
     }
 
-    private fun handleNavigationDrawerItemClick(item: NavigationDrawerItems) {
+    private fun handleNavigationDrawerItemClick(item: NavigationItems) {
         when (item) {
-            NavigationDrawerItems.Settings -> {
-                mainComponent.value = settings
-            }
-            NavigationDrawerItems.Tracks -> {
+            NavigationItems.Home -> {
                 navigationHost.clear()
-                navigationHost = getNewNavHost(NavigationHost.Destination.TrackList)
+                navigationHost = getNewNavHost(NavigationHost.Destination.Home)
                 mainComponent.value = navigationHost
             }
-            NavigationDrawerItems.Library -> {
+            NavigationItems.Library -> {
                 navigationHost.clear()
                 navigationHost = getNewNavHost(NavigationHost.Destination.Library)
                 mainComponent.value = navigationHost
             }
-            NavigationDrawerItems.Playlists -> {
-                navigationHost.clear()
-                navigationHost = getNewNavHost(NavigationHost.Destination.PlaylistList)
-                mainComponent.value = navigationHost
-            }
-            NavigationDrawerItems.Artists -> {
-                navigationHost.clear()
-                navigationHost = getNewNavHost(NavigationHost.Destination.ArtistList)
-                mainComponent.value = navigationHost
-            }
-            NavigationDrawerItems.Tags -> {
-                navigationHost.clear()
-                navigationHost = getNewNavHost(NavigationHost.Destination.TagList)
-                mainComponent.value = navigationHost
-            }
-            NavigationDrawerItems.Imports -> {
+            NavigationItems.Imports -> {
                 navigationHost.clear()
                 navigationHost = getNewNavHost(NavigationHost.Destination.ImportList)
                 mainComponent.value = navigationHost
+            }
+            NavigationItems.Settings -> {
+                mainComponent.value = settings
             }
         }
         selectedNavigationDrawerItem.value = item
@@ -169,7 +175,6 @@ class Main(
 
     private fun getNewNavHost(startDestination: NavigationHost.Destination): NavigationHost {
         return NavigationHost(
-            toggleDrawerState = { isDrawerOpen.update { !it } },
             repoStore = repoStore,
             addToPlaylistUseCase = addToPlaylistUseCase,
             deleteUseCase = deleteUseCase,
@@ -183,14 +188,11 @@ class Main(
         )
     }
 
-    private enum class NavigationDrawerItems(val label: String) {
-        Settings("Settings"),
-        Tracks("Tracks"),
-        Library("Library"),
-        Playlists("Playlists"),
-        Artists("Artists"),
-        Tags("Tags"),
-        Imports("Imports")
+    private enum class NavigationItems(val label: String, val icon: ImageVector) {
+        Home("Home", Icons.Default.Home),
+        Library("Library", Icons.Default.LibraryMusic),
+        Imports("Imports", Icons.Default.Download),
+        Settings("Settings", Icons.Default.Settings)
     }
 
     private object Ui {
@@ -203,87 +205,103 @@ class Main(
             miniPlayer: Component,
             queue: Component,
             playerExpanded: StateFlow<Boolean>,
-            selectedNavigationDrawerItem: StateFlow<NavigationDrawerItems>,
-            isDrawerOpen: StateFlow<Boolean>,
+            selectedNavigationDrawerItem: StateFlow<NavigationItems>,
+            currentAlbumImage: StateFlow<ByteArray?>,
             onMinimizePlayerClick: () -> Unit,
-            onNavigationDrawerItemClick: (NavigationDrawerItems) -> Unit
+            onNavigationDrawerItemClick: (NavigationItems) -> Unit
         ) {
             val mainComponent by mainComponent.collectAsState()
-            val isDrawerOpen by isDrawerOpen.collectAsState()
-            val drawerState = rememberDrawerState(initialValue = if (isDrawerOpen) DrawerValue.Open else DrawerValue.Closed)
             val playerExpanded by playerExpanded.collectAsState()
             val selectedNavigationDrawerItem by selectedNavigationDrawerItem.collectAsState()
+            val currentAlbumImage by currentAlbumImage.collectAsState()
 
-            YounesMusicTheme(darkTheme) {
-                Surface(
+            YounesMusicTheme(
+                colorScheme = createImageColorScheme(currentAlbumImage, darkTheme)
+            ) {
+                NavigationSuiteScaffold(
                     modifier = modifier,
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    ModalNavigationDrawer(
-                        drawerState = drawerState,
-                        drawerContent = {
-                            ModalDrawerSheet {
-                                Column(
-                                    modifier = Modifier.fillMaxWidth().padding(),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Top
-                                ) {
-                                    NavigationDrawerItems.entries.forEach {
-                                        NavigationDrawerItem(
-                                            label = { Text(it.label) },
-                                            selected = it == selectedNavigationDrawerItem,
-                                            onClick = { onNavigationDrawerItemClick(it) }
-                                        )
-                                    }
-                                }
-                            }
+                    navigationItemVerticalArrangement = Arrangement.Center,
+                    navigationItems = {
+                        NavigationItems.entries.forEach {
+                            NavigationSuiteItem(
+                                icon = { Icon(it.icon, null) },
+                                label = { Text(it.label) },
+                                selected = it == selectedNavigationDrawerItem,
+                                onClick = { onNavigationDrawerItemClick(it) }
+                            )
                         }
+                    }
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            when (playerExpanded) {
-                                true -> {
-                                    player.show(Modifier.fillMaxWidth().weight(1f, true))
-                                    IconButton(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        onClick = onMinimizePlayerClick,
-                                        content = { Icon(Icons.Default.KeyboardArrowDown, null) }
-                                    )
-                                }
-                                false -> {
-                                    dev.younesgouyd.apps.music.client.multiplatform.components.util.AdaptiveUi(
-                                        wide = {
-                                            Row(Modifier.fillMaxWidth().weight(1f, true)) {
-                                                mainComponent.show(Modifier.weight(.7f))
-                                                queue.show(
-                                                    Modifier.weight(.3f)
-                                                        .padding(start = 8.dp, top = 8.dp, end = 8.dp)
-                                                )
-                                            }
-                                            miniPlayer.show(
-                                                modifier = Modifier.fillMaxWidth()
-                                                    .height(180.dp)
-                                                    .padding(8.dp)
+                        when (playerExpanded) {
+                            true -> {
+                                player.show(Modifier.fillMaxWidth().weight(1f, true))
+                                IconButton(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    onClick = onMinimizePlayerClick,
+                                    content = { Icon(Icons.Default.KeyboardArrowDown, null) }
+                                )
+                            }
+                            false -> {
+                                dev.younesgouyd.apps.music.client.multiplatform.components.util.AdaptiveUi(
+                                    wide = {
+                                        Row(Modifier.fillMaxWidth().weight(1f, true)) {
+                                            mainComponent.show(Modifier.weight(.7f))
+                                            queue.show(
+                                                Modifier.weight(.3f)
+                                                    .padding(start = 8.dp, top = 8.dp, end = 8.dp)
                                             )
-                                        },
-                                        compact = {
-                                            mainComponent.show(Modifier.fillMaxWidth().weight(weight = 0.88f))
-                                            miniPlayer.show(modifier = Modifier.fillMaxWidth().weight(0.12f))
                                         }
-                                    )
-                                }
+                                        miniPlayer.show(
+                                            modifier = Modifier.fillMaxWidth()
+                                                .height(180.dp)
+                                                .padding(8.dp)
+                                        )
+                                    },
+                                    compact = {
+                                        mainComponent.show(Modifier.fillMaxWidth().weight(weight = 0.88f))
+                                        miniPlayer.show(modifier = Modifier.fillMaxWidth().weight(0.12f))
+                                    }
+                                )
                             }
                         }
                     }
                 }
             }
+        }
 
-            LaunchedEffect(isDrawerOpen) {
-                if (isDrawerOpen) drawerState.open() else drawerState.close()
+        @Composable
+        private fun createImageColorScheme(
+            imageBytes: ByteArray?,
+            isDark: DarkThemeOptions
+        ): ColorScheme {
+            val systemDark = isSystemInDarkTheme()
+            val darkMode = remember(isDark, systemDark) {
+                when (isDark) {
+                    DarkThemeOptions.SystemDefault -> systemDark
+                    DarkThemeOptions.Disabled -> false
+                    DarkThemeOptions.Enabled -> true
+                }
             }
+
+            val fallbackScheme = if (darkMode) darkColorScheme() else expressiveLightColorScheme()
+            val bytes = imageBytes ?: return fallbackScheme
+
+            val seedColor = rememberThemeColor(
+                loader = ByteArrayLoader,
+                input = bytes,
+                fallback = fallbackScheme.primary
+            )
+
+            return rememberDynamicColorScheme(
+                seedColor = seedColor,
+                isDark = darkMode,
+                style = PaletteStyle.Expressive
+            )
         }
     }
 }

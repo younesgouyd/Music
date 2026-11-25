@@ -51,6 +51,7 @@ import dev.younesgouyd.apps.music.common.models.datamodels.Playlist
 import dev.younesgouyd.apps.music.common.models.datamodels.TrackRelation
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
+import dev.younesgouyd.apps.music.common.ui.MenuItem
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.cancel
@@ -255,12 +256,15 @@ class Library(
             },
             onShowItemDialog = ::showItemDialog,
             onPlay = { selected ->
-                selectedItems.value = emptySet()
-                dismissDialog()
                 mediaController.playQueue(
                     listOf(selected.toQueueItemParameter())
                 )
             },
+            onAddToQueue = { selected ->
+                mediaController.addToQueue(
+                    listOf(selected.toQueueItemParameter())
+                )
+            }
         )
     }
 
@@ -307,47 +311,6 @@ class Library(
 
     private fun showDialog(type: Ui.State.DialogType) {
         dialogState.value = when (type) {
-            Ui.State.DialogType.ContextMenu -> Ui.State.DialogState.ContextMenu(
-                onDismiss = ::dismissDialog,
-                onPlay = {
-                    val items = selectedItems.value
-                    if (items.isNotEmpty()) {
-                        selectedItems.value = emptySet()
-                        dismissDialog()
-                        mediaController.playQueue(
-                            items.map { it.toQueueItemParameter() }
-                        )
-                    }
-                },
-                onAddToQueue = {
-                    val items = selectedItems.value
-                    if (items.isNotEmpty()) {
-                        selectedItems.value = emptySet()
-                        dismissDialog()
-                        mediaController.addToQueue(
-                            items.map { it.toQueueItemParameter() }
-                        )
-                    }
-                },
-                onMove = { showDialog(Ui.State.DialogType.Move) },
-                onAddToPlaylist = { showDialog(Ui.State.DialogType.AddToPlaylist) },
-                onTag = { showDialog(Ui.State.DialogType.Tag) },
-                onDelete = {
-                    coroutineScope.launch {
-                        val items = selectedItems.value
-                        if (items.isNotEmpty()) {
-                            val (tracks, playlists, folders) = items.toTriple()
-                            selectedItems.value = emptySet()
-                            dismissDialog()
-                            deleteUseCase.execute(
-                                tracks = tracks,
-                                playlists = playlists,
-                                folders = folders
-                            )
-                        }
-                    }
-                }
-            )
             Ui.State.DialogType.Rename -> TODO()
             Ui.State.DialogType.Move -> {
                 val items = selectedItems.value
@@ -452,37 +415,6 @@ class Library(
 
     private fun showItemDialog(item: SelectedItem, type: Ui.State.DialogType) {
         dialogState.value = when (type) {
-            Ui.State.DialogType.ContextMenu -> Ui.State.DialogState.ItemContextMenu(
-                item = item,
-                onPlay = {
-                    dismissDialog()
-                    mediaController.playQueue(
-                        listOf(item.toQueueItemParameter())
-                    )
-                },
-                onAddToQueue = {
-                    dismissDialog()
-                    mediaController.addToQueue(
-                        listOf(item.toQueueItemParameter())
-                    )
-                },
-                onRename = { showItemDialog(item, Ui.State.DialogType.Rename) },
-                onMove = { showItemDialog(item, Ui.State.DialogType.Move) },
-                onAddToPlaylist = { showItemDialog(item, Ui.State.DialogType.AddToPlaylist) },
-                onTag = { showItemDialog(item, Ui.State.DialogType.Tag) },
-                onDelete = {
-                    coroutineScope.launch {
-                        val (tracks, playlists, folders) = item.toTriple()
-                        dismissDialog()
-                        deleteUseCase.execute(
-                            tracks = tracks,
-                            playlists = playlists,
-                            folders = folders
-                        )
-                    }
-                },
-                onDismiss = ::dismissDialog
-            )
             Ui.State.DialogType.Rename -> Ui.State.DialogState.Rename(
                 item = item,
                 onRename = { newName ->
@@ -742,7 +674,8 @@ class Library(
             val onArtistClick: (SpotifyArtistId) -> Unit,
             val onToggleSelection: (SelectedItem) -> Unit,
             val onShowItemDialog: (SelectedItem, DialogType) -> Unit,
-            val onPlay: (SelectedItem) -> Unit
+            val onPlay: (SelectedItem) -> Unit,
+            val onAddToQueue: (SelectedItem) -> Unit
         ) {
             class NodeState(
                 val folder: Folder? = null,
@@ -780,28 +713,6 @@ class Library(
             }
 
             sealed class DialogState {
-                class ContextMenu(
-                    val onPlay: () -> Unit,
-                    val onAddToQueue: () -> Unit,
-                    val onMove: () -> Unit,
-                    val onAddToPlaylist: () -> Unit,
-                    val onTag: () -> Unit,
-                    val onDelete: () -> Unit,
-                    val onDismiss: () -> Unit,
-                ) : DialogState()
-
-                class ItemContextMenu(
-                    val item: SelectedItem,
-                    val onPlay: () -> Unit,
-                    val onAddToQueue: () -> Unit,
-                    val onRename: () -> Unit,
-                    val onMove: () -> Unit,
-                    val onAddToPlaylist: () -> Unit,
-                    val onTag: () -> Unit,
-                    val onDelete: () -> Unit,
-                    val onDismiss: () -> Unit,
-                ) : DialogState()
-
                 class Rename(
                     val item: SelectedItem,
                     val onRename: (String) -> Unit,
@@ -865,7 +776,7 @@ class Library(
             }
 
             enum class DialogType {
-                ContextMenu, Rename, Move, AddToPlaylist, Tag, DeleteConfirmation
+                Rename, Move, AddToPlaylist, Tag, DeleteConfirmation
             }
 
             data class ContextMenuState(
@@ -918,7 +829,8 @@ class Library(
                 onArtistClick = state.onArtistClick,
                 onToggleSelection = state.onToggleSelection,
                 onShowItemDialog = state.onShowItemDialog,
-                onPlay = state.onPlay
+                onPlay = state.onPlay,
+                onAddToQueue = state.onAddToQueue
             )
 
             dialogState?.let { LibraryDialog(it) }
@@ -943,7 +855,8 @@ class Library(
             onArtistClick: (SpotifyArtistId) -> Unit,
             onToggleSelection: (SelectedItem) -> Unit,
             onShowItemDialog: (SelectedItem, State.DialogType) -> Unit,
-            onPlay: (SelectedItem) -> Unit
+            onPlay: (SelectedItem) -> Unit,
+            onAddToQueue: (SelectedItem) -> Unit
         ) {
             val _path by path.collectAsState()
             val path = remember(_path) { _path.map { it.folder } }
@@ -1027,6 +940,7 @@ class Library(
                                     ) {
                                         val ratio = 0.65f
                                         items(content.folders, { "folder#${it.id}" }) { folder ->
+                                            val selectedItem = remember(folder) { SelectedItem.Folder(folder) }
                                             FolderItem(
                                                 modifier = Modifier.aspectRatio(ratio),
                                                 folder = folder,
@@ -1039,11 +953,26 @@ class Library(
                                                     }
                                                 },
                                                 onToggleSelection = { onToggleSelection(SelectedItem.Folder(folder)) },
-                                                onPlayClick = { onPlay(SelectedItem.Folder(folder)) },
-                                                onOptionsClick = { onShowItemDialog(SelectedItem.Folder(folder), State.DialogType.ContextMenu) }
+                                                onPlay = { onPlay(selectedItem) },
+                                                contextMenuItems = listOf(
+                                                    listOf(
+                                                        MenuItem("Play", Icons.Default.PlayCircle, { onPlay(selectedItem) }),
+                                                        MenuItem("Add to queue", Icons.Default.AddToQueue, { onAddToQueue(selectedItem) })
+                                                    ),
+                                                    listOf(
+                                                        MenuItem("Add to playlist", Icons.AutoMirrored.Default.PlaylistAdd, { onShowItemDialog(selectedItem, State.DialogType.AddToPlaylist) }),
+                                                    ),
+                                                    listOf(
+                                                        MenuItem("Tag", Icons.Default.Tag, { onShowItemDialog(selectedItem, State.DialogType.Tag) }),
+                                                        MenuItem("Rename", Icons.Default.Edit, { onShowItemDialog(selectedItem, State.DialogType.Rename) }),
+                                                        MenuItem("Move", Icons.AutoMirrored.Default.DriveFileMove, { onShowItemDialog(selectedItem, State.DialogType.Move) }),
+                                                        MenuItem("Delete", Icons.Default.Delete, { onShowItemDialog(selectedItem, State.DialogType.DeleteConfirmation) }),
+                                                    )
+                                                )
                                             )
                                         }
                                         items(content.playlists, { "playlist#${it.id}" }) { playlist ->
+                                            val selectedItem = remember(playlist) { SelectedItem.Playlist(playlist) }
                                             PlaylistItem(
                                                 modifier = Modifier.aspectRatio(ratio),
                                                 playlist = playlist,
@@ -1056,11 +985,26 @@ class Library(
                                                     }
                                                 },
                                                 onToggleSelection = { onToggleSelection(SelectedItem.Playlist(playlist)) },
-                                                onPlayClick = { onPlay(SelectedItem.Playlist(playlist)) },
-                                                onOptionsClick = { onShowItemDialog(SelectedItem.Playlist(playlist), State.DialogType.ContextMenu) }
+                                                onPlay = { onPlay(SelectedItem.Playlist(playlist)) },
+                                                contextMenuItems = listOf(
+                                                    listOf(
+                                                        MenuItem("Play", Icons.Default.PlayCircle, { onPlay(selectedItem) }),
+                                                        MenuItem("Add to queue", Icons.Default.AddToQueue, { onAddToQueue(selectedItem) }),
+                                                    ),
+                                                    listOf(
+                                                        MenuItem("Add to playlist", Icons.AutoMirrored.Default.PlaylistAdd, { onShowItemDialog(selectedItem, State.DialogType.AddToPlaylist) }),
+                                                    ),
+                                                    listOf(
+                                                        MenuItem("Tag", Icons.Default.Tag, { onShowItemDialog(selectedItem, State.DialogType.Tag) }),
+                                                        MenuItem("Rename", Icons.Default.Edit, { onShowItemDialog(selectedItem, State.DialogType.Rename) }),
+                                                        MenuItem("Move", Icons.AutoMirrored.Default.DriveFileMove, { onShowItemDialog(selectedItem, State.DialogType.Move) }),
+                                                        MenuItem("Delete", Icons.Default.Delete, { onShowItemDialog(selectedItem, State.DialogType.DeleteConfirmation) }),
+                                                    )
+                                                )
                                             )
                                         }
                                         items(content.tracks, { "track#${it.id}" }) { track ->
+                                            val selectedItem = remember(track) { SelectedItem.Track(track) }
                                             TrackItem(
                                                 modifier = Modifier.aspectRatio(ratio),
                                                 track = track,
@@ -1074,7 +1018,20 @@ class Library(
                                                 },
                                                 onToggleSelection = { onToggleSelection(SelectedItem.Track(track)) },
                                                 onArtistClick = onArtistClick,
-                                                onOptionsClick = { onShowItemDialog(SelectedItem.Track(track), State.DialogType.ContextMenu) }
+                                                contextMenuItems = listOf(
+                                                    listOf(
+                                                        MenuItem("Play", Icons.Default.PlayCircle, { onPlay(selectedItem) }),
+                                                        MenuItem("Add to queue", Icons.Default.AddToQueue, { onAddToQueue(selectedItem) }),
+                                                    ),
+                                                    listOf(
+                                                        MenuItem("Add to playlist", Icons.AutoMirrored.Default.PlaylistAdd, { onShowItemDialog(selectedItem, State.DialogType.AddToPlaylist) }),
+                                                    ),
+                                                    listOf(
+                                                        MenuItem("Tag", Icons.Default.Tag, { onShowItemDialog(selectedItem, State.DialogType.Tag) }),
+                                                        MenuItem("Move", Icons.AutoMirrored.Default.DriveFileMove, { onShowItemDialog(selectedItem, State.DialogType.Move) }),
+                                                        MenuItem("Delete", Icons.Default.Delete, { onShowItemDialog(selectedItem, State.DialogType.DeleteConfirmation) }),
+                                                    )
+                                                )
                                             )
                                         }
                                     }
@@ -1255,26 +1212,6 @@ class Library(
         @Composable
         private fun LibraryDialog(state: State.DialogState) {
             when (state) {
-                is State.DialogState.ContextMenu -> ContextMenuDialog(
-                    onPlay = state.onPlay,
-                    onAddToQueue = state.onAddToQueue,
-                    onMove = state.onMove,
-                    onAddToPlaylist = state.onAddToPlaylist,
-                    onTag = state.onTag,
-                    onDelete = state.onDelete,
-                    onDismiss = state.onDismiss
-                )
-                is State.DialogState.ItemContextMenu -> ItemContextMenuDialog(
-                    item = state.item,
-                    onPlay = state.onPlay,
-                    onAddToQueue = state.onAddToQueue,
-                    onRename = state.onRename,
-                    onMove = state.onMove,
-                    onAddToPlaylist = state.onAddToPlaylist,
-                    onTag = state.onTag,
-                    onDelete = state.onDelete,
-                    onDismiss = state.onDismiss,
-                )
                 is State.DialogState.Rename -> {
                     val item = state.item
                     val (itemType, name) = when (item) {
@@ -1334,150 +1271,6 @@ class Library(
                     onDismissRequest = state.onDismiss,
                     onYesClick = state.onDelete
                 )
-            }
-        }
-
-        @Composable
-        private fun ContextMenuDialog(
-            onPlay: () -> Unit,
-            onAddToQueue: () -> Unit,
-            onMove: () -> Unit,
-            onAddToPlaylist: () -> Unit,
-            onTag: () -> Unit,
-            onDelete: () -> Unit,
-            onDismiss: () -> Unit,
-        ) {
-            Dialog(onDismissRequest = onDismiss) {
-                Surface(
-                    modifier = Modifier.width(400.dp),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surfaceContainer
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Top
-                    ) {
-                        Option(
-                            label = "Play",
-                            icon = Icons.Default.PlayCircle,
-                            onClick = onPlay
-                        )
-                        Option(
-                            label = "Move",
-                            icon = Icons.AutoMirrored.Default.DriveFileMove,
-                            onClick = onMove
-                        )
-                        Option(
-                            label = "Add to playlist",
-                            icon = Icons.AutoMirrored.Default.PlaylistAdd,
-                            onClick = onAddToPlaylist
-                        )
-                        Option(
-                            label = "Tag",
-                            icon = Icons.Default.Tag,
-                            onClick = onTag
-                        )
-                        Option(
-                            label = "Add to queue",
-                            icon = Icons.Default.AddToQueue,
-                            onClick = onAddToQueue
-                        )
-                        Option(
-                            label = "Delete",
-                            icon = Icons.Default.Delete,
-                            onClick = onDelete
-                        )
-                        Box(Modifier)
-                    }
-                }
-            }
-        }
-
-        @Composable
-        private fun ItemContextMenuDialog(
-            item: SelectedItem,
-            onPlay: () -> Unit,
-            onAddToQueue: () -> Unit,
-            onRename: () -> Unit,
-            onMove: () -> Unit,
-            onAddToPlaylist: () -> Unit,
-            onTag: () -> Unit,
-            onDelete: () -> Unit,
-            onDismiss: () -> Unit,
-        ) {
-            Dialog(onDismissRequest = onDismiss) {
-                Surface(
-                    modifier = Modifier.width(400.dp),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surfaceContainer
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Top
-                    ) {
-                        val (name, image) = when (item) {
-                            is SelectedItem.Track -> item.value.name to item.value.image
-                            is SelectedItem.Playlist -> item.value.name to item.value.image
-                            is SelectedItem.Folder -> item.value.name to null
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Image(
-                                modifier = Modifier.size(64.dp),
-                                id = image
-                            )
-                            Text(
-                                text = name,
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        Option(
-                            label = "Play",
-                            icon = Icons.Default.PlayCircle,
-                            onClick = onPlay
-                        )
-                        if (item is SelectedItem.Playlist || item is SelectedItem.Folder) {
-                            Option(
-                                label = "Rename",
-                                icon = Icons.Default.Edit,
-                                onClick = onRename
-                            )
-                        }
-                        Option(
-                            label = "Move",
-                            icon = Icons.AutoMirrored.Default.DriveFileMove,
-                            onClick = onMove
-                        )
-                        Option(
-                            label = "Add to playlist",
-                            icon = Icons.AutoMirrored.Default.PlaylistAdd,
-                            onClick = onAddToPlaylist
-                        )
-                        Option(
-                            label = "Tag",
-                            icon = Icons.Default.Tag,
-                            onClick = onTag
-                        )
-                        Option(
-                            label = "Add to queue",
-                            icon = Icons.Default.AddToQueue,
-                            onClick = onAddToQueue
-                        )
-                        Option(
-                            label = "Delete",
-                            icon = Icons.Default.Delete,
-                            onClick = onDelete,
-                        )
-                        Box(Modifier)
-                    }
-                }
             }
         }
 
@@ -1878,8 +1671,8 @@ class Library(
             isSelected: Boolean,
             onClick: () -> Unit,
             onToggleSelection: () -> Unit,
-            onPlayClick: () -> Unit,
-            onOptionsClick: () -> Unit
+            onPlay: () -> Unit,
+            contextMenuItems: List<List<MenuItem>>,
         ) {
             val interactionSource = remember { MutableInteractionSource() }
             val isHovered by interactionSource.collectIsHoveredAsState()
@@ -1890,7 +1683,8 @@ class Library(
                 onClick = onClick,
                 onLongClick = onToggleSelection,
                 isSelected = isSelected,
-                interactionSource = interactionSource
+                interactionSource = interactionSource,
+                contextMenuItems = contextMenuItems
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -1926,11 +1720,12 @@ class Library(
                             ) {
                                 IconButton(
                                     content = { Icon(Icons.Default.PlayCircle, null) },
-                                    onClick = onPlayClick
+                                    onClick = onPlay
                                 )
                                 IconButton(
+                                    modifier = Modifier.menuAnchor(),
                                     content = { Icon(Icons.Default.MoreVert, null) },
-                                    onClick = onOptionsClick
+                                    onClick = ::openMenuAtAnchor
                                 )
                             }
                         }
@@ -1958,8 +1753,8 @@ class Library(
             isSelected: Boolean,
             onClick: () -> Unit,
             onToggleSelection: () -> Unit,
-            onPlayClick: () -> Unit,
-            onOptionsClick: () -> Unit
+            onPlay: () -> Unit,
+            contextMenuItems: List<List<MenuItem>>,
         ) {
             val interactionSource = remember { MutableInteractionSource() }
             val isHovered by interactionSource.collectIsHoveredAsState()
@@ -1970,7 +1765,8 @@ class Library(
                 onClick = onClick,
                 onLongClick = onToggleSelection,
                 isSelected = isSelected,
-                interactionSource = interactionSource
+                interactionSource = interactionSource,
+                contextMenuItems = contextMenuItems
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -2006,11 +1802,12 @@ class Library(
                             ) {
                                 IconButton(
                                     content = { Icon(Icons.Default.PlayCircle, null) },
-                                    onClick = onPlayClick
+                                    onClick = onPlay
                                 )
                                 IconButton(
+                                    modifier = Modifier.menuAnchor(),
                                     content = { Icon(Icons.Default.MoreVert, null) },
-                                    onClick = onOptionsClick
+                                    onClick = ::openMenuAtAnchor
                                 )
                             }
                         }
@@ -2039,7 +1836,7 @@ class Library(
             onClick: () -> Unit,
             onToggleSelection: () -> Unit,
             onArtistClick: (SpotifyArtistId) -> Unit,
-            onOptionsClick: () -> Unit
+            contextMenuItems: List<List<MenuItem>>,
         ) {
             val interactionSource = remember { MutableInteractionSource() }
             val isHovered by interactionSource.collectIsHoveredAsState()
@@ -2049,7 +1846,8 @@ class Library(
                 onClick = onClick,
                 onLongClick = onToggleSelection,
                 isSelected = isSelected,
-                interactionSource = interactionSource
+                interactionSource = interactionSource,
+                contextMenuItems = contextMenuItems
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -2112,7 +1910,7 @@ class Library(
                                     }
                                     IconButton(
                                         content = { Icon(Icons.Default.MoreVert, null) },
-                                        onClick = onOptionsClick
+                                        onClick = ::openMenuAtAnchor
                                     )
                                 }
                             },

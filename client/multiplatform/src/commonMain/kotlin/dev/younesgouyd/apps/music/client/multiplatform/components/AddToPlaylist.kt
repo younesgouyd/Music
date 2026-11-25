@@ -20,6 +20,8 @@ import dev.younesgouyd.apps.music.client.multiplatform.components.util.PageSize
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.PlaylistRepo
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.AddToPlaylistUseCase
 import dev.younesgouyd.apps.music.common.models.*
+import dev.younesgouyd.apps.music.common.models.pagination.Offset
+import dev.younesgouyd.apps.music.common.models.pagination.Page
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.Item
 import kotlinx.coroutines.cancel
@@ -51,7 +53,7 @@ class AddToPlaylist(
                 scope = coroutineScope,
                 loader = { offset: Offset.Id<PlaylistId>, pageSize: PageSize ->
                     val rows = playlistRepo.getAll(pageSize, offset)
-                    LazilyLoadedItems.Page(
+                    Page(
                         nextOffset = rows.lastOrNull()?.id?.let { Offset.Id(it) },
                         items = rows.map { Ui.State.PlaylistOption(it.id, it.name, null) }
                     )

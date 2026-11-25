@@ -25,7 +25,16 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Deb, TargetFormat.Exe)
-            packageName = "dev.younesgouyd.apps.music.client.jvm"
+            packageName = "YounesMusic"
+            linux {
+                packageName = "dev.younesgouyd.apps.music.client.jvm"
+                shortcut = true
+            }
+            windows {
+                upgradeUuid = "118c8f19-14dd-4d77-8c06-a80b706b594c"
+                shortcut = true
+                menu = true
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.data.Server
 import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.models.datamodels.PlaylistTrack
 import dev.younesgouyd.apps.music.common.models.datamodels.TrackRelation
+import dev.younesgouyd.apps.music.common.models.pagination.Offset
 import kotlinx.coroutines.flow.Flow
 
 class TrackRepo(
@@ -11,38 +12,6 @@ class TrackRepo(
 ) {
     fun get(id: TrackId): Flow<TrackRelation?> {
         return server.observe(Rpc.ToServer.Track.Get(id))
-    }
-
-    suspend fun search(
-        nameQuery: String,
-        limit: Int,
-        offset: Offset.Id<TrackId>
-    ): List<TrackRelation> {
-        return server.get(
-            Rpc.ToServer.Track.Search(
-                nameQuery = nameQuery,
-                limit = limit,
-                offset = offset
-            )
-        )
-    }
-
-    suspend fun searchWithTags(
-        nameQuery: String,
-        tags: List<TagId>,
-        includeUntagged: Boolean,
-        limit: Int,
-        offset: Offset.Id<TrackId>
-    ): List<TrackRelation> {
-        return server.get(
-            Rpc.ToServer.Track.SearchWithTags(
-                nameQuery = nameQuery,
-                tags = tags,
-                includeUntagged = includeUntagged,
-                limit = limit,
-                offset = offset
-            )
-        )
     }
 
     fun searchFolder(
