@@ -18,19 +18,23 @@ import androidx.compose.ui.window.Dialog
 import dev.younesgouyd.apps.music.client.multiplatform.MediaController
 import dev.younesgouyd.apps.music.client.multiplatform.MediaControllerState
 import dev.younesgouyd.apps.music.client.multiplatform.components.util.*
+import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.SettingRepo
 import dev.younesgouyd.apps.music.common.models.*
 import dev.younesgouyd.apps.music.common.models.datamodels.Client
 import dev.younesgouyd.apps.music.common.models.datamodels.QueueItem
+import dev.younesgouyd.apps.music.common.models.datamodels.Setting
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.DeviceIcon
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class Player(
     mediaController: MediaController,
+    settingRepo: SettingRepo,
     showTack: (TrackId) -> Unit,
     showAlbum: (SpotifyAlbumId) -> Unit,
     showArtist: (SpotifyArtistId) -> Unit,
@@ -39,6 +43,27 @@ class Player(
     override val title: String = "Player"
     private var windowSizeClass: WindowWidthSizeClass? = null
     private val state: StateFlow<Ui.State>
+
+    private val darkMode: StateFlow<Setting.DarkMode.Values> = settingRepo
+        .get(Setting.DarkMode.NAME)
+        .map { (it as Setting.DarkMode).value }
+        .stateIn(coroutineScope, SharingStarted.Eagerly, Setting.DarkMode.default().value)
+    private val themeFromPlaying: StateFlow<Boolean> = settingRepo
+        .get(Setting.ThemeFromPlaying.NAME)
+        .map { (it as Setting.ThemeFromPlaying).value }
+        .stateIn(coroutineScope, SharingStarted.Eagerly, Setting.ThemeFromPlaying.default().value)
+    private val paletteStyle: StateFlow<Setting.PaletteStyle.Values> = settingRepo
+        .get(Setting.PaletteStyle.NAME)
+        .map { (it as Setting.PaletteStyle).value }
+        .stateIn(coroutineScope, SharingStarted.Eagerly, Setting.PaletteStyle.default().value)
+    private val colorSpec: StateFlow<Setting.ColorSpec.Values> = settingRepo
+        .get(Setting.ColorSpec.NAME)
+        .map { (it as Setting.ColorSpec).value }
+        .stateIn(coroutineScope, SharingStarted.Eagerly, Setting.ColorSpec.default().value)
+    private val isAmoled: StateFlow<Boolean> = settingRepo
+        .get(Setting.IsAmoled.NAME)
+        .map { (it as Setting.IsAmoled).value }
+        .stateIn(coroutineScope, SharingStarted.Eagerly, Setting.IsAmoled.default().value)
 
     init {
         val isTrackVisible = MutableStateFlow(true)
@@ -57,10 +82,14 @@ class Player(
                 is MediaControllerState.Loading -> Ui.State.Loading
                 is MediaControllerState.Available -> Ui.State.Available(
                     clients = mediaControllerState.clients,
+                    darkMode = darkMode,
+                    themeFromPlaying = themeFromPlaying,
+                    paletteStyle = paletteStyle,
+                    colorSpec = colorSpec,
+                    isAmoled = isAmoled,
                     selectedClient = mediaControllerState.selectedClient,
                     enabled = mediaControllerState.enabled,
                     isPlaying = isPlaying,
-                    onSelectClient = mediaController::selectClient,
                     track = mediaControllerState.currentItem,
                     isTrackVisible = isTrackVisible.asStateFlow(),
                     isQueueVisible = isQueueVisible.asStateFlow(),
@@ -91,6 +120,8 @@ class Player(
                             null -> TODO()
                         }
                     },
+                    onSelectClient = mediaController::selectClient,
+                    onSetSetting = { coroutineScope.launch { settingRepo.set(it) } },
                     onTrackNameClick = showTack,
                     onAlbumClick = showAlbum,
                     onArtistClick = showArtist,
@@ -128,10 +159,14 @@ class Player(
 
             class Available(
                 val clients: StateFlow<List<Client>>,
+                val darkMode: StateFlow<Setting.DarkMode.Values>,
+                val themeFromPlaying: StateFlow<Boolean>,
+                val paletteStyle: StateFlow<Setting.PaletteStyle.Values>,
+                val colorSpec: StateFlow<Setting.ColorSpec.Values>,
+                val isAmoled: StateFlow<Boolean>,
                 val selectedClient: StateFlow<ClientId?>,
                 val enabled: StateFlow<Boolean>,
                 val isPlaying: StateFlow<Boolean>,
-                val onSelectClient: (ClientId) -> Unit,
                 val track: StateFlow<QueueItem?>,
                 val isTrackVisible: StateFlow<Boolean>,
                 val isQueueVisible: StateFlow<Boolean>,
@@ -140,6 +175,8 @@ class Player(
                 val queue: @Composable (Modifier) -> Unit,
                 val onToggleQueueVisibility: () -> Unit,
                 val onToggleTrackVisibility: () -> Unit,
+                val onSelectClient: (ClientId) -> Unit,
+                val onSetSetting: (Setting) -> Unit,
                 val onTrackNameClick: (TrackId) -> Unit,
                 val onAlbumClick: (SpotifyAlbumId) -> Unit,
                 val onArtistClick: (SpotifyArtistId) -> Unit,
@@ -317,7 +354,7 @@ class Player(
                     shape = MaterialTheme.shapes.large
                 ) {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         contentPadding = PaddingValues(12.dp)
@@ -359,6 +396,208 @@ class Player(
                     }
                 }
             }
+
+            @Composable
+            fun ThemeSettings(
+                darkMode: StateFlow<Setting.DarkMode.Values>,
+                themeFromPlaying: StateFlow<Boolean>,
+                paletteStyle: StateFlow<Setting.PaletteStyle.Values>,
+                colorSpec: StateFlow<Setting.ColorSpec.Values>,
+                isAmoled: StateFlow<Boolean>,
+                onSetSetting: (Setting) -> Unit
+            ) {
+                val themeFromPlaying by themeFromPlaying.collectAsState()
+                val isAmoled by isAmoled.collectAsState()
+
+                Surface(
+                    modifier = Modifier.width(400.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    shape = MaterialTheme.shapes.large
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Theme Settings",
+                            style = MaterialTheme.typography.headlineMedium
+                        )
+                        DarkModeField(
+                            modifier = Modifier.fillMaxWidth(),
+                            value = darkMode,
+                            onValueChange = { onSetSetting(Setting.DarkMode(it)) }
+                        )
+                        PaletteStyleField(
+                            modifier = Modifier.fillMaxWidth(),
+                            value = paletteStyle,
+                            onValueChange = { onSetSetting(Setting.PaletteStyle(it)) }
+                        )
+                        ColorSpecField(
+                            modifier = Modifier.fillMaxWidth(),
+                            value = colorSpec,
+                            onValueChange = { onSetSetting(Setting.ColorSpec(it)) }
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Derive From Playing Track")
+                            Switch(
+                                checked = themeFromPlaying,
+                                onCheckedChange = { onSetSetting(Setting.ThemeFromPlaying(it)) }
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("AMOLED")
+                            Switch(
+                                checked = isAmoled,
+                                onCheckedChange = { onSetSetting(Setting.IsAmoled(it)) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            @Composable
+            private fun DarkModeField(
+                modifier: Modifier,
+                value: StateFlow<Setting.DarkMode.Values>,
+                onValueChange: (Setting.DarkMode.Values) -> Unit
+            ) {
+                val value by value.collectAsState()
+                var expanded by remember { mutableStateOf(false) }
+
+                ExposedDropdownMenuBox(
+                    modifier = modifier,
+                    expanded = expanded,
+                    onExpandedChange = { expanded = it }
+                ) {
+                    TextField(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                        label = { Text("Dark Mode") },
+                        value = value.label,
+                        onValueChange = {},
+                        readOnly = true,
+                        singleLine = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                        colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        containerColor = MenuDefaults.groupStandardContainerColor,
+                        shape = MenuDefaults.standaloneGroupShape
+                    ) {
+                        Setting.DarkMode.Values.entries.forEachIndexed { index, option ->
+                            SelectableDropdownMenuItem(
+                                text = { Text(option.label) },
+                                selected = option == value,
+                                onClick = { onValueChange(option) },
+                                shapes = MenuDefaults.itemShape(index, Setting.DarkMode.Values.entries.size),
+                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                            )
+                        }
+                    }
+                }
+            }
+
+            @Composable
+            private fun PaletteStyleField(
+                modifier: Modifier,
+                value: StateFlow<Setting.PaletteStyle.Values>,
+                onValueChange: (Setting.PaletteStyle.Values) -> Unit
+            ) {
+                val value by value.collectAsState()
+                var expanded by remember { mutableStateOf(false) }
+
+                ExposedDropdownMenuBox(
+                    modifier = modifier,
+                    expanded = expanded,
+                    onExpandedChange = { expanded = it }
+                ) {
+                    TextField(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                        label = { Text("Palette Style") },
+                        value = value.name + if (value == Setting.PaletteStyle.defaultValue) " (Default)" else "",
+                        onValueChange = {},
+                        readOnly = true,
+                        singleLine = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                        colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        containerColor = MenuDefaults.groupStandardContainerColor,
+                        shape = MenuDefaults.standaloneGroupShape
+                    ) {
+                        Setting.PaletteStyle.Values.entries.forEachIndexed { index, option ->
+                            SelectableDropdownMenuItem(
+                                text = { Text(option.name + if (option == Setting.PaletteStyle.defaultValue) " (Default)" else "") },
+                                selected = option == value,
+                                onClick = { onValueChange(option) },
+                                shapes = MenuDefaults.itemShape(index, Setting.PaletteStyle.Values.entries.size),
+                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                            )
+                        }
+                    }
+                }
+            }
+
+            @Composable
+            private fun ColorSpecField(
+                modifier: Modifier,
+                value: StateFlow<Setting.ColorSpec.Values>,
+                onValueChange: (Setting.ColorSpec.Values) -> Unit
+            ) {
+                val value by value.collectAsState()
+                var expanded by remember { mutableStateOf(false) }
+
+                ExposedDropdownMenuBox(
+                    modifier = modifier,
+                    expanded = expanded,
+                    onExpandedChange = { expanded = it }
+                ) {
+                    TextField(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                        label = { Text("Material Color Spec") },
+                        value = value.name + if (value == Setting.ColorSpec.defaultValue) " (Default)" else "",
+                        onValueChange = {},
+                        readOnly = true,
+                        singleLine = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                        colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        containerColor = MenuDefaults.groupStandardContainerColor,
+                        shape = MenuDefaults.standaloneGroupShape
+                    ) {
+                        Setting.ColorSpec.Values.entries.forEachIndexed { index, option ->
+                            SelectableDropdownMenuItem(
+                                text = { Text(option.name + if (option == Setting.ColorSpec.defaultValue) " (Default)" else "") },
+                                selected = option == value,
+                                onClick = { onValueChange(option) },
+                                shapes = MenuDefaults.itemShape(index, Setting.ColorSpec.Values.entries.size),
+                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         object Wide {
@@ -376,6 +615,12 @@ class Player(
                 Main(
                     modifier = modifier,
                     clients = state.clients,
+                    darkMode = state.darkMode,
+                    themeFromPlaying = state.themeFromPlaying,
+                    paletteStyle = state.paletteStyle,
+                    colorSpec = state.colorSpec,
+                    isAmoled = state.isAmoled,
+                    onSetSetting = state.onSetSetting,
                     selectedClient = state.selectedClient,
                     enabled = state.enabled,
                     track = state.track,
@@ -404,6 +649,12 @@ class Player(
             private fun Main(
                 modifier: Modifier,
                 clients: StateFlow<List<Client>>,
+                darkMode: StateFlow<Setting.DarkMode.Values>,
+                themeFromPlaying: StateFlow<Boolean>,
+                paletteStyle: StateFlow<Setting.PaletteStyle.Values>,
+                colorSpec: StateFlow<Setting.ColorSpec.Values>,
+                isAmoled: StateFlow<Boolean>,
+                onSetSetting: (Setting) -> Unit,
                 selectedClient: StateFlow<ClientId?>,
                 enabled: StateFlow<Boolean>,
                 track: StateFlow<QueueItem?>,
@@ -430,6 +681,7 @@ class Player(
                 val isQueueVisible by isQueueVisible.collectAsState()
                 val isTrackVisible by isTrackVisible.collectAsState()
                 var isClientsVisible by remember { mutableStateOf(false) }
+                var isThemeSettingsVisible by remember { mutableStateOf(false) }
 
                 Surface(
                     modifier = modifier,
@@ -470,6 +722,10 @@ class Player(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             IconButton(
+                                onClick = { isThemeSettingsVisible = true },
+                                content = { Icon(Icons.Default.ColorLens, null) }
+                            )
+                            IconButton(
                                 onClick = { isClientsVisible = true },
                                 content = { Icon(Icons.Default.Devices, null) }
                             )
@@ -504,11 +760,24 @@ class Player(
                 if (isClientsVisible) {
                     Dialog(onDismissRequest = { isClientsVisible = false }) {
                         Common.Clients(
-                            modifier = modifier.size(width = 500.dp, height = 600.dp),
+                            modifier = modifier.width(500.dp),
                             enabled = enabled,
                             clients = clients,
                             selectedClient = selectedClient,
                             onSelectClient = onSelectClient,
+                        )
+                    }
+                }
+
+                if (isThemeSettingsVisible) {
+                    Dialog(onDismissRequest = { isThemeSettingsVisible = false }) {
+                        Common.ThemeSettings(
+                            darkMode = darkMode,
+                            themeFromPlaying = themeFromPlaying,
+                            paletteStyle = paletteStyle,
+                            colorSpec = colorSpec,
+                            isAmoled = isAmoled,
+                            onSetSetting = onSetSetting
                         )
                     }
                 }
@@ -584,6 +853,12 @@ class Player(
                 Main(
                     modifier = modifier,
                     clients = state.clients,
+                    darkMode = state.darkMode,
+                    themeFromPlaying = state.themeFromPlaying,
+                    paletteStyle = state.paletteStyle,
+                    colorSpec = state.colorSpec,
+                    isAmoled = state.isAmoled,
+                    onSetSetting = state.onSetSetting,
                     selectedClient = state.selectedClient,
                     enabled = state.enabled,
                     track = state.track,
@@ -612,6 +887,12 @@ class Player(
             private fun Main(
                 modifier: Modifier,
                 clients: StateFlow<List<Client>>,
+                darkMode: StateFlow<Setting.DarkMode.Values>,
+                themeFromPlaying: StateFlow<Boolean>,
+                paletteStyle: StateFlow<Setting.PaletteStyle.Values>,
+                colorSpec: StateFlow<Setting.ColorSpec.Values>,
+                isAmoled: StateFlow<Boolean>,
+                onSetSetting: (Setting) -> Unit,
                 selectedClient: StateFlow<ClientId?>,
                 enabled: StateFlow<Boolean>,
                 track: StateFlow<QueueItem?>,
@@ -638,6 +919,7 @@ class Player(
                 val isQueueVisible by isQueueVisible.collectAsState()
                 val isTrackVisible by isTrackVisible.collectAsState()
                 var isClientsVisible by remember { mutableStateOf(false) }
+                var isThemeSettingsVisible by remember { mutableStateOf(false) }
 
                 Surface(
                     modifier = modifier,
@@ -669,6 +951,10 @@ class Player(
                             horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = Alignment.End),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            IconButton(
+                                onClick = { isThemeSettingsVisible = true },
+                                content = { Icon(Icons.Default.ColorLens, null) }
+                            )
                             IconButton(
                                 onClick = { isClientsVisible = true },
                                 content = { Icon(Icons.Default.Devices, null) }
@@ -709,6 +995,19 @@ class Player(
                             clients = clients,
                             selectedClient = selectedClient,
                             onSelectClient = onSelectClient,
+                        )
+                    }
+                }
+
+                if (isThemeSettingsVisible) {
+                    Dialog(onDismissRequest = { isThemeSettingsVisible = false }) {
+                        Common.ThemeSettings(
+                            darkMode = darkMode,
+                            themeFromPlaying = themeFromPlaying,
+                            paletteStyle = paletteStyle,
+                            colorSpec = colorSpec,
+                            isAmoled = isAmoled,
+                            onSetSetting = onSetSetting
                         )
                     }
                 }

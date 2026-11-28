@@ -91,7 +91,7 @@ sealed class Rpc {
                 val folders: Set<FolderId>,
                 val folder: FolderId?
             ) : UseCase(), ResultType.Data.Static<Boolean> {
-                override val serializer: KSerializer<Boolean> = Boolean.serializer()
+                @Transient override val serializer: KSerializer<Boolean> = Boolean.serializer()
             }
 
             @Serializable
@@ -378,13 +378,15 @@ sealed class Rpc {
         @Serializable
         sealed class Setting : ToServer() {
             @Serializable
-            data object GetDarkTheme : Setting(), ResultType.Data.Dynamic<SettingModel?> {
-                @Transient override val serializer: KSerializer<SettingModel?> = SettingModel.serializer().nullable
+            data class Get(
+                val name: String
+            ) : Setting(), ResultType.Data.Dynamic<SettingModel> {
+                @Transient override val serializer: KSerializer<SettingModel> = SettingModel.serializer()
             }
 
             @Serializable
-            data class UpdateDarkTheme(
-                val theme: DarkThemeOptions
+            data class Set(
+                val setting: SettingModel
             ) : Setting(), ResultType.Action
         }
 

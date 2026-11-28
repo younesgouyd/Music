@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.kmpalette.loader.ByteArrayLoader
 import com.materialkolor.PaletteStyle
+import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.material3.rememberDynamicColorScheme
 import com.materialkolor.palette.rememberThemeColor
 import dev.younesgouyd.apps.music.client.multiplatform.ImageLoader
@@ -23,7 +24,7 @@ import dev.younesgouyd.apps.music.client.multiplatform.MediaControllerState
 import dev.younesgouyd.apps.music.client.multiplatform.data.RepoStore
 import dev.younesgouyd.apps.music.client.multiplatform.data.Server
 import dev.younesgouyd.apps.music.client.multiplatform.usecases.*
-import dev.younesgouyd.apps.music.common.models.DarkThemeOptions
+import dev.younesgouyd.apps.music.common.models.datamodels.Setting
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.YounesMusicTheme
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -46,11 +47,27 @@ class Main(
     private val mediaController = MediaController(server)
     private val imageLoader = ImageLoader(server)
 
-    private val darkTheme: StateFlow<DarkThemeOptions> = run {
-        repoStore.settingRepo.getDarkTheme()
-            .map { it?.value?.let { DarkThemeOptions.valueOf(it) } ?: DarkThemeOptions.SystemDefault }
-            .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), DarkThemeOptions.SystemDefault)
-    }
+    private val darkMode: StateFlow<Setting.DarkMode.Values> = repoStore.settingRepo
+        .get(Setting.DarkMode.NAME)
+        .map { (it as Setting.DarkMode).value }
+        .stateIn(coroutineScope, SharingStarted.Eagerly, Setting.DarkMode.default().value)
+    private val themeFromPlaying: StateFlow<Boolean> = repoStore.settingRepo
+        .get(Setting.ThemeFromPlaying.NAME)
+        .map { (it as Setting.ThemeFromPlaying).value }
+        .stateIn(coroutineScope, SharingStarted.Eagerly, Setting.ThemeFromPlaying.default().value)
+    private val paletteStyle: StateFlow<Setting.PaletteStyle.Values> = repoStore.settingRepo
+        .get(Setting.PaletteStyle.NAME)
+        .map { (it as Setting.PaletteStyle).value }
+        .stateIn(coroutineScope, SharingStarted.Eagerly, Setting.PaletteStyle.default().value)
+    private val colorSpec: StateFlow<Setting.ColorSpec.Values> = repoStore.settingRepo
+        .get(Setting.ColorSpec.NAME)
+        .map { (it as Setting.ColorSpec).value }
+        .stateIn(coroutineScope, SharingStarted.Eagerly, Setting.ColorSpec.default().value)
+    private val isAmoled: StateFlow<Boolean> = repoStore.settingRepo
+        .get(Setting.IsAmoled.NAME)
+        .map { (it as Setting.IsAmoled).value }
+        .stateIn(coroutineScope, SharingStarted.Eagerly, Setting.IsAmoled.default().value)
+
     @OptIn(ExperimentalCoroutinesApi::class)
     private val currentAlbumImage: StateFlow<ByteArray?> = mediaController.state.flatMapLatest {
         when (it) {
@@ -93,6 +110,7 @@ class Main(
     )
     private val player: Component = Player(
         mediaController = mediaController,
+        settingRepo = repoStore.settingRepo,
         showTack = {
             mainComponent.value = navigationHost
             navigationHost.navigateTo(NavigationHost.Destination.TrackDetails(it))
@@ -116,12 +134,14 @@ class Main(
 
     @Composable
     override fun show(modifier: Modifier) {
-        val darkTheme by darkTheme.collectAsState()
-
         CompositionLocalProvider(LocalImageLoader provides imageLoader) {
             Ui.Main(
                 modifier = modifier,
-                darkTheme = darkTheme,
+                darkMode = darkMode,
+                themeFromPlaying = themeFromPlaying,
+                paletteStyle = paletteStyle,
+                colorSpec = colorSpec,
+                isAmoled = isAmoled,
                 mainComponent = mainComponent,
                 player = player,
                 miniPlayer = miniPlayer,
@@ -199,7 +219,11 @@ class Main(
         @Composable
         fun Main(
             modifier: Modifier,
-            darkTheme: DarkThemeOptions,
+            darkMode: StateFlow<Setting.DarkMode.Values>,
+            themeFromPlaying: StateFlow<Boolean>,
+            paletteStyle: StateFlow<Setting.PaletteStyle.Values>,
+            colorSpec: StateFlow<Setting.ColorSpec.Values>,
+            isAmoled: StateFlow<Boolean>,
             mainComponent: StateFlow<Component>,
             player: Component,
             miniPlayer: Component,
@@ -216,7 +240,14 @@ class Main(
             val currentAlbumImage by currentAlbumImage.collectAsState()
 
             YounesMusicTheme(
-                colorScheme = createImageColorScheme(currentAlbumImage, darkTheme)
+                colorScheme = createImageColorScheme(
+                    imageBytes = currentAlbumImage,
+                    darkMode = darkMode,
+                    themeFromPlaying = themeFromPlaying,
+                    paletteStyle = paletteStyle,
+                    colorSpec = colorSpec,
+                    isAmoled = isAmoled
+                )
             ) {
                 NavigationSuiteScaffold(
                     modifier = modifier,
@@ -277,30 +308,44 @@ class Main(
         @Composable
         private fun createImageColorScheme(
             imageBytes: ByteArray?,
-            isDark: DarkThemeOptions
+            darkMode: StateFlow<Setting.DarkMode.Values>,
+            themeFromPlaying: StateFlow<Boolean>,
+            paletteStyle: StateFlow<Setting.PaletteStyle.Values>,
+            colorSpec: StateFlow<Setting.ColorSpec.Values>,
+            isAmoled: StateFlow<Boolean>,
         ): ColorScheme {
+            val darkModeSetting by darkMode.collectAsState()
+            val themeFromPlaying by themeFromPlaying.collectAsState()
+            val paletteStyle by paletteStyle.collectAsState()
+            val colorSpec by colorSpec.collectAsState()
+            val isAmoled by isAmoled.collectAsState()
+
             val systemDark = isSystemInDarkTheme()
-            val darkMode = remember(isDark, systemDark) {
-                when (isDark) {
-                    DarkThemeOptions.SystemDefault -> systemDark
-                    DarkThemeOptions.Disabled -> false
-                    DarkThemeOptions.Enabled -> true
+            val darkMode = remember(darkModeSetting, systemDark) {
+                when (darkModeSetting) {
+                    Setting.DarkMode.Values.SystemDefault -> systemDark
+                    Setting.DarkMode.Values.Disabled -> false
+                    Setting.DarkMode.Values.Enabled -> true
                 }
             }
 
             val fallbackScheme = if (darkMode) darkColorScheme() else expressiveLightColorScheme()
-            val bytes = imageBytes ?: return fallbackScheme
 
-            val seedColor = rememberThemeColor(
-                loader = ByteArrayLoader,
-                input = bytes,
-                fallback = fallbackScheme.primary
-            )
+            val seedColor = if (themeFromPlaying && imageBytes != null) {
+                rememberThemeColor(
+                    loader = ByteArrayLoader,
+                    input = imageBytes,
+                    fallback = fallbackScheme.primary,
+                    filter = false
+                )
+            } else fallbackScheme.primary
 
             return rememberDynamicColorScheme(
                 seedColor = seedColor,
                 isDark = darkMode,
-                style = PaletteStyle.Expressive
+                isAmoled = isAmoled,
+                style = PaletteStyle.fromName(paletteStyle.name),
+                specVersion = ColorSpec.SpecVersion.valueOf(colorSpec.name)
             )
         }
     }

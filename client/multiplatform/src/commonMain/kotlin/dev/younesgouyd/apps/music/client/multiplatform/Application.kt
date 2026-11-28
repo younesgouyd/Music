@@ -66,7 +66,6 @@ abstract class Application(appDir: File) {
         )
     )
     private val tempDir = File(appDir, "temp")
-    private val tempMediaFilesDir = File(tempDir, "media")
     private val serverInfoDir = File(appDir, "server_info")
     private val fingerprintFile = File(serverInfoDir, "fingerprint.txt")
     private val passwordFile = File(serverInfoDir, "password.txt")
@@ -80,9 +79,8 @@ abstract class Application(appDir: File) {
             var pass = ""
             withContext(Dispatchers.IO) {
                 appDir.mkdir()
+                if (tempDir.exists()) { tempDir.deleteRecursively() }
                 tempDir.mkdir()
-                if (tempMediaFilesDir.exists()) { tempMediaFilesDir.deleteRecursively() }
-                tempMediaFilesDir.mkdir()
                 serverInfoDir.mkdir()
                 if (!fingerprintFile.exists()) fingerprintFile.createNewFile()
                 if (!passwordFile.exists()) passwordFile.createNewFile()

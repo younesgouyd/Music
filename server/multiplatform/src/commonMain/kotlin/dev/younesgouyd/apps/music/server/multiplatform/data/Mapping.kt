@@ -66,13 +66,14 @@ fun PlaylistTrackCrossRef.toModel() = dev.younesgouyd.apps.music.common.models.d
     updateDatetime = updateDatetime
 )
 
-fun ClientSetting.toModel() = Setting(
-    id = id,
-    name = name,
-    value = value,
-    creationDatetime = creationDatetime,
-    updateDatetime = updateDatetime
-)
+fun ClientSetting.toModel(): Setting = when (name) {
+    Setting.DarkMode.NAME -> Setting.DarkMode(Setting.DarkMode.Values.valueOf(value))
+    Setting.ThemeFromPlaying.NAME -> Setting.ThemeFromPlaying(value.toBooleanStrict())
+    Setting.PaletteStyle.NAME -> Setting.PaletteStyle(Setting.PaletteStyle.Values.valueOf(value))
+    Setting.ColorSpec.NAME -> Setting.ColorSpec(Setting.ColorSpec.Values.valueOf(value))
+    Setting.IsAmoled.NAME -> Setting.IsAmoled(value.toBooleanStrict())
+    else -> TODO()
+}
 
 fun SpotifyAlbum.toModel() = dev.younesgouyd.apps.music.common.models.datamodels.SpotifyAlbum(
     id = id,

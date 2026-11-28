@@ -13,7 +13,7 @@ abstract class ClientSettingDao {
     private val logger = KotlinLogging.logger {  }
 
     @Query("select * from clientsetting where clientId = :clientId and name = :name")
-    abstract fun get(clientId: ClientId, name: String): Flow<ClientSetting?>
+    abstract fun get(clientId: ClientId, name: String): Flow<ClientSetting>
 
     @Transaction
     open suspend fun set(
@@ -30,9 +30,6 @@ abstract class ClientSettingDao {
             add(clientId = clientId, name = name, value = value, datetime = System.currentTimeMillis())
         }
     }
-
-    @Query("delete from clientsetting where clientId = :clientId and name = :name")
-    abstract suspend fun delete(clientId: ClientId, name: String)
 
     @Query("select 1 from clientsetting where clientId = :clientId and name = :name")
     abstract suspend fun exists(clientId: ClientId, name: String): Int?

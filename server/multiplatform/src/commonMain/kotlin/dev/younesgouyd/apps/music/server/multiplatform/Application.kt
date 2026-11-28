@@ -16,6 +16,7 @@ import dev.younesgouyd.apps.music.common.json
 import dev.younesgouyd.apps.music.common.models.ClientId
 import dev.younesgouyd.apps.music.common.models.MediaFileId
 import dev.younesgouyd.apps.music.common.models.WSMessage
+import dev.younesgouyd.apps.music.common.models.datamodels.Setting
 import dev.younesgouyd.apps.music.common.sha256Hash
 import dev.younesgouyd.apps.music.common.ui.Component
 import dev.younesgouyd.apps.music.common.ui.YounesMusicTheme
@@ -322,6 +323,7 @@ abstract class Application(appDir: File) {
                             val connectionDatetime = System.currentTimeMillis()
                             val clientRepo = repoStore.clientRepo
                             val sessionRepo = repoStore.clientSessionRepo
+                            val clientSettingRepo = repoStore.clientSettingRepo
                             val clientId: ClientId = run {
                                 val header = call.request.headers["Client-ID"]
                                 if (header != null) {
@@ -335,6 +337,11 @@ abstract class Application(appDir: File) {
                                 } else {
                                     val id = clientRepo.add("", null)
                                     sendSerialized<WSMessage>(WSMessage.Registration(id))
+                                    clientSettingRepo.set(id, Setting.DarkMode.default())
+                                    clientSettingRepo.set(id, Setting.ThemeFromPlaying.default())
+                                    clientSettingRepo.set(id, Setting.PaletteStyle.default())
+                                    clientSettingRepo.set(id, Setting.ColorSpec.default())
+                                    clientSettingRepo.set(id, Setting.IsAmoled.default())
                                     id
                                 }
                             }

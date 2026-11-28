@@ -2,15 +2,14 @@ package dev.younesgouyd.apps.music.ytdlp
 
 import dev.younesgouyd.apps.music.common.models.Base64Image
 import dev.younesgouyd.apps.music.common.models.datamodels.Inspection
+import dev.younesgouyd.apps.music.ytdlp.Api.YtDlpModels.Thumbnail
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonNames
 import java.io.File
 import java.net.URI
 import kotlin.coroutines.cancellation.CancellationException
@@ -36,31 +35,28 @@ object Api {
         return when (ytDlpType.type) {
             "playlist" -> {
                 val container = ytDlpSerializer.decodeFromString<YtDlpModels.Container>(containerCommand)
-                val containerThumbnailUrl = container.thumbnails
-                    .filter { !it.url.contains("maxresdefault") }
-                    .maxBy { it.width * it.height }
-                    .url
+                val containerThumbnail = tryList(container.thumbnails.reversed())
                 Inspection(
                     container = Inspection.Container(
                         uri = url,
                         title = container.title.ifBlank { TODO() },
                         description = container.description?.nullIfBlank(),
-                        thumbnailUrl = containerThumbnailUrl,
-                        thumbnail = downloadThumbnail(containerThumbnailUrl),
+                        thumbnailUrl = containerThumbnail?.url,
+                        thumbnail = containerThumbnail?.base64,
                     ),
                     items = buildList {
                         runCommand(listOf("--get-url", "--flat-playlist", "--simulate", "--quiet", "--no-warnings", url))
                             .split("\n")
                             .distinct()
                             .filter { it != "null" && it.isNotBlank() }
-                            .forEachIndexed { index, url ->
+                            .forEachIndexed { index, itemUrl ->
                                 val ytDlpInspection = runCommand(
-                                    args = listOf("--dump-single-json", "--simulate", "--quiet", "--no-warnings", url),
+                                    args = listOf("--dump-single-json", "--simulate", "--quiet", "--no-warnings", itemUrl),
                                     ignoreError = true
                                 )
                                 if (ytDlpInspection.isNotBlank() && ytDlpInspection.trim() != "null") {
                                     val entry = ytDlpSerializer.decodeFromString<YtDlpModels.Entry>(ytDlpInspection)
-                                    val itemThumbnailUrl = entry.thumbnail?.nullIfBlank()
+                                    val resolved = resolveEntryThumbnail(entry)
                                     val item = Inspection.Item(
                                         uri = entry.url.ifBlank { TODO() },
                                         title = entry.title.ifBlank { TODO() },
@@ -68,8 +64,8 @@ object Api {
                                         artists = entry.artists,
                                         album = entry.album?.let { if (it == "null") null else it.nullIfBlank() },
                                         id = (index + 1).toLong(),
-                                        thumbnailUrl = itemThumbnailUrl,
-                                        thumbnail = itemThumbnailUrl?.let { downloadThumbnail(it) }
+                                        thumbnailUrl = resolved?.url,
+                                        thumbnail = resolved?.base64
                                     )
                                     add(item)
                                 }
@@ -80,7 +76,7 @@ object Api {
             else -> {
                 val single = ytDlpSerializer.decodeFromString<YtDlpModels.Entry>(containerCommand)
                 val title = single.title.ifBlank { TODO() }
-                val thumbnailUrl = single.thumbnail?.nullIfBlank()
+                val resolved = resolveEntryThumbnail(single)
                 Inspection(
                     container = Inspection.Container(
                         uri = url,
@@ -97,8 +93,8 @@ object Api {
                             artists = single.artists,
                             album = single.album?.nullIfBlank(),
                             id = 1,
-                            thumbnailUrl = thumbnailUrl,
-                            thumbnail = thumbnailUrl?.let { downloadThumbnail(it) }
+                            thumbnailUrl = resolved?.url,
+                            thumbnail = resolved?.base64
                         )
                     )
                 )
@@ -165,6 +161,45 @@ object Api {
         }
     }
 
+    private suspend fun resolveEntryThumbnail(entry: YtDlpModels.Entry): ResolvedThumbnail? {
+        val sizeTokenRegex = Regex("""w\d+-h\d+""")
+        val filtered = entry.thumbnails.filter { it.url.contains(sizeTokenRegex) }.reversed()
+        val filteredResult = if (filtered.isNotEmpty()) {
+            val url = filtered.first().url
+            tryDownloadThumbnail(url.replace(sizeTokenRegex, "w1425-h1425"))
+                ?: tryDownloadThumbnail(url.replace(sizeTokenRegex, "w1200-h1200"))
+                ?: tryDownloadThumbnail(url.replace(sizeTokenRegex, "w1080-h1080"))
+                ?: tryList(filtered)
+        } else null
+        return filteredResult ?: entry.thumbnail?.let { tryDownloadThumbnail(it) }
+            ?: tryList(entry.thumbnails.filterNot { it.url.contains(sizeTokenRegex) }.reversed())
+    }
+
+    private suspend fun tryList(list: List<Thumbnail>): ResolvedThumbnail? {
+        val urls = list.map { it.url }
+        for (url in urls.filterNot { it.contains("maxresdefault") }) {
+            return tryDownloadThumbnail(url) ?: continue
+        }
+        for (url in urls.filter { it.contains("maxresdefault") }) {
+            return tryDownloadThumbnail(url) ?: continue
+        }
+        return null
+    }
+
+    private suspend fun tryDownloadThumbnail(url: String): ResolvedThumbnail? {
+        return try {
+            ResolvedThumbnail(
+                url = url,
+                base64 = downloadThumbnail(url)
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.warn(e) { "::tryDownloadThumbnail | failed to download thumbnail from $url" }
+            null
+        }
+    }
+
     private suspend fun downloadThumbnail(url: String): Base64Image {
         return withContext(Dispatchers.IO) {
             val bytes = URI(url).toURL().readBytes()
@@ -176,20 +211,36 @@ object Api {
         return this.ifBlank { null }
     }
 
+    private data class ResolvedThumbnail(
+        val url: String,
+        val base64: Base64Image
+    )
+
     private object YtDlpModels {
         @Serializable
         data class Type(
             @SerialName("_type")
             val type: String
         )
-        @OptIn(ExperimentalSerializationApi::class)
+
+        @Serializable
+        data class Thumbnail(
+            val url: String,
+            val height: Int? = null,
+            val width: Int? = null,
+            val preference: Int? = null,
+            val id: String? = null,
+            val resolution: String? = null
+        )
+
         @Serializable
         data class Entry(
             val id: String,
             val title: String,
             val thumbnail: String? = null,
+            val thumbnails: List<Thumbnail> = emptyList(),
             val duration: Int? = null, // TODO: confirm if this is always in seconds
-            @JsonNames("url", "original_url") // TODO
+            @SerialName("original_url") // TODO
             val url: String,
             val album: String? = null,
             val artists: List<String> = emptyList(),
@@ -203,14 +254,6 @@ object Api {
             val title: String,
             val description: String?,
             val thumbnails: List<Thumbnail>
-        ) {
-            @Serializable
-            data class Thumbnail(
-                val url: String,
-                val height: Int,
-                val width: Int,
-                val id: String
-            )
-        }
+        )
     }
 }

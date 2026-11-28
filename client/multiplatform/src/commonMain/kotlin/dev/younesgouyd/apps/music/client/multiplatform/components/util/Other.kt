@@ -85,22 +85,25 @@ fun PlaybackSlider(
 
     if (durationMs == null || positionMs == null) {
         Slider(
+            state = rememberSliderState(
+                value = 0f,
+            ),
+            onValueChange = {},
             modifier = modifier,
             enabled = false,
-            value = 0f,
-            onValueChange = {}
         )
     } else {
         val sliderValue: Float = if (isInteracting) selectedPositon else positionMs.toFloat() // TODO
         Slider(
-            modifier = modifier,
-            enabled = enabled,
-            value = sliderValue,
-            valueRange = 0f..durationMs.toFloat(),
-            onValueChange = { newValue ->
+            state = rememberSliderState(
+                value = sliderValue,
+                trackRange = 0f..durationMs.toFloat()
+            ), onValueChange = { newValue ->
                 isInteracting = true
                 selectedPositon = newValue
             },
+            modifier = modifier,
+            enabled = enabled,
             onValueChangeFinished = {
                 isInteracting = false
                 onSeek(selectedPositon.toLong())

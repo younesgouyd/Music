@@ -168,7 +168,7 @@ class ServerConnection(
             is WSMessage.Response -> {
                 when (message) {
                     is WSMessage.Response.Data -> "Response.Data ${message.correlationId}: ${json.encodeToString(message.value)}"
-                    is WSMessage.Response.Done -> "Response.Data ${message.correlationId}"
+                    is WSMessage.Response.Done -> "Response.Done ${message.correlationId}"
                 }
             }
         }

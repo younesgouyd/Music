@@ -6,7 +6,6 @@ import dev.younesgouyd.apps.music.common.models.ResultType
 import dev.younesgouyd.apps.music.common.models.Rpc
 import dev.younesgouyd.apps.music.common.models.WSMessage
 import dev.younesgouyd.apps.music.server.multiplatform.data.RepoStore
-import dev.younesgouyd.apps.music.server.multiplatform.data.repoes.ClientSettingRepo
 import dev.younesgouyd.apps.music.server.multiplatform.data.toModel
 import dev.younesgouyd.apps.music.server.multiplatform.spotify.Spotify
 import dev.younesgouyd.apps.music.server.multiplatform.usecases.*
@@ -124,7 +123,7 @@ class WebSocketSessionHandler(
             is WSMessage.Response -> {
                 when (message) {
                     is WSMessage.Response.Data -> "Response.Data ${message.correlationId}: ${json.encodeToString(message.value)}"
-                    is WSMessage.Response.Done -> "Response.Data ${message.correlationId}"
+                    is WSMessage.Response.Done -> "Response.Done ${message.correlationId}"
                 }
             }
         }
@@ -570,13 +569,12 @@ class WebSocketSessionHandler(
                     }
                 }
                 is Rpc.ToServer.Setting -> when (rpc) {
-                    is Rpc.ToServer.Setting.GetDarkTheme -> {
-                        clientSettingRepo.get(clientId, ClientSettingRepo.SettingName.DARK_MODE)
-                            .map { it?.toModel() }
+                    is Rpc.ToServer.Setting.Get -> {
+                        clientSettingRepo.get(clientId, rpc.name)
                             .collect { sendData(correlationId, it, rpc.serializer) }
                     }
-                    is Rpc.ToServer.Setting.UpdateDarkTheme -> {
-                        clientSettingRepo.set(clientId, ClientSettingRepo.SettingName.DARK_MODE, rpc.theme.name)
+                    is Rpc.ToServer.Setting.Set -> {
+                        clientSettingRepo.set(clientId, rpc.setting)
                         sendDone(correlationId)
                     }
                 }

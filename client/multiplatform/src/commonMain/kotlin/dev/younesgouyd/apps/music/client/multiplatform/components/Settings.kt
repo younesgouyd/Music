@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.SettingRepo
 import dev.younesgouyd.apps.music.client.multiplatform.data.repoes.SpotifyAuthRepo
-import dev.younesgouyd.apps.music.common.models.DarkThemeOptions
+import dev.younesgouyd.apps.music.common.models.datamodels.Setting
 import dev.younesgouyd.apps.music.common.ui.Component
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -30,7 +30,9 @@ class Settings(
     init {
         coroutineScope.launch {
             state.value = Ui.State.Loaded(
-                darkTheme = settingRepo.getDarkTheme().map { it?.value?.let { DarkThemeOptions.valueOf(it) } }.stateIn(coroutineScope),
+                darkTheme = settingRepo.get(Setting.DarkMode.NAME)
+                    .map { (it as Setting.DarkMode).value }
+                    .stateIn(coroutineScope),
                 spotifyState = spotifyState.asStateFlow(),
                 onDarkThemeChange = ::updateDarkTheme
             )
@@ -93,9 +95,9 @@ class Settings(
         coroutineScope.cancel()
     }
 
-    private fun updateDarkTheme(newValue: DarkThemeOptions) {
+    private fun updateDarkTheme(newValue: Setting.DarkMode.Values) {
         coroutineScope.launch {
-            settingRepo.updateDarkTheme(newValue)
+            settingRepo.set(Setting.DarkMode(newValue))
         }
     }
 
@@ -127,9 +129,9 @@ class Settings(
             data object Loading : State()
 
             class Loaded(
-                val darkTheme: StateFlow<DarkThemeOptions?>,
+                val darkTheme: StateFlow<Setting.DarkMode.Values>,
                 val spotifyState: StateFlow<SpotifyState>,
-                val onDarkThemeChange: (DarkThemeOptions) -> Unit
+                val onDarkThemeChange: (Setting.DarkMode.Values) -> Unit
             ) : State()
         }
 
@@ -144,65 +146,73 @@ class Settings(
         @Composable
         private fun Settings(modifier: Modifier, loaded: State.Loaded) {
             val scrollState = rememberScrollState()
-            val darkTheme by loaded.darkTheme.collectAsState()
+            val darkTheme = loaded.darkTheme
             val spotifyState by loaded.spotifyState.collectAsState()
 
-            Column(
-                modifier = modifier.fillMaxWidth().verticalScroll(scrollState),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+            Box(
+                modifier = modifier.fillMaxSize()
+                    .padding(16.dp)
+                    .verticalScroll(scrollState),
+                contentAlignment = Alignment.TopCenter
             ) {
-                DarkTheme(
-                    modifier = Modifier.fillMaxWidth(),
-                    selectedOption = darkTheme,
-                    onDarkThemeChange = loaded.onDarkThemeChange
-                )
-                Spotify(
-                    modifier = Modifier.fillMaxWidth(),
-                    state = spotifyState
-                )
+                Column(
+                    modifier = modifier.width(500.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    DarkModeField(
+                        modifier = Modifier.fillMaxWidth(),
+                        value = darkTheme,
+                        onValueChange = loaded.onDarkThemeChange
+                    )
+                    Spotify(
+                        modifier = Modifier.fillMaxWidth(),
+                        state = spotifyState
+                    )
+                }
             }
         }
 
         @Composable
-        private fun DarkTheme(
+        private fun DarkModeField(
             modifier: Modifier,
-            selectedOption: DarkThemeOptions?,
-            onDarkThemeChange: (DarkThemeOptions) -> Unit
+            value: StateFlow<Setting.DarkMode.Values>,
+            onValueChange: (Setting.DarkMode.Values) -> Unit
         ) {
+            val value by value.collectAsState()
             var expanded by remember { mutableStateOf(false) }
 
-            Row(
+            ExposedDropdownMenuBox(
                 modifier = modifier,
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
+                expanded = expanded,
+                onExpandedChange = { expanded = it }
             ) {
-                Text("Dark Theme")
-                ExposedDropdownMenuBox(
+                TextField(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                    label = { Text("Dark Mode") },
+                    value = value.label,
+                    onValueChange = {},
+                    readOnly = true,
+                    singleLine = true,
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                    colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                )
+                ExposedDropdownMenu(
                     expanded = expanded,
-                    onExpandedChange = { expanded = it }
+                    onDismissRequest = { expanded = false },
+                    containerColor = MenuDefaults.groupStandardContainerColor,
+                    shape = MenuDefaults.standaloneGroupShape
                 ) {
-                    OutlinedTextField(
-                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                        value = selectedOption?.label ?: "",
-                        onValueChange = {},
-                        readOnly = true,
-                        singleLine = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                        colors = ExposedDropdownMenuDefaults.textFieldColors(),
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        DarkThemeOptions.entries.forEachIndexed { index, option ->
-                            SelectableDropdownMenuItem(
-                                text = { Text(option.label) },
-                                selected = option == selectedOption,
-                                onClick = { onDarkThemeChange(option) },
-                                shapes = MenuDefaults.itemShape(index, DarkThemeOptions.entries.size)
-                            )
-                        }
+                    Setting.DarkMode.Values.entries.forEachIndexed { index, option ->
+                        SelectableDropdownMenuItem(
+                            text = { Text(option.label) },
+                            selected = option == value,
+                            onClick = { onValueChange(option) },
+                            shapes = MenuDefaults.itemShape(index, Setting.DarkMode.Values.entries.size),
+                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                        )
                     }
                 }
             }
